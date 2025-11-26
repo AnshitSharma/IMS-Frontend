@@ -360,6 +360,19 @@ class Dashboard {
         });
     }
 
+    async loadSidebarCounts() {
+        try {
+            // Fetch dashboard data to get component counts
+            const result = await api.dashboard.getData();
+            if (result.success && result.data.component_counts) {
+                this.updateSidebarCounts(result.data.component_counts);
+            }
+        } catch (error) {
+            console.error('Error loading sidebar counts:', error);
+            // Silently fail - sidebar counts are not critical
+        }
+    }
+
     async loadRecentActivity() {
         const mockActivity = [
             { type: 'added', component: 'CPU', details: 'Intel Core i9-12900K added', user: 'Admin', time: new Date(Date.now() - 30 * 60 * 1000) },
@@ -418,6 +431,9 @@ class Dashboard {
 
                 this.updateBulkActions();
             }
+
+            // Update sidebar counts by fetching dashboard data
+            await this.loadSidebarCounts();
         } catch (error) {
             console.error(`Error loading ${componentType} components:`, error);
             utils.showAlert(`Failed to load ${componentType} components`, 'error');
@@ -473,6 +489,9 @@ class Dashboard {
 
             // Apply frontend filtering
             this.filterAndRenderServers();
+
+            // Update sidebar counts by fetching dashboard data
+            await this.loadSidebarCounts();
 
         } catch (error) {
             console.error(`Error loading servers:`, error);
