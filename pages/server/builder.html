@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Builder - BDC IMS</title>
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50">
+    <!-- Hamburger Menu Button (Mobile) -->
+    <button class="hamburger-menu fixed top-4 left-4 z-50 lg:hidden" id="hamburgerBtn" aria-label="Toggle Menu">
+        <span class="block w-6 h-0.5 bg-slate-700 mb-1"></span>
+        <span class="block w-6 h-0.5 bg-slate-700 mb-1"></span>
+        <span class="block w-6 h-0.5 bg-slate-700"></span>
+    </button>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay fixed inset-0 bg-black/50 z-40 hidden" id="mobileOverlay"></div>
+
+    <!-- Navigation Header -->
+    <nav class="navbar bg-white shadow-sm">
+        <div class="nav-container max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
+                <i class="fas fa-server"></i>
+                <span>BDC Inventory</span>
+            </div>
+
+            <div class="nav-menu flex items-center gap-4">
+                <div class="nav-search hidden lg:flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg">
+                    <i class="fas fa-search text-slate-400"></i>
+                    <input type="text" id="globalSearch" placeholder="Search components..."
+                           class="bg-transparent border-none outline-none text-sm">
+                </div>
+
+                <div class="nav-user flex items-center gap-3">
+                    <div class="user-info text-right hidden md:block">
+                        <span id="userDisplayName" class="block text-sm font-medium text-slate-800">Loading...</span>
+                        <span id="userRole" class="block text-xs text-slate-600">User</span>
+                    </div>
+                    <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown relative">
+                        <button class="dropdown-btn text-slate-600 hover:text-slate-800">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-content absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden">
+                            <a href="#" id="changePassword" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                <i class="fas fa-key"></i> Change Password
+                            </a>
+                            <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container with Layout Wrapper -->
+    <div class="layout-wrapper">
+    <div class="main-container flex">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 bg-white border-r border-slate-200 min-h-screen">
+            <div class="sidebar-header px-4 py-4 border-b border-slate-200">
+                <h3 class="font-semibold text-slate-800">Components</h3>
+            </div>
+
+            <ul class="sidebar-menu">
+                <li class="menu-item px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50" data-component="dashboard" onclick="window.location.href='../../pages/dashboard/index.html'">
+                    <i class="fas fa-tachometer-alt text-slate-600"></i>
+                    <span class="text-sm text-slate-700">Dashboard</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="cpu">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-microchip text-slate-600"></i>
+                        <span class="text-sm text-slate-700">CPUs</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="cpuCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="ram">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-memory text-slate-600"></i>
+                        <span class="text-sm text-slate-700">RAM</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="ramCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="storage">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-hdd text-slate-600"></i>
+                        <span class="text-sm text-slate-700">Storage</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="storageCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="motherboard">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-th-large text-slate-600"></i>
+                        <span class="text-sm text-slate-700">Motherboards</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="motherboardCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="nic">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-network-wired text-slate-600"></i>
+                        <span class="text-sm text-slate-700">Network Cards</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="nicCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="caddy">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-box text-slate-600"></i>
+                        <span class="text-sm text-slate-700">Caddies</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="caddyCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="chassis">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-server text-slate-600"></i>
+                        <span class="text-sm text-slate-700">Chassis</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="chassisCount">0</span>
+                </li>
+                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50" data-component="pciecard">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-credit-card text-slate-600"></i>
+                        <span class="text-sm text-slate-700">PCIe Cards</span>
+                    </div>
+                    <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="pciecardCount">0</span>
+                </li>
+                <li class="menu-item active px-4 py-3 flex items-center justify-between cursor-pointer bg-primary-50 border-l-4 border-primary" data-component="servers">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-cubes text-primary"></i>
+                        <span class="text-sm font-medium text-primary">Servers</span>
+                    </div>
+                    <span class="count text-xs bg-primary text-white px-2 py-1 rounded" id="serversCount">0</span>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content flex-1 p-6">
+            <div class="content-section active">
+                <div class="content-header flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-tools text-primary"></i> Server Builder
+                    </h2>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2" onclick="window.location.href='index.html'">
+                            <i class="fas fa-arrow-left"></i> Back to List
+                        </button>
+                    </div>
+                </div>
+
+                <!-- App Container -->
+                <div id="app">
+                    <div class="text-center py-16">
+                        <div class="loading-spinner inline-block">
+                            <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                            <p class="text-slate-600">Loading server configuration...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
+        <div class="loading-spinner bg-white rounded-lg p-8 text-center">
+            <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+            <p class="text-slate-700">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../assets/js/server/server-api.js"></script>
+    <script src="../../assets/js/server/pcpartpicker-builder.js"></script>
+    <script src="../../assets/js/server/server-builder.js"></script>
+</body>
+</html>
