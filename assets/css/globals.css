@@ -392,6 +392,88 @@
     @apply block px-4 py-2 text-sm text-gray-900 hover:bg-gray-100 first:rounded-t-lg last:rounded-b-lg transition-colors duration-200;
   }
 
+  /* Table Base Styles with Fixed Heights */
+  .table-base th {
+    @apply h-14 align-middle;
+  }
+
+  .table-base td {
+    @apply h-16 align-middle;
+  }
+
+  .table-base tbody tr {
+    @apply h-16;
+  }
+
+  /* Ensure consistent row heights across all component tables */
+  .components-table th {
+    @apply px-4 py-3 text-left text-sm font-semibold text-gray-900 h-14 align-middle;
+  }
+
+  .components-table td {
+    @apply px-4 py-3 text-sm text-gray-600 h-16 align-middle;
+  }
+
+  .components-table tbody tr {
+    @apply h-16 transition-colors;
+  }
+
+  .components-table tbody tr:hover {
+    @apply bg-slate-50;
+  }
+
+  /* Mobile Card View for Tables */
+  @media (max-width: 768px) {
+    .table-responsive thead {
+      @apply sr-only;
+    }
+
+    .table-responsive tbody,
+    .table-responsive tr {
+      @apply block w-full;
+    }
+
+    .table-responsive tr {
+      @apply mb-4 bg-white rounded-lg shadow-sm border border-slate-200 p-4;
+    }
+
+    .table-responsive td {
+      @apply flex justify-between items-start py-2 px-0 border-0 h-auto;
+    }
+
+    .table-responsive td::before {
+      content: attr(data-label);
+      @apply font-semibold text-slate-700 mr-4 flex-shrink-0 min-w-[120px];
+    }
+
+    /* Hide checkbox column on mobile - show select mode instead */
+    .table-responsive td:first-child {
+      @apply hidden;
+    }
+  }
+
+  /* Sidebar Responsive Improvements */
+  @media (max-width: 1024px) {
+    .sidebar {
+      @apply -translate-x-full;
+    }
+
+    .sidebar.active {
+      @apply translate-x-0;
+    }
+
+    /* Prevent body scroll when sidebar is open */
+    body.sidebar-open {
+      @apply overflow-hidden;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar {
+      @apply translate-x-0 static;
+    }
+  }
+
   /* Loading Overlay */
   .loading-overlay {
     @apply fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-loading;

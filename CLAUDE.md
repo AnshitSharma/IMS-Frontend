@@ -172,3 +172,104 @@ Comprehensive API documentation for ticketing endpoints - refer here for:
 - Request/response formats with full examples
 - Status transition rules and constraints
 - Error codes and handling
+
+## Recent Bug Fixes & UI Improvements
+
+### Sidebar Navigation (Fixed 2025-11-27)
+**Issue**: Sidebar menu items required multiple clicks to navigate, especially when clicking count badges.
+
+**Root Cause**: Nested clickable elements - `<li>` with click handlers contained `<a>` links, and count badges were outside the anchor tags.
+
+**Fix Applied**:
+- Restructured all 13 dashboard pages to move styling from `<li>` to `<a>` elements
+- Moved count badges inside anchor tags so clicking them triggers navigation
+- Updated event handlers in `dashboard.js` to attach to `.menu-item a` instead of `.menu-item`
+- Added 100ms timeout before closing sidebar on mobile to ensure navigation completes
+
+**Files Modified**:
+- All HTML pages in `pages/dashboard/` (sidebar menu structure)
+- `assets/js/dashboard/dashboard.js` (lines 71-80, event handlers)
+
+### API Data Rendering Issues (Fixed 2025-11-27)
+
+#### Servers Page
+**Issue**: Server cards not rendering despite API returning data.
+
+**Root Cause**: Container ID mismatch - JavaScript expected `serverCardsGrid` but HTML had `serverGrid`.
+
+**Fix**: Changed container ID in `pages/dashboard/servers.html` line 218.
+
+#### Access Control Page
+**Issue**: ACL page showed no data - initialization was exiting early.
+
+**Root Cause**: Missing HTML elements - `acl.js` expected full permissions interface but HTML only had simple user table.
+
+**Fix**: Modified `assets/js/server/acl.js` to detect simple ACL mode and initialize appropriately with new functions:
+- `initializeSimpleACLList()` - Handles simple user list mode
+- `loadACLUsers()` - Fetches and displays users from API
+- `renderACLTable()` - Renders user rows with role badges
+
+#### Tickets Page
+**Issue**: Tickets not loading - authentication failing.
+
+**Root Cause**: Token key mismatch - `tickets.js` used `access_token` instead of project standard `bdc_token`.
+
+**Fix**: Updated `getAuthToken()` method in `assets/js/tickets.js` line 499.
+
+### Table Consistency & Responsiveness (Fixed 2025-11-27)
+
+**Issues**:
+1. Inconsistent table row heights across different content
+2. Tables not responsive on mobile devices
+3. Action buttons too small for touch targets
+4. Header actions not mobile-friendly
+
+**Fixes Applied**:
+
+1. **Table Row Heights** - Added to `assets/css/globals.css`:
+   - `.table-base` and `.components-table` classes with fixed heights (h-14 for headers, h-16 for rows)
+   - Updated all component pages to include these classes on tables
+   - Updated `dashboard.js` table rendering to include height classes on all `<tr>` and `<td>` elements
+
+2. **Mobile Card View** - Added responsive table CSS:
+   - Tables transform to card layout on mobile (<768px)
+   - Uses `data-label` attributes to show field names
+   - Hides thead and displays each row as a card
+   - Automatically hides checkbox column on mobile
+
+3. **Touch Targets** - All interactive elements now meet 44px minimum:
+   - Buttons: `min-h-[44px]` class added
+   - Action buttons show icon only on mobile, icon + text on desktop using `hidden sm:inline`
+   - Enhanced styling with hover states and transitions
+
+4. **Responsive Header Actions**:
+   - Header actions stack vertically on mobile, horizontal on desktop
+   - Search and filter inputs full-width on mobile
+   - Buttons full-width on mobile for better touch accessibility
+
+**Files Modified**:
+- `assets/css/globals.css` (lines 395-475, new table and responsive styles)
+- `assets/js/dashboard/dashboard.js` (lines 535-560, table rendering with classes and data-labels)
+- All 9 component pages in `pages/dashboard/` (table headers and header actions updated)
+
+### Responsive Sidebar Behavior (Fixed 2025-11-27)
+
+**Enhancement**: Improved mobile sidebar with proper transitions and body scroll prevention.
+
+**Added CSS**:
+- Sidebar slides off-screen on mobile using `-translate-x-full`
+- Active state applies `translate-x-0` for smooth slide-in
+- Body scroll locked when sidebar open on mobile using `overflow-hidden`
+- Responsive breakpoint at 1024px (lg:)
+
+**Location**: `assets/css/globals.css` lines 455-475
+
+## CSS Build Process
+
+After making changes to `assets/css/globals.css`, rebuild the compiled Tailwind CSS:
+
+```bash
+npm run build:css
+```
+
+This command runs Tailwind CLI to process `globals.css` and output minified `tailwind.css`.

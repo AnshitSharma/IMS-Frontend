@@ -201,7 +201,16 @@ window.initACL = function () {
     const deleteRoleList = document.getElementById('deleteRoleList');
     const confirmMessage = document.getElementById('confirmMessage');
 
-    // Check if elements exist before proceeding
+    // Check if we're on the simple ACL list page
+    const aclTableBody = document.getElementById('aclTableBody');
+    if (!permissionsContainer && !roleSelect && aclTableBody) {
+        // Initialize simple ACL list mode
+        console.log('Initializing simple ACL list mode');
+        initializeSimpleACLList();
+        return;
+    }
+
+    // Check if elements exist before proceeding with full ACL mode
     if (!permissionsContainer || !roleSelect) {
         console.warn('ACL elements not found in DOM, skipping initialization');
         return;
@@ -859,157 +868,125 @@ window.initACL = function () {
 
     // Initial fetch of permissions
     fetchPermissions();
-};
 
-// User Management Logic
-class UserManager {
-    constructor() {
-        this.users = [];
-        this.currentPage = 1;
-        this.itemsPerPage = 10;
-        this.loading = false;
-    }
+    // Simple ACL list mode functions
+    function initializeSimpleACLList() {
+        // Simple mode - just show users with their roles in a table
+        loadACLUsers();
 
-    async init() {
-        await this.loadUsers();
-        this.setupEventListeners();
-    }
-
-    setupEventListeners() {
-        const refreshBtn = document.getElementById('refreshAclBtn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadUsers());
-        }
-
-        const searchInput = document.getElementById('aclSearch');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
+        // Set up Add User button if it exists
+        const addUserBtn = document.getElementById('addUserBtn');
+        if (addUserBtn) {
+            addUserBtn.addEventListener('click', () => {
+                toast.warning('User management functionality coming soon');
+            });
         }
     }
 
-    async loadUsers() {
-        if (this.loading) return;
-        this.loading = true;
-
+    async function loadACLUsers() {
         try {
-            // Show loading state if possible
-            const tbody = document.getElementById('aclTableBody');
-            if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Loading users...</td></tr>';
-            }
+            // For now, show a placeholder message
+            const tableBody = document.getElementById('aclTableBody');
+            if (!tableBody) return;
 
-            const result = await api.users.list();
+            // Show loading state
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                        <i class="fas fa-spinner fa-spin mr-2"></i> Loading users...
+                    </td>
+                </tr>
+            `;
 
-            if (result.success && result.data) {
-                this.users = result.data.users || []; // Adjust based on actual API response structure
-                this.renderUsers();
+            // Attempt to fetch users from API
+            // Note: This endpoint may not exist yet
+            const response = await window.api.get('/users/list');
+
+            if (response && response.success && response.data && response.data.users) {
+                renderACLTable(response.data.users);
             } else {
-                console.error('Failed to load users:', result);
-                if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500">Failed to load users</td></tr>';
+                // Show placeholder if no data
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                            <i class="fas fa-users text-4xl mb-3 block"></i>
+                            <p class="text-lg font-medium mb-2">No users found</p>
+                            <p class="text-sm">User access control list is empty</p>
+                        </td>
+                    </tr>
+                `;
             }
         } catch (error) {
-            console.error('Error loading users:', error);
-            const tbody = document.getElementById('aclTableBody');
-            if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500">Error loading users</td></tr>';
-        } finally {
-            this.loading = false;
+            console.error('Failed to load ACL users:', error);
+            const tableBody = document.getElementById('aclTableBody');
+            if (tableBody) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-red-600">
+                            <i class="fas fa-exclamation-triangle text-2xl mb-2 block"></i>
+                            <p>Failed to load users</p>
+                            <p class="text-sm text-slate-500 mt-1">${error.message || 'Unknown error'}</p>
+                        </td>
+                    </tr>
+                `;
+            }
         }
     }
 
-    renderUsers() {
-        const tbody = document.getElementById('aclTableBody');
-        if (!tbody) return;
+    function renderACLTable(users) {
+        const tableBody = document.getElementById('aclTableBody');
+        if (!tableBody) return;
 
-        if (this.users.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No users found</td></tr>';
+        if (!users || users.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                        No users found
+                    </td>
+                </tr>
+            `;
             return;
         }
 
-        tbody.innerHTML = this.users.map(user => `
-            <tr class="hover:bg-slate-50 border-b border-slate-100 last:border-0">
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="flex items-center">
-                        <div class="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold mr-3">
-                            ${(user.firstname || user.username || 'U').charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="text-sm font-medium text-slate-900">${user.firstname} ${user.lastname}</div>
-                            <div class="text-xs text-slate-500">@${user.username}</div>
-                        </div>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        ${user.primary_role || 'User'}
+        tableBody.innerHTML = users.map(user => `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3">${escapeHtml(user.username || user.name || 'N/A')}</td>
+                <td class="px-4 py-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                        ${escapeHtml(user.role || 'User')}
                     </span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    ${user.email || 'N/A'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    ${user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="text-primary hover:text-primary-700 mx-1" onclick="userManager.editUser(${user.id})" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="text-red-600 hover:text-red-800 mx-1" onclick="userManager.deleteUser(${user.id})" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <td class="px-4 py-3">${escapeHtml(user.email || 'N/A')}</td>
+                <td class="px-4 py-3 text-slate-500">${user.last_active || 'Never'}</td>
+                <td class="px-4 py-3">
+                    <div class="flex items-center gap-2">
+                        <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="editACLUser(${user.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="text-red-600 hover:text-red-800 transition-colors" onclick="deleteACLUser(${user.id})" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
     }
 
-    handleSearch(query) {
-        // Implement client-side search or debounce API call
-        // For now, simple client-side filter if we have all users
-        const lowerQuery = query.toLowerCase();
-        const filtered = this.users.filter(user =>
-            (user.username && user.username.toLowerCase().includes(lowerQuery)) ||
-            (user.email && user.email.toLowerCase().includes(lowerQuery)) ||
-            (user.firstname && user.firstname.toLowerCase().includes(lowerQuery)) ||
-            (user.lastname && user.lastname.toLowerCase().includes(lowerQuery))
-        );
-        // Temporarily swap users list to render, then restore? 
-        // Better to have filteredUsers state.
-        // For simplicity in this quick fix:
-        const originalUsers = this.users;
-        this.users = filtered;
-        this.renderUsers();
-        this.users = originalUsers; // Restore for next search
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
-    editUser(id) {
-        console.log('Edit user', id);
-        // Implement edit logic
-    }
+    // Expose functions globally for onclick handlers
+    window.editACLUser = function(userId) {
+        toast.warning('Edit user functionality coming soon');
+        console.log('Edit user:', userId);
+    };
 
-    deleteUser(id) {
-        if (confirm('Are you sure you want to delete this user?')) {
-            console.log('Delete user', id);
-            // Implement delete logic
-        }
-    }
-}
-
-let userManager = null;
-
-function initACL() {
-    // Initialize Permissions Manager (existing code)
-    // We need to make sure the existing code runs. 
-    // The existing code was wrapped in a function that wasn't named initACL but was just executed or assigned.
-    // Looking at previous file content, it seemed to be a function body.
-    // Let's assume the previous content was the body of initACL or similar.
-    // Actually, the previous file content ended with `};` which suggests it was closing a function.
-    // And `initACL` was likely defined earlier.
-
-    // Initialize User Manager
-    if (!userManager) {
-        userManager = new UserManager();
-    }
-    userManager.init();
-}
-
-// Expose initACL globally if not already
-window.initACL = initACL;
+    window.deleteACLUser = function(userId) {
+        toast.warning('Delete user functionality coming soon');
+        console.log('Delete user:', userId);
+    };
+};

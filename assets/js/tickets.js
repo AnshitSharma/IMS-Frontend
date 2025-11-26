@@ -37,7 +37,7 @@ class TicketsManager {
         // Create ticket buttons
         const createBtn = document.getElementById('createTicketBtn');
         const createFirstBtn = document.getElementById('createFirstTicketBtn');
-        
+
         if (createBtn) {
             createBtn.addEventListener('click', () => this.showCreateTicketForm());
         }
@@ -125,7 +125,7 @@ class TicketsManager {
                 this.totalTickets = result.data.total || 0;
                 this.filteredTickets = [...this.tickets];
                 this.renderTickets();
-                
+
                 if (this.tickets.length === 0) {
                     this.showEmptyState();
                 }
@@ -153,10 +153,10 @@ class TicketsManager {
                 const title = (ticket.title || '').toLowerCase();
                 const ticketNumber = (ticket.ticket_number || '').toLowerCase();
                 const description = (ticket.description || '').toLowerCase();
-                
+
                 return title.includes(this.searchTerm) ||
-                       ticketNumber.includes(this.searchTerm) ||
-                       description.includes(this.searchTerm);
+                    ticketNumber.includes(this.searchTerm) ||
+                    description.includes(this.searchTerm);
             });
         }
 
@@ -184,7 +184,7 @@ class TicketsManager {
     renderTickets() {
         const tbody = document.getElementById('ticketsTableBody');
         const tableContainer = document.querySelector('.table-container');
-        
+
         if (!tbody) return;
 
         if (this.filteredTickets.length === 0) {
@@ -451,7 +451,7 @@ class TicketsManager {
         const errorState = document.getElementById('ticketsErrorState');
         const errorMessage = document.getElementById('ticketsErrorMessage');
         const tableContainer = document.querySelector('.table-container');
-        
+
         if (errorState) {
             errorState.style.display = 'block';
         }
@@ -469,7 +469,7 @@ class TicketsManager {
     showEmptyState() {
         const emptyState = document.getElementById('ticketsEmptyState');
         const tableContainer = document.querySelector('.table-container');
-        
+
         if (emptyState) {
             emptyState.style.display = 'block';
         }
@@ -496,7 +496,7 @@ class TicketsManager {
      */
     getAuthToken() {
         // Try to get token from localStorage
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem('bdc_token');
         return token;
     }
 
@@ -517,10 +517,10 @@ class TicketsManager {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString;
-        
-        const options = { 
-            year: 'numeric', 
-            month: 'short', 
+
+        const options = {
+            year: 'numeric',
+            month: 'short',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit'

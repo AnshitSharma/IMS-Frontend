@@ -31,7 +31,7 @@ class ServerAPI {
     async makeRequest(data) {
         try {
             const formData = new FormData();
-            
+
             // Add all data to FormData
             for (const [key, value] of Object.entries(data)) {
                 formData.append(key, value);
@@ -52,7 +52,7 @@ class ServerAPI {
                 window.location.href = '/ims_frontend/';
                 return;
             }
-            
+
             throw new Error(error.response?.data?.message || 'Network error occurred');
         }
     }
@@ -191,11 +191,11 @@ class ServerAPI {
     // Get next available component types based on current configuration
     getNextAvailableTypes(currentComponents) {
         const hasMotherboard = currentComponents.some(c => c.component_type === 'motherboard');
-        
+
         if (!hasMotherboard) {
             return ['motherboard'];
         }
-        
+
         // After motherboard, all types are available
         return ['cpu', 'ram', 'storage', 'nic', 'psu', 'gpu', 'cabinet'];
     }

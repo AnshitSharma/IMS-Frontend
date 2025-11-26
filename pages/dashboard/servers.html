@@ -63,41 +63,162 @@
     <!-- Main Container with Layout Wrapper -->
     <div class="layout-wrapper">
         <div class="main-container flex">
-            <div id="serverView" class="content-section active">
-                <div class="content-header mb-6">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-4">Servers</h2>
-                    <div class="header-actions flex flex-wrap items-center gap-3">
-                        <div class="search-filter flex flex-wrap gap-3 flex-1">
-                            <input type="text" id="serverSearch" placeholder="Search servers..."
-                                class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                            <select id="serverStatusFilter"
-                                class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                                <option value="">All Status</option>
-                                <option value="draft">Draft</option>
-                                <option value="validated">Validated</option>
-                                <option value="built">Built</option>
-                                <option value="finalized">Finalized</option>
-                            </select>
-                        </div>
-                        <button
-                            class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                            id="addServerBtn">
-                            <i class="fas fa-plus"></i> Build Server
-                        </button>
-                        <button
-                            class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
-                            id="refreshServers">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
+            <!-- Sidebar -->
+            <aside class="sidebar w-64 bg-white border-r border-slate-200 min-h-screen fixed lg:static">
+                <div class="sidebar-header px-4 py-4 border-b border-slate-200">
+                    <h3 class="font-semibold text-slate-800">Components</h3>
                 </div>
 
-                <!-- Server Grid -->
-                <div class="server-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                    id="serverGrid">
-                    <!-- Server cards will be populated here -->
+                <ul class="sidebar-menu">
+                    <li class="menu-item" data-component="dashboard">
+                        <a href="index.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-tachometer-alt text-slate-600"></i>
+                            <span class="text-sm text-slate-700">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="cpu">
+                        <a href="cpu.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bolt text-slate-600"></i>
+                                <span class="text-sm text-slate-700">CPUs</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="cpuCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="ram">
+                        <a href="ram.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-memory text-slate-600"></i>
+                                <span class="text-sm text-slate-700">RAM</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="ramCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="storage">
+                        <a href="storage.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-hdd text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Storage</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="storageCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="motherboard">
+                        <a href="motherboard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-th-large text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Motherboards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="motherboardCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="nic">
+                        <a href="nic.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-network-wired text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Network Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="nicCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="caddy">
+                        <a href="caddy.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-box text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Caddies</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="caddyCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="chassis">
+                        <a href="chassis.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-server text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Chassis</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="chassisCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="pciecard">
+                        <a href="pciecard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-credit-card text-slate-600"></i>
+                                <span class="text-sm text-slate-700">PCIe Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="pciecardCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="hbacard">
+                        <a href="hbacard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-plug text-slate-600"></i>
+                                <span class="text-sm text-slate-700">HBA Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="hbacardCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item active" data-component="servers">
+                        <a href="servers.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer bg-primary-50 border-l-4 border-primary transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-cubes text-primary"></i>
+                                <span class="text-sm font-medium text-primary">Servers</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="serversCount">0</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="acl">
+                        <a href="acl.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-shield-alt text-slate-600"></i>
+                            <span class="text-sm text-slate-700">Access Control</span>
+                        </a>
+                    </li>
+                    <li class="menu-item" data-component="tickets">
+                        <a href="tickets.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-ticket-alt text-slate-600"></i>
+                            <span class="text-sm text-slate-700">Tickets</span>
+                        </a>
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content flex-1 p-6 lg:ml-2">
+                <!-- Server View -->
+                <div id="serverView" class="content-section active">
+                    <div class="content-header mb-6">
+                        <h2 class="text-2xl font-bold text-slate-800 mb-4">Servers</h2>
+                        <div class="header-actions flex flex-wrap items-center gap-3">
+                            <div class="search-filter flex flex-wrap gap-3 flex-1">
+                                <input type="text" id="serverSearch" placeholder="Search servers..."
+                                    class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <select id="serverStatusFilter"
+                                    class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">All Status</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="validated">Validated</option>
+                                    <option value="built">Built</option>
+                                    <option value="finalized">Finalized</option>
+                                </select>
+                            </div>
+                            <button
+                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                id="addServerBtn">
+                                <i class="fas fa-plus"></i> Build Server
+                            </button>
+                            <button
+                                class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
+                                id="refreshServers">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Server Grid -->
+                    <div class="server-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                        id="serverCardsGrid">
+                        <!-- Server cards will be populated here -->
+                    </div>
                 </div>
-            </div>
             </main>
         </div>
     </div>

@@ -5,8 +5,8 @@
 
 window.api = {
     // Base configuration - Hardcoded for staging
-        baseURL: 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php', 
-    
+    baseURL: 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php',
+
     // Get auth token from localStorage
     getToken() {
         return localStorage.getItem('bdc_token');
@@ -60,11 +60,11 @@ window.api = {
     // Make API request with automatic token refresh
     async request(action, data = {}, method = 'POST') {
         const token = this.getToken();
-        
+
         // Always use FormData for consistency with API expectations
         const formData = new FormData();
         formData.append('action', action);
-        
+
         // Append data to FormData
         Object.keys(data).forEach(key => {
             if (Array.isArray(data[key])) {
@@ -96,7 +96,7 @@ window.api = {
             const result = await response.json();
 
             // Handle token expiration
-            if (result.code === 401 && result.message && 
+            if (result.code === 401 && result.message &&
                 (result.message.includes('expired') || result.message.includes('Invalid token'))) {
                 const refreshed = await this.refreshToken();
                 if (refreshed) {
@@ -104,17 +104,17 @@ window.api = {
                     const newHeaders = {
                         'Authorization': `Bearer ${this.getToken()}`
                     };
-                    
+
                     const retryResponse = await fetch(this.baseURL, {
                         method: 'POST',
                         headers: newHeaders,
                         body: formData
                     });
-                    
+
                     if (!retryResponse.ok) {
                         throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
                     }
-                    
+
                     return await retryResponse.json();
                 } else {
                     // Refresh failed, redirect to login
@@ -200,7 +200,7 @@ window.api = {
 
         async logout() {
             const refreshToken = api.getRefreshToken();
-            
+
             try {
                 if (refreshToken) {
                     await api.request('auth-logout', {
@@ -259,9 +259,9 @@ window.api = {
         },
 
         async update(componentType, id, data) {
-            return await api.request(`${componentType}-update`, { 
+            return await api.request(`${componentType}-update`, {
                 id: id,
-                ...data 
+                ...data
             });
         },
 
@@ -378,9 +378,9 @@ window.api = {
         },
 
         async update(id, data) {
-            return await api.request('users-update', { 
+            return await api.request('users-update', {
                 id: id,
-                ...data 
+                ...data
             });
         },
 
@@ -427,9 +427,9 @@ window.api = {
             if (!user || !user.roles) {
                 return false;
             }
-            
+
             const userRoles = user.roles.map(role => role.name);
-            return Array.isArray(roles) 
+            return Array.isArray(roles)
                 ? roles.some(role => userRoles.includes(role))
                 : userRoles.includes(roles);
         },
@@ -445,11 +445,11 @@ window.api = {
             if (result.message) {
                 return result.message;
             }
-            
+
             if (result.errors && typeof result.errors === 'object') {
                 return Object.values(result.errors).flat().join(', ');
             }
-            
+
             return 'An unexpected error occurred';
         },
 
@@ -458,7 +458,7 @@ window.api = {
             try {
                 utils.showLoading(true);
                 const result = await apiCall;
-                
+
                 if (result.success) {
                     if (successMessage) {
                         utils.showAlert(successMessage, 'success');

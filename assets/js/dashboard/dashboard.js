@@ -68,12 +68,13 @@
         }
 
         // Close sidebar when clicking menu items on mobile
-        const menuItems = sidebar.querySelectorAll('.menu-item');
-        menuItems.forEach(item => {
-            item.addEventListener('click', function () {
+        const menuLinks = sidebar.querySelectorAll('.menu-item a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function () {
                 // Only auto-close on mobile
                 if (window.innerWidth <= 992) {
-                    closeSidebar();
+                    // Allow navigation to happen first, then close sidebar
+                    setTimeout(() => closeSidebar(), 100);
                 }
             });
         });
@@ -114,9 +115,6 @@ class Dashboard {
         await this.initializeUserInfo();
         this.setupEventListeners();
 
-        // Always load sidebar stats regardless of page
-        this.loadSidebarStats();
-
         // Determine current page and load appropriate data
         const path = window.location.pathname;
         const page = path.split('/').pop();
@@ -129,6 +127,7 @@ class Dashboard {
             await this.loadServerList();
         } else if (page === 'acl.html') {
             this.currentComponent = 'acl';
+            // ACL is initialized by its own script, but we can double check
             if (typeof initACL === 'function') {
                 initACL();
             }
@@ -265,13 +264,17 @@ class Dashboard {
         });
     }
 
+    // switchView removed - MPA handles navigation natively via links
+
+
+
     renderComponentHeader() {
         const thead = document.getElementById('componentsTableHeader');
         if (!thead) return;
         thead.innerHTML = `
             <tr>
-                <th class="h-12"><input type="checkbox" id="selectAllComponents"></th>
-                <th class="h-12">Serial Number</th><th class="h-12">Status</th><th class="h-12">Server UUID</th><th class="h-12">Location</th><th class="h-12">Purchase Date</th><th class="h-12">Actions</th>
+                <th><input type="checkbox" id="selectAllComponents"></th>
+                <th>Serial Number</th><th>Status</th><th>Server UUID</th><th>Location</th><th>Purchase Date</th><th>Actions</th>
             </tr>
         `;
     }
@@ -287,7 +290,7 @@ class Dashboard {
             const result = await api.dashboard.getData();
             if (result.success && result.data.component_counts) {
                 this.updateDashboardStats(result.data.component_counts);
-                // Sidebar counts updated via loadSidebarStats
+                this.updateSidebarCounts(result.data.component_counts);
                 await this.loadRecentActivity();
             }
         } catch (error) {
@@ -296,17 +299,6 @@ class Dashboard {
         } finally {
             this.loadingStates.dashboard = false;
             utils.showLoading(false);
-        }
-    }
-
-    async loadSidebarStats() {
-        try {
-            const result = await api.dashboard.getData();
-            if (result.success && result.data.component_counts) {
-                this.updateSidebarCounts(result.data.component_counts);
-            }
-        } catch (error) {
-            console.error('Error loading sidebar stats:', error);
         }
     }
 
@@ -531,6 +523,8 @@ class Dashboard {
         this.renderServerList(filteredServers);
     }
 
+    // loadACLView and loadTicketsView removed as they are now separate pages
+
     renderComponentTable(components, componentType) {
         const tbody = document.getElementById('componentsTableBody');
         if (!tbody) return;
@@ -545,16 +539,20 @@ class Dashboard {
 
             return `
             <tr class="h-16">
-                <td><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
-                <td><strong>${utils.escapeHtml(serialNumber)}</strong>${component.UUID && component.SerialNumber ? `<br><small style="color: var(--text-muted); font-family: monospace;">${component.UUID}</small>` : ''}</td>
-                <td>${utils.createStatusBadge(component.Status)}</td>
-                <td>${component.ServerUUID ? `<code>${utils.truncateText(component.ServerUUID, 20)}</code>` : '-'}</td>
-                <td>${utils.escapeHtml(location)}</td>
-                <td>${utils.formatDate(component.PurchaseDate)}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="action-btn edit" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button class="action-btn delete" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete"><i class="fas fa-trash"></i></button>
+                <td class="px-4 py-3 align-middle h-16" data-label="Select"><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Serial Number"><strong>${utils.escapeHtml(serialNumber)}</strong>${component.UUID && component.SerialNumber ? `<br><small style="color: var(--text-muted); font-family: monospace;">${component.UUID}</small>` : ''}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Status">${utils.createStatusBadge(component.Status)}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code>${utils.truncateText(component.ServerUUID, 20)}</code>` : '-'}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Location">${utils.escapeHtml(location)}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Actions">
+                    <div class="action-buttons flex gap-2">
+                        <button class="action-btn edit px-3 py-2 min-h-[44px] text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit">
+                            <i class="fas fa-edit mr-1"></i><span class="hidden sm:inline">Edit</span>
+                        </button>
+                        <button class="action-btn delete px-3 py-2 min-h-[44px] text-sm rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete">
+                            <i class="fas fa-trash mr-1"></i><span class="hidden sm:inline">Delete</span>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -563,7 +561,7 @@ class Dashboard {
     }
 
     renderServerList(servers) {
-        const serverCardsGrid = document.getElementById('serverGrid');
+        const serverCardsGrid = document.getElementById('serverCardsGrid');
         if (!serverCardsGrid) return;
 
         if (servers.length === 0) {

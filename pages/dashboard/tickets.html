@@ -69,104 +69,111 @@
                     <h3 class="font-semibold text-slate-800">Components</h3>
                 </div>
 
-                <ul class="sidebar-menu">
-                    <li class="menu-item px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50"
-                        data-component="dashboard">
-                        <a href="index.html" class="flex items-center gap-3 w-full">
+                                <ul class="sidebar-menu">
+                    <li class="menu-item" data-component="dashboard">
+                        <a href="index.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer hover:bg-slate-50 transition-colors">
                             <i class="fas fa-tachometer-alt text-slate-600"></i>
                             <span class="text-sm text-slate-700">Dashboard</span>
                         </a>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="cpu">
-                        <a href="cpu.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-bolt text-slate-600"></i>
-                            <span class="text-sm text-slate-700">CPUs</span>
+                    <li class="menu-item" data-component="cpu">
+                        <a href="cpu.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-bolt text-slate-600"></i>
+                                <span class="text-sm text-slate-700">CPUs</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="cpuCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="cpuCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="ram">
-                        <a href="ram.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-memory text-slate-600"></i>
-                            <span class="text-sm text-slate-700">RAM</span>
+                    <li class="menu-item" data-component="ram">
+                        <a href="ram.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-memory text-slate-600"></i>
+                                <span class="text-sm text-slate-700">RAM</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="ramCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="ramCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="storage">
-                        <a href="storage.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-hdd text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Storage</span>
+                    <li class="menu-item" data-component="storage">
+                        <a href="storage.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-hdd text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Storage</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="storageCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="storageCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="motherboard">
-                        <a href="motherboard.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-th-large text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Motherboards</span>
+                    <li class="menu-item" data-component="motherboard">
+                        <a href="motherboard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-th-large text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Motherboards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="motherboardCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="motherboardCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="nic">
-                        <a href="nic.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-network-wired text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Network Cards</span>
+                    <li class="menu-item" data-component="nic">
+                        <a href="nic.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-network-wired text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Network Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="nicCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="nicCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="caddy">
-                        <a href="caddy.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-box text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Caddies</span>
+                    <li class="menu-item" data-component="caddy">
+                        <a href="caddy.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-box text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Caddies</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="caddyCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="caddyCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="chassis">
-                        <a href="chassis.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-server text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Chassis</span>
+                    <li class="menu-item" data-component="chassis">
+                        <a href="chassis.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-server text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Chassis</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="chassisCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="chassisCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="pciecard">
-                        <a href="pciecard.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-credit-card text-slate-600"></i>
-                            <span class="text-sm text-slate-700">PCIe Cards</span>
+                    <li class="menu-item" data-component="pciecard">
+                        <a href="pciecard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-credit-card text-slate-600"></i>
+                                <span class="text-sm text-slate-700">PCIe Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="pciecardCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="pciecardCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="hbacard">
-                        <a href="hbacard.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-plug text-slate-600"></i>
-                            <span class="text-sm text-slate-700">HBA Cards</span>
+                    <li class="menu-item" data-component="hbacard">
+                        <a href="hbacard.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-plug text-slate-600"></i>
+                                <span class="text-sm text-slate-700">HBA Cards</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="hbacardCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="hbacardCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-50"
-                        data-component="servers">
-                        <a href="servers.html" class="flex items-center gap-3 w-full">
-                            <i class="fas fa-cubes text-slate-600"></i>
-                            <span class="text-sm text-slate-700">Servers</span>
+                    <li class="menu-item" data-component="servers">
+                        <a href="servers.html" class="px-4 py-3 flex items-center justify-between w-full cursor-pointer hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-cubes text-slate-600"></i>
+                                <span class="text-sm text-slate-700">Servers</span>
+                            </div>
+                            <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="serversCount">0</span>
                         </a>
-                        <span class="count text-xs bg-slate-200 px-2 py-1 rounded" id="serversCount">0</span>
                     </li>
-                    <li class="menu-item px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-slate-50"
-                        data-component="acl">
-                        <a href="acl.html" class="flex items-center gap-3 w-full">
+                    <li class="menu-item" data-component="acl">
+                        <a href="acl.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer hover:bg-slate-50 transition-colors">
                             <i class="fas fa-shield-alt text-slate-600"></i>
                             <span class="text-sm text-slate-700">Access Control</span>
                         </a>
                     </li>
-                    <li class="menu-item active px-4 py-3 flex items-center gap-3 cursor-pointer bg-primary-50 border-l-4 border-primary"
-                        data-component="tickets">
-                        <a href="tickets.html" class="flex items-center gap-3 w-full">
+                    <li class="menu-item active" data-component="tickets">
+                        <a href="tickets.html" class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer bg-primary-50 border-l-4 border-primary transition-colors">
                             <i class="fas fa-ticket-alt text-primary"></i>
                             <span class="text-sm font-medium text-primary">Tickets</span>
                         </a>
