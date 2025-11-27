@@ -8,58 +8,106 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Brand palette - custom colors matching existing design
+        // Teal & Slate Modern Theme - Professional Infrastructure Management
         primary: {
-          DEFAULT: '#9BA9B2',
-          dark: '#8899a3',
-          light: '#BFC7CA',
-          hover: '#8899a3',
+          DEFAULT: '#0D9488',      // Teal 600
+          dark: '#0F766E',         // Teal 700
+          light: '#14B8A6',        // Teal 500
+          lighter: '#5EEAD4',      // Teal 300
+          lightest: '#CCFBF1',     // Teal 100
+          hover: '#0F766E',
+          50: '#F0FDFA',
+          100: '#CCFBF1',
+          200: '#99F6E4',
+          300: '#5EEAD4',
+          400: '#2DD4BF',
+          500: '#14B8A6',
+          600: '#0D9488',
+          700: '#0F766E',
+          800: '#115E59',
+          900: '#134E4A',
         },
         success: {
-          DEFAULT: '#8fbc8f',
-          light: 'rgba(143, 188, 143, 0.15)',
-          hover: '#7aab7a',
-          50: '#f0f8f0',
-          900: '#1a4d1a',
+          DEFAULT: '#22C55E',      // Green 500
+          light: '#DCFCE7',        // Green 100
+          hover: '#16A34A',
+          50: '#F0FDF4',
+          100: '#DCFCE7',
+          500: '#22C55E',
+          600: '#16A34A',
+          900: '#14532D',
         },
         warning: {
-          DEFAULT: '#d4a574',
-          light: 'rgba(212, 165, 116, 0.15)',
-          50: '#faf6f0',
-          900: '#5c3d1f',
+          DEFAULT: '#EAB308',      // Yellow 500
+          light: '#FEF9C3',        // Yellow 100
+          hover: '#CA8A04',
+          50: '#FEFCE8',
+          100: '#FEF9C3',
+          500: '#EAB308',
+          600: '#CA8A04',
+          900: '#713F12',
         },
         danger: {
-          DEFAULT: '#c88888',
-          light: 'rgba(200, 136, 136, 0.15)',
-          hover: '#b87777',
-          50: '#faf3f3',
-          900: '#661111',
+          DEFAULT: '#DC2626',      // Red 600
+          light: '#FEE2E2',        // Red 100
+          hover: '#B91C1C',
+          50: '#FEF2F2',
+          100: '#FEE2E2',
+          500: '#EF4444',
+          600: '#DC2626',
+          700: '#B91C1C',
+          900: '#7F1D1D',
         },
         info: {
-          DEFAULT: '#89b4c9',
-          light: 'rgba(137, 180, 201, 0.15)',
-          50: '#f0f6fb',
-          900: '#0d3a52',
+          DEFAULT: '#0EA5E9',      // Sky 500
+          light: '#E0F2FE',        // Sky 100
+          hover: '#0284C7',
+          50: '#F0F9FF',
+          100: '#E0F2FE',
+          500: '#0EA5E9',
+          600: '#0284C7',
+          900: '#0C4A6E',
         },
         // Text colors
         text: {
-          primary: '#2E2E2E',
-          secondary: '#6B6B6B',
-          muted: '#8E8E8E',
-          light: '#FAFAFA',
+          primary: '#0F172A',      // Slate 900
+          secondary: '#334155',    // Slate 700
+          muted: '#64748B',        // Slate 500
+          disabled: '#94A3B8',     // Slate 400
+          light: '#F8FAFC',        // Slate 50
+          inverse: '#F8FAFC',      // For dark backgrounds
         },
         // Surface/Background colors
         surface: {
-          light: '#FAFAFA',
-          DEFAULT: '#FFFFFF',
-          gray: '#F6F6F6',
-          sidebar: '#D9D9D9',
-          dark: '#2E2E2E',
+          main: '#F1F5F9',         // Slate 100 - Main background
+          card: '#FFFFFF',         // White - Cards/Panels
+          secondary: '#E2E8F0',    // Slate 200 - Secondary background
+          hover: '#F8FAFC',        // Slate 50 - Hover state
+          sidebar: '#0F172A',      // Slate 900 - Dark sidebar
+          'sidebar-hover': '#1E293B', // Slate 800
+          'sidebar-active': '#0D9488', // Primary for active items
         },
         // Border colors
         border: {
-          light: '#DCDCDC',
-          dark: '#C8C8C8',
+          DEFAULT: '#CBD5E1',      // Slate 300
+          light: '#E2E8F0',        // Slate 200
+          dark: '#94A3B8',         // Slate 400
+          focus: '#0D9488',        // Primary for focus states
+        },
+        // Sidebar specific
+        sidebar: {
+          bg: '#0F172A',           // Slate 900
+          hover: '#1E293B',        // Slate 800
+          active: '#0D9488',       // Primary
+          text: '#E2E8F0',         // Slate 200
+          'text-muted': '#94A3B8', // Slate 400
+        },
+        // Chart colors
+        chart: {
+          primary: '#0D9488',
+          secondary: '#14B8A6',
+          tertiary: '#5EEAD4',
+          grid: '#E2E8F0',
         },
       },
       spacing: {
@@ -100,16 +148,19 @@ module.exports = {
         'xl': '20px',
       },
       boxShadow: {
-        'sm': '0 1px 3px 0 rgba(0, 0, 0, 0.08)',
-        'md': '0 2px 8px -1px rgba(0, 0, 0, 0.12)',
-        'lg': '0 4px 12px -2px rgba(0, 0, 0, 0.15)',
-        'cool': '0 4px 12px rgba(155, 169, 178, 0.2)',
-        'logo': '0 20px 40px rgba(0, 0, 0, 0.3)',
-        'alert': '0 10px 30px rgba(0, 0, 0, 0.2)',
-        'toast': '0 4px 16px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
-        'modal': '0 10px 40px rgba(0, 0, 0, 0.3)',
-        'inset-sm': 'inset 0 2px 4px rgba(0, 0, 0, 0.1)',
-        'sidebar': '2px 0 8px rgba(0, 0, 0, 0.08)',
+        // Teal & Slate Modern Theme Shadows
+        'sm': '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+        'md': '0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -1px rgba(15, 23, 42, 0.06)',
+        'lg': '0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
+        'xl': '0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04)',
+        'card': '0 1px 3px rgba(15, 23, 42, 0.1), 0 1px 2px rgba(15, 23, 42, 0.06)',
+        'dropdown': '0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -1px rgba(15, 23, 42, 0.06)',
+        'modal': '0 20px 25px -5px rgba(15, 23, 42, 0.1), 0 10px 10px -5px rgba(15, 23, 42, 0.04)',
+        'alert': '0 10px 30px rgba(15, 23, 42, 0.15)',
+        'toast': '0 4px 16px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.08)',
+        'sidebar': '2px 0 8px rgba(15, 23, 42, 0.08)',
+        'inset-sm': 'inset 0 2px 4px rgba(15, 23, 42, 0.1)',
+        'focus': '0 0 0 3px rgba(13, 148, 136, 0.2)',
       },
       borderRadius: {
         DEFAULT: '8px',

@@ -15,7 +15,8 @@
       "Bash(del fix-sidebar.js)",
       "Bash(node fix-tables.js:*)",
       "Bash(del \"c:\\Users\\anshi\\Downloads\\Work\\bdc ims frontend\\assets\\css\\server\\server-cards.css\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npx tailwindcss:*)"
     ],
     "deny": [],
     "ask": []

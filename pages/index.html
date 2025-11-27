@@ -19,7 +19,7 @@
             height: 100%;
             z-index: -1;
             overflow: hidden;
-            background: linear-gradient(135deg, #9BA9B2 0%, #BFC7CA 100%);
+            background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
         }
         .particle {
             position: absolute;
@@ -41,39 +41,42 @@
             100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
         }
         .logo {
-            background: linear-gradient(45deg, #9BA9B2, #89b4c9);
+            background: linear-gradient(45deg, #0D9488, #14B8A6);
             animation: logoFloat 3s ease-in-out infinite;
         }
         @keyframes logoFloat {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
+        .toggle-btn.active {
+            color: white;
+        }
         .toggle-indicator {
-            background: linear-gradient(45deg, #9BA9B2, #8899a3);
+            background: linear-gradient(45deg, #0D9488, #0F766E);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(155, 169, 178, 0.4);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
         }
         .toggle-indicator.register {
             transform: translateX(100%);
         }
         .auth-btn {
-            background: linear-gradient(45deg, #9BA9B2, #8899a3);
-            box-shadow: 0 8px 25px rgba(155, 169, 178, 0.3);
+            background: linear-gradient(45deg, #0D9488, #0F766E);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
         .auth-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 35px rgba(155, 169, 178, 0.4);
+            box-shadow: 0 12px 35px rgba(13, 148, 136, 0.4);
         }
         .auth-btn:active {
             transform: translateY(0);
         }
         .checkmark {
-            border: 2px solid #e9ecef;
+            border: 2px solid #E2E8F0;
             transition: all 0.3s ease;
         }
         .remember-me input:checked + .checkmark {
-            background: #9BA9B2;
-            border-color: #9BA9B2;
+            background: #0D9488;
+            border-color: #0D9488;
         }
         .remember-me input:checked + .checkmark::after {
             content: '✓';
@@ -99,15 +102,15 @@
             transform: translateX(0);
         }
         .alert.success {
-            background: linear-gradient(45deg, #8fbc8f, #7aab7a);
+            background: linear-gradient(45deg, #22C55E, #16A34A);
             color: white;
         }
         .alert.error {
-            background: linear-gradient(45deg, #c88888, #b87777);
+            background: linear-gradient(45deg, #DC2626, #B91C1C);
             color: white;
         }
         .alert.warning {
-            background: linear-gradient(45deg, #d4a574, #c0925f);
+            background: linear-gradient(45deg, #EAB308, #CA8A04);
             color: white;
         }
     </style>
@@ -134,21 +137,21 @@
                     <div class="logo w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg">
                         <i class="fas fa-server text-4xl text-white"></i>
                     </div>
-                    <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-blue-300 bg-clip-text text-transparent">BDC IMS</h1>
+                    <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-primary-lightest bg-clip-text text-transparent">BDC IMS</h1>
                     <p class="text-lg opacity-90 font-light leading-relaxed">Bharat Datacenter Infrastructure Management System</p>
                 </div>
 
                 <div class="flex flex-col gap-6 hidden lg:flex">
                     <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
-                        <i class="fas fa-shield-alt text-lg text-blue-400"></i>
+                        <i class="fas fa-shield-alt text-lg text-primary-lightest"></i>
                         <span>Secure Infrastructure Management</span>
                     </div>
                     <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
-                        <i class="fas fa-chart-line text-lg text-blue-400"></i>
+                        <i class="fas fa-chart-line text-lg text-primary-lightest"></i>
                         <span>Real-time Monitoring</span>
                     </div>
                     <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
-                        <i class="fas fa-cogs text-lg text-blue-400"></i>
+                        <i class="fas fa-cogs text-lg text-primary-lightest"></i>
                         <span>Advanced Component Control</span>
                     </div>
                 </div>
@@ -168,8 +171,8 @@
                 <!-- Login Form -->
                 <div class="form-container active block" id="loginForm">
                     <div class="text-center mb-10">
-                        <h2 class="text-4xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-                        <p class="text-gray-600 text-base">Sign in to your BDC IMS account</p>
+                        <h2 class="text-4xl font-bold text-text-primary mb-2">Welcome Back</h2>
+                        <p class="text-text-secondary text-base">Sign in to your BDC IMS account</p>
                     </div>
 
                     <form id="loginFormElement">
@@ -209,8 +212,8 @@
                 <!-- Register Form -->
                 <div class="form-container hidden" id="registerForm">
                     <div class="text-center mb-10">
-                        <h2 class="text-4xl font-bold text-gray-900 mb-2">Create Account</h2>
-                        <p class="text-gray-600 text-base">Join BDC IMS and start managing your infrastructure</p>
+                        <h2 class="text-4xl font-bold text-text-primary mb-2">Create Account</h2>
+                        <p class="text-text-secondary text-base">Join BDC IMS and start managing your infrastructure</p>
                     </div>
 
                     <form id="registerFormElement">

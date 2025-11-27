@@ -8,418 +8,114 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Loading Overlay Styles */
-        .loading-overlay {
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .bg-animation {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            display: none; /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
+            z-index: -1;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
         }
-        .loading-overlay.show {
-            display: flex;
-        }
-        .loading-spinner {
-            text-align: center;
-            color: white;
-        }
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        /* Container and auth-side styles */
-        .container {
-            display: flex;
-            width: 100%;
-            height: 100vh;
-        }
-        .brand-side {
-            flex: 1;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 2.5rem;
+        .particle {
+            position: absolute;
             background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(40px);
-            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
         }
-        @media (min-width: 768px) {
-            .brand-side {
-                display: flex;
-            }
-        }
-        .brand-content {
-            text-align: center;
-            color: white;
-            max-width: 20rem;
-        }
-        .logo-container {
-            margin-bottom: 4rem;
+        .particle:nth-child(1) { width: 80px; height: 80px; left: 10%; animation: float 25s ease-in-out infinite; animation-delay: 0s; }
+        .particle:nth-child(2) { width: 120px; height: 120px; left: 20%; animation: float 30s ease-in-out infinite; animation-delay: 2s; }
+        .particle:nth-child(3) { width: 60px; height: 60px; left: 70%; animation: float 20s ease-in-out infinite; animation-delay: 4s; }
+        .particle:nth-child(4) { width: 100px; height: 100px; left: 80%; animation: float 35s ease-in-out infinite; animation-delay: 6s; }
+        .particle:nth-child(5) { width: 40px; height: 40px; left: 50%; animation: float 15s ease-in-out infinite; animation-delay: 1s; }
+        .particle:nth-child(6) { width: 90px; height: 90px; left: 30%; animation: float 28s ease-in-out infinite; animation-delay: 3s; }
+        .particle:nth-child(7) { width: 70px; height: 70px; left: 60%; animation: float 22s ease-in-out infinite; animation-delay: 5s; }
+        .particle:nth-child(8) { width: 110px; height: 110px; left: 90%; animation: float 32s ease-in-out infinite; animation-delay: 7s; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
         }
         .logo {
-            width: 6rem;
-            height: 6rem;
-            background: linear-gradient(45deg, #9BA9B2, #89b4c9);
-            border-radius: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 2rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            background: linear-gradient(45deg, #0D9488, #14B8A6);
             animation: logoFloat 3s ease-in-out infinite;
-        }
-        .logo i {
-            font-size: 2.5rem;
-            color: white;
         }
         @keyframes logoFloat {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-        .logo-container h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-            background: linear-gradient(to right, white, #93C5FD);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .tagline {
-            font-size: 1.125rem;
-            opacity: 0.9;
-            font-weight: 300;
-            line-height: 1.75;
-        }
-        .features {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            font-size: 1rem;
-            opacity: 0.8;
-            padding: 1rem;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s;
-        }
-        .feature-item:hover {
-            opacity: 1;
-            transform: translateX(0.5rem);
-        }
-        .feature-item i {
-            font-size: 1.125rem;
-            color: #93C5FD;
-        }
-        .auth-side {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2.5rem;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(40px);
-        }
-        .auth-container {
-            width: 100%;
-            max-width: 28rem;
-        }
-        .form-toggle {
-            display: flex;
-            background: #f3f4f6;
-            border-radius: 1rem;
-            padding: 0.25rem;
-            margin-bottom: 2.5rem;
-            position: relative;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .toggle-btn {
-            flex: 1;
-            padding: 0.75rem 1.25rem;
-            background: none;
-            border: none;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: all 0.3s;
-            color: #6b7280;
-            z-index: 10;
-            position: relative;
-        }
         .toggle-btn.active {
             color: white;
         }
         .toggle-indicator {
-            position: absolute;
-            top: 0.25rem;
-            left: 0.25rem;
-            width: calc(50% - 0.25rem);
-            height: calc(100% - 0.5rem);
-            background: linear-gradient(45deg, #9BA9B2, #8899a3);
-            border-radius: 0.75rem;
+            background: linear-gradient(45deg, #0D9488, #0F766E);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(155, 169, 178, 0.4);
+            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
         }
         .toggle-indicator.register {
             transform: translateX(100%);
         }
-        .form-container {
-            display: none;
+        .auth-btn {
+            background: linear-gradient(45deg, #0D9488, #0F766E);
+            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
-        .form-container.active {
-            display: block;
-        }
-        .form-header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-        }
-        .form-header h2 {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 0.5rem;
-        }
-        .form-header p {
-            color: #6b7280;
-            font-size: 1rem;
-        }
-        .input-group {
-            margin-bottom: 1.5rem;
-        }
-        .input-field {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-        .input-field i {
-            position: absolute;
-            left: 1.25rem;
-            color: #6b7280;
-            font-size: 1rem;
-            z-index: 10;
-        }
-        .input-field input {
-            width: 100%;
-            padding: 1rem 3.5rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 1rem;
-            background: white;
-            color: #111827;
-            transition: all 0.3s;
-        }
-        .input-field input::placeholder {
-            color: #9ca3af;
-        }
-        .input-field input:focus {
-            outline: none;
-            border-color: #9BA9B2;
-            box-shadow: 0 0 0 3px rgba(155, 169, 178, 0.1);
+        .auth-btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(13, 148, 136, 0.4);
         }
-        .toggle-password {
-            position: absolute;
-            right: 1.25rem;
-            background: none;
-            border: none;
-            color: #6b7280;
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-            transition: all 0.3s;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 2.5rem;
-            height: 2.5rem;
-        }
-        .toggle-password:hover {
-            color: #9BA9B2;
-            background: rgba(155, 169, 178, 0.1);
-        }
-        .form-options {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-            gap: 1rem;
-        }
-        .remember-me {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            font-size: 0.875rem;
-            color: #6b7280;
-            gap: 0.625rem;
-        }
-        .remember-me input {
-            display: none;
+        .auth-btn:active {
+            transform: translateY(0);
         }
         .checkmark {
-            width: 1.25rem;
-            height: 1.25rem;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.25rem;
-            position: relative;
-            transition: all 0.3s;
+            border: 2px solid #E2E8F0;
+            transition: all 0.3s ease;
         }
         .remember-me input:checked + .checkmark {
-            background: #9BA9B2;
-            border-color: #9BA9B2;
+            background: #0D9488;
+            border-color: #0D9488;
         }
         .remember-me input:checked + .checkmark::after {
             content: '✓';
             position: absolute;
             color: white;
-            font-size: 0.75rem;
+            font-size: 12px;
             font-weight: bold;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
         }
-        .forgot-password, .terms-link {
-            color: #9BA9B2;
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-        .forgot-password:hover, .terms-link:hover {
-            color: #8899a3;
-            text-decoration: underline;
-        }
-        .auth-btn {
-            width: 100%;
-            padding: 1rem;
-            color: white;
-            font-size: 1.125rem;
-            font-weight: 600;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s;
-            border: none;
-            border-radius: 1rem;
-            background: linear-gradient(45deg, #9BA9B2, #8899a3);
-            box-shadow: 0 8px 25px rgba(155, 169, 178, 0.3);
-        }
-        .auth-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 35px rgba(155, 169, 178, 0.4);
-        }
-        .auth-btn:active {
-            transform: translateY(0);
-        }
-        .auth-btn.loading {
-            pointer-events: none;
-            opacity: 0.7;
-        }
-        .btn-loader {
-            display: none;
-        }
-        .auth-btn.loading .btn-text {
-            opacity: 0;
-        }
-        .auth-btn.loading .btn-loader {
-            display: block;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
         .alert {
             position: fixed;
-            top: 2rem;
-            right: 2rem;
-            max-width: 24rem;
-            padding: 1.25rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            top: 30px;
+            right: 30px;
+            max-width: 400px;
             z-index: 1000;
             transform: translateX(450px);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(10px);
-            display: none;
         }
         .alert.show {
             transform: translateX(0);
-            display: block;
         }
         .alert.success {
-            background: linear-gradient(45deg, #8fbc8f, #7aab7a);
+            background: linear-gradient(45deg, #22C55E, #16A34A);
             color: white;
         }
         .alert.error {
-            background: linear-gradient(45deg, #c88888, #b87777);
+            background: linear-gradient(45deg, #DC2626, #B91C1C);
             color: white;
         }
         .alert.warning {
-            background: linear-gradient(45deg, #d4a574, #c0925f);
+            background: linear-gradient(45deg, #EAB308, #CA8A04);
             color: white;
-        }
-        .alert-content {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .alert-icon {
-            font-size: 1.25rem;
-        }
-        .alert-text {
-            flex: 1;
-            font-weight: 500;
-        }
-        .alert-close {
-            background: none;
-            border: none;
-            color: currentColor;
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 0.25rem;
-            transition: all 0.3s;
-            opacity: 0.8;
-        }
-        .alert-close:hover {
-            opacity: 1;
-        }
-        .alert-close i {
-            font-size: 1.25rem;
-        }
-        .field-error {
-            color: #dc2626;
-            font-size: 0.75rem;
-            margin-top: 0.25rem;
         }
     </style>
 </head>
-<body>
+<body class="overflow-hidden h-screen">
     <!-- Background Animation -->
     <div class="bg-animation">
         <div class="particle"></div>
@@ -433,29 +129,29 @@
     </div>
 
     <!-- Main Container -->
-    <div class="container">
+    <div class="flex h-screen backdrop-blur-lg">
         <!-- Left Side - Branding -->
-        <div class="brand-side">
-            <div class="brand-content">
-                <div class="logo-container">
-                    <div class="logo">
-                        <i class="fas fa-server"></i>
+        <div class="hidden md:flex flex-1 items-center justify-center p-10 bg-white/10 backdrop-blur-xl border-r border-white/20">
+            <div class="text-center text-white max-w-xs">
+                <div class="mb-16">
+                    <div class="logo w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg">
+                        <i class="fas fa-server text-4xl text-white"></i>
                     </div>
-                    <h1>BDC IMS</h1>
-                    <p class="tagline">Bharat Datacenter Infrastructure Management System</p>
+                    <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-primary-lightest bg-clip-text text-transparent">BDC IMS</h1>
+                    <p class="text-lg opacity-90 font-light leading-relaxed">Bharat Datacenter Infrastructure Management System</p>
                 </div>
 
-                <div class="features">
-                    <div class="feature-item">
-                        <i class="fas fa-shield-alt"></i>
+                <div class="flex flex-col gap-6 hidden lg:flex">
+                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                        <i class="fas fa-shield-alt text-lg text-primary-lightest"></i>
                         <span>Secure Infrastructure Management</span>
                     </div>
-                    <div class="feature-item">
-                        <i class="fas fa-chart-line"></i>
+                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                        <i class="fas fa-chart-line text-lg text-primary-lightest"></i>
                         <span>Real-time Monitoring</span>
                     </div>
-                    <div class="feature-item">
-                        <i class="fas fa-cogs"></i>
+                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                        <i class="fas fa-cogs text-lg text-primary-lightest"></i>
                         <span>Advanced Component Control</span>
                     </div>
                 </div>
@@ -463,50 +159,50 @@
         </div>
 
         <!-- Right Side - Authentication Forms -->
-        <div class="auth-side">
-            <div class="auth-container">
+        <div class="flex-1 flex items-center justify-center p-10 bg-white/95 backdrop-blur-xl">
+            <div class="w-full max-w-md">
                 <!-- Form Toggle Buttons -->
-                <div class="form-toggle">
-                    <button class="toggle-btn active" id="loginToggle">Sign In</button>
-                    <button class="toggle-btn" id="registerToggle">Sign Up</button>
-                    <div class="toggle-indicator"></div>
+                <div class="flex bg-gray-100 rounded-2xl p-1 mb-10 relative shadow-inset">
+                    <button class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="loginToggle">Sign In</button>
+                    <button class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="registerToggle">Sign Up</button>
+                    <div class="toggle-indicator absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] rounded-xl"></div>
                 </div>
 
                 <!-- Login Form -->
-                <div class="form-container active" id="loginForm">
-                    <div class="form-header">
-                        <h2>Welcome Back</h2>
-                        <p>Sign in to your BDC IMS account</p>
+                <div class="form-container active block" id="loginForm">
+                    <div class="text-center mb-10">
+                        <h2 class="text-4xl font-bold text-text-primary mb-2">Welcome Back</h2>
+                        <p class="text-text-secondary text-base">Sign in to your BDC IMS account</p>
                     </div>
 
                     <form id="loginFormElement">
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-user"></i>
-                                <input type="text" id="loginUsername" name="username" placeholder="Username" required>
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="text" id="loginUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="loginPassword" name="password" placeholder="Password" required>
-                                <button type="button" class="toggle-password" id="toggleLoginPassword">
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="password" id="loginPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleLoginPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="form-options">
-                            <label class="remember-me">
-                                <input type="checkbox" id="rememberMe">
-                                <span class="checkmark"></span>
+                        <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+                            <label class="remember-me flex items-center cursor-pointer text-sm text-gray-500 gap-2.5">
+                                <input type="checkbox" id="rememberMe" class="hidden">
+                                <span class="checkmark w-5 h-5 border-2 border-gray-200 rounded relative"></span>
                                 Remember me
                             </label>
-                            <a href="#" class="forgot-password">Forgot Password?</a>
+                            <a href="#" class="text-primary no-underline text-sm font-medium transition-all hover:text-primary-dark hover:underline">Forgot Password?</a>
                         </div>
 
-                        <button type="submit" class="auth-btn" id="loginBtn">
+                        <button type="submit" class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl" id="loginBtn">
                             <span class="btn-text">Sign In</span>
                             <div class="btn-loader"></div>
                         </button>
@@ -514,56 +210,56 @@
                 </div>
 
                 <!-- Register Form -->
-                <div class="form-container" id="registerForm">
-                    <div class="form-header">
-                        <h2>Create Account</h2>
-                        <p>Join BDC IMS and start managing your infrastructure</p>
+                <div class="form-container hidden" id="registerForm">
+                    <div class="text-center mb-10">
+                        <h2 class="text-4xl font-bold text-text-primary mb-2">Create Account</h2>
+                        <p class="text-text-secondary text-base">Join BDC IMS and start managing your infrastructure</p>
                     </div>
 
                     <form id="registerFormElement">
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-user"></i>
-                                <input type="text" id="registerUsername" name="username" placeholder="Username" required>
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="text" id="registerUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-envelope"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required>
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-envelope absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="registerPassword" name="password" placeholder="Password" required>
-                                <button type="button" class="toggle-password" id="toggleRegisterPassword">
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="password" id="registerPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleRegisterPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="input-group">
-                            <div class="input-field">
-                                <i class="fas fa-lock"></i>
-                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required>
-                                <button type="button" class="toggle-password" id="toggleConfirmPassword">
+                        <div class="mb-6">
+                            <div class="relative flex items-center">
+                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
+                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleConfirmPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="form-options">
-                            <label class="remember-me">
-                                <input type="checkbox" id="agreeTerms" required>
-                                <span class="checkmark"></span>
-                                I agree to the <a href="#" class="terms-link">Terms & Conditions</a>
+                        <div class="mb-8">
+                            <label class="remember-me flex items-center cursor-pointer text-sm text-gray-500 gap-2.5">
+                                <input type="checkbox" id="agreeTerms" required class="hidden">
+                                <span class="checkmark w-5 h-5 border-2 border-gray-200 rounded relative"></span>
+                                I agree to the <a href="#" class="terms-link text-primary ml-1">Terms & Conditions</a>
                             </label>
                         </div>
 
-                        <button type="submit" class="auth-btn" id="registerBtn">
+                        <button type="submit" class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl" id="registerBtn">
                             <span class="btn-text">Create Account</span>
                             <div class="btn-loader"></div>
                         </button>
@@ -571,24 +267,24 @@
                 </div>
 
                 <!-- Alert Messages -->
-                <div class="alert" id="alertMessage">
-                    <div class="alert-content">
-                        <i class="alert-icon"></i>
-                        <span class="alert-text"></span>
+                <div class="alert fixed top-8 right-8 max-w-sm p-5 rounded-2xl shadow-lg hidden z-40" id="alertMessage">
+                    <div class="flex items-center gap-4">
+                        <i class="alert-icon text-xl"></i>
+                        <span class="alert-text flex-1 font-medium"></span>
+                        <button class="alert-close bg-none border-none text-current cursor-pointer p-1 rounded transition-all opacity-80 hover:opacity-100" onclick="closeAlert()">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
                     </div>
-                    <button class="alert-close" onclick="closeAlert()">
-                        <i class="fas fa-times"></i>
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner">
-            <div class="spinner"></div>
-            <p>Processing...</p>
+    <div class="loading-overlay fixed inset-0 bg-black/80 flex items-center justify-center z-9999 opacity-0 invisible transition-all" id="loadingOverlay">
+        <div class="text-center text-white">
+            <div class="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-5"></div>
+            <p class="text-lg font-medium">Processing...</p>
         </div>
     </div>
 
