@@ -605,7 +605,7 @@ class Dashboard {
                     <i class="fas fa-server text-6xl text-slate-300 mb-4"></i>
                     <h3 class="text-xl font-semibold text-slate-800 mb-2">No Servers Found</h3>
                     <p class="text-slate-600 mb-6">Start building your first server configuration</p>
-                    <button class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
+                    <button class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
                         <i class="fas fa-plus"></i> Create New Server
                     </button>
                 </div>`;
@@ -615,25 +615,25 @@ class Dashboard {
         const getStatusBadge = (status) => {
             const statusMap = {
                 '0': { label: 'Draft', bgClass: 'bg-yellow-100', textClass: 'text-yellow-700' },
-                '1': { label: 'Validated', bgClass: 'bg-blue-100', textClass: 'text-blue-700' },
+                '1': { label: 'Validated', bgClass: 'bg-sky-100', textClass: 'text-sky-700' },
                 '2': { label: 'Built', bgClass: 'bg-green-100', textClass: 'text-green-700' },
-                '3': { label: 'Finalized', bgClass: 'bg-purple-100', textClass: 'text-purple-700' }
+                '3': { label: 'Finalized', bgClass: 'bg-teal-100', textClass: 'text-teal-800' }
             };
             const s = statusMap[status] || statusMap['0'];
             return `<span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${s.bgClass} ${s.textClass}">${s.label}</span>`;
         };
 
         serverCardsGrid.innerHTML = servers.map(server => `
-            <div class="bg-white border border-slate-200 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300 flex flex-col gap-4 cursor-pointer" data-server-uuid="${server.config_uuid}">
+            <div class="bg-white border border-slate-200 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 flex flex-col gap-4 cursor-pointer group" data-server-uuid="${server.config_uuid}">
                 <!-- Header -->
                 <div class="flex justify-between items-start gap-3">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-start gap-3 mb-3">
-                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-sm">
                                 <i class="fas fa-server text-white"></i>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <h3 class="text-lg font-semibold text-slate-800 truncate mb-1.5">
+                                <h3 class="text-lg font-semibold text-slate-800 truncate mb-1.5 group-hover:text-teal-700 transition-colors">
                                     ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
                                 </h3>
                                 ${getStatusBadge(server.configuration_status)}
@@ -641,7 +641,7 @@ class Dashboard {
                         </div>
                         ${server.description ? `<p class="text-sm text-slate-600 mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
                     </div>
-                    <button class="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
+                    <button class="px-3 py-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0"
                             onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
                             title="Delete Server">
                         <i class="fas fa-trash text-sm"></i>
@@ -649,10 +649,10 @@ class Dashboard {
                 </div>
 
                 <!-- Stats -->
-                <div class="flex gap-3 p-3 bg-slate-50 rounded-lg">
+                <div class="flex gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                     <div class="flex items-center gap-2 flex-1">
-                        <div class="w-8 h-8 rounded-md bg-white flex items-center justify-center">
-                            <i class="fas fa-microchip text-indigo-500 text-sm"></i>
+                        <div class="w-8 h-8 rounded-md bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                            <i class="fas fa-microchip text-teal-600 text-sm"></i>
                         </div>
                         <div class="flex items-center justify-between flex-1">
                             <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Components</span>
@@ -662,24 +662,24 @@ class Dashboard {
                 </div>
 
                 <!-- Meta -->
-                <div class="flex flex-col gap-2 pt-3 border-t border-slate-200">
+                <div class="flex flex-col gap-2 pt-3 border-t border-slate-100">
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-600 flex items-center  gap-1.5">
+                        <span class="text-slate-500 flex items-center gap-1.5">
                             <i class="fas fa-calendar text-xs mr-1 text-slate-400"></i>Created
                         </span>
-                        <span class="text-slate-800 font-medium">${utils.formatDate(server.created_at)}</span>
+                        <span class="text-slate-700 font-medium">${utils.formatDate(server.created_at)}</span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-600 flex items-center gap-1.5">
+                        <span class="text-slate-500 flex items-center gap-1.5">
                             <i class="fas fa-clock text-xs mr-1 text-slate-400"></i>Modified
                         </span>
-                        <span class="text-slate-800 font-medium">${utils.formatDate(server.last_modified)}</span>
+                        <span class="text-slate-700 font-medium">${utils.formatDate(server.last_modified)}</span>
                     </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="flex gap-2 pt-3 border-t border-slate-200">
-                    <button class="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-black rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm flex items-center justify-center gap-2"
+                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                    <button class="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm hover:shadow-md transition-all duration-200 font-medium text-sm flex items-center justify-center gap-2"
                             onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                             title="Configure server components">
                         <i class="fas fa-wrench"></i> Configure
