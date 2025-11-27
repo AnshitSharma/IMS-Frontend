@@ -4,7 +4,7 @@
   "description": "IMS Inventory Management System Frontend",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run watch:css & npx http-server . -p 3000 -c-1",
+    "dev": "npm run watch:css & npx http-server . -p 5503 -c-1",
     "build:css": "npx tailwindcss -i ./assets/css/globals.css -o ./assets/css/tailwind.css --minify",
     "watch:css": "npx tailwindcss -i ./assets/css/globals.css -o ./assets/css/tailwind.css --watch",
     "build": "npm run build:css",
