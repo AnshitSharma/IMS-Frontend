@@ -143,7 +143,7 @@ class Dashboard {
             await this.loadComponentList(component);
         }
 
-        this.setupSearch();
+
     }
 
     async initializeUserInfo() {
