@@ -181,7 +181,23 @@ class Dashboard {
         // Refresh servers
         const refreshServers = document.getElementById('refreshServers');
         if (refreshServers) {
-            refreshServers.addEventListener('click', () => this.loadServerList());
+            refreshServers.addEventListener('click', () => this.loadServerList(true));
+        }
+
+        // Server search
+        const serverSearch = document.getElementById('serverSearch');
+        if (serverSearch) {
+            serverSearch.addEventListener('input', utils.debounce(() => {
+                this.filterAndRenderServers();
+            }, 300));
+        }
+
+        // Server status filter
+        const serverStatusFilter = document.getElementById('serverStatusFilter');
+        if (serverStatusFilter) {
+            serverStatusFilter.addEventListener('change', () => {
+                this.filterAndRenderServers();
+            });
         }
 
         // Component search
@@ -585,11 +601,11 @@ class Dashboard {
 
         if (servers.length === 0) {
             serverCardsGrid.innerHTML = `
-                <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 60px 24px;">
-                    <i class="fas fa-server" style="font-size: 64px; color: var(--text-muted); margin-bottom: 16px;"></i>
-                    <h3 style="font-size: 20px; margin-bottom: 8px; color: var(--text-color);">No Servers Found</h3>
-                    <p style="font-size: 16px; margin-bottom: 24px; color: var(--text-secondary);">Start building your first server configuration</p>
-                    <button class="btn btn-primary" onclick="dashboard.showAddServerForm()">
+                <div class="col-span-full text-center py-16">
+                    <i class="fas fa-server text-6xl text-slate-300 mb-4"></i>
+                    <h3 class="text-xl font-semibold text-slate-800 mb-2">No Servers Found</h3>
+                    <p class="text-slate-600 mb-6">Start building your first server configuration</p>
+                    <button class="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
                         <i class="fas fa-plus"></i> Create New Server
                     </button>
                 </div>`;
@@ -598,62 +614,72 @@ class Dashboard {
 
         const getStatusBadge = (status) => {
             const statusMap = {
-                '0': { label: 'Draft', class: 'draft', color: 'var(--warning-color)' },
-                '1': { label: 'Validated', class: 'validated', color: 'var(--info-color)' },
-                '2': { label: 'Built', class: 'built', color: 'var(--success-color)' },
-                '3': { label: 'Finalized', class: 'finalized', color: 'var(--primary-color)' }
+                '0': { label: 'Draft', bgClass: 'bg-yellow-100', textClass: 'text-yellow-700' },
+                '1': { label: 'Validated', bgClass: 'bg-blue-100', textClass: 'text-blue-700' },
+                '2': { label: 'Built', bgClass: 'bg-green-100', textClass: 'text-green-700' },
+                '3': { label: 'Finalized', bgClass: 'bg-purple-100', textClass: 'text-purple-700' }
             };
             const s = statusMap[status] || statusMap['0'];
-            return `<span class="status-badge ${s.class}" style="background-color: rgba(155,169,178,0.15); color: ${s.color};">${s.label}</span>`;
+            return `<span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${s.bgClass} ${s.textClass}">${s.label}</span>`;
         };
 
         serverCardsGrid.innerHTML = servers.map(server => `
-            <div class="server-config-card" data-server-uuid="${server.config_uuid}">
-                <div class="server-config-header">
-                    <div class="server-config-info">
-                        <div class="server-config-title-wrapper">
-                            <div class="server-icon-wrapper">
-                                <i class="fas fa-server"></i>
+            <div class="bg-white border border-slate-200 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-slate-300 flex flex-col gap-4 cursor-pointer" data-server-uuid="${server.config_uuid}">
+                <!-- Header -->
+                <div class="flex justify-between items-start gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-start gap-3 mb-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                <i class="fas fa-server text-white"></i>
                             </div>
-                            <div style="min-width: 0; flex: 1;">
-                                <h3 class="server-config-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="text-lg font-semibold text-slate-800 truncate mb-1.5">
                                     ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
                                 </h3>
                                 ${getStatusBadge(server.configuration_status)}
                             </div>
                         </div>
-                        ${server.description ? `<p class="server-config-description">${utils.escapeHtml(server.description)}</p>` : ''}
+                        ${server.description ? `<p class="text-sm text-slate-600 mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
                     </div>
-                    <button class="btn btn-danger" style="padding: 8px 12px; font-size: 12px; flex-shrink: 0;"
+                    <button class="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0"
                             onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
                             title="Delete Server">
-                        <i class="fas fa-trash"></i>
+                        <i class="fas fa-trash text-sm"></i>
                     </button>
                 </div>
 
-                <div class="server-config-stats">
-                    <div class="server-stat-item">
-                        <div class="server-stat-icon">
-                            <i class="fas fa-microchip"></i>
+                <!-- Stats -->
+                <div class="flex gap-3 p-3 bg-slate-50 rounded-lg">
+                    <div class="flex items-center gap-2 flex-1">
+                        <div class="w-8 h-8 rounded-md bg-white flex items-center justify-center">
+                            <i class="fas fa-microchip text-indigo-500 text-sm"></i>
                         </div>
-                        <div class="server-stat-label">Components</div>
-                        <div class="server-stat-value">${server.total_component_types || 0}</div>
+                        <div class="flex items-center justify-between flex-1">
+                            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Components</span>
+                            <span class="text-xl font-bold text-slate-800">${server.total_component_types || 0}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="server-config-meta">
-                    <div class="server-meta-row">
-                        <span class="server-meta-label"><i class="fas fa-calendar"></i>Created:</span>
-                        <span class="server-meta-value">${utils.formatDate(server.created_at)}</span>
+                <!-- Meta -->
+                <div class="flex flex-col gap-2 pt-3 border-t border-slate-200">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-600 flex items-center  gap-1.5">
+                            <i class="fas fa-calendar text-xs mr-1 text-slate-400"></i>Created
+                        </span>
+                        <span class="text-slate-800 font-medium">${utils.formatDate(server.created_at)}</span>
                     </div>
-                    <div class="server-meta-row">
-                        <span class="server-meta-label"><i class="fas fa-clock"></i>Modified:</span>
-                        <span class="server-meta-value">${utils.formatDate(server.last_modified)}</span>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-600 flex items-center gap-1.5">
+                            <i class="fas fa-clock text-xs mr-1 text-slate-400"></i>Modified
+                        </span>
+                        <span class="text-slate-800 font-medium">${utils.formatDate(server.last_modified)}</span>
                     </div>
                 </div>
 
-                <div class="server-config-actions">
-                    <button class="btn btn-primary" style="flex: 1; justify-content: center;"
+                <!-- Actions -->
+                <div class="flex gap-2 pt-3 border-t border-slate-200">
+                    <button class="flex-1 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-black rounded-lg hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 font-semibold text-sm flex items-center justify-center gap-2"
                             onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                             title="Configure server components">
                         <i class="fas fa-wrench"></i> Configure
@@ -1754,6 +1780,27 @@ class Dashboard {
             if (firstInput) {
                 setTimeout(() => firstInput.focus(), 100);
             }
+
+            // Set up close button event listener
+            const closeButton = document.getElementById('modalClose');
+            if (closeButton) {
+                // Remove any existing listener by cloning and replacing
+                const newCloseButton = closeButton.cloneNode(true);
+                closeButton.parentNode.replaceChild(newCloseButton, closeButton);
+                newCloseButton.addEventListener('click', () => this.closeModal());
+            }
+
+            // Set up click outside to close
+            const handleOutsideClick = (e) => {
+                if (e.target === modal) {
+                    this.closeModal();
+                }
+            };
+
+            // Store the handler so we can remove it later
+            modal._outsideClickHandler = handleOutsideClick;
+            modal.addEventListener('click', handleOutsideClick);
+
         } else {
             console.error('Modal elements not found!');
         }
@@ -1766,6 +1813,12 @@ class Dashboard {
     closeModal() {
         const modal = document.getElementById('modalContainer');
         if (modal) {
+            // Remove the outside click event listener
+            if (modal._outsideClickHandler) {
+                modal.removeEventListener('click', modal._outsideClickHandler);
+                delete modal._outsideClickHandler;
+            }
+
             modal.style.display = 'none';
             modal.classList.remove('active');  // Remove active class to hide modal
         }

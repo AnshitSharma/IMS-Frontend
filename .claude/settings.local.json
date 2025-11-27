@@ -1,19 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(done)",
-      "Bash(find:*)",
-      "Bash(npm run build:css:*)",
+      "*",
       "Bash(git add:*)",
-      "Bash(del nul)",
       "Bash(git commit:*)",
-      "Bash(git remote add:*)",
-      "Bash(git branch:*)",
-      "Bash(git push:*)",
-      "Bash(git rm:*)",
-      "Bash(node fix-sidebar.js:*)",
-      "Bash(del fix-sidebar.js)",
-      "Bash(node fix-tables.js:*)"
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
