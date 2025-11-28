@@ -1022,6 +1022,15 @@ class Dashboard {
         }
     }
 
+    showServerView() {
+        // Switch back to server list view
+        document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+        document.getElementById('serverView').classList.add('active');
+
+        // Clear current config
+        this.currentServerConfig = null;
+    }
+
     async loadServerConfiguration(configUuid) {
         const builderContent = document.getElementById('serverBuilderContent');
         if (!builderContent) return;

@@ -232,6 +232,29 @@
                         <!-- Server cards will be populated here -->
                     </div>
                 </div>
+
+                <!-- Server Builder View -->
+                <div id="serverBuilderView" class="content-section">
+                    <div class="content-header mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 id="serverBuilderTitle" class="text-2xl font-bold text-slate-800 mb-1">
+                                    <i class="fas fa-wrench"></i> Server Builder
+                                </h2>
+                            </div>
+                            <button
+                                class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
+                                onclick="dashboard.showServerView()">
+                                <i class="fas fa-arrow-left"></i> Back to Servers
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Server Builder Content -->
+                    <div id="serverBuilderContent" class="bg-white rounded-lg shadow-sm p-6">
+                        <!-- PC Part Picker builder will be loaded here -->
+                    </div>
+                </div>
             </main>
         </div>
     </div>
