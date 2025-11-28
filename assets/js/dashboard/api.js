@@ -405,6 +405,86 @@ window.api = {
         }
     },
 
+    // ACL & Roles management endpoints
+    acl: {
+        // Get all roles
+        async getAllRoles() {
+            return await api.request('acl-get_all_roles');
+        },
+
+        // Get all permissions (grouped by category)
+        async getAllPermissions(grouped = true) {
+            return await api.request('permissions-get_all', {
+                grouped: grouped ? 'true' : 'false'
+            });
+        },
+
+        // Get user permissions
+        async getUserPermissions(userId) {
+            return await api.request('acl-get_user_permissions', {
+                user_id: userId
+            });
+        },
+
+        // Create new role
+        async createRole(roleData) {
+            return await api.request('roles-create', {
+                name: roleData.name,
+                display_name: roleData.display_name,
+                description: roleData.description,
+                basic_permissions: roleData.basic_permissions || 'false'
+            });
+        },
+
+        // Get role details with permissions
+        async getRole(roleId) {
+            return await api.request('roles-get', { id: roleId });
+        },
+
+        // Update role information
+        async updateRole(roleId, roleData) {
+            return await api.request('roles-update', {
+                id: roleId,
+                display_name: roleData.display_name,
+                description: roleData.description,
+                is_default: roleData.is_default ? 'true' : 'false'
+            });
+        },
+
+        // Update role permissions
+        async updateRolePermissions(roleId, permissionIds) {
+            const params = { role_id: roleId };
+
+            // Format: permissions[id]=1 for each permission
+            permissionIds.forEach(id => {
+                params[`permissions[${id}]`] = '1';
+            });
+
+            return await api.request('roles-update_permissions', params);
+        },
+
+        // Assign role to user
+        async assignRole(userId, roleId) {
+            return await api.request('acl-assign_role', {
+                user_id: userId,
+                role_id: roleId
+            });
+        },
+
+        // Remove role from user
+        async removeRole(userId, roleId) {
+            return await api.request('acl-remove_role', {
+                user_id: userId,
+                role_id: roleId
+            });
+        },
+
+        // Delete role
+        async deleteRole(roleId) {
+            return await api.request('roles-delete', { id: roleId });
+        }
+    },
+
     // Utility methods
     utils: {
         // Check if user is authenticated

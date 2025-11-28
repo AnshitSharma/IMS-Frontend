@@ -8,7 +8,6 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Teal & Slate Modern Theme - Professional Infrastructure Management
         primary: {
           DEFAULT: '#0D9488',      // Teal 600
           dark: '#0F766E',         // Teal 700

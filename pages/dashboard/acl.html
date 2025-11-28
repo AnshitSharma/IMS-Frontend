@@ -196,54 +196,196 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-6 lg:ml-2">
-                <!-- ACL View -->
-                <div id="aclView" class="content-section active">
+                <!-- Role Management View -->
+                <div id="roleManagementView" class="content-section active">
+                    <!-- Header -->
                     <div class="content-header mb-6">
-                        <h2 class="text-2xl font-bold text-slate-800 mb-4">Access Control List</h2>
-                        <div class="header-actions flex flex-wrap items-center gap-3">
-                            <button
-                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addUserBtn">
-                                <i class="fas fa-user-plus"></i> Add User
-                            </button>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-2xl font-bold text-slate-800 mb-2">
+                                    <i class="fas fa-shield-alt"></i> Access Control Management
+                                </h2>
+                                <p class="text-sm text-slate-600">Manage roles, permissions, and user assignments</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <button class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2" id="createRoleBtn">
+                                    <i class="fas fa-plus"></i> Create Role
+                                </button>
+                                <button class="btn-secondary px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2" id="refreshRolesBtn">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- ACL Table -->
+                    <!-- Roles Table -->
                     <div class="table-container bg-white rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full" id="aclTable">
+                        <table class="w-full table-base" id="rolesTable">
                             <thead class="bg-slate-100 border-b border-slate-200">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">User</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Role</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Email</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Last Active
-                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Group Name</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Description</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Assigned Admin Users</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Permissions</th>
                                     <th class="px-4 py-3 text-left text-sm font-semibold text-slate-700">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="aclTableBody" class="divide-y divide-slate-200">
-                                <!-- ACL rows will be populated by JavaScript -->
+                            <tbody id="rolesTableBody" class="divide-y divide-slate-200">
+                                <!-- Role rows will be populated by JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyState" class="hidden bg-white rounded-lg shadow-sm p-12 text-center">
+                        <i class="fas fa-shield-alt text-6xl text-slate-300 mb-4"></i>
+                        <h3 class="text-xl font-semibold text-slate-700 mb-2">No Roles Found</h3>
+                        <p class="text-slate-500 mb-6">Get started by creating your first role</p>
+                        <button class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 mx-auto" onclick="aclManager.openCreateRoleModal()">
+                            <i class="fas fa-plus"></i> Create Role
+                        </button>
                     </div>
                 </div>
             </main>
         </div>
     </div>
 
-    <!-- Modal Container -->
-    <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <!-- Create/Edit Role Modal -->
+    <div id="roleModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
         <div class="modal bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h3 id="modalTitle" class="text-xl font-semibold text-slate-800">Modal Title</h3>
-                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="modalClose">
+                <h3 id="roleModalTitle" class="text-xl font-semibold text-slate-800">Create New Role</h3>
+                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="roleModalClose">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody">
-                <!-- Modal content will be loaded here -->
+
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-180px)]">
+                <!-- Role Information -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-4">Role Information</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Role Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="roleName" class="input-field w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g., admin, manager" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">
+                                Display Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" id="roleDisplayName" class="input-field w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g., Administrator" required>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                        <textarea id="roleDescription" class="input-field w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" rows="3" placeholder="Describe the role and its purpose"></textarea>
+                    </div>
+                    <div class="mt-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="roleIsDefault" class="w-4 h-4">
+                            <span class="text-sm text-slate-700">Set as default role for new users</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Permissions Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold text-slate-800">Permissions</h4>
+                        <div class="flex gap-2">
+                            <button type="button" class="btn-secondary px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2" id="selectAllPermissions">
+                                <i class="fas fa-check-square"></i> Select All
+                            </button>
+                            <button type="button" class="btn-secondary px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2" id="deselectAllPermissions">
+                                <i class="fas fa-square"></i> Deselect All
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Permission Grid (3 Columns) -->
+                    <div id="permissionsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Permission categories will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+                <div class="text-sm text-slate-600">
+                    <span id="selectedPermissionsCount">0</span> permissions selected
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" class="btn-secondary px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors" id="cancelRoleModal">Cancel</button>
+                    <button type="button" class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2" id="saveRoleBtn">
+                        <i class="fas fa-save"></i> Save Role
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Details Modal -->
+    <div id="roleDetailsModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="modal bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h3 id="roleDetailsTitle" class="text-xl font-semibold text-slate-800">Role: Admin Users</h3>
+                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="roleDetailsClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-180px)]">
+                <!-- Role Info Summary -->
+                <div class="bg-slate-50 rounded-lg p-4 mb-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-sm text-slate-600">Role Name:</span>
+                            <span class="text-sm font-semibold text-slate-800 ml-2" id="detailRoleName"></span>
+                        </div>
+                        <div>
+                            <span class="text-sm text-slate-600">Total Users:</span>
+                            <span class="text-sm font-semibold text-slate-800 ml-2" id="detailUserCount"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assign User Section -->
+                <div class="mb-6">
+                    <h5 class="text-md font-semibold text-slate-700 mb-3">Assign User to Role</h5>
+                    <div class="flex gap-3">
+                        <select id="assignUserSelect" class="input-field flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Select a user...</option>
+                        </select>
+                        <button class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2" id="assignUserBtn">
+                            <i class="fas fa-user-plus"></i> Assign
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Assigned Users Table -->
+                <div>
+                    <h5 class="text-md font-semibold text-slate-700 mb-3">Assigned Users</h5>
+                    <div class="table-container bg-white border border-slate-200 rounded-lg overflow-hidden">
+                        <table class="w-full">
+                            <thead class="bg-slate-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold text-slate-700">Username</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold text-slate-700">Email</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold text-slate-700">Assigned Date</th>
+                                    <th class="px-4 py-2 text-left text-sm font-semibold text-slate-700">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="roleUsersTableBody" class="divide-y divide-slate-200">
+                                <!-- User rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer px-6 py-4 border-t border-slate-200 bg-slate-50">
+                <button class="btn-secondary px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors" id="closeRoleDetailsBtn">Close</button>
             </div>
         </div>
     </div>
@@ -264,10 +406,7 @@
     <script src="../../assets/js/toast.js"></script>
     <script src="../../assets/js/dashboard/utils.js"></script>
     <script src="../../assets/js/dashboard/api.js"></script>
-    <script src="../../assets/js/server/server-api.js"></script>
-    <script src="../../assets/js/server/pcpartpicker-builder.js"></script>
-    <script src="../../assets/js/server/acl.js"></script>
-    <script src="../../assets/js/tickets.js"></script>
+    <script src="../../assets/js/server/acl-manager.js"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
 </body>
 
