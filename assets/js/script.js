@@ -444,24 +444,43 @@ function clearForm(form) {
 }
 
 function showAlert(type, message, iconClass) {
+    // Use the toast notification system instead of custom alerts
+    if (typeof toastNotification !== 'undefined') {
+        switch(type) {
+            case 'success':
+                toastNotification.success(message);
+                break;
+            case 'error':
+                toastNotification.error(message);
+                break;
+            case 'warning':
+                toastNotification.warning(message);
+                break;
+            default:
+                toastNotification.info(message);
+        }
+        return;
+    }
+
+    // Fallback to old alert system if toast is not available
     if (!alertMessage) return;
-    
+
     const alertIcon = alertMessage.querySelector('.alert-icon');
     const alertText = alertMessage.querySelector('.alert-text');
-    
+
     if (alertIcon && alertText) {
         // Set alert content
         alertIcon.className = `alert-icon ${iconClass}`;
         alertText.textContent = message;
-        
+
         // Set alert type
         alertMessage.className = `alert ${type}`;
-        
+
         // Show alert
         setTimeout(() => {
             alertMessage.classList.add('show');
         }, 100);
-        
+
         // Auto hide after 5 seconds
         setTimeout(() => {
             hideAlert();

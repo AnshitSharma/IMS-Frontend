@@ -3,8 +3,24 @@
  */
 
 window.utils = {
-    // Show alert notifications
+    // Show alert notifications using toast system
     showAlert(message, type = 'info', title = '', duration = 5000) {
+        // Use toast notification system if available
+        if (typeof window.toast !== 'undefined') {
+            switch(type) {
+                case 'success':
+                    return window.toast.success(message, duration);
+                case 'error':
+                    return window.toast.error(message, duration);
+                case 'warning':
+                    return window.toast.warning(message, duration);
+                case 'info':
+                default:
+                    return window.toast.info(message, duration);
+            }
+        }
+
+        // Fallback to old alert system if toast is not available
         const alertContainer = document.getElementById('alertContainer');
         if (!alertContainer) return;
 
@@ -246,36 +262,61 @@ window.utils = {
             modal.className = 'modal-overlay';
             modal.id = modalId;
             modal.innerHTML = `
-                <div class="modal" style="max-width: 400px;">
+                <div class="modal-content max-w-md mx-4">
                     <div class="modal-header">
-                        <h3>${this.escapeHtml(title)}</h3>
+                        <h3 class="text-xl font-semibold text-text-primary">${this.escapeHtml(title)}</h3>
                     </div>
                     <div class="modal-body">
-                        <p style="margin-bottom: 24px; line-height: 1.6;">${this.escapeHtml(message)}</p>
-                        <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button class="btn btn-secondary" id="${modalId}_cancel">Cancel</button>
-                            <button class="btn btn-danger" id="${modalId}_confirm">Confirm</button>
+                        <p class="mb-6 text-text-secondary leading-relaxed">${this.escapeHtml(message)}</p>
+                        <div class="flex gap-3 justify-end">
+                            <button class="btn-secondary" id="${modalId}_cancel">Cancel</button>
+                            <button class="btn-danger" id="${modalId}_confirm">Confirm</button>
                         </div>
                     </div>
                 </div>
             `;
 
             document.body.appendChild(modal);
-            modal.style.display = 'flex';
+
+            // Trigger animation
+            setTimeout(() => {
+                modal.style.opacity = '1';
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.style.transform = 'scale(1)';
+                    content.style.opacity = '1';
+                }
+            }, 10);
 
             const handleConfirm = () => {
-                modal.remove();
-                resolve(true);
+                modal.style.opacity = '0';
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.style.transform = 'scale(0.95)';
+                    content.style.opacity = '0';
+                }
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(true);
+                }, 200);
             };
 
             const handleCancel = () => {
-                modal.remove();
-                resolve(false);
+                modal.style.opacity = '0';
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    content.style.transform = 'scale(0.95)';
+                    content.style.opacity = '0';
+                }
+                setTimeout(() => {
+                    modal.remove();
+                    resolve(false);
+                }, 200);
             };
 
             document.getElementById(`${modalId}_confirm`).addEventListener('click', handleConfirm);
             document.getElementById(`${modalId}_cancel`).addEventListener('click', handleCancel);
-            
+
             // Close on overlay click
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) handleCancel();

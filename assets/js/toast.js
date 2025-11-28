@@ -64,8 +64,17 @@ class ToastNotification {
         const toast = document.getElementById(toastId);
         this.toasts.push(toastId);
 
-        // Trigger show animation
-        setTimeout(() => toast.classList.add('show'), 10);
+        // Trigger entrance animation by setting initial state
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(100%)';
+
+        // Animate in
+        setTimeout(() => {
+            toast.style.transition = 'all 0.3s ease-out';
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateX(0)';
+            toast.classList.add('show');
+        }, 10);
 
         // Auto remove after duration
         setTimeout(() => {
@@ -84,6 +93,12 @@ class ToastNotification {
         if (toast) {
             toast.classList.remove('show');
             toast.classList.add('hide');
+
+            // Animate out
+            toast.style.transition = 'all 0.3s ease-in';
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+
             setTimeout(() => {
                 toast.remove();
                 this.toasts = this.toasts.filter(id => id !== toastId);
@@ -133,6 +148,9 @@ class ToastNotification {
 
 // Create global instance
 const toastNotification = new ToastNotification();
+
+// Create convenient global alias
+window.toast = toastNotification;
 
 // Export for module systems if needed
 if (typeof module !== 'undefined' && module.exports) {

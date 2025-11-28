@@ -900,7 +900,7 @@ window.initACL = function () {
 
             // Attempt to fetch users from API
             // Note: This endpoint may not exist yet
-            const response = await window.api.get('/users/list');
+            const response = await window.api.users.list();
 
             if (response && response.success && response.data && response.data.users) {
                 renderACLTable(response.data.users);

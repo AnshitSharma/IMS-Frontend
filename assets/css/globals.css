@@ -269,10 +269,15 @@
   /* Modal Overlay */
   .modal-overlay {
     @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-modal;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
   }
 
   .modal-content {
     @apply bg-surface-card rounded-lg shadow-modal max-w-2xl w-full max-h-[90vh] overflow-auto;
+    transform: scale(0.95);
+    opacity: 0;
+    transition: all 0.2s ease-out;
   }
 
   .modal-header {
