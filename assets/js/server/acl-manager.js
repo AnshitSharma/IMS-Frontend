@@ -443,10 +443,23 @@ class ACLManager {
 
             if (titleElem) titleElem.textContent = `Role: ${role.display_name || role.name}`;
             if (roleNameElem) roleNameElem.textContent = role.display_name || role.name;
-            if (userCountElem) userCountElem.textContent = role.users?.length || 0;
+
+            // Get users for this role - either from API response or filter from loaded users
+            let roleUsers = role.users || [];
+
+            // If API didn't return users array, filter from loaded users based on their roles
+            if (roleUsers.length === 0 && this.users.length > 0) {
+                console.log('API did not return users for role, filtering from loaded users');
+                roleUsers = this.users.filter(user => {
+                    // Check if user has this role assigned
+                    return user.roles && Array.isArray(user.roles) && user.roles.some(r => r.id === roleId);
+                });
+            }
+
+            if (userCountElem) userCountElem.textContent = roleUsers.length;
 
             // Store current role users
-            this.currentRoleUsers = role.users || [];
+            this.currentRoleUsers = roleUsers;
 
             // Render users table
             this.renderRoleUsers(this.currentRoleUsers);
@@ -735,7 +748,17 @@ class ACLManager {
                 // Refresh role details
                 const role = await this.getRoleById(this.currentRole);
                 if (role) {
-                    this.currentRoleUsers = role.users || [];
+                    // Get users for this role - either from API response or filter from loaded users
+                    let roleUsers = role.users || [];
+
+                    // If API didn't return users array, filter from loaded users based on their roles
+                    if (roleUsers.length === 0 && this.users.length > 0) {
+                        roleUsers = this.users.filter(user => {
+                            return user.roles && Array.isArray(user.roles) && user.roles.some(r => r.id === this.currentRole);
+                        });
+                    }
+
+                    this.currentRoleUsers = roleUsers;
                     this.renderRoleUsers(this.currentRoleUsers);
                     this.renderUserDropdown();
 
@@ -776,7 +799,17 @@ class ACLManager {
                 // Refresh role details
                 const role = await this.getRoleById(roleId);
                 if (role) {
-                    this.currentRoleUsers = role.users || [];
+                    // Get users for this role - either from API response or filter from loaded users
+                    let roleUsers = role.users || [];
+
+                    // If API didn't return users array, filter from loaded users based on their roles
+                    if (roleUsers.length === 0 && this.users.length > 0) {
+                        roleUsers = this.users.filter(user => {
+                            return user.roles && Array.isArray(user.roles) && user.roles.some(r => r.id === roleId);
+                        });
+                    }
+
+                    this.currentRoleUsers = roleUsers;
                     this.renderRoleUsers(this.currentRoleUsers);
                     this.renderUserDropdown();
 
@@ -842,12 +875,26 @@ class ACLManager {
 }
 
 // Initialize ACLManager when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOMContentLoaded - Initializing ACLManager');
+// Wait for sidebar to be injected first
+function initializeACLManager() {
+    console.log('Initializing ACLManager');
     try {
         window.aclManager = new ACLManager();
         console.log('ACLManager initialized:', window.aclManager);
     } catch (error) {
         console.error('Failed to initialize ACLManager:', error);
     }
-});
+}
+
+// If we're on the ACL page, initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded - Will initialize ACLManager');
+        // Give sidebar time to load
+        setTimeout(initializeACLManager, 500);
+    });
+} else {
+    // DOM already loaded
+    console.log('DOM already loaded - Will initialize ACLManager');
+    setTimeout(initializeACLManager, 500);
+}
