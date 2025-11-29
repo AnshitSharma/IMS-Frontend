@@ -12,7 +12,7 @@
 <body class="bg-slate-50">
     <!-- Navigation Header -->
     <nav class="navbar bg-white shadow-sm sticky top-0 z-30">
-        <div class="nav-container max-w-screen-4xl mx-auto px-8 py-3 flex items-center justify-between">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
                 <span>BDC Inventory</span>
@@ -204,12 +204,16 @@
                 const response = await fetch('../../components/sidebar.html');
                 const html = await response.text();
                 document.getElementById('sidebar-placeholder').innerHTML = html;
-                if (window.sidebarManager) await window.sidebarManager.init();
+                if (window.sidebarManager) {
+                    await window.sidebarManager.init();
+                    const counts = await window.sidebarManager.getComponentCounts();
+                    window.sidebarManager.updateSidebarCounts(counts);
+                }
             } catch (error) {
                 console.error('Failed to load sidebar component:', error);
             }
         }
-        loadSidebarComponent();
+        loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
     </script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
 </body>

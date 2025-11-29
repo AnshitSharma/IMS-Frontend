@@ -98,8 +98,20 @@ class ACLManager {
     async getRoleById(roleId) {
         const result = await window.api.acl.getRole(roleId);
         if (result.success) {
-            return result.data.role;
+            // Merge role data with permissions and users arrays
+            const role = result.data.role;
+            role.permissions = result.data.permissions || [];
+            role.users = result.data.users || [];
+
+            console.log(`Role ${role.name} (ID: ${roleId}):`, {
+                permissions: role.permissions.length,
+                grantedPermissions: role.permissions.filter(p => p.granted === 1 || p.granted === true).length,
+                users: role.users.length
+            });
+
+            return role;
         }
+        console.error(`Failed to fetch role ${roleId}:`, result);
         return null;
     }
 
@@ -207,6 +219,8 @@ class ACLManager {
         } else if (role.permission_count !== undefined) {
             permissionsCount = role.permission_count;
         }
+
+        console.log(`Row for ${role.name}: users=${usersCount}, permissions=${permissionsCount}`);
 
         // Get display name - try multiple possible fields (API returns role_name)
         const displayName = role.display_name || role.displayName || role.role_name || role.name || 'Unnamed Role';

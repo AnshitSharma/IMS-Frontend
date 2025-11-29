@@ -294,11 +294,7 @@
 
   /* Toast Notification Base */
   .toast-container {
-    @apply fixed top-6 right-6 z-toast flex flex-col gap-3 pointer-events-none;
-  }
-
-  .toast {
-    @apply min-w-80 bg-surface-card rounded-lg shadow-toast border-l-4 p-4 animate-modal-slide pointer-events-auto flex gap-4 items-start;
+    @apply fixed top-3 right-3 sm:top-6 sm:right-6 z-toast flex flex-col gap-3 pointer-events-none;
   }
 
   .toast.toast-success {
@@ -657,6 +653,145 @@
 
   .aspect-video {
     @apply aspect-[16/9];
+  }
+
+  /* ============================================================
+     MOBILE-FIRST RESPONSIVE UTILITIES
+     ============================================================ */
+
+  /* Toast Notifications - Mobile-first sizing */
+  .toast {
+    @apply min-w-60 sm:min-w-72 md:min-w-80 bg-surface-card rounded-lg shadow-toast border-l-4 p-4 animate-modal-slide pointer-events-auto flex gap-4 items-start;
+  }
+
+  /* Modal - Full screen on mobile */
+  .modal-responsive {
+    @apply w-full max-h-[90vh] mx-4 sm:mx-auto sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-6xl overflow-auto;
+  }
+
+  /* Container - Responsive padding */
+  .container-responsive {
+    @apply w-full px-3 sm:px-4 md:px-6 mx-auto;
+  }
+
+  /* Form Input - Mobile-first with 44px minimum on tablet+ */
+  .form-input-responsive {
+    @apply w-full h-10 sm:h-11 px-2 py-2 sm:px-3 md:px-4 text-xs sm:text-sm md:text-base border border-border rounded-lg bg-surface-card text-text-primary placeholder-text-muted transition-all duration-200;
+  }
+
+  .form-input-responsive:focus {
+    @apply border-border-focus ring-1 ring-primary/20 shadow-focus;
+  }
+
+  .form-input-responsive:disabled {
+    @apply bg-surface-secondary text-text-disabled cursor-not-allowed;
+  }
+
+  .form-input-responsive.error {
+    @apply border-danger ring-1 ring-danger/20;
+  }
+
+  /* Form Label - Responsive typography */
+  .form-label-responsive {
+    @apply block text-xs sm:text-sm font-medium text-slate-700 mb-2;
+  }
+
+  /* Button Group - Mobile-first stacking */
+  .btn-group-responsive {
+    @apply flex flex-col gap-2 sm:flex-row sm:gap-3 w-full sm:w-auto;
+  }
+
+  /* Button Mobile - 44px minimum touch target */
+  .btn-mobile {
+    @apply min-h-10 sm:min-h-11 px-3 sm:px-4 py-2 sm:py-3 inline-flex items-center justify-center;
+  }
+
+  /* Grid Gap - Responsive spacing */
+  .grid-gap-responsive {
+    @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+  }
+
+  /* Navbar Padding - Responsive scaling */
+  .navbar-padding {
+    @apply px-3 sm:px-4 md:px-6 lg:px-8;
+  }
+
+  /* Content Spacing - Responsive padding */
+  .content-responsive {
+    @apply p-3 sm:p-4 md:p-6 lg:p-8;
+  }
+
+  /* Heading Responsive - Typography scale */
+  .heading-h1 {
+    @apply text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold;
+  }
+
+  .heading-h2 {
+    @apply text-base sm:text-lg md:text-xl lg:text-2xl font-bold;
+  }
+
+  .heading-h3 {
+    @apply text-sm sm:text-base md:text-lg font-semibold;
+  }
+
+  /* Text Responsive - Body text scaling */
+  .text-responsive {
+    @apply text-xs sm:text-sm md:text-base;
+  }
+
+  /* Server Builder Grid - Mobile-first 2-column layout */
+  .server-builder-grid {
+    @apply mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 md:gap-4;
+  }
+
+  /* Search Filter Container - Mobile-first stacking */
+  .search-filter-responsive {
+    @apply flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:flex-1;
+  }
+
+  /* Header Actions - Mobile-first layout */
+  .header-actions-responsive {
+    @apply flex flex-col gap-2 sm:flex-row sm:gap-3 sm:items-center w-full;
+  }
+
+  /* Table Container - Fix overflow for mobile */
+  .table-container {
+    @apply w-full overflow-x-auto;
+  }
+
+  /* Mobile-first Grid Breakpoints */
+  .grid-cols-responsive-1-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2;
+  }
+
+  .grid-cols-responsive-1-2-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3;
+  }
+
+  .grid-cols-responsive-1-2-3-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+  }
+
+  /* Modal overlay improvements for mobile */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-modal;
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
+  }
+
+  .modal-overlay.active {
+    @apply !opacity-100;
+  }
+
+  /* Sidebar mobile improvements */
+  @media (max-width: 1024px) {
+    .sidebar {
+      @apply hidden lg:block;
+    }
+
+    .sidebar.active {
+      @apply block fixed inset-0 w-64 z-40;
+    }
   }
 }
 

@@ -12,7 +12,7 @@
 <body class="bg-slate-50">
     <!-- Navigation Header -->
     <nav class="navbar bg-white shadow-sm sticky top-0 z-30">
-        <div class="nav-container max-w-screen-4xl mx-auto px-8 py-3 flex items-center justify-between">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
                 <span>BDC Inventory</span>
@@ -166,7 +166,7 @@
                     </div>
 
                     <!-- Permission Grid (3 Columns) -->
-                    <div id="permissionsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div id="permissionsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         <!-- Permission categories will be populated by JavaScript -->
                     </div>
                 </div>
@@ -267,26 +267,31 @@
     <script src="../../assets/js/toast.js"></script>
     <script src="../../assets/js/dashboard/utils.js"></script>
     <script src="../../assets/js/dashboard/api.js"></script>
-    <script src="../../assets/js/server/acl-manager.js"></script>
-    <!-- Sidebar Component and Manager (must load before dashboard) -->
+    <!-- Sidebar Component and Manager (must load before dashboard and acl-manager) -->
     <script src="../../components/sidebar-manager.js"></script>
     <script>
-        // Load sidebar HTML into placeholder
+        // Load sidebar HTML into placeholder BEFORE any page-specific managers
         async function loadSidebarComponent() {
             try {
                 const response = await fetch('../../components/sidebar.html');
                 const html = await response.text();
                 document.getElementById('sidebar-placeholder').innerHTML = html;
-                // Reinitialize sidebar manager after HTML loads
+                // Initialize sidebar manager and load counts
                 if (window.sidebarManager) {
                     await window.sidebarManager.init();
+                    // Load sidebar counts
+                    const counts = await window.sidebarManager.getComponentCounts();
+                    window.sidebarManager.updateSidebarCounts(counts);
                 }
             } catch (error) {
                 console.error('Failed to load sidebar component:', error);
             }
         }
-        loadSidebarComponent();
+        // Load sidebar first, with error handling
+        loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
     </script>
+    <!-- Load ACL manager AFTER sidebar is being loaded -->
+    <script src="../../assets/js/server/acl-manager.js"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
 </body>
 

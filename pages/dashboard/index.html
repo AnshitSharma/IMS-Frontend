@@ -12,7 +12,7 @@
 <body class="bg-slate-50">
     <!-- Navigation Header -->
     <nav class="navbar bg-white shadow-sm sticky top-0 z-30">
-        <div class="nav-container max-w-screen-4xl mx-auto px-8 py-3 flex items-center justify-between">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
                 <span>BDC Inventory</span>
@@ -71,7 +71,7 @@
                     </div>
 
                     <!-- Stats Cards -->
-                    <div class="stats-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div class="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive">
                         <!-- CPU Card -->
                         <div
                             class="stat-card cpu-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
@@ -458,12 +458,14 @@
                 // Reinitialize sidebar manager after HTML loads
                 if (window.sidebarManager) {
                     await window.sidebarManager.init();
+                    const counts = await window.sidebarManager.getComponentCounts();
+                    window.sidebarManager.updateSidebarCounts(counts);
                 }
             } catch (error) {
                 console.error('Failed to load sidebar component:', error);
             }
         }
-        loadSidebarComponent();
+        loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
     </script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
 </body>
