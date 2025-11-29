@@ -19,7 +19,7 @@ class ACLManager {
     async init() {
         this.setupEventListeners();
         await this.loadInitialData();
-        this.renderRolesTable();
+        await this.renderRolesTable();
     }
 
     // ======================
@@ -153,7 +153,7 @@ class ACLManager {
     // UI Rendering Methods
     // ======================
 
-    renderRolesTable() {
+    async renderRolesTable() {
         const tableBody = document.getElementById('rolesTableBody');
         const emptyState = document.getElementById('emptyState');
         const tableContainer = document.querySelector('.table-container');
@@ -169,14 +169,35 @@ class ACLManager {
         if (tableContainer) tableContainer.classList.remove('hidden');
 
         if (tableBody) {
-            tableBody.innerHTML = this.roles.map(role => this.createRoleRow(role)).join('');
+            // Fetch full role data (with users and permissions) for each role for display
+            const fullRoleData = await Promise.all(
+                this.roles.map(async (role) => {
+                    try {
+                        const fullRole = await this.getRoleById(role.id);
+                        return fullRole || role;
+                    } catch (error) {
+                        console.warn('Failed to fetch full data for role:', role.id, error);
+                        return role;
+                    }
+                })
+            );
+
+            tableBody.innerHTML = fullRoleData.map(role => this.createRoleRow(role)).join('');
         }
     }
 
     createRoleRow(role) {
         console.log('Creating row for role:', role);
 
-        const usersCount = role.users_count || role.assigned_users?.length || 0;
+        // Get users count - try multiple possible fields from API
+        let usersCount = 0;
+        if (role.users && Array.isArray(role.users)) {
+            usersCount = role.users.length;
+        } else if (role.users_count !== undefined) {
+            usersCount = role.users_count;
+        } else if (role.assigned_users && Array.isArray(role.assigned_users)) {
+            usersCount = role.assigned_users.length;
+        }
 
         // Count granted permissions (permissions with granted=1 or granted=true)
         let permissionsCount = 0;
@@ -546,7 +567,7 @@ class ACLManager {
         // Refresh button
         document.getElementById('refreshRolesBtn')?.addEventListener('click', async () => {
             await this.loadInitialData();
-            this.renderRolesTable();
+            await this.renderRolesTable();
             toast.success('Roles refreshed');
         });
 
@@ -687,7 +708,7 @@ class ACLManager {
             if (result && result.success) {
                 toast.success(this.editMode ? 'Role updated successfully' : 'Role created successfully');
                 await this.fetchAllRoles();
-                this.renderRolesTable();
+                await this.renderRolesTable();
                 this.closeAllModals();
             } else {
                 const errorMsg = result?.message || 'Failed to save role';
@@ -717,7 +738,7 @@ class ACLManager {
             if (result.success) {
                 toast.success('Role deleted successfully');
                 await this.fetchAllRoles();
-                this.renderRolesTable();
+                await this.renderRolesTable();
             } else {
                 toast.error(result.message || 'Failed to delete role');
             }
@@ -769,7 +790,7 @@ class ACLManager {
 
                 // Refresh main table
                 await this.fetchAllRoles();
-                this.renderRolesTable();
+                await this.renderRolesTable();
             } else {
                 toast.error(result.message || 'Failed to assign user');
             }
@@ -820,7 +841,7 @@ class ACLManager {
 
                 // Refresh main table
                 await this.fetchAllRoles();
-                this.renderRolesTable();
+                await this.renderRolesTable();
             } else {
                 toast.error(result.message || 'Failed to remove user');
             }
