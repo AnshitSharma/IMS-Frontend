@@ -307,7 +307,7 @@ class ACLManager {
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-4 py-2">${utils.escapeHtml(user.username || 'N/A')}</td>
                 <td class="px-4 py-2">${utils.escapeHtml(user.email || 'N/A')}</td>
-                <td class="px-4 py-2 text-slate-600 text-sm">${utils.formatDate(user.assigned_date) || '-'}</td>
+                <td class="px-4 py-2 text-slate-600 text-sm">${utils.formatDate(user.assigned_at) || '-'}</td>
                 <td class="px-4 py-2">
                     <button class="text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleRemoveUser(${user.id}, ${this.currentRole})" title="Remove">
                         <i class="fas fa-user-minus"></i> Remove
