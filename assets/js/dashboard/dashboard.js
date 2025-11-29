@@ -1,97 +1,7 @@
 /**
  * Dashboard JavaScript for BDC Inventory Management System
+ * Mobile menu now handled by SidebarManager in sidebar-manager.js
  */
-
-// ============================================
-// Responsive Mobile Menu Handler
-// ============================================
-
-(function initResponsiveMenu() {
-    // Initialize on DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupMobileMenu);
-    } else {
-        setupMobileMenu();
-    }
-
-    function setupMobileMenu() {
-        const hamburgerBtn = document.getElementById('hamburgerBtn');
-        const mobileOverlay = document.getElementById('mobileOverlay');
-        const sidebar = document.querySelector('.sidebar');
-
-        if (!hamburgerBtn || !mobileOverlay || !sidebar) return;
-
-        // Toggle sidebar on hamburger click
-        hamburgerBtn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            toggleSidebar();
-        });
-
-        // Close sidebar when clicking overlay
-        mobileOverlay.addEventListener('click', function () {
-            closeSidebar();
-        });
-
-        // Close sidebar when clicking close button (::before pseudo element)
-        sidebar.addEventListener('click', function (e) {
-            const rect = sidebar.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            // Check if click is in the close button area (top-right)
-            if (clickX > rect.width - 60 && clickY < 60) {
-                closeSidebar();
-            }
-        });
-
-        // Close sidebar on ESC key
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                closeSidebar();
-            }
-        });
-
-        function toggleSidebar() {
-            const isActive = sidebar.classList.toggle('active');
-            mobileOverlay.classList.toggle('active', isActive);
-            hamburgerBtn.classList.toggle('active', isActive);
-
-            // Prevent body scroll when sidebar is open
-            document.body.style.overflow = isActive ? 'hidden' : '';
-        }
-
-        function closeSidebar() {
-            sidebar.classList.remove('active');
-            mobileOverlay.classList.remove('active');
-            hamburgerBtn.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
-        // Close sidebar when clicking menu items on mobile
-        const menuLinks = sidebar.querySelectorAll('.menu-item a');
-        menuLinks.forEach(link => {
-            link.addEventListener('click', function () {
-                // Only auto-close on mobile
-                if (window.innerWidth <= 992) {
-                    // Allow navigation to happen first, then close sidebar
-                    setTimeout(() => closeSidebar(), 100);
-                }
-            });
-        });
-
-        // Handle window resize
-        let resizeTimeout;
-        window.addEventListener('resize', function () {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(function () {
-                // Close sidebar if resizing to desktop view
-                if (window.innerWidth > 992 && sidebar.classList.contains('active')) {
-                    closeSidebar();
-                }
-            }, 250);
-        });
-    }
-})();
 
 class Dashboard {
     constructor() {
@@ -112,6 +22,11 @@ class Dashboard {
     }
 
     async init() {
+        // Initialize sidebar manager first (loads counts with caching)
+        if (window.sidebarManager) {
+            await window.sidebarManager.init();
+        }
+
         await this.initializeUserInfo();
         this.setupEventListeners();
 
@@ -131,6 +46,8 @@ class Dashboard {
             if (typeof initACL === 'function') {
                 initACL();
             }
+            // Load sidebar counts for ACL page (uses cache)
+            await this.loadSidebarCounts();
         } else if (page === 'tickets.html') {
             this.currentComponent = 'tickets';
             if (typeof initTickets === 'function') {
@@ -142,8 +59,6 @@ class Dashboard {
             this.currentComponent = component;
             await this.loadComponentList(component);
         }
-
-
     }
 
     async initializeUserInfo() {
@@ -376,13 +291,11 @@ class Dashboard {
         });
     }
 
-    async loadSidebarCounts() {
+    async loadSidebarCounts(forceRefresh = false) {
         try {
-            // Fetch dashboard data to get component counts
-            const result = await api.dashboard.getData();
-            if (result.success && result.data.component_counts) {
-                this.updateSidebarCounts(result.data.component_counts);
-            }
+            // Use SidebarManager for intelligent caching
+            const counts = await window.sidebarManager.getComponentCounts(forceRefresh);
+            window.sidebarManager.updateSidebarCounts(counts);
         } catch (error) {
             console.error('Error loading sidebar counts:', error);
             // Silently fail - sidebar counts are not critical

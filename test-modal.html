@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Test</title>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Debug styles */
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: yellow;
+            padding: 10px;
+            border: 2px solid red;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 p-8">
+    <div class="debug-info">
+        <div id="modalStatus">Modal Status: Unknown</div>
+        <div id="modalDisplay">Display: Unknown</div>
+        <div id="modalClasses">Classes: Unknown</div>
+    </div>
+
+    <h1 class="text-2xl font-bold mb-4">Modal Visibility Test</h1>
+
+    <button id="testBtn" class="px-4 py-2 bg-blue-600 text-white rounded">
+        Test Modal
+    </button>
+
+    <!-- Test Modal - Exact copy from acl.html -->
+    <div id="roleModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="modal bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h3 id="roleModalTitle" class="text-xl font-semibold text-slate-800">Test Modal</h3>
+                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="roleModalClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto px-6 py-4">
+                <p>This is a test modal</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('roleModal');
+        const testBtn = document.getElementById('testBtn');
+        const closeBtn = document.getElementById('roleModalClose');
+        const statusDiv = document.getElementById('modalStatus');
+        const displayDiv = document.getElementById('modalDisplay');
+        const classesDiv = document.getElementById('modalClasses');
+
+        function updateDebugInfo() {
+            const computedStyle = window.getComputedStyle(modal);
+            statusDiv.textContent = `Modal Status: ${modal.classList.contains('hidden') ? 'HIDDEN' : 'VISIBLE'}`;
+            displayDiv.textContent = `Display: ${computedStyle.display}`;
+            classesDiv.textContent = `Classes: ${modal.className}`;
+            console.log('Modal element:', modal);
+            console.log('Computed display:', computedStyle.display);
+            console.log('Classes:', modal.className);
+        }
+
+        testBtn.addEventListener('click', () => {
+            console.log('Opening modal...');
+            modal.classList.remove('hidden');
+            updateDebugInfo();
+        });
+
+        closeBtn.addEventListener('click', () => {
+            console.log('Closing modal...');
+            modal.classList.add('hidden');
+            updateDebugInfo();
+        });
+
+        // Initial debug info
+        updateDebugInfo();
+    </script>
+</body>
+</html>

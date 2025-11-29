@@ -182,3 +182,30 @@ npm run build:css
 ```
 
 This command runs Tailwind CLI to process `globals.css` and output minified `tailwind.css`.
+
+## Custom Workflow Instructions
+
+When working on any task, follow these steps for optimal results:
+
+### Phase 1: Planning
+1. **Analyze the problem** - Read relevant codebase files to understand the task
+2. **Create a plan** - Write detailed todo items in `tasks/todo.md`
+3. **Check with developer** - Present the plan for verification before proceeding
+
+### Phase 2: Implementation
+4. **Work systematically** - Complete todo items one at a time, marking each as done
+5. **Keep it simple** - Every change should be minimal and impact only necessary code
+6. **Communicate progress** - Provide high-level summaries of changes at each step
+7. **No shortcuts** - Never skip debugging; find root causes, not temporary fixes
+8. **Quality focus** - Each change impacts as little code as possible to avoid introducing bugs
+
+### Phase 3: Review
+9. **Document changes** - Add a summary section to `tasks/todo.md` reviewing all modifications
+10. **Explain impact** - Note what was changed and why for future reference
+
+### Critical Principles
+- **NO LAZINESS** - If there's a bug, find and fix the root cause properly
+- **SIMPLICITY FIRST** - Simple, focused changes over complex solutions every time
+- **MINIMAL IMPACT** - Only modify code directly related to the task
+- **SENIOR DEVELOPER MINDSET** - Complete, thorough, and professional work always
+- **THINK FIRST** - Always plan before coding to avoid rework and mistakes

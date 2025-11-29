@@ -1,22 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(*)",
-      "Bash(done)",
-      "Bash(find:*)",
-      "Bash(npm run build:css:*)",
-      "Bash(git add:*)",
-      "Bash(del nul)",
-      "Bash(git commit:*)",
-      "Bash(git remote add:*)",
-      "Bash(git branch:*)",
-      "Bash(git push:*)",
-      "Bash(git rm:*)",
-      "Bash(node fix-sidebar.js:*)",
-      "Bash(del fix-sidebar.js)",
-      "Bash(node fix-tables.js:*)",
-      "Bash(del \"c:\\Users\\anshi\\Downloads\\Work\\bdc ims frontend\\assets\\css\\server\\server-cards.css\")",
-      "Bash(dir \"c:\\Users\\anshi\\Downloads\\Work\\bdc ims frontend\\components\")"
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Bash(for file in pages/dashboard/pciecard.html pages/dashboard/hbacard.html pages/dashboard/servers.html pages/dashboard/acl.html pages/dashboard/tickets.html pages/dashboard/index.html)",
+      "Bash(do echo \"✓ $file - Ready for manual update (same pattern as previous pages)\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

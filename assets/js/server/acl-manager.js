@@ -30,28 +30,56 @@ class ACLManager {
         try {
             utils.showLoading(true, 'Loading roles and permissions...');
 
-            const [rolesResult, permissionsResult, usersResult] = await Promise.all([
-                window.api.acl.getAllRoles(),
-                window.api.acl.getAllPermissions(true),
-                window.api.users.list()
-            ]);
-
-            if (rolesResult.success) {
-                this.roles = rolesResult.data.roles || [];
+            // Load roles
+            const rolesResult = await window.api.acl.getAllRoles();
+            console.log('Roles result:', rolesResult);
+            if (rolesResult && rolesResult.success) {
+                this.roles = rolesResult.data?.roles || rolesResult.data || [];
+            } else {
+                this.roles = [];
             }
 
-            if (permissionsResult.success) {
-                this.permissions = permissionsResult.data.permissions || [];
+            // Load permissions
+            const permissionsResult = await window.api.acl.getAllPermissions(true);
+            console.log('Permissions result:', permissionsResult);
+            if (permissionsResult && permissionsResult.success) {
+                const permissionsData = permissionsResult.data?.permissions || permissionsResult.data || {};
+
+                // Convert object format to array format if needed
+                if (typeof permissionsData === 'object' && !Array.isArray(permissionsData)) {
+                    // Permissions are grouped by category as an object, convert to array
+                    this.permissions = Object.keys(permissionsData).map(categoryName => ({
+                        category_name: categoryName,
+                        permissions: permissionsData[categoryName]
+                    }));
+                } else if (Array.isArray(permissionsData)) {
+                    // Already in array format
+                    this.permissions = permissionsData;
+                } else {
+                    this.permissions = [];
+                }
+            } else {
+                this.permissions = [];
             }
 
-            if (usersResult.success) {
-                this.users = usersResult.data.users || [];
+            // Load users
+            try {
+                const usersResult = await window.api.users.list();
+                console.log('Users result:', usersResult);
+                if (usersResult && usersResult.success) {
+                    this.users = usersResult.data?.users || usersResult.data || [];
+                } else {
+                    this.users = [];
+                }
+            } catch (error) {
+                console.warn('Failed to load users:', error);
+                this.users = [];
             }
 
             return true;
         } catch (error) {
             console.error('Failed to load initial data:', error);
-            toast.error('Failed to load ACL data');
+            toast.error('Failed to load ACL data: ' + error.message);
             return false;
         } finally {
             utils.showLoading(false);
@@ -60,8 +88,8 @@ class ACLManager {
 
     async fetchAllRoles() {
         const result = await window.api.acl.getAllRoles();
-        if (result.success) {
-            this.roles = result.data.roles || [];
+        if (result && result.success) {
+            this.roles = result.data?.roles || result.data || [];
             return this.roles;
         }
         return [];
@@ -76,14 +104,22 @@ class ACLManager {
     }
 
     async createRole(roleData) {
+        console.log('Creating role with data:', roleData);
+        console.log('Selected permissions:', Array.from(this.selectedPermissions));
+
         const result = await window.api.acl.createRole(roleData);
-        if (result.success) {
+        console.log('Create role result:', result);
+
+        if (result && result.success) {
             // Update permissions for the newly created role
-            const roleId = result.data.role_id;
+            const roleId = result.data?.role_id || result.data?.id;
             const permissionIds = Array.from(this.selectedPermissions);
 
-            if (permissionIds.length > 0) {
-                await window.api.acl.updateRolePermissions(roleId, permissionIds);
+            console.log('Role ID:', roleId, 'Permission IDs:', permissionIds);
+
+            if (roleId && permissionIds.length > 0) {
+                const permResult = await window.api.acl.updateRolePermissions(roleId, permissionIds);
+                console.log('Update permissions result:', permResult);
             }
 
             return result;
@@ -138,20 +174,35 @@ class ACLManager {
     }
 
     createRoleRow(role) {
-        const usersCount = role.users_count || 0;
-        const permissionsCount = role.permissions?.length || 0;
+        console.log('Creating row for role:', role);
+
+        const usersCount = role.users_count || role.assigned_users?.length || 0;
+
+        // Count granted permissions (permissions with granted=1 or granted=true)
+        let permissionsCount = 0;
+        if (role.permissions && Array.isArray(role.permissions)) {
+            // Filter for granted permissions only
+            permissionsCount = role.permissions.filter(p => p.granted === 1 || p.granted === true).length;
+        } else if (role.permission_count !== undefined) {
+            permissionsCount = role.permission_count;
+        }
+
+        // Get display name - try multiple possible fields (API returns role_name)
+        const displayName = role.display_name || role.displayName || role.role_name || role.name || 'Unnamed Role';
+        const description = role.description || '-';
+        const isDefault = role.is_default || role.isDefault || false;
 
         return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-shield-alt text-primary"></i>
-                        <span class="font-medium text-slate-800">${utils.escapeHtml(role.display_name || role.name)}</span>
-                        ${role.is_default ? '<span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Default</span>' : ''}
+                        <span class="font-medium text-slate-800">${utils.escapeHtml(displayName)}</span>
+                        ${isDefault ? '<span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Default</span>' : ''}
                     </div>
                 </td>
                 <td class="px-4 py-3 text-slate-600 text-sm">
-                    ${utils.escapeHtml(role.description || '-')}
+                    ${utils.escapeHtml(description)}
                 </td>
                 <td class="px-4 py-3">
                     <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openRoleDetailsModal(${role.id})">
@@ -182,6 +233,18 @@ class ACLManager {
         if (!grid) return;
 
         grid.innerHTML = '';
+
+        // Ensure permissions is an array before iterating
+        if (!Array.isArray(this.permissions)) {
+            grid.innerHTML = '<p class="text-center text-slate-500 py-4">No permissions available. Please refresh the page.</p>';
+            console.error('Permissions must be an array but got:', typeof this.permissions, this.permissions);
+            return;
+        }
+
+        if (this.permissions.length === 0) {
+            grid.innerHTML = '<p class="text-center text-slate-500 py-4">No permissions found</p>';
+            return;
+        }
 
         this.permissions.forEach(category => {
             const categoryCard = this.createPermissionCategoryCard(
@@ -259,92 +322,155 @@ class ACLManager {
     // ======================
 
     openCreateRoleModal() {
-        this.editMode = false;
-        this.currentRole = null;
-        this.selectedPermissions.clear();
+        console.log('openCreateRoleModal called');
+        try {
+            this.editMode = false;
+            this.currentRole = null;
+            this.selectedPermissions.clear();
 
-        const modal = document.getElementById('roleModal');
-        const title = document.getElementById('roleModalTitle');
+            const modal = document.getElementById('roleModal');
+            const title = document.getElementById('roleModalTitle');
 
-        if (title) title.textContent = 'Create New Role';
+            console.log('Modal element:', modal);
+            console.log('Title element:', title);
 
-        // Clear form
-        document.getElementById('roleName').value = '';
-        document.getElementById('roleDisplayName').value = '';
-        document.getElementById('roleDescription').value = '';
-        document.getElementById('roleIsDefault').checked = false;
+            if (title) title.textContent = 'Create New Role';
 
-        this.renderPermissionsGrid([]);
-        this.updatePermissionCount();
+            // Clear form
+            const roleNameInput = document.getElementById('roleName');
+            const displayNameInput = document.getElementById('roleDisplayName');
+            const descriptionInput = document.getElementById('roleDescription');
+            const isDefaultCheckbox = document.getElementById('roleIsDefault');
 
-        if (modal) modal.classList.remove('hidden');
+            console.log('Form elements:', { roleNameInput, displayNameInput, descriptionInput, isDefaultCheckbox });
+
+            if (roleNameInput) roleNameInput.value = '';
+            if (displayNameInput) displayNameInput.value = '';
+            if (descriptionInput) descriptionInput.value = '';
+            if (isDefaultCheckbox) isDefaultCheckbox.checked = false;
+
+            console.log('About to render permissions grid, permissions:', this.permissions);
+            this.renderPermissionsGrid([]);
+            this.updatePermissionCount();
+
+            if (modal) {
+                console.log('Opening modal...');
+                modal.classList.remove('hidden');
+                // Add opacity to make modal visible (CSS has opacity: 0 by default)
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                    const modalContent = modal.querySelector('.modal');
+                    if (modalContent) {
+                        modalContent.style.opacity = '1';
+                        modalContent.style.transform = 'scale(1)';
+                    }
+                }, 10);
+            } else {
+                console.error('Modal element not found!');
+            }
+        } catch (error) {
+            console.error('Error in openCreateRoleModal:', error);
+            toast.error('Failed to open create role modal: ' + error.message);
+        }
     }
 
     async openEditRoleModal(roleId) {
         this.editMode = true;
         this.currentRole = roleId;
 
-        utils.showLoading(true, 'Loading role details...');
-        const role = await this.getRoleById(roleId);
-        utils.showLoading(false);
+        try {
+            utils.showLoading(true, 'Loading role details...');
+            const role = await this.getRoleById(roleId);
 
-        if (!role) {
-            toast.error('Failed to load role details');
-            return;
+            if (!role) {
+                toast.error('Failed to load role details');
+                return;
+            }
+
+            const modal = document.getElementById('roleModal');
+            const title = document.getElementById('roleModalTitle');
+
+            if (title) title.textContent = 'Edit Role';
+
+            // Populate form
+            document.getElementById('roleName').value = role.name;
+            document.getElementById('roleDisplayName').value = role.display_name;
+            document.getElementById('roleDescription').value = role.description || '';
+            document.getElementById('roleIsDefault').checked = role.is_default || false;
+
+            // Get selected permission IDs
+            const selectedIds = role.permissions?.map(p => p.id) || [];
+            this.selectedPermissions = new Set(selectedIds);
+
+            this.renderPermissionsGrid(selectedIds);
+            this.updatePermissionCount();
+
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                    const modalContent = modal.querySelector('.modal');
+                    if (modalContent) {
+                        modalContent.style.opacity = '1';
+                        modalContent.style.transform = 'scale(1)';
+                    }
+                }, 10);
+            }
+        } catch (error) {
+            console.error('Error opening edit role modal:', error);
+            toast.error('Failed to load role details: ' + error.message);
+        } finally {
+            utils.showLoading(false);
         }
-
-        const modal = document.getElementById('roleModal');
-        const title = document.getElementById('roleModalTitle');
-
-        if (title) title.textContent = 'Edit Role';
-
-        // Populate form
-        document.getElementById('roleName').value = role.name;
-        document.getElementById('roleDisplayName').value = role.display_name;
-        document.getElementById('roleDescription').value = role.description || '';
-        document.getElementById('roleIsDefault').checked = role.is_default || false;
-
-        // Get selected permission IDs
-        const selectedIds = role.permissions?.map(p => p.id) || [];
-        this.selectedPermissions = new Set(selectedIds);
-
-        this.renderPermissionsGrid(selectedIds);
-        this.updatePermissionCount();
-
-        if (modal) modal.classList.remove('hidden');
     }
 
     async openRoleDetailsModal(roleId) {
         this.currentRole = roleId;
 
-        utils.showLoading(true, 'Loading role details...');
-        const role = await this.getRoleById(roleId);
-        utils.showLoading(false);
+        try {
+            utils.showLoading(true, 'Loading role details...');
+            const role = await this.getRoleById(roleId);
 
-        if (!role) {
-            toast.error('Failed to load role details');
-            return;
+            if (!role) {
+                toast.error('Failed to load role details');
+                return;
+            }
+
+            const modal = document.getElementById('roleDetailsModal');
+            const titleElem = document.getElementById('roleDetailsTitle');
+            const roleNameElem = document.getElementById('detailRoleName');
+            const userCountElem = document.getElementById('detailUserCount');
+
+            if (titleElem) titleElem.textContent = `Role: ${role.display_name || role.name}`;
+            if (roleNameElem) roleNameElem.textContent = role.display_name || role.name;
+            if (userCountElem) userCountElem.textContent = role.users?.length || 0;
+
+            // Store current role users
+            this.currentRoleUsers = role.users || [];
+
+            // Render users table
+            this.renderRoleUsers(this.currentRoleUsers);
+
+            // Populate user dropdown with unassigned users
+            this.renderUserDropdown();
+
+            if (modal) {
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                    const modalContent = modal.querySelector('.modal');
+                    if (modalContent) {
+                        modalContent.style.opacity = '1';
+                        modalContent.style.transform = 'scale(1)';
+                    }
+                }, 10);
+            }
+        } catch (error) {
+            console.error('Error opening role details modal:', error);
+            toast.error('Failed to load role details: ' + error.message);
+        } finally {
+            utils.showLoading(false);
         }
-
-        const modal = document.getElementById('roleDetailsModal');
-        const titleElem = document.getElementById('roleDetailsTitle');
-        const roleNameElem = document.getElementById('detailRoleName');
-        const userCountElem = document.getElementById('detailUserCount');
-
-        if (titleElem) titleElem.textContent = `Role: ${role.display_name || role.name}`;
-        if (roleNameElem) roleNameElem.textContent = role.display_name || role.name;
-        if (userCountElem) userCountElem.textContent = role.users?.length || 0;
-
-        // Store current role users
-        this.currentRoleUsers = role.users || [];
-
-        // Render users table
-        this.renderRoleUsers(this.currentRoleUsers);
-
-        // Populate user dropdown with unassigned users
-        this.renderUserDropdown();
-
-        if (modal) modal.classList.remove('hidden');
     }
 
     renderUserDropdown() {
@@ -368,8 +494,22 @@ class ACLManager {
     }
 
     closeAllModals() {
-        document.getElementById('roleModal')?.classList.add('hidden');
-        document.getElementById('roleDetailsModal')?.classList.add('hidden');
+        const roleModal = document.getElementById('roleModal');
+        const roleDetailsModal = document.getElementById('roleDetailsModal');
+
+        [roleModal, roleDetailsModal].forEach(modal => {
+            if (modal) {
+                modal.style.opacity = '0';
+                const modalContent = modal.querySelector('.modal');
+                if (modalContent) {
+                    modalContent.style.opacity = '0';
+                    modalContent.style.transform = 'scale(0.95)';
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 200); // Match the transition duration
+            }
+        });
     }
 
     // ======================
@@ -378,9 +518,17 @@ class ACLManager {
 
     setupEventListeners() {
         // Create Role button
-        document.getElementById('createRoleBtn')?.addEventListener('click', () => {
-            this.openCreateRoleModal();
-        });
+        const createBtn = document.getElementById('createRoleBtn');
+        console.log('Setting up event listeners, createRoleBtn:', createBtn);
+
+        if (createBtn) {
+            createBtn.addEventListener('click', () => {
+                console.log('Create Role button clicked!');
+                this.openCreateRoleModal();
+            });
+        } else {
+            console.warn('createRoleBtn not found when setting up event listeners');
+        }
 
         // Refresh button
         document.getElementById('refreshRolesBtn')?.addEventListener('click', async () => {
@@ -494,8 +642,11 @@ class ACLManager {
     }
 
     async handleSaveRole() {
+        console.log('handleSaveRole called, editMode:', this.editMode);
+
         // Validate form
         if (!this.validateRoleForm()) {
+            console.log('Form validation failed');
             return;
         }
 
@@ -505,6 +656,8 @@ class ACLManager {
             description: document.getElementById('roleDescription').value.trim(),
             is_default: document.getElementById('roleIsDefault').checked
         };
+
+        console.log('Role data to save:', roleData);
 
         try {
             utils.showLoading(true, this.editMode ? 'Updating role...' : 'Creating role...');
@@ -516,17 +669,21 @@ class ACLManager {
                 result = await this.createRole(roleData);
             }
 
-            if (result.success) {
+            console.log('Save role result:', result);
+
+            if (result && result.success) {
                 toast.success(this.editMode ? 'Role updated successfully' : 'Role created successfully');
                 await this.fetchAllRoles();
                 this.renderRolesTable();
                 this.closeAllModals();
             } else {
-                toast.error(result.message || 'Failed to save role');
+                const errorMsg = result?.message || 'Failed to save role';
+                console.error('Save role failed:', errorMsg);
+                toast.error(errorMsg);
             }
         } catch (error) {
             console.error('Error saving role:', error);
-            toast.error('An error occurred while saving the role');
+            toast.error('An error occurred while saving the role: ' + error.message);
         } finally {
             utils.showLoading(false);
         }
@@ -686,5 +843,11 @@ class ACLManager {
 
 // Initialize ACLManager when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.aclManager = new ACLManager();
+    console.log('DOMContentLoaded - Initializing ACLManager');
+    try {
+        window.aclManager = new ACLManager();
+        console.log('ACLManager initialized:', window.aclManager);
+    } catch (error) {
+        console.error('Failed to initialize ACLManager:', error);
+    }
 });
