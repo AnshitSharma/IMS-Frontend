@@ -228,15 +228,15 @@ class ACLManager {
         const isDefault = role.is_default || role.isDefault || false;
 
         return `
-            <tr class="hover:bg-slate-50 transition-colors">
+            <tr class="hover:bg-surface-hover transition-colors">
                 <td class="px-4 py-3">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-shield-alt text-primary"></i>
-                        <span class="font-medium text-slate-800">${utils.escapeHtml(displayName)}</span>
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
                         ${isDefault ? '<span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Default</span>' : ''}
                     </div>
                 </td>
-                <td class="px-4 py-3 text-slate-600 text-sm">
+                <td class="px-4 py-3 text-text-secondary text-sm">
                     ${utils.escapeHtml(description)}
                 </td>
                 <td class="px-4 py-3">
@@ -296,12 +296,12 @@ class ACLManager {
 
     createPermissionCategoryCard(categoryName, permissions, selected) {
         const card = document.createElement('div');
-        card.className = 'bg-slate-50 rounded-lg p-4 border border-slate-200';
+        card.className = 'bg-surface-card rounded-lg p-4 border border-border';
 
         const header = `
             <div class="flex items-center justify-between mb-3">
-                <h5 class="text-sm font-semibold text-slate-700">${utils.escapeHtml(categoryName)}</h5>
-                <label class="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                <h5 class="text-sm font-semibold text-text-secondary">${utils.escapeHtml(categoryName)}</h5>
+                <label class="flex items-center gap-2 text-xs text-text-muted cursor-pointer">
                     <input type="checkbox" class="category-select-all w-4 h-4" data-category="${utils.escapeHtml(categoryName)}">
                     <span>All</span>
                 </label>
@@ -309,13 +309,13 @@ class ACLManager {
         `;
 
         const permissionsList = permissions.map(perm => `
-            <label class="flex items-center gap-2 py-1 hover:bg-slate-100 px-2 rounded transition-colors cursor-pointer">
+            <label class="flex items-center gap-2 py-1 hover:bg-surface-hover px-2 rounded transition-colors cursor-pointer">
                 <input type="checkbox"
                        class="permission-checkbox w-4 h-4"
                        data-permission-id="${perm.id}"
                        data-category="${utils.escapeHtml(categoryName)}"
                        ${selected.includes(perm.id) ? 'checked' : ''}>
-                <span class="text-sm text-slate-700">${utils.escapeHtml(perm.display_name || perm.name)}</span>
+                <span class="text-sm text-text-secondary">${utils.escapeHtml(perm.display_name || perm.name)}</span>
             </label>
         `).join('');
 
@@ -339,10 +339,10 @@ class ACLManager {
         }
 
         tableBody.innerHTML = users.map(user => `
-            <tr class="hover:bg-slate-50 transition-colors">
+            <tr class="hover:bg-surface-hover transition-colors">
                 <td class="px-4 py-2">${utils.escapeHtml(user.username || 'N/A')}</td>
                 <td class="px-4 py-2">${utils.escapeHtml(user.email || 'N/A')}</td>
-                <td class="px-4 py-2 text-slate-600 text-sm">${utils.formatDate(user.assigned_at) || '-'}</td>
+                <td class="px-4 py-2 text-text-secondary text-sm">${utils.formatDate(user.assigned_at) || '-'}</td>
                 <td class="px-4 py-2">
                     <button class="text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleRemoveUser(${user.id}, ${this.currentRole})" title="Remove">
                         <i class="fas fa-user-minus"></i> Remove

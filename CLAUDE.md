@@ -1,211 +1,195 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-**BDC IMS Frontend** - A vanilla JavaScript single-page application (SPA) for datacenter Infrastructure Management System. No frontend framework (React/Vue/Angular), no build process or transpiler. Direct HTML/CSS/JavaScript served via HTTP.
-
-**Key Features:**
-- Inventory/component management dashboard
-- Ticketing system with workflow approval process
-- Server configuration builder (PCPartPicker-style interface)
-- Role-based access control (ACL) and permission system
-- Authentication via JWT tokens
-
-## Development Commands
-
+## Quick Commands
 ```bash
-npm run dev        # Start http-server on http://localhost:3000 (-c-1 disables caching)
-npm start          # Alias for npm run dev
-npm run build      # Not configured yet (placeholder)
+npm run dev        # Dev server @ localhost:3000 (caching disabled)
+npm run build:css  # REQUIRED after editing assets/css/globals.css
 ```
 
-### Development Flags
+## Project: BDC IMS Frontend
+Vanilla JS SPA for datacenter infrastructure management.
+**Stack**: HTML + Tailwind CSS + Vanilla JS | **API**: JWT auth via axios | **No frameworks, no bundlers**
 
-**`--dangerously-skip-permissions`**
-- Use this flag during local development to skip/bypass permission checks
-- Allows testing features without waiting for proper permission verification
-- **Only for development** - never use in production or staging environments
-- Example: When testing role-based features without full permission setup
+---
 
-## Architecture and Key Systems
+## 🚨 ABSOLUTE RULES - NEVER VIOLATE
+
+### Code Quality - NO EXCEPTIONS
+1. **NEVER BE LAZY** - No shortcuts, no "quick fixes", no patchwork
+2. **NEVER DO PATCHWORK** - If something is broken, fix it properly at the root
+3. **NO TEMPORARY FIXES** - Every fix must be permanent and complete
+4. **NO BAND-AIDS** - Don't mask problems, solve them completely
+5. **FIND ROOT CAUSE** - If there's a bug, trace it to its origin and fix there
+
+### Technical Constraints
+6. **USE ES6 CLASSES** for all new features (pattern: `assets/js/server/server-api.js`)
+7. **NEVER** use React/Vue/Angular - vanilla JS only
+8. **ALWAYS** use shared navbar: `<div id="navbar-placeholder"></div>`
+9. **ALWAYS** run `npm run build:css` after modifying Tailwind/globals.css
+
+---
+
+## 🧠 SENIOR DEVELOPER MINDSET - YOU MUST FOLLOW
+
+### Think Like a Principal Engineer
+- **YOU ARE A SENIOR DEVELOPER** - Act like one in every decision
+- Before writing code, ask: "Would a senior engineer approve this approach?"
+- Consider maintainability, readability, and future developers
+- Write code you'd be proud to show in a code review
+
+### Impact Analysis - MANDATORY
+Before making ANY change, analyze:
+1. **What files does this change affect?**
+2. **What other components depend on this code?**
+3. **Could this break existing functionality?**
+4. **Are there edge cases I haven't considered?**
+
+After making changes, verify:
+5. **Test the changed functionality**
+6. **Check that related features still work**
+7. **Confirm no console errors introduced**
+
+### Code Optimization
+- **ALWAYS** look for opportunities to optimize
+- Remove dead code, unused variables, redundant logic
+- Simplify complex conditions
+- Extract repeated code into reusable functions
+- But: Don't over-engineer. Simple > Clever
+
+---
+
+## 📋 PLANNING MODE - QUESTION PROTOCOL
+
+### When Starting Any Task - ASK FIRST
+**DO NOT start coding until you have asked clarifying questions.**
+
+Step 1: **Understand the Request**
+- What exactly is the expected outcome?
+- What should it look like when done?
+- Are there any specific requirements not mentioned?
+
+Step 2: **Clarify Scope**
+- Which files/components are involved?
+- Should this integrate with existing features?
+- What's the priority: speed, quality, or both?
+
+Step 3: **Identify Risks**
+- What could go wrong?
+- Are there dependencies I should know about?
+- Any existing bugs or tech debt in this area?
+
+Step 4: **Counter-Questions**
+Challenge assumptions:
+- "You mentioned X, but have you considered Y?"
+- "This approach works, but would Z be better because...?"
+- "I noticed [potential issue], should we address it?"
+
+Step 5: **Confirm Plan**
+Present your understanding and plan. Wait for approval before coding.
+
+### Question Format
+```
+Before I begin, I have some questions:
+
+**Understanding:**
+1. [Question about requirements]
+
+**Scope:**
+2. [Question about boundaries]
+
+**Technical:**
+3. [Question about implementation]
+
+**Suggestion:**
+4. [Counter-proposal or alternative approach]
+
+Once you confirm, I'll create a detailed plan in tasks/todo.md.
+```
+
+---
+
+## 🏗️ IMPLEMENTATION WORKFLOW
+
+### Phase 1: Planning (DO NOT SKIP)
+1. **Read** relevant codebase files to understand context
+2. **Ask** clarifying questions (see Question Protocol above)
+3. **Write** detailed todo items in `tasks/todo.md`
+4. **Present** plan to developer for verification
+5. **WAIT** for approval before proceeding
+
+### Phase 2: Implementation
+6. **One item at a time** - Complete each todo before starting next
+7. **Minimal changes** - Touch ONLY necessary code
+8. **Impact check** - After each change, verify no side effects
+9. **Test immediately** - Don't accumulate untested changes
+
+### Phase 3: Review
+10. **Self-review** - Read your own changes critically
+11. **Document** - Add summary to `tasks/todo.md`
+12. **Explain** - Note what changed and why
+
+---
+
+## 📁 ARCHITECTURE
+
+### File Structure - Lean, No Bloat
+```
+pages/[feature]/          → HTML pages
+assets/css/[feature]/     → Styles  
+assets/js/[feature]/      → Scripts (colocated with feature)
+components/               → Shared components ONLY
+data/*.json              → Static data, permissions
+```
+
+**NO FILE EXPLOSION** - Don't create 10 files for one feature. Keep related code together.
 
 ### API Configuration
 - **Base URL**: `https://shubham.staging.cloudmate.in/bdc_ims/api/api.php`
-- **Authentication**: JWT Bearer tokens stored in localStorage (`bdc_token`, `bdc_refresh_token`)
-- **Implementation**: Three axios wrappers exist - prefer `ServerAPI` class pattern for new features
-  - `assets/js/dashboard/api.js` - `window.api` namespace with token management
-  - `assets/js/server/server-api.js` - ES6 `ServerAPI` class (recommended pattern)
-  - `assets/js/script.js` - Simple functional approach (legacy)
+- **Auth**: Bearer token (`bdc_token`, `bdc_refresh_token` in localStorage)
+- **Response**: `{ success, authenticated, code, message, timestamp, data }`
 
-### Codebase Structure
-**Feature-based organization** - Each major feature has dedicated folders with HTML, CSS, and JS:
-```
-pages/
-├── index.html              # Login/registration
-├── tickets.html            # Ticketing system
-├── dashboard/index.html    # Component inventory view
-├── forms/                  # Add/edit component forms
-└── server/                 # Configuration, ACL, server builders
+### Code Patterns
 
-assets/
-├── css/                    # Organized by feature (dashboard/, forms/, server/)
-└── js/                     # Same structure, with dedicated API wrappers per module
-
-components/
-└── navbar.js              # Shared reusable navbar component (use this pattern)
-
-data/
-├── permissions.json       # Role-based permissions lookup
-├── cpu-jsons/, motherboard-jsons/, ram-jsons/, etc.  # Component specifications (large dataset)
-```
-
-### Authentication & Permissions Model
-- **JWT-based**: Access/refresh token pair, Bearer auth in headers
-- **Role-based ACL**: Permissions stored in `data/permissions.json`
-- **Key permissions**: `ticket.*`, `server.*`, `component.*` prefixed actions
-- **Separation of duties**: Users cannot approve their own tickets (enforced server-side)
-
-### Ticketing System Workflow
-Status flow: `draft` → `pending` → `approved` → `in_progress` → `deployed` → `completed`
-- Each transition requires specific permissions (documented in `TICKETS_API_REFERENCE.md`)
-- Only editable in `draft` status (title, description, priority)
-- Includes audit trail with user, timestamp, IP address
-- See `TICKETS_API_REFERENCE.md` for complete endpoint specifications
-
-### Component Data Management
-Component specifications stored as static JSON files (CPU, RAM, motherboards, NICs, etc.). These are loaded client-side for:
-- Server builder component selection
-- Compatibility checking
-- UUID validation
-
-### UI Patterns
-
-**Toast Notifications** (`assets/js/toast.js`):
+**API wrapper (ES6 class)** - Follow `assets/js/server/server-api.js`:
 ```javascript
-toast.success('Message');   // Green toast
-toast.error('Message');     // Red toast
-toast.warning('Message');   // Yellow toast
-```
-
-**Shared Navbar Component** (`components/navbar.html`, `components/navbar.js`):
-- Reusable across pages - include with `<div id="navbar-placeholder"></div>`
-- Auto-displays user info and role
-- Includes logout and change password
-- See `components/README.md` for integration details and customization
-
-**Form Components** (`assets/js/forms/add-form.js`, `edit-form.js`):
-- ES6 class-based implementation
-- Handles component form submission with validation
-
-### Data Models
-
-**Tickets**:
-- Immutable once submitted (draft → pending)
-- Items snapshot component name and specs at creation
-- History tracked for all status changes and assignments
-
-**Servers**:
-- Configurations stored with UUID identifier
-- Include target for ticket-based deployments
-- Support role-based visibility (ACL)
-
-## Important Implementation Notes
-
-### Mixed Code Patterns
-The codebase uses both:
-- **Functional/IIFE patterns** (older code, still in use)
-- **ES6 classes** (newer code, preferred for new features - see `ServerAPI`, `AddComponentForm`)
-
-Prefer ES6 classes when adding new modules for better maintainability.
-
-### No Modern Tooling
-- No TypeScript, no bundler (Webpack/Vite), no transpiler
-- HTML/CSS/JS served directly from files
-- axios is the only runtime dependency (HTTP client)
-- Font Awesome via CDN for icons
-
-### localStorage Keys
-- `bdc_token` - JWT access token
-- `bdc_refresh_token` - Refresh token for token rotation
-- `bdc_user` - User object (may be deprecated, check with api.js)
-
-### API Response Format
-All endpoints return standardized JSON:
-```json
-{
-  "success": true/false,
-  "authenticated": true/false,
-  "code": 200,
-  "message": "...",
-  "timestamp": "2025-11-18 14:23:45",
-  "data": { /* endpoint-specific */ }
+class FeatureAPI {
+  constructor() { this.token = localStorage.getItem('bdc_token'); }
+  async getData() { /* axios with Bearer auth */ }
 }
 ```
 
-## Common Development Tasks
-
-### Adding a New Page
-1. Create `pages/feature-name/` folder
-2. Add `pages/feature-name/index.html` (main page)
-3. Create `assets/css/feature-name/` for styles
-4. Create `assets/js/feature-name/` for scripts
-5. Include shared navbar: `<div id="navbar-placeholder"></div>`
-6. Load navbar script and your feature script before closing `</body>`
-
-### Creating a New API Wrapper
-Follow the ES6 class pattern from `assets/js/server/server-api.js`:
-- Wrap axios with proper error handling
-- Manage token in Authorization header
-- Return promises for async operations
-
-### Understanding Component Compatibility
-Review how `assets/js/server/` modules validate components:
-- Load JSON specs from `data/` folder
-- Check compatibility against target motherboard
-- Validate UUIDs before submission
-
-### Referencing TICKETS_API_REFERENCE.md
-Comprehensive API documentation for ticketing endpoints - refer here for:
-- Required permissions per endpoint
-- Request/response formats with full examples
-- Status transition rules and constraints
-- Error codes and handling
-
-## CSS Build Process
-
-After making changes to `assets/css/globals.css`, rebuild the compiled Tailwind CSS:
-
-```bash
-npm run build:css
+**Toast notifications** - `assets/js/toast.js`:
+```javascript
+toast.success('Done');  toast.error('Failed');  toast.warning('Warning');
 ```
 
-This command runs Tailwind CLI to process `globals.css` and output minified `tailwind.css`.
+**Navbar** - ALWAYS use shared component:
+```html
+<div id="navbar-placeholder"></div>
+<script src="../assets/js/dashboard/api.js"></script>
+<script src="../components/navbar.js"></script>
+```
 
-## Custom Workflow Instructions
+---
 
-When working on any task, follow these steps for optimal results:
+## 📚 KEY REFERENCES
+- `TICKETS_API_REFERENCE.md` - Complete ticketing API docs
+- `components/README.md` - Navbar integration guide  
+- `data/permissions.json` - Role-based ACL lookup
 
-### Phase 1: Planning
-1. **Analyze the problem** - Read relevant codebase files to understand the task
-2. **Create a plan** - Write detailed todo items in `tasks/todo.md`
-3. **Check with developer** - Present the plan for verification before proceeding
+## Ticketing Flow
+`draft` → `pending` → `approved` → `in_progress` → `deployed` → `completed`
+- Only editable in `draft` | Users cannot approve own tickets
+- See `TICKETS_API_REFERENCE.md` for transition permissions
 
-### Phase 2: Implementation
-4. **Work systematically** - Complete todo items one at a time, marking each as done
-5. **Keep it simple** - Every change should be minimal and impact only necessary code
-6. **Communicate progress** - Provide high-level summaries of changes at each step
-7. **No shortcuts** - Never skip debugging; find root causes, not temporary fixes
-8. **Quality focus** - Each change impacts as little code as possible to avoid introducing bugs
+---
 
-### Phase 3: Review
-9. **Document changes** - Add a summary section to `tasks/todo.md` reviewing all modifications
-10. **Explain impact** - Note what was changed and why for future reference
+## ✅ CHECKLIST BEFORE SUBMITTING ANY WORK
 
-### Critical Principles
-- **NO LAZINESS** - If there's a bug, find and fix the root cause properly
-- **SIMPLICITY FIRST** - Simple, focused changes over complex solutions every time
-- **MINIMAL IMPACT** - Only modify code directly related to the task
-- **SENIOR DEVELOPER MINDSET** - Complete, thorough, and professional work always
-- **THINK FIRST** - Always plan before coding to avoid rework and mistakes
+- [ ] Did I find and fix the ROOT CAUSE (not a patch)?
+- [ ] Did I check impact on related files/features?
+- [ ] Did I test the changes work correctly?
+- [ ] Did I verify no new console errors?
+- [ ] Is the code as SIMPLE as possible?
+- [ ] Would a senior developer approve this?
+- [ ] Did I document changes in tasks/todo.md?

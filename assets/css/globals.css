@@ -211,6 +211,10 @@
 @layer components {
 
   /* Content Visibility Toggle */
+  .content-section {
+    @apply hidden;
+  }
+
   .content-section.active {
     @apply block !important;
   }

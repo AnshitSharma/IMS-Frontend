@@ -8,7 +8,7 @@
 
     <!-- Prevent flash of unstyled content -->
     <script>
-        (function() {
+        (function () {
             const theme = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', theme);
         })();
@@ -18,9 +18,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 
-<body class="bg-slate-50">
+<body class="bg-surface-main">
     <!-- Navigation Header -->
-    <nav class="navbar bg-white shadow-sm sticky top-0 z-navbar">
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
         <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
@@ -30,34 +30,31 @@
             <div class="nav-menu flex items-center gap-4">
                 <div class="nav-user flex items-center gap-3">
                     <!-- Theme Toggle Button -->
-                    <button
-                        id="themeToggleBtn"
-                        class="theme-toggle-btn"
-                        aria-label="Toggle theme"
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme"
                         title="Toggle dark mode">
                         <i class="fas fa-moon" id="themeToggleIcon"></i>
                     </button>
 
                     <div class="user-info text-right hidden md:block">
-                        <span id="userDisplayName" class="block text-sm font-medium text-slate-800">Loading...</span>
-                        <span id="userRole" class="block text-xs text-slate-600">User</span>
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
                     </div>
                     <div
                         class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="dropdown relative">
-                        <button class="dropdown-btn text-slate-600 hover:text-slate-800">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div
-                            class="dropdown-content absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden z-dropdown">
+                            class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
                             <a href="#" id="changePassword"
-                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                                 <i class="fas fa-key"></i> Change Password
                             </a>
                             <a href="#" id="logoutBtn"
-                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
                         </div>
@@ -78,7 +75,7 @@
                 <!-- Dashboard Overview -->
                 <div id="dashboardView" class="content-section active">
                     <div class="content-header flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-slate-800">Dashboard Overview</h2>
+                        <h2 class="text-2xl font-bold text-text-primary">Dashboard Overview</h2>
                         <div class="header-actions">
                             <button
                                 class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
@@ -89,10 +86,11 @@
                     </div>
 
                     <!-- Stats Cards -->
-                    <div class="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive">
+                    <div
+                        class="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive">
                         <!-- CPU Card -->
                         <div
-                            class="stat-card cpu-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card cpu-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-bolt text-9xl text-primary"></i>
@@ -103,20 +101,21 @@
                                         class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                                         <i class="fas fa-bolt text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">CPUs</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">CPUs</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashCpuTotal" class="text-3xl font-bold text-slate-800 tracking-tight">0
+                                        <h3 id="dashCpuTotal"
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0
                                         </h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashCpuAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashCpuInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashCpuFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashCpuAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashCpuInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashCpuFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -125,7 +124,7 @@
 
                         <!-- RAM Card -->
                         <div
-                            class="stat-card ram-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card ram-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-memory text-9xl text-info"></i>
@@ -136,20 +135,21 @@
                                         class="w-12 h-12 rounded-lg bg-info/10 flex items-center justify-center text-info">
                                         <i class="fas fa-memory text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">RAM Modules</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">RAM Modules</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashRamTotal" class="text-3xl font-bold text-slate-800 tracking-tight">0
+                                        <h3 id="dashRamTotal"
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0
                                         </h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashRamAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashRamInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashRamFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashRamAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashRamInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashRamFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -158,7 +158,7 @@
 
                         <!-- Storage Card -->
                         <div
-                            class="stat-card storage-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card storage-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-hdd text-9xl text-success"></i>
@@ -169,20 +169,20 @@
                                         class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
                                         <i class="fas fa-hdd text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Storage</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Storage</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashStorageTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashStorageAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashStorageInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashStorageFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashStorageAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashStorageInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashStorageFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -191,7 +191,7 @@
 
                         <!-- Motherboard Card -->
                         <div
-                            class="stat-card motherboard-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card motherboard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-th-large text-9xl text-warning"></i>
@@ -202,22 +202,23 @@
                                         class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
                                         <i class="fas fa-th-large text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Motherboards</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Motherboards</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashMotherboardTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span
+                                        <div class="text-text-muted font-medium">Avail: <span
                                                 id="dashMotherboardAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashMotherboardInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashMotherboardFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashMotherboardInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span
+                                                id="dashMotherboardFailed" class="text-danger font-bold ml-1">0</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -225,7 +226,7 @@
 
                         <!-- NIC Card -->
                         <div
-                            class="stat-card nic-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card nic-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-network-wired text-9xl text-primary"></i>
@@ -236,20 +237,21 @@
                                         class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                                         <i class="fas fa-network-wired text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Network Cards</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Network Cards</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashNicTotal" class="text-3xl font-bold text-slate-800 tracking-tight">0
+                                        <h3 id="dashNicTotal"
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0
                                         </h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashNicAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashNicInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashNicFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashNicAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashNicInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashNicFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -258,7 +260,7 @@
 
                         <!-- Caddy Card -->
                         <div
-                            class="stat-card caddy-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card caddy-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-box text-9xl text-warning"></i>
@@ -269,20 +271,20 @@
                                         class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
                                         <i class="fas fa-box text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Caddies</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Caddies</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashCaddyTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashCaddyAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashCaddyInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashCaddyFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashCaddyAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashCaddyInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashCaddyFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -291,7 +293,7 @@
 
                         <!-- Chassis Card -->
                         <div
-                            class="stat-card chassis-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card chassis-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-server text-9xl text-primary"></i>
@@ -302,20 +304,20 @@
                                         class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                                         <i class="fas fa-server text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Chassis</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Chassis</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashChassisTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashChassisAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashChassisInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashChassisFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashChassisAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashChassisInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashChassisFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -324,7 +326,7 @@
 
                         <!-- PCIe Card -->
                         <div
-                            class="stat-card pciecard-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card pciecard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-credit-card text-9xl text-info"></i>
@@ -335,20 +337,20 @@
                                         class="w-12 h-12 rounded-lg bg-info/10 flex items-center justify-center text-info">
                                         <i class="fas fa-credit-card text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">PCIe Cards</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">PCIe Cards</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashPciecardTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashPciecardAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashPciecardInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashPciecardFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashPciecardAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashPciecardInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashPciecardFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -357,7 +359,7 @@
 
                         <!-- HBA Card -->
                         <div
-                            class="stat-card hbacard-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card hbacard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-plug text-9xl text-danger"></i>
@@ -368,20 +370,20 @@
                                         class="w-12 h-12 rounded-lg bg-danger/10 flex items-center justify-center text-danger">
                                         <i class="fas fa-plug text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">HBA Cards</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">HBA Cards</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashHbacardTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Units</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Avail: <span id="dashHbacardAvailable"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">In Use: <span id="dashHbacardInUse"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Failed: <span id="dashHbacardFailed"
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashHbacardAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashHbacardInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashHbacardFailed"
                                                 class="text-danger font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
@@ -390,7 +392,7 @@
 
                         <!-- Servers Card -->
                         <div
-                            class="stat-card servers-card bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-slate-100 cursor-pointer">
+                            class="stat-card servers-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
                             <div
                                 class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
                                 <i class="fas fa-cubes text-9xl text-success"></i>
@@ -401,23 +403,23 @@
                                         class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
                                         <i class="fas fa-cubes text-xl"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-slate-700">Servers</h3>
+                                    <h3 class="text-base font-semibold text-text-secondary">Servers</h3>
                                 </div>
                                 <div class="flex items-end justify-between">
                                     <div>
                                         <h3 id="dashServersTotal"
-                                            class="text-3xl font-bold text-slate-800 tracking-tight">0</h3>
-                                        <p class="text-xs text-slate-500 font-medium mt-1">Total Servers</p>
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Servers</p>
                                     </div>
                                     <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-slate-500 font-medium">Draft: <span id="dashServersDraft"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Valid: <span id="dashServersValidated"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Built: <span id="dashServersBuilt"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
-                                        <div class="text-slate-500 font-medium">Final: <span id="dashServersFinalized"
-                                                class="text-slate-800 font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Draft: <span id="dashServersDraft"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Valid: <span id="dashServersValidated"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Built: <span id="dashServersBuilt"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Final: <span id="dashServersFinalized"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -431,10 +433,10 @@
     <!-- Modal Container -->
     <div id="modalContainer"
         class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
-        <div class="modal bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h3 id="modalTitle" class="text-xl font-semibold text-slate-800">Modal Title</h3>
-                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="modalClose">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -446,9 +448,9 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
-        <div class="bg-white rounded-lg p-8 text-center">
+        <div class="bg-surface-card rounded-lg p-8 text-center">
             <div class="loading-spinner mb-4 mx-auto"></div>
-            <p class="text-slate-700">Loading...</p>
+            <p class="text-text-primary">Loading...</p>
         </div>
     </div>
 
@@ -488,7 +490,7 @@
     <script src="../../assets/js/dashboard/dashboard.js"></script>
     <script>
         // Theme Toggle Handler for Dashboard
-        (function() {
+        (function () {
             // Initialize theme on page load
             function initTheme() {
                 if (typeof utils !== 'undefined' && utils.theme) {

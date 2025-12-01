@@ -7,11 +7,17 @@
     <title>Servers - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
 </head>
 
-<body class="bg-slate-50">
+<body class="bg-surface-main">
     <!-- Navigation Header -->
-    <nav class="navbar bg-white shadow-sm sticky top-0 z-navbar">
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
         <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
@@ -20,26 +26,32 @@
 
             <div class="nav-menu flex items-center gap-4">
                 <div class="nav-user flex items-center gap-3">
+                    <!-- Theme Toggle Button -->
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme"
+                        title="Toggle dark mode">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+
                     <div class="user-info text-right hidden md:block">
-                        <span id="userDisplayName" class="block text-sm font-medium text-slate-800">Loading...</span>
-                        <span id="userRole" class="block text-xs text-slate-600">User</span>
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
                     </div>
                     <div
                         class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
                         <i class="fas fa-user"></i>
                     </div>
                     <div class="dropdown relative">
-                        <button class="dropdown-btn text-slate-600 hover:text-slate-800">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div
-                            class="dropdown-content absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden z-dropdown">
+                            class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
                             <a href="#" id="changePassword"
-                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                                 <i class="fas fa-key"></i> Change Password
                             </a>
                             <a href="#" id="logoutBtn"
-                                class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                                 <i class="fas fa-sign-out-alt"></i> Logout
                             </a>
                         </div>
@@ -56,17 +68,17 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-6">
+            <main class="main-content flex-1 p-6 flex flex-col overflow-hidden h-[calc(100vh-64px)]">
                 <!-- Server View -->
-                <div id="serverView" class="content-section active">
+                <div id="serverView" class="content-section active flex flex-col overflow-y-auto overflow-x-hidden">
                     <div class="content-header mb-6">
-                        <h2 class="text-2xl font-bold text-slate-800 mb-4">Servers</h2>
+                        <h2 class="text-2xl font-bold text-text-primary mb-4">Servers</h2>
                         <div class="header-actions flex flex-wrap items-center gap-3">
                             <div class="search-filter flex flex-wrap gap-3 flex-1">
                                 <input type="text" id="serverSearch" placeholder="Search servers..."
-                                    class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
                                 <select id="serverStatusFilter"
-                                    class="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
                                     <option value="">All Status</option>
                                     <option value="0">Draft</option>
                                     <option value="1">Validated</option>
@@ -80,7 +92,7 @@
                                 <i class="fas fa-plus"></i> Build Server
                             </button>
                             <button
-                                class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
                                 id="refreshServers">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -95,24 +107,26 @@
                 </div>
 
                 <!-- Server Builder View -->
-                <div id="serverBuilderView" class="content-section">
-                    <div class="content-header mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
-                                <h2 id="serverBuilderTitle" class="text-2xl font-bold text-slate-800 mb-1">
+                <div id="serverBuilderView" class="content-section flex flex-col h-full overflow-hidden">
+                    <!-- Header Section -->
+                    <div class="content-header mb-6 pb-4 border-b border-border-light">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1">
+                                <h2 id="serverBuilderTitle" class="text-2xl md:text-3xl font-bold text-text-primary mb-1">
                                     <i class="fas fa-wrench"></i> Server Builder
                                 </h2>
+                                <p class="text-sm text-text-muted">Configure and build your server with selected components</p>
                             </div>
                             <button
-                                class="btn btn-secondary px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors flex items-center gap-2"
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2 whitespace-nowrap ml-4"
                                 onclick="dashboard.showServerView()">
                                 <i class="fas fa-arrow-left"></i> Back to Servers
                             </button>
                         </div>
                     </div>
 
-                    <!-- Server Builder Content -->
-                    <div id="serverBuilderContent" class="bg-white rounded-lg shadow-sm p-6">
+                    <!-- Server Builder Content - Scrollable -->
+                    <div id="serverBuilderContent" class="flex-1 overflow-y-auto overflow-x-hidden bg-surface-card rounded-lg shadow-sm p-4 md:p-6 min-h-0">
                         <!-- PC Part Picker builder will be loaded here -->
                     </div>
                 </div>
@@ -123,10 +137,10 @@
     <!-- Modal Container -->
     <div id="modalContainer"
         class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
-        <div class="modal bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                <h3 id="modalTitle" class="text-xl font-semibold text-slate-800">Modal Title</h3>
-                <button class="modal-close text-slate-400 hover:text-slate-600 transition-colors" id="modalClose">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -138,9 +152,9 @@
 
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
-        <div class="bg-white rounded-lg p-8 text-center">
+        <div class="bg-surface-card rounded-lg p-8 text-center">
             <div class="loading-spinner mb-4 mx-auto"></div>
-            <p class="text-slate-700">Loading...</p>
+            <p class="text-text-primary">Loading...</p>
         </div>
     </div>
 
@@ -178,6 +192,70 @@
         loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
     </script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
+    <script>
+        // Theme Toggle Handler for Dashboard
+        (function () {
+            // Initialize theme on page load
+            function initTheme() {
+                if (typeof utils !== 'undefined' && utils.theme) {
+                    utils.theme.init();
+                    updateThemeIcon(utils.theme.get());
+                }
+            }
+
+            // Update theme toggle icon
+            function updateThemeIcon(theme) {
+                const icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+
+                if (theme === 'dark') {
+                    icon.className = 'fas fa-sun';
+                } else {
+                    icon.className = 'fas fa-moon';
+                }
+            }
+
+            // Handle theme toggle
+            function handleThemeToggle() {
+                if (typeof utils === 'undefined' || !utils.theme) {
+                    console.warn('Theme utilities not loaded');
+                    return;
+                }
+
+                // Add animation
+                const toggleBtn = document.getElementById('themeToggleBtn');
+                if (toggleBtn) {
+                    toggleBtn.classList.add('toggling');
+                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
+                }
+
+                // Toggle theme
+                const newTheme = utils.theme.toggle();
+
+                // Update icon
+                updateThemeIcon(newTheme);
+
+                // Show toast
+                if (typeof toast !== 'undefined') {
+                    const message = newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled';
+                    toast.success(message, 2000);
+                }
+            }
+
+            // Initialize theme when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTheme);
+            } else {
+                initTheme();
+            }
+
+            // Add click event listener to theme toggle button
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', handleThemeToggle);
+            }
+        })();
+    </script>
 </body>
 
 </html>
