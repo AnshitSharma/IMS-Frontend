@@ -11,7 +11,7 @@
 
 <body class="bg-slate-50">
     <!-- Navigation Header -->
-    <nav class="navbar bg-white shadow-sm sticky top-0 z-30">
+    <nav class="navbar bg-white shadow-sm sticky top-0 z-navbar">
         <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
@@ -33,7 +33,7 @@
                             <i class="fas fa-chevron-down"></i>
                         </button>
                         <div
-                            class="dropdown-content absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden">
+                            class="dropdown-content absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 hidden z-dropdown">
                             <a href="#" id="changePassword"
                                 class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                                 <i class="fas fa-key"></i> Change Password
@@ -56,7 +56,7 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-6 lg:ml-2">
+            <main class="main-content flex-1 p-6">
                 <!-- Component List View -->
                 <div id="componentView" class="content-section active">
                     <div class="content-header mb-6">
@@ -162,7 +162,7 @@
 
     <!-- Modal Container -->
     <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
         <div class="modal bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-slate-200">
                 <h3 id="modalTitle" class="text-xl font-semibold text-slate-800">Modal Title</h3>

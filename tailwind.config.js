@@ -5,6 +5,7 @@ module.exports = {
     "./assets/js/**/*.js",
     "./components/**/*.js"
   ],
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
@@ -69,37 +70,37 @@ module.exports = {
         },
         // Text colors
         text: {
-          primary: '#0F172A',      // Slate 900
-          secondary: '#334155',    // Slate 700
-          muted: '#64748B',        // Slate 500
-          disabled: '#94A3B8',     // Slate 400
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)',
+          disabled: 'var(--color-text-disabled)',
           light: '#F8FAFC',        // Slate 50
-          inverse: '#F8FAFC',      // For dark backgrounds
+          inverse: 'var(--color-text-inverse)',
         },
         // Surface/Background colors
         surface: {
-          main: '#F1F5F9',         // Slate 100 - Main background
-          card: '#FFFFFF',         // White - Cards/Panels
-          secondary: '#E2E8F0',    // Slate 200 - Secondary background
-          hover: '#F8FAFC',        // Slate 50 - Hover state
-          sidebar: '#0F172A',      // Slate 900 - Dark sidebar
-          'sidebar-hover': '#1E293B', // Slate 800
+          main: 'var(--color-surface-main)',
+          card: 'var(--color-surface-card)',
+          secondary: 'var(--color-surface-secondary)',
+          hover: 'var(--color-surface-hover)',
+          sidebar: 'var(--color-sidebar-bg)',
+          'sidebar-hover': 'var(--color-sidebar-hover)',
           'sidebar-active': '#0D9488', // Primary for active items
         },
         // Border colors
         border: {
-          DEFAULT: '#CBD5E1',      // Slate 300
-          light: '#E2E8F0',        // Slate 200
-          dark: '#94A3B8',         // Slate 400
+          DEFAULT: 'var(--color-border)',
+          light: 'var(--color-border-light)',
+          dark: 'var(--color-border-dark)',
           focus: '#0D9488',        // Primary for focus states
         },
         // Sidebar specific
         sidebar: {
-          bg: '#0F172A',           // Slate 900
-          hover: '#1E293B',        // Slate 800
+          bg: 'var(--color-sidebar-bg)',
+          hover: 'var(--color-sidebar-hover)',
           active: '#0D9488',       // Primary
-          text: '#E2E8F0',         // Slate 200
-          'text-muted': '#94A3B8', // Slate 400
+          text: 'var(--color-sidebar-text)',
+          'text-muted': 'var(--color-sidebar-text-muted)',
         },
         // Chart colors
         chart: {

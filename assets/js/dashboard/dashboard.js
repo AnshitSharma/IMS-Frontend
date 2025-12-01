@@ -1741,8 +1741,10 @@ class Dashboard {
                 delete modal._outsideClickHandler;
             }
 
-            modal.style.display = 'none';
+            // Properly hide modal
             modal.classList.remove('active');  // Remove active class to hide modal
+            modal.classList.add('hidden');     // Add hidden class back
+            modal.style.display = '';          // Clear inline style to let CSS take over
         }
         delete window.closeModal;
         delete window.loadComponentList;

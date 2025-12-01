@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,6 +12,7 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+
         .bg-animation {
             position: fixed;
             top: 0;
@@ -21,64 +23,155 @@
             overflow: hidden;
             background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
         }
+
         .particle {
             position: absolute;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
         }
-        .particle:nth-child(1) { width: 80px; height: 80px; left: 10%; animation: float 25s ease-in-out infinite; animation-delay: 0s; }
-        .particle:nth-child(2) { width: 120px; height: 120px; left: 20%; animation: float 30s ease-in-out infinite; animation-delay: 2s; }
-        .particle:nth-child(3) { width: 60px; height: 60px; left: 70%; animation: float 20s ease-in-out infinite; animation-delay: 4s; }
-        .particle:nth-child(4) { width: 100px; height: 100px; left: 80%; animation: float 35s ease-in-out infinite; animation-delay: 6s; }
-        .particle:nth-child(5) { width: 40px; height: 40px; left: 50%; animation: float 15s ease-in-out infinite; animation-delay: 1s; }
-        .particle:nth-child(6) { width: 90px; height: 90px; left: 30%; animation: float 28s ease-in-out infinite; animation-delay: 3s; }
-        .particle:nth-child(7) { width: 70px; height: 70px; left: 60%; animation: float 22s ease-in-out infinite; animation-delay: 5s; }
-        .particle:nth-child(8) { width: 110px; height: 110px; left: 90%; animation: float 32s ease-in-out infinite; animation-delay: 7s; }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+
+        .particle:nth-child(1) {
+            width: 80px;
+            height: 80px;
+            left: 10%;
+            animation: float 25s ease-in-out infinite;
+            animation-delay: 0s;
         }
+
+        .particle:nth-child(2) {
+            width: 120px;
+            height: 120px;
+            left: 20%;
+            animation: float 30s ease-in-out infinite;
+            animation-delay: 2s;
+        }
+
+        .particle:nth-child(3) {
+            width: 60px;
+            height: 60px;
+            left: 70%;
+            animation: float 20s ease-in-out infinite;
+            animation-delay: 4s;
+        }
+
+        .particle:nth-child(4) {
+            width: 100px;
+            height: 100px;
+            left: 80%;
+            animation: float 35s ease-in-out infinite;
+            animation-delay: 6s;
+        }
+
+        .particle:nth-child(5) {
+            width: 40px;
+            height: 40px;
+            left: 50%;
+            animation: float 15s ease-in-out infinite;
+            animation-delay: 1s;
+        }
+
+        .particle:nth-child(6) {
+            width: 90px;
+            height: 90px;
+            left: 30%;
+            animation: float 28s ease-in-out infinite;
+            animation-delay: 3s;
+        }
+
+        .particle:nth-child(7) {
+            width: 70px;
+            height: 70px;
+            left: 60%;
+            animation: float 22s ease-in-out infinite;
+            animation-delay: 5s;
+        }
+
+        .particle:nth-child(8) {
+            width: 110px;
+            height: 110px;
+            left: 90%;
+            animation: float 32s ease-in-out infinite;
+            animation-delay: 7s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
         .logo {
             background: linear-gradient(45deg, #0D9488, #14B8A6);
             animation: logoFloat 3s ease-in-out infinite;
         }
+
         @keyframes logoFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
         }
+
         .toggle-btn.active {
             color: white;
         }
+
         .toggle-indicator {
             background: linear-gradient(45deg, #0D9488, #0F766E);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
         }
+
         .toggle-indicator.register {
             transform: translateX(100%);
         }
+
         .auth-btn {
             background: linear-gradient(45deg, #0D9488, #0F766E);
             box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
+
         .auth-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 12px 35px rgba(13, 148, 136, 0.4);
         }
+
         .auth-btn:active {
             transform: translateY(0);
         }
+
         .checkmark {
             border: 2px solid #E2E8F0;
             transition: all 0.3s ease;
         }
-        .remember-me input:checked + .checkmark {
+
+        .remember-me input:checked+.checkmark {
             background: #0D9488;
             border-color: #0D9488;
         }
-        .remember-me input:checked + .checkmark::after {
+
+        .remember-me input:checked+.checkmark::after {
             content: '✓';
             position: absolute;
             color: white;
@@ -88,6 +181,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
         }
+
         .alert {
             position: fixed;
             top: 30px;
@@ -98,23 +192,28 @@
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             backdrop-filter: blur(10px);
         }
+
         .alert.show {
             transform: translateX(0);
         }
+
         .alert.success {
             background: linear-gradient(45deg, #22C55E, #16A34A);
             color: white;
         }
+
         .alert.error {
             background: linear-gradient(45deg, #DC2626, #B91C1C);
             color: white;
         }
+
         .alert.warning {
             background: linear-gradient(45deg, #EAB308, #CA8A04);
             color: white;
         }
     </style>
 </head>
+
 <body class="overflow-hidden h-screen">
     <!-- Background Animation -->
     <div class="bg-animation">
@@ -131,26 +230,33 @@
     <!-- Main Container -->
     <div class="flex h-screen backdrop-blur-lg">
         <!-- Left Side - Branding -->
-        <div class="hidden md:flex flex-1 items-center justify-center p-10 bg-white/10 backdrop-blur-xl border-r border-white/20">
+        <div
+            class="hidden md:flex flex-1 items-center justify-center p-10 bg-white/10 backdrop-blur-xl border-r border-white/20">
             <div class="text-center text-white max-w-xs">
                 <div class="mb-16">
                     <div class="logo w-24 h-24 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg">
                         <i class="fas fa-server text-4xl text-white"></i>
                     </div>
-                    <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-primary-lightest bg-clip-text text-transparent">BDC IMS</h1>
-                    <p class="text-lg opacity-90 font-light leading-relaxed">Bharat Datacenter Infrastructure Management System</p>
+                    <h1
+                        class="text-5xl font-bold mb-4 bg-gradient-to-r from-white to-primary-lightest bg-clip-text text-transparent">
+                        BDC IMS</h1>
+                    <p class="text-lg opacity-90 font-light leading-relaxed">Bharat Datacenter Infrastructure Management
+                        System</p>
                 </div>
 
                 <div class="flex flex-col gap-6 hidden lg:flex">
-                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                    <div
+                        class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
                         <i class="fas fa-shield-alt text-lg text-primary-lightest"></i>
                         <span>Secure Infrastructure Management</span>
                     </div>
-                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                    <div
+                        class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
                         <i class="fas fa-chart-line text-lg text-primary-lightest"></i>
                         <span>Real-time Monitoring</span>
                     </div>
-                    <div class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
+                    <div
+                        class="flex items-center gap-4 text-base opacity-80 p-4 bg-white/10 rounded-2xl border border-white/20 hover:opacity-100 hover:translate-x-2 transition-all">
                         <i class="fas fa-cogs text-lg text-primary-lightest"></i>
                         <span>Advanced Component Control</span>
                     </div>
@@ -163,9 +269,14 @@
             <div class="w-full max-w-md">
                 <!-- Form Toggle Buttons -->
                 <div class="flex bg-gray-100 rounded-2xl p-1 mb-10 relative shadow-inset">
-                    <button class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="loginToggle">Sign In</button>
-                    <button class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="registerToggle">Sign Up</button>
-                    <div class="toggle-indicator absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] rounded-xl"></div>
+                    <button
+                        class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative"
+                        id="loginToggle">Sign In</button>
+                    <button
+                        class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative"
+                        id="registerToggle">Sign Up</button>
+                    <div class="toggle-indicator absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] rounded-xl">
+                    </div>
                 </div>
 
                 <!-- Login Form -->
@@ -179,15 +290,20 @@
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="text" id="loginUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <input type="text" id="loginUsername" name="username" placeholder="Username" required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="loginPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleLoginPassword">
+                                <input type="password" id="loginPassword" name="password" placeholder="Password"
+                                    required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button"
+                                    class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
+                                    id="toggleLoginPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -199,10 +315,14 @@
                                 <span class="checkmark w-5 h-5 border-2 border-gray-200 rounded relative"></span>
                                 Remember me
                             </label>
-                            <a href="#" class="text-primary no-underline text-sm font-medium transition-all hover:text-primary-dark hover:underline">Forgot Password?</a>
+                            <a href="#"
+                                class="text-primary no-underline text-sm font-medium transition-all hover:text-primary-dark hover:underline">Forgot
+                                Password?</a>
                         </div>
 
-                        <button type="submit" class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl" id="loginBtn">
+                        <button type="submit"
+                            class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl"
+                            id="loginBtn">
                             <span class="btn-text">Sign In</span>
                             <div class="btn-loader"></div>
                         </button>
@@ -220,22 +340,28 @@
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="text" id="registerUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <input type="text" id="registerUsername" name="username" placeholder="Username" required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-envelope absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="registerPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleRegisterPassword">
+                                <input type="password" id="registerPassword" name="password" placeholder="Password"
+                                    required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button"
+                                    class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
+                                    id="toggleRegisterPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -244,8 +370,12 @@
                         <div class="mb-6">
                             <div class="relative flex items-center">
                                 <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleConfirmPassword">
+                                <input type="password" id="confirmPassword" name="confirmPassword"
+                                    placeholder="Confirm Password" required
+                                    class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button"
+                                    class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
+                                    id="toggleConfirmPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -259,7 +389,9 @@
                             </label>
                         </div>
 
-                        <button type="submit" class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl" id="registerBtn">
+                        <button type="submit"
+                            class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl"
+                            id="registerBtn">
                             <span class="btn-text">Create Account</span>
                             <div class="btn-loader"></div>
                         </button>
@@ -271,7 +403,9 @@
                     <div class="flex items-center gap-4">
                         <i class="alert-icon text-xl"></i>
                         <span class="alert-text flex-1 font-medium"></span>
-                        <button class="alert-close bg-none border-none text-current cursor-pointer p-1 rounded transition-all opacity-80 hover:opacity-100" onclick="closeAlert()">
+                        <button
+                            class="alert-close bg-none border-none text-current cursor-pointer p-1 rounded transition-all opacity-80 hover:opacity-100"
+                            onclick="closeAlert()">
                             <i class="fas fa-times text-xl"></i>
                         </button>
                     </div>
@@ -281,7 +415,8 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div class="loading-overlay fixed inset-0 bg-black/80 flex items-center justify-center z-9999 opacity-0 invisible transition-all" id="loadingOverlay">
+    <div class="loading-overlay fixed inset-0 bg-black/80 flex items-center justify-center z-9999 opacity-0 invisible transition-all"
+        id="loadingOverlay">
         <div class="text-center text-white">
             <div class="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-5"></div>
             <p class="text-lg font-medium">Processing...</p>
@@ -290,4 +425,5 @@
 
     <script src="assets/js/script.js"></script>
 </body>
+
 </html>

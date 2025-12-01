@@ -133,6 +133,70 @@
     @apply bg-surface-main text-text-primary;
   }
 
+  /* Light mode colors (default) */
+  :root {
+    /* Text colors */
+    --color-text-primary: #0F172A;
+    --color-text-secondary: #334155;
+    --color-text-muted: #64748B;
+    --color-text-disabled: #94A3B8;
+    --color-text-inverse: #F8FAFC;
+
+    /* Surface/Background colors */
+    --color-surface-main: #F1F5F9;
+    --color-surface-card: #FFFFFF;
+    --color-surface-secondary: #E2E8F0;
+    --color-surface-hover: #F8FAFC;
+
+    /* Border colors */
+    --color-border: #CBD5E1;
+    --color-border-light: #E2E8F0;
+    --color-border-dark: #94A3B8;
+
+    /* Sidebar colors */
+    --color-sidebar-bg: #0F172A;
+    --color-sidebar-hover: #1E293B;
+    --color-sidebar-text: #E2E8F0;
+    --color-sidebar-text-muted: #94A3B8;
+
+    /* Scrollbar colors */
+    --color-scrollbar-track: #E2E8F0;
+    --color-scrollbar-thumb: #CBD5E1;
+    --color-scrollbar-thumb-hover: #94A3B8;
+  }
+
+  /* Dark mode colors */
+  [data-theme="dark"] {
+    /* Text colors - inverted for dark backgrounds */
+    --color-text-primary: #F8FAFC;
+    --color-text-secondary: #CBD5E1;
+    --color-text-muted: #94A3B8;
+    --color-text-disabled: #64748B;
+    --color-text-inverse: #0F172A;
+
+    /* Surface/Background colors - darker shades */
+    --color-surface-main: #0F172A;
+    --color-surface-card: #1E293B;
+    --color-surface-secondary: #334155;
+    --color-surface-hover: #475569;
+
+    /* Border colors - lighter for contrast */
+    --color-border: #475569;
+    --color-border-light: #334155;
+    --color-border-dark: #64748B;
+
+    /* Sidebar colors */
+    --color-sidebar-bg: #0B1120;
+    --color-sidebar-hover: #1E293B;
+    --color-sidebar-text: #F8FAFC;
+    --color-sidebar-text-muted: #CBD5E1;
+
+    /* Scrollbar colors */
+    --color-scrollbar-track: #1E293B;
+    --color-scrollbar-thumb: #475569;
+    --color-scrollbar-thumb-hover: #64748B;
+  }
+
   input,
   select,
   textarea {
@@ -273,6 +337,10 @@
     transition: opacity 0.2s ease-out;
   }
 
+  .modal-overlay.active {
+    opacity: 1;
+  }
+
   .modal-content {
     @apply bg-surface-card rounded-lg shadow-modal max-w-2xl w-full max-h-[90vh] overflow-auto;
     transform: scale(0.95);
@@ -361,6 +429,25 @@
 
   .navbar-content {
     @apply flex justify-between items-center w-full;
+  }
+
+  /* Theme Toggle Button */
+  .theme-toggle-btn {
+    @apply w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer;
+    @apply bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-text-primary;
+    @apply border border-border-light hover:border-border;
+  }
+
+  .theme-toggle-btn:active {
+    @apply scale-95;
+  }
+
+  .theme-toggle-btn i {
+    @apply text-lg transition-transform duration-300;
+  }
+
+  .theme-toggle-btn.toggling i {
+    @apply rotate-180;
   }
 
   /* Dropdown */
@@ -772,17 +859,6 @@
     @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
   }
 
-  /* Modal overlay improvements for mobile */
-  .modal-overlay {
-    @apply fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-modal;
-    opacity: 0;
-    transition: opacity 0.2s ease-out;
-  }
-
-  .modal-overlay.active {
-    @apply !opacity-100;
-  }
-
   /* Sidebar mobile improvements */
   @media (max-width: 1024px) {
     .sidebar {
@@ -791,6 +867,23 @@
 
     .sidebar.active {
       @apply block fixed inset-0 w-64 z-40;
+    }
+  }
+
+  /* Layout adjustments for sidebar + main content */
+  .main-container {
+    @apply flex;
+  }
+
+  @media (min-width: 1024px) {
+    /* On desktop, ensure sidebar is static and content flows properly */
+    .sidebar {
+      @apply static translate-x-0 flex-shrink-0;
+    }
+
+    /* Main content should take remaining space */
+    .main-content {
+      @apply flex-1 min-w-0;
     }
   }
 }
@@ -805,16 +898,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #E2E8F0;
+  background: var(--color-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: var(--color-scrollbar-thumb);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--color-scrollbar-thumb-hover);
 }
 
 /* ============================================================

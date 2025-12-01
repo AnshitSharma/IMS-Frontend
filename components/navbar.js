@@ -95,6 +95,17 @@ class SharedNavbar {
      * Setup event listeners for navbar interactions
      */
     setupEventListeners() {
+        // Theme toggle button
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                this.handleThemeToggle();
+            });
+        }
+
+        // Initialize theme on load
+        this.initializeTheme();
+
         // Dropdown toggle
         const dropdownBtn = document.querySelector('.dropdown-btn');
         if (dropdownBtn) {
@@ -202,6 +213,59 @@ class SharedNavbar {
             } else {
                 roleElement.textContent = 'User';
             }
+        }
+    }
+
+    /**
+     * Initialize theme on page load
+     */
+    initializeTheme() {
+        if (typeof utils !== 'undefined' && utils.theme) {
+            utils.theme.init();
+            this.updateThemeIcon(utils.theme.get());
+        }
+    }
+
+    /**
+     * Handle theme toggle
+     */
+    handleThemeToggle() {
+        if (typeof utils === 'undefined' || !utils.theme) {
+            console.warn('Theme utilities not loaded');
+            return;
+        }
+
+        // Add animation
+        const toggleBtn = document.getElementById('themeToggleBtn');
+        if (toggleBtn) {
+            toggleBtn.classList.add('toggling');
+            setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
+        }
+
+        // Toggle theme
+        const newTheme = utils.theme.toggle();
+
+        // Update icon
+        this.updateThemeIcon(newTheme);
+
+        // Show toast
+        if (typeof toast !== 'undefined') {
+            const message = newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled';
+            toast.success(message, 2000);
+        }
+    }
+
+    /**
+     * Update theme toggle icon
+     */
+    updateThemeIcon(theme) {
+        const icon = document.getElementById('themeToggleIcon');
+        if (!icon) return;
+
+        if (theme === 'dark') {
+            icon.className = 'fas fa-sun';
+        } else {
+            icon.className = 'fas fa-moon';
         }
     }
 }
