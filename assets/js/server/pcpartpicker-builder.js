@@ -290,20 +290,20 @@ renderChassisDetails() {
     if (!chassisData) {
         // Fallback if no chassis data
         return chassisComponents.map((chassis, index) => `
-            <div class="socket-item">
-                <span class="slot-label">Chassis</span>
-                <span class="slot-component">
-                    <div class="component-with-type">
+            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
+                <span class="text-[13px] font-medium text-text-secondary">Chassis</span>
+                <span class="text-sm font-semibold text-text-primary">
+                    <div class="flex items-center gap-2">
                         <i class="fas fa-server"></i>
-                        <span class="component-type">Chassis:</span>
-                        <span class="component-name">${chassis.serial_number}</span>
+                        <span>Chassis:</span>
+                        <span>${chassis.serial_number}</span>
                     </div>
                 </span>
             </div>
         `).join('') || `
-            <div class="socket-item empty">
-                <span class="slot-label">Chassis</span>
-                <span class="slot-empty">Empty</span>
+            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-border opacity-60 transition-all">
+                <span class="text-[13px] font-medium text-text-secondary">Chassis</span>
+                <span class="text-sm text-text-muted italic">Empty</span>
             </div>
         `;
     }
@@ -408,8 +408,8 @@ renderDriveBays(driveBays) {
  */
 async loadMotherboardDetails(uuid) {
     try {
-        // Fetch motherboard JSON
-        const response = await fetch('../data/motherboad-jsons/motherboard-level-3.json');
+        // Fetch motherboard JSON - use absolute path from root
+        const response = await fetch('/ims_frontend/data/motherboad-jsons/motherboard-level-3.json');
         if (!response.ok) {
             console.error('Failed to fetch motherboard JSON');
             return;
@@ -453,20 +453,20 @@ renderCaddySockets() {
     if (!motherboardData || !motherboardData.caddySockets || motherboardData.caddySockets.length === 0) {
         // Fallback if no caddy socket data
         return caddyComponents.map((caddy, index) => `
-            <div class="socket-item occupied">
-                <span class="slot-label">Caddy Socket ${index + 1}</span>
-                <span class="slot-component">
-                    <div class="component-with-type">
+            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
+                <span class="text-[13px] font-medium text-text-secondary">Caddy Socket ${index + 1}</span>
+                <span class="text-sm font-semibold text-text-primary">
+                    <div class="flex items-center gap-2">
                         <i class="fas fa-box"></i>
-                        <span class="component-type">Caddy:</span>
-                        <span class="component-name">${caddy.serial_number}</span>
+                        <span>Caddy:</span>
+                        <span>${caddy.serial_number}</span>
                     </div>
                 </span>
             </div>
         `).join('') || `
-            <div class="socket-item empty">
-                <span class="slot-label">Caddy Socket</span>
-                <span class="slot-empty">Empty</span>
+            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-border opacity-60 transition-all">
+                <span class="text-[13px] font-medium text-text-secondary">Caddy Socket</span>
+                <span class="text-sm text-text-muted italic">Empty</span>
             </div>
         `;
     }
@@ -480,13 +480,13 @@ renderCaddySockets() {
         const socketSize = socket.size ? ` (${socket.size})` : '';
         
         html += `
-            <div class="socket-item ${caddy ? 'occupied' : 'empty'}">
-                <span class="slot-label">${socketType} Socket ${index + 1}${socketSize}</span>
-                <span class="${caddy ? 'slot-component' : 'slot-empty'}">
+            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 ${caddy ? 'border-primary' : 'border-border opacity-60'} transition-all">
+                <span class="text-[13px] font-medium text-text-secondary">${socketType} Socket ${index + 1}${socketSize}</span>
+                <span class="${caddy ? 'text-sm font-semibold text-text-primary' : 'text-sm text-text-muted italic'}">
                     ${caddy ? `
-                        <div class="component-with-type">
+                        <div class="flex items-center gap-2">
                             <i class="fas fa-box"></i>
-                            <span class="component-type">Caddy:</span>
+                            <span>Caddy:</span>
                             <span class="component-name">${caddy.serial_number}</span>
                         </div>
                     ` : 'Empty'}
@@ -693,29 +693,29 @@ checkCompatibility() {
         const estimatedPower = this.calculateEstimatedPower();
 
         const interfaceHtml = `
-            <div class="pcpp-container">
+            <div class="w-full mx-auto">
                 <!-- Header with Toggle -->
-                <div class="pcpp-header">
-                    <div class="pcpp-header-content">
-                        <h1 class="pcpp-title">${serverName}</h1>
-                        <p class="pcpp-subtitle">Server Configuration Builder</p>
+                <div class="flex justify-between items-center mb-8 pb-4 border-b border-border-light">
+                    <div>
+                        <h1 class="text-3xl font-bold text-text-primary m-0">${serverName}</h1>
+                        <p class="text-sm text-text-muted mt-1 mb-0">Server Configuration Builder</p>
                     </div>
-                    <div class="toggle-section">
-                        <span class="toggle-label">Advanced View</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="advancedViewToggle">
-                            <span class="toggle-slider"></span>
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-medium text-text-secondary">Advanced View</span>
+                        <label class="relative inline-block w-11 h-6">
+                            <input type="checkbox" id="advancedViewToggle" class="opacity-0 w-0 h-0 peer">
+                            <span class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-border transition-all duration-300 rounded-full before:absolute before:content-[''] before:h-[18px] before:w-[18px] before:left-[3px] before:bottom-[3px] before:bg-white before:transition-all before:duration-300 before:rounded-full peer-checked:bg-primary peer-checked:before:translate-x-5"></span>
                         </label>
-                        <span class="toggle-state" id="toggleState">Off</span>
+                        <span class="text-sm font-medium text-text-secondary min-w-[30px]" id="toggleState">Off</span>
                     </div>
                 </div>
 
                <!-- Component Selection Table -->
-                <div class="component-table-container">
-                    <table class="component-table">
-                        <thead>
+                <div class="bg-surface-card rounded-xl border border-border-light overflow-hidden mb-6">
+                    <table class="w-full border-collapse">
+                        <thead class="bg-surface-secondary">
                             <tr>
-                                <th>Component</th>
+                                <th class="text-left px-6 py-4 font-semibold text-sm text-text-primary uppercase tracking-wider">Component</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -725,9 +725,9 @@ checkCompatibility() {
                 </div>
 
                 <!-- Finish Configuration Button -->
-                <div class="finish-configuration-section">
-                    <button class="btn-finish-configuration" onclick="window.pcppBuilder.finishConfiguration()">
-                        <i class="fas fa-check-circle"></i>
+                <div class="flex justify-end my-6">
+                    <button class="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-all shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg" onclick="window.pcppBuilder.finishConfiguration()">
+                        <i class="fas fa-check-circle text-lg"></i>
                         Finish Setup
                     </button>
                 </div>
@@ -735,35 +735,35 @@ checkCompatibility() {
 
                 <!-- Compatibility Warning -->
                 ${hasIssues ? `
-                    <div class="compatibility-banner warning">
+                    <div class="flex items-center gap-3 px-5 py-4 rounded-xl mb-6 font-medium bg-warning/10 border border-warning text-warning">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <span class="compatibility-text">Compatibility: Warning! These parts have potential issues. See details below.</span>
+                        <span class="text-[15px]">Compatibility: Warning! These parts have potential issues. See details below.</span>
                     </div>
                 ` : `
-                    <div class="compatibility-banner success">
+                    <div class="flex items-center gap-3 px-5 py-4 rounded-xl mb-6 font-medium bg-success/10 border border-success text-success">
                         <i class="fas fa-check-circle"></i>
-                        <span class="compatibility-text">Compatibility: All components are compatible.</span>
+                        <span class="text-[15px]">Compatibility: All components are compatible.</span>
                     </div>
                 `}
 
                 <!-- Potential Issues -->
                 ${this.compatibilityIssues.length > 0 || this.performanceWarnings.length > 0 ? `
-                    <div class="issues-section">
-                        <div class="issues-header">
-                            <h4 class="issues-title">
-                                <i class="fas fa-exclamation-triangle"></i>
+                    <div class="bg-surface-card border border-border-light rounded-xl p-6 mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h4 class="flex items-center gap-2 text-lg font-semibold text-text-primary m-0">
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
                                 Potential Issues
                             </h4>
-                            <div class="issues-summary">
-                                <span class="issues-count">${this.getTotalIssuesCount()}</span>
-                                <span class="issues-label">issues found</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl font-bold text-warning">${this.getTotalIssuesCount()}</span>
+                                <span class="text-sm text-text-muted">issues found</span>
                             </div>
                         </div>
-                        <div class="issues-progress">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${this.getIssuesResolvedPercentage()}%"></div>
+                        <div class="mb-6">
+                            <div class="w-full h-2 bg-surface-secondary rounded overflow-hidden mb-2">
+                                <div class="h-full bg-primary transition-all duration-300" style="width: ${this.getIssuesResolvedPercentage()}%"></div>
                             </div>
-                            <div class="progress-text">${this.getIssuesResolvedCount()} of ${this.getTotalIssuesCount()} issues resolved</div>
+                            <div class="text-[13px] text-text-muted">${this.getIssuesResolvedCount()} of ${this.getTotalIssuesCount()} issues resolved</div>
                         </div>
                         ${this.renderGroupedIssues()}
                     </div>
@@ -771,37 +771,37 @@ checkCompatibility() {
 
                 <!-- Motherboard Usage -->
                 ${this.selectedComponents.motherboard.length > 0 ? `
-                    <div class="motherboard-section">
-                        <h4 class="motherboard-title">Motherboard Usage</h4>
-                        <div class="motherboard-diagram">
-                            <div class="socket-section">
-                                <div class="section-title">CPU Sockets</div>
+                    <div class="bg-surface-card border border-border-light rounded-xl p-6 mb-6">
+                        <h4 class="text-lg font-semibold text-text-primary m-0 mb-6">Motherboard Usage</h4>
+                        <div class="grid gap-6">
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">CPU Sockets</div>
                                 ${this.renderSocketSlots()}
                             </div>
-                            <div class="motherboard-visual">
-                                <div class="motherboard-name">${this.selectedComponents.motherboard[0]?.serial_number || 'Motherboard'}</div>
-                                <div style="color: var(--text-secondary); font-size: 0.875rem;">Server Motherboard</div>
+                            <div class="text-center p-8 bg-gradient-to-br from-surface-secondary to-surface-hover rounded-lg">
+                                <div class="text-xl font-bold text-text-primary mb-2">${this.selectedComponents.motherboard[0]?.serial_number || 'Motherboard'}</div>
+                                <div class="text-sm text-text-secondary">Server Motherboard</div>
                             </div>
-                            <div class="memory-section">
-                                <div class="section-title">Memory Slots</div>
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Memory Slots</div>
                                 ${this.renderMemorySlots()}
                             </div>
-                            <div class="chassis-section">
-                                <div class="section-title">Chassis</div>
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Chassis</div>
                                 ${this.renderChassisDetails()}
                             </div>
-                                <div class="caddy-section">
-                            <div class="section-title">Caddy Sockets</div>
-                            ${this.renderCaddySockets()}
-                           </div>
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Caddy Sockets</div>
+                                ${this.renderCaddySockets()}
+                            </div>
                         </div>
-                        <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="expansion-section">
-                                <div class="section-title">Expansion Slots</div>
+                        <div class="mt-4 grid grid-cols-2 gap-4">
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Expansion Slots</div>
                                 ${this.renderExpansionSlots()}
                             </div>
-                            <div class="expansion-section">
-                                <div class="section-title">Storage</div>
+                            <div class="bg-surface-secondary rounded-lg p-4">
+                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Storage</div>
                                 ${this.renderStorageAndUSB()}
                             </div>
                         </div>
@@ -1440,8 +1440,8 @@ getComponentSummaryList() {
  */
 async loadChassisDetails(uuid) {
     try {
-        // Fetch chassis JSON
-        const response = await fetch('../data/chassis-jsons/chassis-level-3.json');
+        // Fetch chassis JSON - use absolute path from root
+        const response = await fetch('/ims_frontend/data/chasis-jsons/chasis-level-3.json');
         if (!response.ok) {
             console.error('Failed to fetch chassis JSON');
             return null;
@@ -1480,36 +1480,36 @@ renderComponentRow(componentType) {
             const componentsDisplay = components.map((comp, index) => {
                 const displayName = comp.serial_number || 'Unnamed Component';
                 const position = comp.slot_position ? ` (${comp.slot_position})` : '';
-                
+
                 return `
-                    <span class="component-item">
-                        <span class="component-name">${displayName}${position}</span>
-                        <button class="btn-remove-small" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
-                            <i class="fas fa-times"></i>
+                    <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
+                        <span class="text-sm font-medium">${displayName}${position}</span>
+                        <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                            <i class="fas fa-times text-xs"></i>
                         </button>
-                        ${index < components.length - 1 ? '<span class="separator">/</span>' : ''}
+                        ${index < components.length - 1 ? '<span class="text-text-muted font-normal mx-1">/</span>' : ''}
                     </span>
                 `;
             }).join('');
 
             return `
-                <tr class="component-row" id="component-row-${componentType.type}">
-                    <td>
-                        <div class="component-cell">
-                            <div class="component-icon">
-                                <i class="${componentType.icon}"></i>
+                <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
+                    <td class="px-6 py-4 align-middle">
+                        <div class="flex items-center gap-4">
+                            <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="${componentType.icon} text-xl text-primary"></i>
                             </div>
-                            <div class="component-info">
-                                <div class="component-name">${componentType.name}</div>
-                                <div class="component-specs">${componentType.description}</div>
+                            <div class="flex flex-col gap-1">
+                                <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
+                                <div class="text-[13px] text-text-muted">${componentType.description}</div>
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div class="components-display">
+                    <td class="px-6 py-4 align-middle">
+                        <div class="flex flex-wrap items-center gap-2">
                             ${componentsDisplay}
-                            <span class="separator">/</span>
-                            <button class="btn-add-more" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
+                            <span class="text-text-muted font-normal mx-1">/</span>
+                            <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-transparent text-primary border border-primary rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary/10" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
                                 <i class="fas fa-plus"></i>
                                 Add More
                             </button>
@@ -1522,26 +1522,26 @@ renderComponentRow(componentType) {
             const comp = components[0];
             const displayName = comp.serial_number || 'Unnamed Component';
             const position = comp.slot_position ? ` (${comp.slot_position})` : '';
-            
+
             return `
-                <tr class="component-row" id="component-row-${componentType.type}">
-                    <td>
-                        <div class="component-cell">
-                            <div class="component-icon">
-                                <i class="${componentType.icon}"></i>
+                <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
+                    <td class="px-6 py-4 align-middle">
+                        <div class="flex items-center gap-4">
+                            <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="${componentType.icon} text-xl text-primary"></i>
                             </div>
-                            <div class="component-info">
-                                <div class="component-name">${componentType.name}</div>
-                                <div class="component-specs">${componentType.description}</div>
+                            <div class="flex flex-col gap-1">
+                                <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
+                                <div class="text-[13px] text-text-muted">${componentType.description}</div>
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div class="components-display">
-                            <span class="component-item">
-                                <span class="component-name">${displayName}${position}</span>
-                                <button class="btn-remove-small" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
-                                    <i class="fas fa-times"></i>
+                    <td class="px-6 py-4 align-middle">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
+                                <span class="text-sm font-medium">${displayName}${position}</span>
+                                <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                                    <i class="fas fa-times text-xs"></i>
                                 </button>
                             </span>
                         </div>
@@ -1552,22 +1552,22 @@ renderComponentRow(componentType) {
     } else {
         // No components yet - show add button
         const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
-        
+
         return `
-            <tr class="component-row" id="component-row-${componentType.type}">
-                <td>
-                    <div class="component-cell">
-                        <div class="component-icon">
-                            <i class="${componentType.icon}"></i>
+            <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
+                <td class="px-6 py-4 align-middle">
+                    <div class="flex items-center gap-4">
+                        <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                            <i class="${componentType.icon} text-xl text-primary"></i>
                         </div>
-                        <div class="component-info">
-                            <div class="component-name">${componentType.name}</div>
-                            <div class="component-specs">${componentType.description}</div>
+                        <div class="flex flex-col gap-1">
+                            <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
+                            <div class="text-[13px] text-text-muted">${componentType.description}</div>
                         </div>
                     </div>
                 </td>
-                <td style="text-align: right;">
-                    <button class="btn-add" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
+                <td class="px-6 py-4 align-middle text-right">
+                    <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary-600 hover:-translate-y-px" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
                         <i class="fas fa-plus"></i>
                         ${buttonText}
                     </button>
@@ -2471,21 +2471,21 @@ renderStorageAndUSB() {
      */
     showLoading(message = 'Loading...', subtext = '') {
         const loadingHtml = `
-            <div class="loading-overlay active">
-                <div class="loading-content">
-                    <div class="server-loader">
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
+            <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] opacity-100 visible pointer-events-auto transition-all duration-300">
+                <div class="bg-surface-card rounded-xl p-8 text-center shadow-xl flex flex-col items-center gap-4">
+                    <div class="relative w-16 h-16">
+                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse"></div>
+                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-90" style="animation-delay: 0.15s;"></div>
+                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-75" style="animation-delay: 0.3s;"></div>
+                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-50" style="animation-delay: 0.45s;"></div>
                     </div>
-                    <div class="loading-text">${message}</div>
-                    ${subtext ? `<div class="loading-subtext">${subtext}</div>` : ''}
+                    <div class="text-lg font-semibold text-text-primary">${message}</div>
+                    ${subtext ? `<div class="text-sm text-text-muted">${subtext}</div>` : ''}
                 </div>
             </div>
         `;
 
-        const existingLoader = document.querySelector('.loading-overlay');
+        const existingLoader = document.querySelector('[class*="fixed inset-0 bg-black/50"]');
         if (existingLoader) {
             existingLoader.remove();
         }

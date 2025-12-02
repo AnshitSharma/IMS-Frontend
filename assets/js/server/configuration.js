@@ -37,6 +37,7 @@ class ConfigurationPage {
         this.setupEventListeners();
         this.initializeComponentTypeSelect();
         this.setupMobileFilters();
+        this.initBackButton();
 
         // loadComponents() will render filters based on URL parameter
         this.loadComponents();
@@ -58,6 +59,27 @@ class ConfigurationPage {
         }
         return true;
     }
+
+    /**
+     * Initialize Back to Builder button
+     * Shows button when navigating from builder and handles return navigation
+     */
+    initBackButton() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const configUuid = urlParams.get('config');
+        const returnTo = urlParams.get('return'); // 'builder' when from builder
+
+        if (configUuid && returnTo === 'builder') {
+            const backButton = document.getElementById('backButton');
+            if (backButton) {
+                backButton.classList.remove('hidden');
+                backButton.addEventListener('click', () => {
+                    window.location.href = `builder.html?config=${configUuid}`;
+                });
+            }
+        }
+    }
+
     /**
      * Initialize user information display
      */

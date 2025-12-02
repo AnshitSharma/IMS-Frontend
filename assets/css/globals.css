@@ -216,7 +216,7 @@
   }
 
   .content-section.active {
-    @apply block !important;
+    @apply flex flex-col !important;
   }
 
   /* Mobile Overlay and Menu Visibility */
