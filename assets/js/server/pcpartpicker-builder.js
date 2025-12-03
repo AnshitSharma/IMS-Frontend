@@ -98,7 +98,7 @@ class PCPartPickerBuilder {
         this.performanceWarnings = [];
 
         this.init();
-    }
+        }
 
     init() {
 
@@ -108,11 +108,11 @@ class PCPartPickerBuilder {
         }
 
         this.loadServerConfig();
-    }
+        }
 
-    /**
-     * Check if user is authenticated
-     */
+        /**
+         * Check if user is authenticated
+         */
     checkAuthentication() {
         const token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
 
@@ -126,11 +126,11 @@ class PCPartPickerBuilder {
         }
 
         return true;
-    }
+        }
 
-    /**
-     * Load server configuration from URL parameters
-     */
+        /**
+         * Load server configuration from URL parameters
+         */
     loadServerConfig() {
         const urlParams = new URLSearchParams(window.location.search);
         const configUuid = urlParams.get('config');
@@ -143,11 +143,11 @@ class PCPartPickerBuilder {
                 window.location.href = 'index.html';
             }
         }
-    }
+        }
 
-    /**
-     * Load existing configuration from API
-     */
+        /**
+         * Load existing configuration from API
+         */
     async loadExistingConfig(configUuid) {
         try {
             this.showLoading('Loading server configuration...');
@@ -185,107 +185,107 @@ class PCPartPickerBuilder {
         } finally {
             this.hideLoading();
         }
-    }
+        }
 
-    /**
-     * Parse existing components from configuration
-     */
-    // async parseExistingComponents(config) {
+        /**
+         * Parse existing components from configuration
+         */
+        // async parseExistingComponents(config) {
 
-    //     // Reset components first
-    //     this.selectedComponents = {
-    //         cpu: [],
-    //         motherboard: [],
-    //         ram: [],
-    //         storage: [],
-    //         chassis: [],
-    //         caddy: [],
-    //         pciecard: [],
-    //         nic: [],
-    //         hbacard: []
-    //     };
+        //     // Reset components first
+        //     this.selectedComponents = {
+        //         cpu: [],
+        //         motherboard: [],
+        //         ram: [],
+        //         storage: [],
+        //         chassis: [],
+        //         caddy: [],
+        //         pciecard: [],
+        //         nic: [],
+        //         hbacard: []
+        //     };
 
-    //     // Parse components from the API structure
-    //     if (config.components) {
-    //         const components = config.components;
+        //     // Parse components from the API structure
+        //     if (config.components) {
+        //         const components = config.components;
 
-    //         Object.keys(components).forEach(type => {
-    //             const typeComponents = components[type];
+        //         Object.keys(components).forEach(type => {
+        //             const typeComponents = components[type];
 
-    //             if (Array.isArray(typeComponents) && typeComponents.length > 0) {
-    //                 this.selectedComponents[type] = typeComponents.map(comp => ({
-    //                     uuid: comp.uuid,
-    //                     serial_number: comp.serial_number || 'Not Found',
-    //                     quantity: comp.quantity || 1,
-    //                     slot_position: comp.slot_position || '',
-    //                     added_at: comp.added_at || ''
-    //                 }));
+        //             if (Array.isArray(typeComponents) && typeComponents.length > 0) {
+        //                 this.selectedComponents[type] = typeComponents.map(comp => ({
+        //                     uuid: comp.uuid,
+        //                     serial_number: comp.serial_number || 'Not Found',
+        //                     quantity: comp.quantity || 1,
+        //                     slot_position: comp.slot_position || '',
+        //                     added_at: comp.added_at || ''
+        //                 }));
 
-    //             }
-    //         });
-    //     }
+        //             }
+        //         });
+        //     }
 
-    //     // Load motherboard details from JSON if motherboard is selected
-    //     if (this.selectedComponents.motherboard.length > 0) {
-    //         await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
-    //     }
+        //     // Load motherboard details from JSON if motherboard is selected
+        //     if (this.selectedComponents.motherboard.length > 0) {
+        //         await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
+        //     }
 
-    //     this.checkCompatibility();
-    // }
+        //     this.checkCompatibility();
+        // }
 /**
  * Parse existing components from configuration
  */
-async parseExistingComponents(config) {
-    // Reset components first
-    this.selectedComponents = {
-        cpu: [],
-        motherboard: [],
-        ram: [],
-        storage: [],
-        chassis: [],
-        caddy: [],
-        pciecard: [],
-        nic: [],
-        hbacard: []
-    };
+    async parseExistingComponents(config) {
+        // Reset components first
+        this.selectedComponents = {
+            cpu: [],
+            motherboard: [],
+            ram: [],
+            storage: [],
+            chassis: [],
+            caddy: [],
+            pciecard: [],
+            nic: [],
+            hbacard: []
+        };
 
-    // Parse components from the API structure
-    if (config.components) {
-        const components = config.components;
+        // Parse components from the API structure
+        if (config.components) {
+            const components = config.components;
 
-        Object.keys(components).forEach(type => {
-            const typeComponents = components[type];
+            Object.keys(components).forEach(type => {
+                const typeComponents = components[type];
 
-            if (Array.isArray(typeComponents) && typeComponents.length > 0) {
-                this.selectedComponents[type] = typeComponents.map(comp => ({
-                    uuid: comp.uuid,
-                    serial_number: comp.serial_number || 'Not Found',
-                    quantity: comp.quantity || 1,
-                    slot_position: comp.slot_position || '',
-                    added_at: comp.added_at || ''
-                }));
-            }
-        });
-    }
+                if (Array.isArray(typeComponents) && typeComponents.length > 0) {
+                    this.selectedComponents[type] = typeComponents.map(comp => ({
+                        uuid: comp.uuid,
+                        serial_number: comp.serial_number || 'Not Found',
+                        quantity: comp.quantity || 1,
+                        slot_position: comp.slot_position || '',
+                        added_at: comp.added_at || ''
+                    }));
+                }
+            });
+        }
 
-    // Load motherboard details from JSON if motherboard is selected
-    if (this.selectedComponents.motherboard.length > 0) {
-        await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
-    }
+        // Load motherboard details from JSON if motherboard is selected
+        if (this.selectedComponents.motherboard.length > 0) {
+            await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
+        }
 
-    // Load chassis details from JSON if chassis is selected
-    if (this.selectedComponents.chassis.length > 0) {
-        this.chassisDetails = await this.loadChassisDetails(this.selectedComponents.chassis[0].uuid);
-    }
+        // Load chassis details from JSON if chassis is selected
+        if (this.selectedComponents.chassis.length > 0) {
+            this.chassisDetails = await this.loadChassisDetails(this.selectedComponents.chassis[0].uuid);
+        }
 
-    this.checkCompatibility();
-}
+        this.checkCompatibility();
+        }
 /**
  * Render chassis details - Dynamic based on chassis JSON
  */
-renderChassisDetails() {
-    const chassisComponents = this.selectedComponents.chassis || [];
-    const chassisData = this.chassisDetails;
+    renderChassisDetails() {
+        const chassisComponents = this.selectedComponents.chassis || [];
+        const chassisData = this.chassisDetails;
 
     if (!chassisData) {
         // Fallback if no chassis data
@@ -306,10 +306,10 @@ renderChassisDetails() {
                 <span class="text-sm text-text-muted italic">Empty</span>
             </div>
         `;
-    }
+        }
 
-    // Render detailed chassis information
-    return `
+        // Render detailed chassis information
+        return `
         <div class="chassis-details">
             <div class="chassis-header">
                 <div class="chassis-model">${chassisData.model}</div>
@@ -349,21 +349,21 @@ renderChassisDetails() {
                 ` : ''}
             </div>
         </div>
-    `;
+        `;
 }
 
 /**
  * Render drive bays configuration
  */
-renderDriveBays(driveBays) {
-    if (!driveBays.bay_configuration) return '';
+    renderDriveBays(driveBays) {
+        if (!driveBays.bay_configuration) return '';
 
-    return driveBays.bay_configuration.map(bay => `
+        return driveBays.bay_configuration.map(bay => `
         <div class="spec-item indent">
             <span class="spec-label">${bay.bay_type.replace('_', ' ')}:</span>
             <span class="spec-value">${bay.count} bays ${bay.hot_swap ? '(Hot-swap)' : ''}</span>
         </div>
-    `).join('');
+        `).join('');
 }
     /**
      * Load motherboard details from JSON
@@ -406,49 +406,49 @@ renderDriveBays(driveBays) {
 /**
  * Load motherboard details from JSON
  */
-async loadMotherboardDetails(uuid) {
-    try {
-        // Fetch motherboard JSON - use absolute path from root
-        const response = await fetch('/ims_frontend/data/motherboad-jsons/motherboard-level-3.json');
-        if (!response.ok) {
-            console.error('Failed to fetch motherboard JSON');
-            return;
-        }
+    async loadMotherboardDetails(uuid) {
+        try {
+            // Fetch motherboard JSON
+            const response = await fetch('../../data/motherboad-jsons/motherboard-level-3.json');
+            if (!response.ok) {
+                console.error('Failed to fetch motherboard JSON');
+                return;
+            }
 
-        const motherboardData = await response.json();
+            const motherboardData = await response.json();
 
-        // Search for the motherboard by UUID
-        for (const brand of motherboardData) {
-            if (brand.models) {
-                for (const model of brand.models) {
-                    if (model.uuid === uuid) {
-                        this.motherboardDetails = {
-                            brand: brand.brand,
-                            series: brand.series,
-                            family: brand.family,
-                            chassisSocket: model.form_factor || 'ATX',
-                            caddySockets: model.caddy_sockets || [], // Add caddy sockets
-                            ...model
-                        };
-                        console.log('Loaded motherboard details:', this.motherboardDetails);
-                        return;
+            // Search for the motherboard by UUID
+            for (const brand of motherboardData) {
+                if (brand.models) {
+                    for (const model of brand.models) {
+                        if (model.uuid === uuid) {
+                            this.motherboardDetails = {
+                                brand: brand.brand,
+                                series: brand.series,
+                                family: brand.family,
+                                chassisSocket: model.form_factor || 'ATX',
+                                caddySockets: model.caddy_sockets || [], // Add caddy sockets
+                                ...model
+                            };
+                            console.log('Loaded motherboard details:', this.motherboardDetails);
+                            return;
+                        }
                     }
                 }
             }
-        }
 
-        console.warn('Motherboard UUID not found in JSON:', uuid);
-    } catch (error) {
-        console.error('Error loading motherboard details:', error);
-    }
-}
+            console.warn('Motherboard UUID not found in JSON:', uuid);
+        } catch (error) {
+            console.error('Error loading motherboard details:', error);
+        }
+        }
 
 /**
  * Render caddy sockets - Dynamic based on motherboard JSON
  */
-renderCaddySockets() {
-    const caddyComponents = this.selectedComponents.caddy || [];
-    const motherboardData = this.motherboardDetails;
+    renderCaddySockets() {
+        const caddyComponents = this.selectedComponents.caddy || [];
+        const motherboardData = this.motherboardDetails;
 
     if (!motherboardData || !motherboardData.caddySockets || motherboardData.caddySockets.length === 0) {
         // Fallback if no caddy socket data
@@ -469,12 +469,12 @@ renderCaddySockets() {
                 <span class="text-sm text-text-muted italic">Empty</span>
             </div>
         `;
-    }
+        }
 
-    let html = '';
-    const caddySockets = motherboardData.caddySockets;
+        let html = '';
+        const caddySockets = motherboardData.caddySockets;
 
-    caddySockets.forEach((socket, index) => {
+        caddySockets.forEach((socket, index) => {
         const caddy = caddyComponents[index];
         const socketType = socket.type || 'Caddy';
         const socketSize = socket.size ? ` (${socket.size})` : '';
@@ -493,9 +493,9 @@ renderCaddySockets() {
                 </span>
             </div>
         `;
-    });
+        });
 
-    return html;
+        return html;
 }
     /**
      * Check compatibility issues
@@ -588,12 +588,12 @@ renderCaddySockets() {
     /**
  * Check compatibility issues
  */
-checkCompatibility() {
-    this.compatibilityIssues = [];
-    this.performanceWarnings = [];
+    checkCompatibility() {
+        this.compatibilityIssues = [];
+        this.performanceWarnings = [];
 
-    // Check for missing required components
-    this.componentTypes.forEach(compType => {
+        // Check for missing required components
+        this.componentTypes.forEach(compType => {
         if (compType.required && this.selectedComponents[compType.type].length === 0) {
             this.compatibilityIssues.push({
                 severity: 'critical',
@@ -614,63 +614,63 @@ checkCompatibility() {
                 group: 'required_components'
             });
         }
-    });
+        });
 
-    // Check for CPU cooler if CPU is selected
-    // if (this.selectedComponents.cpu.length > 0) {
-    //     this.compatibilityIssues.push({
-    //         severity: 'warning',
-    //         type: 'cpu_cooler',
-    //         icon: 'fas fa-fan',
-    //         title: 'CPU Cooler Required',
-    //         message: 'The selected CPU does not include a stock cooler. Adding a CPU cooler is recommended.',
-    //         details: 'High-performance CPUs generate significant heat and require adequate cooling to maintain optimal performance and prevent thermal throttling.',
-    //         action: {
-    //             text: 'Add CPU Cooler',
-    //             callback: () => this.addComponent('cooler'),
-    //             actionType: 'cooler'
-    //         },
-    //         group: 'cooling'
-    //     });
-    // }
+        // Check for CPU cooler if CPU is selected
+        // if (this.selectedComponents.cpu.length > 0) {
+        //     this.compatibilityIssues.push({
+        //         severity: 'warning',
+        //         type: 'cpu_cooler',
+        //         icon: 'fas fa-fan',
+        //         title: 'CPU Cooler Required',
+        //         message: 'The selected CPU does not include a stock cooler. Adding a CPU cooler is recommended.',
+        //         details: 'High-performance CPUs generate significant heat and require adequate cooling to maintain optimal performance and prevent thermal throttling.',
+        //         action: {
+        //             text: 'Add CPU Cooler',
+        //             callback: () => this.addComponent('cooler'),
+        //             actionType: 'cooler'
+        //         },
+        //         group: 'cooling'
+        //     });
+        // }
 
-    // REMOVED: RAM compatibility check for uneven modules
-    // if (this.selectedComponents.ram.length > 0) {
-    //     const ramCount = this.selectedComponents.ram.length;
-    //     if (ramCount % 2 !== 0) {
-    //         this.compatibilityIssues.push({
-    //             severity: 'warning',
-    //             type: 'ram_compatibility',
-    //             icon: 'fas fa-memory',
-    //             title: 'RAM Configuration',
-    //             message: 'Uneven number of RAM modules may affect dual-channel performance.',
-    //             details: 'For optimal performance, install RAM in matched pairs to enable dual-channel memory mode.',
-    //             action: {
-    //                 text: 'Review RAM',
-    //                 callback: () => this.addComponent('ram'),
-    //                 actionType: 'ram'
-    //             },
-    //             group: 'memory'
-    //         });
-    //     }
-    // }
+        // REMOVED: RAM compatibility check for uneven modules
+        // if (this.selectedComponents.ram.length > 0) {
+        //     const ramCount = this.selectedComponents.ram.length;
+        //     if (ramCount % 2 !== 0) {
+        //         this.compatibilityIssues.push({
+        //             severity: 'warning',
+        //             type: 'ram_compatibility',
+        //             icon: 'fas fa-memory',
+        //             title: 'RAM Configuration',
+        //             message: 'Uneven number of RAM modules may affect dual-channel performance.',
+        //             details: 'For optimal performance, install RAM in matched pairs to enable dual-channel memory mode.',
+        //             action: {
+        //                 text: 'Review RAM',
+        //                 callback: () => this.addComponent('ram'),
+        //                 actionType: 'ram'
+        //             },
+        //             group: 'memory'
+        //         });
+        //     }
+        // }
 
-    // REMOVED: Physical constraints warning
-    // if (this.selectedComponents.ram.length > 0) {
-    //     this.performanceWarnings.push({
-    //         severity: 'info',
-    //         type: 'physical_constraints',
-    //         icon: 'fas fa-ruler-combined',
-    //         title: 'Physical Constraints',
-    //         message: 'Some physical constraints are not checked, such as RAM clearance with CPU Coolers.',
-    //         details: 'Ensure that installed components do not physically interfere with each other. Check manufacturer specifications for clearance requirements.',
-    //         action: {
-    //             text: 'Learn More',
-    //             callback: () => window.open('/', '_blank')
-    //         },
-    //         group: 'compatibility'
-    //     });
-    // }
+        // REMOVED: Physical constraints warning
+        // if (this.selectedComponents.ram.length > 0) {
+        //     this.performanceWarnings.push({
+        //         severity: 'info',
+        //         type: 'physical_constraints',
+        //         icon: 'fas fa-ruler-combined',
+        //         title: 'Physical Constraints',
+        //         message: 'Some physical constraints are not checked, such as RAM clearance with CPU Coolers.',
+        //         details: 'Ensure that installed components do not physically interfere with each other. Check manufacturer specifications for clearance requirements.',
+        //         action: {
+        //             text: 'Learn More',
+        //             callback: () => window.open('/', '_blank')
+        //         },
+        //         group: 'compatibility'
+        //     });
+        // }
 }
 
     /**
@@ -820,7 +820,7 @@ checkCompatibility() {
         } else {
             console.error('No target element found for rendering');
         }
-    }
+        }
 /**
  * Finish configuration and save the server
  */
@@ -844,495 +844,234 @@ checkCompatibility() {
 /**
  * Finish configuration and save the server
  */
-finishConfiguration() {
-    // Check if all required components are selected
-    const missingRequired = this.componentTypes.filter(type => 
+    finishConfiguration() {
+        // Check if all required components are selected
+        const missingRequired = this.componentTypes.filter(type => 
         type.required && this.selectedComponents[type.type].length === 0
-    );
+        );
 
-    // Get all compatibility issues
-    const allIssues = [...this.compatibilityIssues, ...this.performanceWarnings];
-    
-    // Show the confirmation modal
-    this.showFinishConfirmationModal(missingRequired, allIssues);
+        // Get all compatibility issues
+        const allIssues = [...this.compatibilityIssues, ...this.performanceWarnings];
+        
+        // Show the confirmation modal
+        this.showFinishConfirmationModal(missingRequired, allIssues);
 }
 
 /**
- * Show finish confirmation modal with warnings
- */
-// showFinishConfirmationModal(missingRequired, allIssues) {
-//     const hasMissingRequired = missingRequired.length > 0;
-//     const hasIssues = allIssues.length > 0;
-//     const isReady = !hasMissingRequired && !hasIssues;
-
-//     const modalHtml = `
-//         <div class="finish-confirmation-modal active">
-//             <div class="modal-overlay"></div>
-//             <div class="modal-content">
-//                 <div class="modal-header">
-//                     <h3 class="modal-title">
-//                         <i class="fas fa-check-circle"></i>
-//                         Finish Server Configuration
-//                     </h3>
-//                     <button class="modal-close" onclick="window.pcppBuilder.closeFinishModal()">
-//                         <i class="fas fa-times"></i>
-//                     </button>
-//                 </div>
-                
-//                 <div class="modal-body">
-//                     ${hasMissingRequired ? `
-//                         <div class="warning-section">
-//                             <div class="warning-header">
-//                                 <i class="fas fa-exclamation-triangle"></i>
-//                                 <h4>Required Components Missing</h4>
-//                             </div>
-//                             <div class="warning-list">
-//                                 ${missingRequired.map(type => `
-//                                     <div class="warning-item critical">
-//                                         <i class="fas fa-exclamation-circle"></i>
-//                                         <span class="warning-text">${type.name} is required</span>
-//                                         <button class="btn-fix" onclick="window.pcppBuilder.addComponent('${type.type}')">
-//                                             Add ${type.name}
-//                                         </button>
-//                                     </div>
-//                                 `).join('')}
-//                             </div>
-//                         </div>
-//                     ` : ''}
-
-//                     ${hasIssues ? `
-//                         <div class="warning-section">
-//                             <div class="warning-header">
-//                                 <i class="fas fa-info-circle"></i>
-//                                 <h4>Compatibility Warnings</h4>
-//                             </div>
-//                             <div class="warning-list">
-//                                 ${allIssues.map(issue => `
-//                                     <div class="warning-item ${issue.severity}">
-//                                         <i class="${issue.icon}"></i>
-//                                         <span class="warning-text">${issue.message}</span>
-//                                         ${issue.action ? `
-//                                             <button class="btn-fix" onclick="window.pcppBuilder.addComponent('${issue.action.actionType}')">
-//                                                 ${issue.action.text}
-//                                             </button>
-//                                         ` : ''}
-//                                     </div>
-//                                 `).join('')}
-//                             </div>
-//                         </div>
-//                     ` : ''}
-
-//                     ${isReady ? `
-//                         <div class="success-section">
-//                             <div class="success-icon">
-//                                 <i class="fas fa-check-circle"></i>
-//                             </div>
-//                             <div class="success-content">
-//                                 <h4>Configuration Ready!</h4>
-//                                 <p>All required components are selected and your server configuration is ready to be saved.</p>
-//                                 <div class="configuration-summary">
-//                                     <div class="summary-item">
-//                                         <span class="summary-label">Server Name:</span>
-//                                         <span class="summary-value">${this.currentConfig.server_name || 'Unnamed Server'}</span>
-//                                     </div>
-//                                     <div class="summary-item">
-//                                         <span class="summary-label">Total Components:</span>
-//                                         <span class="summary-value">${this.getTotalComponentsCount()}</span>
-//                                     </div>
-//                                     <div class="summary-item">
-//                                         <span class="summary-label">Estimated Power:</span>
-//                                         <span class="summary-value">${this.calculateEstimatedPower()}W</span>
-//                                     </div>
-//                                 </div>
-//                             </div>
-//                         </div>
-//                     ` : ''}
-//                 </div>
-                
-//                 <div class="modal-footer">
-//                     <button class="btn-cancel" onclick="window.pcppBuilder.closeFinishModal()">
-//                         <i class="fas fa-times"></i>
-//                         Cancel
-//                     </button>
-                    
-//                     ${isReady ? `
-//                         <button class="btn-confirm" onclick="window.pcppBuilder.proceedWithSave()">
-//                             <i class="fas fa-check"></i>
-//                             Yes, Save Configuration
-//                         </button>
-//                     ` : `
-//                         <button class="btn-confirm disabled" disabled>
-//                             <i class="fas fa-check"></i>
-//                             Fix Issues to Continue
-//                         </button>
-//                     `}
-//                 </div>
-//             </div>
-//         </div>
-//     `;
-
-//     // Remove existing modal if any
-//     const existingModal = document.querySelector('.finish-confirmation-modal');
-//     if (existingModal) {
-//         existingModal.remove();
-//     }
-
-//     // Add modal to body
-//     document.body.insertAdjacentHTML('beforeend', modalHtml);
-// }
-/**
  * Show finish confirmation modal with warnings and component list
  */
-showFinishConfirmationModal(missingRequired, allIssues) {
-    const hasMissingRequired = missingRequired.length > 0;
-    const hasIssues = allIssues.length > 0;
-    const isReady = !hasMissingRequired && !hasIssues;
-    const componentList = this.getComponentSummaryList();
+    showFinishConfirmationModal(missingRequired, allIssues) {
+        const hasMissingRequired = missingRequired.length > 0;
+        const hasIssues = allIssues.length > 0;
+        const isReady = !hasMissingRequired && !hasIssues;
+        const componentList = this.getComponentSummaryList();
 
-    const modalHtml = `
-        <div class="finish-confirmation-modal active">
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title">
-                        <i class="fas fa-server"></i>
-                        Server Configuration Summary
-                    </h3>
-                    <button class="modal-close" onclick="window.pcppBuilder.closeFinishModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <div class="modal-body">
-                    <!-- Component Summary Section -->
-                    <div class="component-summary-section">
-                        <div class="section-header">
-                            <i class="fas fa-list-check"></i>
-                            <h4>Selected Components</h4>
-                            <span class="component-count">${this.getTotalComponentsCount()} components</span>
-                        </div>
-                        <div class="component-list">
-                            ${componentList}
-                        </div>
+        const modalHtml = `
+            <div class="finish-confirmation-modal active">
+                <div class="modal-overlay"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            <i class="fas fa-server"></i>
+                            Server Configuration Summary
+                        </h3>
+                        <button class="modal-close" onclick="window.pcppBuilder.closeFinishModal()">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
-
-                    ${hasMissingRequired ? `
-                        <div class="warning-section">
-                            <div class="warning-header">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <h4>Required Components Missing</h4>
+                    
+                    <div class="modal-body">
+                        <!-- Component Summary Section -->
+                        <div class="component-summary-section">
+                            <div class="section-header">
+                                <i class="fas fa-list-check"></i>
+                                <h4>Selected Components</h4>
+                                <span class="component-count">${this.getTotalComponentsCount()} components</span>
                             </div>
-                            <div class="warning-list">
-                                ${missingRequired.map(type => `
-                                    <div class="warning-item critical">
-                                        <i class="fas fa-exclamation-circle"></i>
-                                        <span class="warning-text">${type.name} is required</span>
-                                        <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${type.type}')">
-                                            <i class="fas fa-wrench"></i>
-                                            Auto Fix
-                                        </button>
-                                    </div>
-                                `).join('')}
+                            <div class="component-list">
+                                ${componentList}
                             </div>
                         </div>
-                    ` : ''}
 
-                    ${hasIssues ? `
-                        <div class="warning-section">
-                            <div class="warning-header">
-                                <i class="fas fa-info-circle"></i>
-                                <h4>Compatibility Warnings</h4>
-                            </div>
-                            <div class="warning-list">
-                                ${allIssues.map(issue => `
-                                    <div class="warning-item ${issue.severity}">
-                                        <i class="${issue.icon}"></i>
-                                        <span class="warning-text">${issue.message}</span>
-                                        ${issue.action ? `
-                                            <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${issue.action.actionType}')">
+                        ${hasMissingRequired ? `
+                            <div class="warning-section">
+                                <div class="warning-header">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <h4>Required Components Missing</h4>
+                                </div>
+                                <div class="warning-list">
+                                    ${missingRequired.map(type => `
+                                        <div class="warning-item critical">
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <span class="warning-text">${type.name} is required</span>
+                                            <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${type.type}')">
                                                 <i class="fas fa-wrench"></i>
                                                 Auto Fix
                                             </button>
-                                        ` : ''}
-                                    </div>
-                                `).join('')}
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>
-                        </div>
-                    ` : ''}
+                        ` : ''}
 
-                    ${isReady ? `
-                        <div class="success-section">
-                            <div class="success-icon">
-                                <i class="fas fa-check-circle"></i>
+                        ${hasIssues ? `
+                            <div class="warning-section">
+                                <div class="warning-header">
+                                    <i class="fas fa-info-circle"></i>
+                                    <h4>Compatibility Warnings</h4>
+                                </div>
+                                <div class="warning-list">
+                                    ${allIssues.map(issue => `
+                                        <div class="warning-item ${issue.severity}">
+                                            <i class="${issue.icon}"></i>
+                                            <span class="warning-text">${issue.message}</span>
+                                            ${issue.action ? `
+                                                <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${issue.action.actionType}')">
+                                                    <i class="fas fa-wrench"></i>
+                                                    Auto Fix
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>
-                            <div class="success-content">
-                                <h4>Configuration Ready!</h4>
-                                <p>All required components are selected and your server configuration is ready to be saved.</p>
-                                <div class="configuration-summary">
-                                    <div class="summary-item">
-                                        <span class="summary-label">Server Name:</span>
-                                        <span class="summary-value">${this.currentConfig.server_name || 'Unnamed Server'}</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Total Components:</span>
-                                        <span class="summary-value">${this.getTotalComponentsCount()}</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Estimated Power:</span>
-                                        <span class="summary-value">${this.calculateEstimatedPower()}W</span>
+                        ` : ''}
+
+                        ${isReady ? `
+                            <div class="success-section">
+                                <div class="success-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="success-content">
+                                    <h4>Configuration Ready!</h4>
+                                    <p>All required components are selected and your server configuration is ready to be saved.</p>
+                                    <div class="configuration-summary">
+                                        <div class="summary-item">
+                                            <span class="summary-label">Server Name:</span>
+                                            <span class="summary-value">${this.currentConfig.server_name || 'Unnamed Server'}</span>
+                                        </div>
+                                        <div class="summary-item">
+                                            <span class="summary-label">Total Components:</span>
+                                            <span class="summary-value">${this.getTotalComponentsCount()}</span>
+                                        </div>
+                                        <div class="summary-item">
+                                            <span class="summary-label">Estimated Power:</span>
+                                            <span class="summary-value">${this.calculateEstimatedPower()}W</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="modal-footer">
-                    <button class="btn-cancel" onclick="window.pcppBuilder.closeFinishModal()">
-                        <i class="fas fa-times"></i>
-                        Cancel
-                    </button>
+                        ` : ''}
+                    </div>
                     
-                    ${isReady ? `
-                        <button class="btn-confirm" onclick="window.pcppBuilder.proceedWithSave()">
-                            <i class="fas fa-check"></i>
-                            Confirm & Save Configuration
+                    <div class="modal-footer">
+                        <button class="btn-cancel" onclick="window.pcppBuilder.closeFinishModal()">
+                            <i class="fas fa-times"></i>
+                            Cancel
                         </button>
-                    ` : `
-                        <button class="btn-confirm disabled" disabled>
-                            <i class="fas fa-check"></i>
-                            Fix Issues to Continue
-                        </button>
-                    `}
+                        
+                        ${isReady ? `
+                            <button class="btn-confirm" onclick="window.pcppBuilder.proceedWithSave()">
+                                <i class="fas fa-check"></i>
+                                Confirm & Save Configuration
+                            </button>
+                        ` : `
+                            <button class="btn-confirm disabled" disabled>
+                                <i class="fas fa-check"></i>
+                                Fix Issues to Continue
+                            </button>
+                        `}
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
 
-    // Remove existing modal if any
-    const existingModal = document.querySelector('.finish-confirmation-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
+        // Remove existing modal if any
+        const existingModal = document.querySelector('.finish-confirmation-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
 
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+        // Add modal to body
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 }
 /**
  * Fix issue and proceed to add component
  */
-fixIssueAndProceed(componentType) {
-    // Close the modal first
-    this.closeFinishModal();
-    
-    // Then redirect to add the required component
-    setTimeout(() => {
+    fixIssueAndProceed(componentType) {
+        // Close the modal first
+        this.closeFinishModal();
+        
+        // Then redirect to add the required component
+        setTimeout(() => {
         this.addComponent(componentType);
-    }, 300);
+        }, 300);
 }
 /**
  * Close the finish confirmation modal
  */
-closeFinishModal() {
-    const modal = document.querySelector('.finish-confirmation-modal');
+    closeFinishModal() {
+        const modal = document.querySelector('.finish-confirmation-modal');
     if (modal) {
         modal.classList.remove('active');
         setTimeout(() => modal.remove(), 300);
-    }
+        }
 }
 
 /**
  * Proceed with saving after confirmation
  */
-proceedWithSave() {
-    this.closeFinishModal();
-    this.saveConfiguration();
+    proceedWithSave() {
+        this.closeFinishModal();
+        this.saveConfiguration();
 }
 
 /**
  * Get total components count
  */
-getTotalComponentsCount() {
-    let count = 0;
-    Object.values(this.selectedComponents).forEach(components => {
+    getTotalComponentsCount() {
+        let count = 0;
+        Object.values(this.selectedComponents).forEach(components => {
         count += components.length;
-    });
-    return count;
+        });
+        return count;
 }
 
 /**
  * Save the final configuration
  */
-async saveConfiguration() {
-    try {
-        this.showLoading('Saving server configuration...');
+    async saveConfiguration() {
+        try {
+            this.showLoading('Saving server configuration...');
 
-        // Your API call to save the configuration
-        const result = await serverAPI.finalizeServerConfig(this.currentConfig.config_uuid);
+            // Your API call to save the configuration
+            const result = await serverAPI.finalizeServerConfig(this.currentConfig.config_uuid);
 
-        if (result.success) {
-            this.showAlert('Server configuration saved successfully!', 'success');
-            
-            // Redirect to server list or dashboard
-            setTimeout(() => {
-                window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
-            }, 1500);
-        } else {
-            this.showAlert(result.message || 'Failed to save configuration', 'error');
+            if (result.success) {
+                this.showAlert('Server configuration saved successfully!', 'success');
+
+                // Redirect to server list or dashboard
+                setTimeout(() => {
+                    window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
+                }, 1500);
+            } else {
+                this.showAlert(result.message || 'Failed to save configuration', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving configuration:', error);
+            this.showAlert('An error occurred while saving the configuration', 'error');
+        } finally {
+            this.hideLoading();
         }
-    } catch (error) {
-        console.error('Error saving configuration:', error);
-        this.showAlert('An error occurred while saving the configuration', 'error');
-    } finally {
-        this.hideLoading();
-    }
-}
-/**
- * Show finish confirmation modal with warnings and component list
- */
-showFinishConfirmationModal(missingRequired, allIssues) {
-    const hasMissingRequired = missingRequired.length > 0;
-    const hasIssues = allIssues.length > 0;
-    const isReady = !hasMissingRequired && !hasIssues;
-    const componentList = this.getComponentSummaryList();
-
-    const modalHtml = `
-        <div class="finish-confirmation-modal active">
-            <div class="modal-overlay"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3 class="modal-title">
-                        <i class="fas fa-server"></i>
-                        Server Configuration Summary
-                    </h3>
-                    <button class="modal-close" onclick="window.pcppBuilder.closeFinishModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                
-                <div class="modal-body">
-                    <!-- Component Summary Section -->
-                    <div class="component-summary-section">
-                        <div class="section-header">
-                            <i class="fas fa-list-check"></i>
-                            <h4>Selected Components</h4>
-                            <span class="component-count">${this.getTotalComponentsCount()} components</span>
-                        </div>
-                        <div class="component-list">
-                            ${componentList}
-                        </div>
-                    </div>
-
-                    ${hasMissingRequired ? `
-                        <div class="warning-section">
-                            <div class="warning-header">
-                                <i class="fas fa-exclamation-triangle"></i>
-                                <h4>Required Components Missing</h4>
-                            </div>
-                            <div class="warning-list">
-                                ${missingRequired.map(type => `
-                                    <div class="warning-item critical">
-                                        <i class="fas fa-exclamation-circle"></i>
-                                        <span class="warning-text">${type.name} is required</span>
-                                        <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${type.type}')">
-                                            <i class="fas fa-wrench"></i>
-                                            Auto Fix
-                                        </button>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${hasIssues ? `
-                        <div class="warning-section">
-                            <div class="warning-header">
-                                <i class="fas fa-info-circle"></i>
-                                <h4>Compatibility Warnings</h4>
-                            </div>
-                            <div class="warning-list">
-                                ${allIssues.map(issue => `
-                                    <div class="warning-item ${issue.severity}">
-                                        <i class="${issue.icon}"></i>
-                                        <span class="warning-text">${issue.message}</span>
-                                        ${issue.action ? `
-                                            <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${issue.action.actionType}')">
-                                                <i class="fas fa-wrench"></i>
-                                                Auto Fix
-                                            </button>
-                                        ` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${isReady ? `
-                        <div class="success-section">
-                            <div class="success-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="success-content">
-                                <h4>Configuration Ready!</h4>
-                                <p>All required components are selected and your server configuration is ready to be saved.</p>
-                                <div class="configuration-summary">
-                                    <div class="summary-item">
-                                        <span class="summary-label">Server Name:</span>
-                                        <span class="summary-value">${this.currentConfig.server_name || 'Unnamed Server'}</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Total Components:</span>
-                                        <span class="summary-value">${this.getTotalComponentsCount()}</span>
-                                    </div>
-                                    <div class="summary-item">
-                                        <span class="summary-label">Estimated Power:</span>
-                                        <span class="summary-value">${this.calculateEstimatedPower()}W</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ` : ''}
-                </div>
-                
-                <div class="modal-footer">
-                    <button class="btn-cancel" onclick="window.pcppBuilder.closeFinishModal()">
-                        <i class="fas fa-times"></i>
-                        Cancel
-                    </button>
-                    
-                    ${isReady ? `
-                        <button class="btn-confirm" onclick="window.pcppBuilder.proceedWithSave()">
-                            <i class="fas fa-check"></i>
-                            Confirm & Save Configuration
-                        </button>
-                    ` : `
-                        <button class="btn-confirm disabled" disabled>
-                            <i class="fas fa-check"></i>
-                            Fix Issues to Continue
-                        </button>
-                    `}
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Remove existing modal if any
-    const existingModal = document.querySelector('.finish-confirmation-modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
+        }
 
 /**
  * Get component summary list HTML
  */
-getComponentSummaryList() {
-    let html = '';
-    
-    this.componentTypes.forEach(componentType => {
+    getComponentSummaryList() {
+        let html = '';
+        
+        this.componentTypes.forEach(componentType => {
         const components = this.selectedComponents[componentType.type];
         
         if (components.length > 0) {
@@ -1370,9 +1109,9 @@ getComponentSummaryList() {
                 </div>
             `;
         }
-    });
-    
-    return html || '<div class="no-components">No components selected yet</div>';
+        });
+        
+        return html || '<div class="no-components">No components selected yet</div>';
 }
 
 
@@ -1434,45 +1173,45 @@ getComponentSummaryList() {
         } else {
             console.error('No target element found for test interface');
         }
-    }
+        }
 /**
  * Load chassis details from JSON
  */
-async loadChassisDetails(uuid) {
-    try {
-        // Fetch chassis JSON - use absolute path from root
-        const response = await fetch('/ims_frontend/data/chasis-jsons/chasis-level-3.json');
-        if (!response.ok) {
-            console.error('Failed to fetch chassis JSON');
-            return null;
-        }
+    async loadChassisDetails(uuid) {
+        try {
+            // Fetch chassis JSON
+            const response = await fetch('../../data/chassis-jsons/chassis-level-3.json');
+            if (!response.ok) {
+                console.error('Failed to fetch chassis JSON');
+                return null;
+            }
 
-        const chassisData = await response.json();
-        
-        // Search for the chassis by UUID
-        for (const manufacturer of chassisData.manufacturers) {
-            for (const series of manufacturer.series) {
-                for (const model of series.models) {
-                    if (model.uuid === uuid) {
-                        console.log('Loaded chassis details:', model);
-                        return model;
+            const chassisData = await response.json();
+
+            // Search for the chassis by UUID
+            for (const manufacturer of chassisData.manufacturers) {
+                for (const series of manufacturer.series) {
+                    for (const model of series.models) {
+                        if (model.uuid === uuid) {
+                            console.log('Loaded chassis details:', model);
+                            return model;
+                        }
                     }
                 }
             }
-        }
 
-        console.warn('Chassis UUID not found in JSON:', uuid);
-        return null;
-    } catch (error) {
-        console.error('Error loading chassis details:', error);
-        return null;
-    }
-}
+            console.warn('Chassis UUID not found in JSON:', uuid);
+            return null;
+        } catch (error) {
+            console.error('Error loading chassis details:', error);
+            return null;
+        }
+        }
    
-renderComponentRow(componentType) {
-    const components = this.selectedComponents[componentType.type];
-    const hasComponents = components.length > 0;
-    const isMultiple = componentType.multiple;
+    renderComponentRow(componentType) {
+        const components = this.selectedComponents[componentType.type];
+        const hasComponents = components.length > 0;
+        const isMultiple = componentType.multiple;
 
     if (hasComponents) {
         if (isMultiple) {
@@ -1549,7 +1288,7 @@ renderComponentRow(componentType) {
                 </tr>
             `;
         }
-    } else {
+        } else {
         // No components yet - show add button
         const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
 
@@ -1574,11 +1313,11 @@ renderComponentRow(componentType) {
                 </td>
             </tr>
         `;
-    }
+        }
 }
-renderSocketSlots() {
-    const cpuComponents = this.selectedComponents.cpu;
-    const motherboardData = this.motherboardDetails;
+    renderSocketSlots() {
+        const cpuComponents = this.selectedComponents.cpu;
+        const motherboardData = this.motherboardDetails;
 
     if (!motherboardData || !motherboardData.socket) {
         // Fallback if no motherboard data
@@ -1593,11 +1332,11 @@ renderSocketSlots() {
                 <span class="slot-empty">Empty</span>
             </div>
         `;
-    }
+        }
 
-    const socketCount = motherboardData.socket.count || 1;
-    const socketType = motherboardData.socket.type || 'Unknown';
-    let html = '';
+        const socketCount = motherboardData.socket.count || 1;
+        const socketType = motherboardData.socket.type || 'Unknown';
+        let html = '';
 
     for (let i = 0; i < socketCount; i++) {
         const cpu = cpuComponents[i];
@@ -1609,9 +1348,9 @@ renderSocketSlots() {
                 </span>
             </div>
         `;
-    }
+        }
 
-    return html;
+        return html;
 }
 
     /**
@@ -1638,52 +1377,52 @@ renderSocketSlots() {
                 <span class="slot-component">${chassisSocket}</span>
             </div>
         `;
-    }
+        }
 
-    /**
-     * Render memory slots - Dynamic based on motherboard JSON
-     */
-    // renderMemorySlots() {
-    //     const ramComponents = this.selectedComponents.ram;
-    //     const motherboardData = this.motherboardDetails;
+        /**
+         * Render memory slots - Dynamic based on motherboard JSON
+         */
+        // renderMemorySlots() {
+        //     const ramComponents = this.selectedComponents.ram;
+        //     const motherboardData = this.motherboardDetails;
 
-    //     if (!motherboardData || !motherboardData.memory) {
-    //         // Fallback to 4 slots if no motherboard data
-    //         let html = '';
-    //         for (let i = 0; i < 4; i++) {
-    //             const ram = ramComponents[i];
-    //             html += `
-    //                 <div class="memory-slot">
-    //                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
-    //                     <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-    //                 </div>
-    //             `;
-    //         }
-    //         return html;
-    //     }
+        //     if (!motherboardData || !motherboardData.memory) {
+        //         // Fallback to 4 slots if no motherboard data
+        //         let html = '';
+        //         for (let i = 0; i < 4; i++) {
+        //             const ram = ramComponents[i];
+        //             html += `
+        //                 <div class="memory-slot">
+        //                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
+        //                     <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
+        //                 </div>
+        //             `;
+        //         }
+        //         return html;
+        //     }
 
-    //     const memorySlots = motherboardData.memory.slots || 4;
-    //     const memoryType = motherboardData.memory.type || 'DIMM';
-    //     let html = '';
+        //     const memorySlots = motherboardData.memory.slots || 4;
+        //     const memoryType = motherboardData.memory.type || 'DIMM';
+        //     let html = '';
 
-    //     for (let i = 0; i < memorySlots; i++) {
-    //         const ram = ramComponents[i];
-    //         html += `
-    //             <div class="memory-slot">
-    //                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
-    //                 <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-    //             </div>
-    //         `;
-    //     }
+        //     for (let i = 0; i < memorySlots; i++) {
+        //         const ram = ramComponents[i];
+        //         html += `
+        //             <div class="memory-slot">
+        //                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
+        //                 <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
+        //             </div>
+        //         `;
+        //     }
 
-    //     return html;
-    // }
-    /**
+        //     return html;
+        // }
+        /**
  * Render memory slots - Dynamic based on motherboard JSON
  */
-renderMemorySlots() {
-    const ramComponents = this.selectedComponents.ram;
-    const motherboardData = this.motherboardDetails;
+    renderMemorySlots() {
+        const ramComponents = this.selectedComponents.ram;
+        const motherboardData = this.motherboardDetails;
 
     if (!motherboardData || !motherboardData.memory) {
         // Fallback to 4 slots if no motherboard data
@@ -1700,11 +1439,11 @@ renderMemorySlots() {
             `;
         }
         return html;
-    }
+        }
 
-    const memorySlots = motherboardData.memory.slots || 4;
-    const memoryType = motherboardData.memory.type || 'DIMM';
-    let html = '';
+        const memorySlots = motherboardData.memory.slots || 4;
+        const memoryType = motherboardData.memory.type || 'DIMM';
+        let html = '';
 
     for (let i = 0; i < memorySlots; i++) {
         const ram = ramComponents[i];
@@ -1716,9 +1455,9 @@ renderMemorySlots() {
                 </span>
             </div>
         `;
-    }
+        }
 
-    return html;
+        return html;
 }
 
     /**
@@ -1862,14 +1601,14 @@ renderMemorySlots() {
 /**
  * Render expansion slots - Dynamic based on motherboard JSON with component types
  */
-renderExpansionSlots() {
-    const pcieComponents = this.selectedComponents.pciecard || [];
-    const hbaComponents = this.selectedComponents.hbacard || [];
-    const nicComponents = this.selectedComponents.nic || [];
-    const motherboardData = this.motherboardDetails;
+    renderExpansionSlots() {
+        const pcieComponents = this.selectedComponents.pciecard || [];
+        const hbaComponents = this.selectedComponents.hbacard || [];
+        const nicComponents = this.selectedComponents.nic || [];
+        const motherboardData = this.motherboardDetails;
 
-    // Combine all expansion components with their types
-    const allExpansionComponents = [
+        // Combine all expansion components with their types
+        const allExpansionComponents = [
         ...pcieComponents.map(comp => ({ 
             ...comp, 
             type: 'PCIe Card',
@@ -1885,7 +1624,7 @@ renderExpansionSlots() {
             type: 'Network Card',
             typeIcon: 'fas fa-network-wired'
         }))
-    ];
+        ];
 
     if (!motherboardData || !motherboardData.expansion_slots) {
         // Fallback to basic PCIe slots with component types
@@ -1910,12 +1649,12 @@ renderExpansionSlots() {
             `;
         }
         return html;
-    }
+        }
 
-    let html = '';
-    let componentIndex = 0;
+        let html = '';
+        let componentIndex = 0;
 
-    // Handle regular PCIe slots
+        // Handle regular PCIe slots
     if (motherboardData.expansion_slots.pcie_slots) {
         motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
             const slotCount = slotGroup.count || 1;
@@ -1940,9 +1679,9 @@ renderExpansionSlots() {
                 componentIndex++;
             }
         });
-    }
+        }
 
-    return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+        return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
 }
 
 
@@ -2058,9 +1797,9 @@ renderExpansionSlots() {
 /**
  * Render storage - Only show M.2 slots from motherboard JSON
  */
-renderStorageAndUSB() {
-    const motherboardData = this.motherboardDetails;
-    const storageComponents = this.selectedComponents.storage || [];
+    renderStorageAndUSB() {
+        const motherboardData = this.motherboardDetails;
+        const storageComponents = this.selectedComponents.storage || [];
 
     if (!motherboardData || !motherboardData.storage) {
         // If no motherboard data, show basic storage slots
@@ -2094,12 +1833,12 @@ renderStorageAndUSB() {
         }
         
         return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
-    }
+        }
 
-    let html = '';
-    let storageIndex = 0;
+        let html = '';
+        let storageIndex = 0;
 
-    // ONLY show M.2 NVMe slots - hide SAS, SATA, and U.2
+        // ONLY show M.2 NVMe slots - hide SAS, SATA, and U.2
     if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
         motherboardData.storage.nvme.m2_slots.forEach((m2Group, groupIndex) => {
             const m2Count = m2Group.count || 0;
@@ -2124,11 +1863,11 @@ renderStorageAndUSB() {
                 if (storage) storageIndex++;
             }
         });
-    }
+        }
 
-    // REMOVED: U.2 slots, SATA ports, and SAS ports sections
+        // REMOVED: U.2 slots, SATA ports, and SAS ports sections
 
-    // If no M.2 slots found in motherboard data but we have storage components, show them
+        // If no M.2 slots found in motherboard data but we have storage components, show them
     if (html === '' && storageComponents.length > 0) {
         storageComponents.forEach((storage, index) => {
             html += `
@@ -2144,9 +1883,9 @@ renderStorageAndUSB() {
                 </div>
             `;
         });
-    }
+        }
 
-    return html || '<div class="expansion-slot empty"><span class="slot-label">No M.2 slots available</span></div>';
+        return html || '<div class="expansion-slot empty"><span class="slot-label">No M.2 slots available</span></div>';
 }
 
     /**
@@ -2176,11 +1915,11 @@ renderStorageAndUSB() {
         });
         
         return totalPower || 374; // Default fallback
-    }
+        }
 
-    /**
-     * Add component to configuration
-     */
+        /**
+         * Add component to configuration
+         */
     async addComponent(type) {
         try {
             
@@ -2197,11 +1936,11 @@ renderStorageAndUSB() {
             console.error('Error adding component:', error);
             this.showAlert('Failed to open component selection', 'error');
         }
-    }
+        }
 
-    /**
-     * Remove component from configuration
-     */
+        /**
+         * Remove component from configuration
+         */
     async removeComponent(type, uuid) {
         if (!confirm('Are you sure you want to remove this component?')) {
             return;
@@ -2228,36 +1967,36 @@ renderStorageAndUSB() {
         } finally {
             this.hideLoading();
         }
-    }
+        }
 
-    /**
-     * Get total issues count
-     */
+        /**
+         * Get total issues count
+         */
     getTotalIssuesCount() {
         return this.compatibilityIssues.length + this.performanceWarnings.length;
-    }
+        }
 
-    /**
-     * Get issues resolved count
-     */
+        /**
+         * Get issues resolved count
+         */
     getIssuesResolvedCount() {
         // For now, assume all issues are unresolved. In a real implementation,
         // this would track which issues have been addressed.
         return 0;
-    }
+        }
 
-    /**
-     * Get issues resolved percentage
-     */
+        /**
+         * Get issues resolved percentage
+         */
     getIssuesResolvedPercentage() {
         const total = this.getTotalIssuesCount();
         if (total === 0) return 100;
         return Math.round((this.getIssuesResolvedCount() / total) * 100);
-    }
+        }
 
-    /**
-     * Render grouped issues
-     */
+        /**
+         * Render grouped issues
+         */
     renderGroupedIssues() {
         const allIssues = [...this.compatibilityIssues, ...this.performanceWarnings];
         const groupedIssues = this.groupIssuesByCategory(allIssues);
@@ -2280,11 +2019,11 @@ renderStorageAndUSB() {
                 </div>
             `;
         }).join('');
-    }
+        }
 
-    /**
-     * Group issues by category
-     */
+        /**
+         * Group issues by category
+         */
     groupIssuesByCategory(issues) {
         const groups = {};
         issues.forEach(issue => {
@@ -2295,11 +2034,11 @@ renderStorageAndUSB() {
             groups[group].push(issue);
         });
         return groups;
-    }
+        }
 
-    /**
-     * Get group title
-     */
+        /**
+         * Get group title
+         */
     getGroupTitle(groupKey) {
         const titles = {
             'required_components': 'Required Components',
@@ -2311,11 +2050,11 @@ renderStorageAndUSB() {
             'general': 'General Issues'
         };
         return titles[groupKey] || 'General Issues';
-    }
+        }
 
-    /**
-     * Get group icon
-     */
+        /**
+         * Get group icon
+         */
     getGroupIcon(groupKey) {
         const icons = {
             'required_components': 'fas fa-exclamation-triangle',
@@ -2327,11 +2066,11 @@ renderStorageAndUSB() {
             'general': 'fas fa-info-circle'
         };
         return icons[groupKey] || 'fas fa-info-circle';
-    }
+        }
 
-    /**
-     * Render individual issue item
-     */
+        /**
+         * Render individual issue item
+         */
     renderIssueItem(issue) {
         const severityClass = `severity-${issue.severity || 'info'}`;
         const iconClass = issue.icon || 'fas fa-info-circle';
@@ -2354,22 +2093,22 @@ renderStorageAndUSB() {
                 </div>
             </div>
         `;
-    }
+        }
 
-    /**
-     * Handle issue item click
-     */
+        /**
+         * Handle issue item click
+         */
     handleIssueClick(componentType, element) {
         if (componentType && this.selectedComponents[componentType] && this.selectedComponents[componentType].length > 0) {
             this.scrollToComponent(componentType);
         } else {
             element.classList.toggle('expanded');
         }
-    }
+        }
 
-    /**
-     * Scroll to component in table
-     */
+        /**
+         * Scroll to component in table
+         */
     scrollToComponent(type) {
         const element = document.getElementById(`component-row-${type}`);
         if (element) {
@@ -2381,11 +2120,11 @@ renderStorageAndUSB() {
                 element.style.backgroundColor = '';
             }, 2000);
         }
-    }
+        }
 
-    /**
-     * Attach event listeners
-     */
+        /**
+         * Attach event listeners
+         */
     attachEventListeners() {
          // Toggle switch functionality
         const toggleSwitch = document.getElementById('advancedViewToggle');
@@ -2428,7 +2167,7 @@ renderStorageAndUSB() {
         issueGroups.forEach(group => {
             group.classList.add('expanded');
         });
-    }
+        }
     toggleAdvancedView(enabled) {
         // Add/remove advanced view classes
         const container = document.querySelector('.pcpp-container');
@@ -2442,10 +2181,10 @@ renderStorageAndUSB() {
         
         // Show feedback
         this.showAlert(`Advanced view ${enabled ? 'enabled' : 'disabled'}`, 'info');
-    }
-    /**
-     * Show advanced features
-     */
+        }
+        /**
+         * Show advanced features
+         */
     showAdvancedFeatures() {
         // Add any advanced features you want to show
         console.log('Advanced view enabled');
@@ -2455,23 +2194,23 @@ renderStorageAndUSB() {
         if (motherboardSection) {
             motherboardSection.style.display = 'block';
         }
-    }
-    /**
-     * Hide advanced features
-     */
+        }
+        /**
+         * Hide advanced features
+         */
     hideAdvancedFeatures() {
         // Hide any advanced features
         console.log('Advanced view disabled');
         
         // Example: You might want to keep motherboard section always visible
         // or conditionally hide it based on your requirements
-    }
-    /**
-     * Show loading overlay
-     */
+        }
+        /**
+         * Show loading overlay
+         */
     showLoading(message = 'Loading...', subtext = '') {
         const loadingHtml = `
-            <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] opacity-100 visible pointer-events-auto transition-all duration-300">
+            <div class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] opacity-100 visible pointer-events-auto transition-all duration-300">
                 <div class="bg-surface-card rounded-xl p-8 text-center shadow-xl flex flex-col items-center gap-4">
                     <div class="relative w-16 h-16">
                         <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse"></div>
@@ -2485,28 +2224,27 @@ renderStorageAndUSB() {
             </div>
         `;
 
-        const existingLoader = document.querySelector('[class*="fixed inset-0 bg-black/50"]');
+        const existingLoader = document.querySelector('.loading-overlay');
         if (existingLoader) {
             existingLoader.remove();
         }
 
         document.body.insertAdjacentHTML('beforeend', loadingHtml);
-    }
+        }
 
-    /**
-     * Hide loading overlay
-     */
+        /**
+         * Hide loading overlay
+         */
     hideLoading() {
         const loader = document.querySelector('.loading-overlay');
         if (loader) {
-            loader.classList.remove('active');
-            setTimeout(() => loader.remove(), 300);
+            loader.remove();
         }
-    }
+        }
 
-    /**
-     * Show alert notification
-     */
+        /**
+         * Show alert notification
+         */
     showAlert(message, type = 'info') {
         const typeMap = {
             'danger': 'error',
@@ -2521,7 +2259,7 @@ renderStorageAndUSB() {
             toastNotification.show(message, mappedType);
         } else {
         }
-    }
+        }
 }
 
 // Initialize when DOM is ready

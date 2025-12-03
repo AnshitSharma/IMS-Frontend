@@ -382,28 +382,32 @@ class ConfigurationPage {
         for (const [key, config] of Object.entries(filterConfig)) {
             if (config.type === 'radio') {
                 filtersHTML += `
-                    <div class="filter-group">
-                        <label>${config.label}</label>
-                        <div class="radio-group">
+                    <div class="mb-6">
+                        <label class="block text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">${config.label}</label>
+                        <div class="space-y-2">
                             ${config.options.map((option, index) => {
-                                const value = option.toLowerCase();
-                                const id = `${key}${option.replace(/\s+/g, '')}`;
-                                return `
-                                    <input type="radio" id="${id}" name="${key}" value="${value}" ${index === 0 ? 'checked' : ''}>
-                                    <label for="${id}">${option}</label>
+                    const value = option.toLowerCase();
+                    const id = `${key}${option.replace(/\s+/g, '')}`;
+                    return `
+                                    <div class="flex items-center">
+                                        <input type="radio" id="${id}" name="${key}" value="${value}" ${index === 0 ? 'checked' : ''} 
+                                               class="w-4 h-4 text-primary bg-surface-main border-border focus:ring-primary focus:ring-2 cursor-pointer">
+                                        <label for="${id}" class="ml-2 text-sm text-text-secondary cursor-pointer select-none hover:text-text-primary transition-colors">${option}</label>
+                                    </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>              
                     </div>
                 `;
             } else if (config.type === 'range') {
                 filtersHTML += `
-                    <div class="filter-group">
-                        <label>${config.label}</label>
+                    <div class="mb-6">
+                        <label class="block text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">${config.label}</label>
                         <div class="range-filter">
                             <input type="range" id="${key}Range" min="${config.min}" max="${config.max}"
-                                   step="${config.step}" value="${config.min}" class="slider">
-                            <div class="range-labels">
+                                   step="${config.step}" value="${config.min}" 
+                                   class="w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer accent-primary">
+                            <div class="flex justify-between text-xs text-text-muted mt-2 font-medium">
                                 <span>${config.min}${config.unit}</span>
                                 <span>${config.max}${config.unit}</span>
                             </div>
@@ -489,11 +493,11 @@ class ConfigurationPage {
     async loadRealComponents(configUuid) {
         try {
             // Get compatible components from API with both compatible and incompatible
-           const result = await serverAPI.getCompatibleComponents(
+            const result = await serverAPI.getCompatibleComponents(
                 configUuid,
                 this.currentComponentType,
                 true // Send true to get both available and in-use components
-            );  
+            );
 
             if (result.success && result.data && result.data.data) {
                 const apiData = result.data.data;
@@ -578,21 +582,82 @@ class ConfigurationPage {
     }
 
 
-/**
- * Extract all components from JSON data structure
- */
-extractComponentsFromJSON(jsonData) {
-    const components = [];
+    /**
+     * Extract all components from JSON data structure
+     */
+    extractComponentsFromJSON(jsonData) {
+        const components = [];
 
-    if (Array.isArray(jsonData)) {
-        // Handle array of component groups
-        jsonData.forEach(group => {
-            if (group.models && Array.isArray(group.models)) {
-                // Direct models array
-                components.push(...group.models);
-            } else if (group.series && Array.isArray(group.series)) {
-                // Nested series -> models structure
-                group.series.forEach(series => {
+        if (Array.isArray(jsonData)) {
+            // Handle array of component groups
+            jsonData.forEach(group => {
+                if (group.models && Array.isArray(group.models)) {
+                    // Direct models array
+                    components.push(...group.models);
+                } else if (group.series && Array.isArray(group.series)) {
+                    // Nested series -> models structure
+                    group.series.forEach(series => {
+                        if (series.models && Array.isArray(series.models)) {
+                            components.push(...series.models);
+                        } else if (series.tiers && Array.isArray(series.tiers)) {
+                            // CPU structure: series -> tiers -> models
+                            series.tiers.forEach(tier => {
+                                if (tier.models && Array.isArray(tier.models)) {
+                                    components.push(...tier.models);
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        } else if (typeof jsonData === 'object' && jsonData !== null) {
+            // Handle chassis_specifications structure
+            if (jsonData.chassis_specifications && jsonData.chassis_specifications.manufacturers) {
+                jsonData.chassis_specifications.manufacturers.forEach(manufacturer => {
+                    if (manufacturer.series && Array.isArray(manufacturer.series)) {
+                        manufacturer.series.forEach(series => {
+                            if (series.models && Array.isArray(series.models)) {
+                                components.push(...series.models);
+                            }
+                        });
+                    }
+                });
+            }
+            // Handle motherboard specifications structure
+            else if (jsonData.motherboard_specifications && jsonData.motherboard_specifications.manufacturers) {
+                jsonData.motherboard_specifications.manufacturers.forEach(manufacturer => {
+                    if (manufacturer.series && Array.isArray(manufacturer.series)) {
+                        manufacturer.series.forEach(series => {
+                            if (series.models && Array.isArray(series.models)) {
+                                components.push(...series.models);
+                            }
+                        });
+                    }
+                });
+            }
+            // Handle storage specifications structure
+            else if (jsonData.storage_specifications && jsonData.storage_specifications.manufacturers) {
+                jsonData.storage_specifications.manufacturers.forEach(manufacturer => {
+                    if (manufacturer.series && Array.isArray(manufacturer.series)) {
+                        manufacturer.series.forEach(series => {
+                            if (series.models && Array.isArray(series.models)) {
+                                components.push(...series.models);
+                            }
+                        });
+                    }
+                });
+            }
+            // Handle caddies array structure
+            else if (jsonData.caddies && Array.isArray(jsonData.caddies)) {
+                components.push(...jsonData.caddies);
+            }
+            // Handle direct models array
+            else if (jsonData.models && Array.isArray(jsonData.models)) {
+                components.push(...jsonData.models);
+            }
+            // Handle series -> models structure
+            else if (jsonData.series && Array.isArray(jsonData.series)) {
+                jsonData.series.forEach(series => {
                     if (series.models && Array.isArray(series.models)) {
                         components.push(...series.models);
                     } else if (series.tiers && Array.isArray(series.tiers)) {
@@ -605,136 +670,75 @@ extractComponentsFromJSON(jsonData) {
                     }
                 });
             }
-        });
-    } else if (typeof jsonData === 'object' && jsonData !== null) {
-        // Handle chassis_specifications structure
-        if (jsonData.chassis_specifications && jsonData.chassis_specifications.manufacturers) {
-            jsonData.chassis_specifications.manufacturers.forEach(manufacturer => {
-                if (manufacturer.series && Array.isArray(manufacturer.series)) {
-                    manufacturer.series.forEach(series => {
-                        if (series.models && Array.isArray(series.models)) {
-                            components.push(...series.models);
-                        }
-                    });
-                }
-            });
+            // Handle direct storage array (if your JSON is just an array of storage items)
+            else if (Array.isArray(jsonData.storage) || Array.isArray(jsonData.storage_devices)) {
+                const storageArray = jsonData.storage || jsonData.storage_devices;
+                components.push(...storageArray);
+            }
+            // Handle direct chassis array (fallback)
+            else if (Array.isArray(jsonData.chassis) || Array.isArray(jsonData.chassis_models)) {
+                const chassisArray = jsonData.chassis || jsonData.chassis_models;
+                components.push(...chassisArray);
+            }
+            // Handle direct cpu array (fallback)
+            else if (Array.isArray(jsonData.cpu) || Array.isArray(jsonData.cpus)) {
+                const cpuArray = jsonData.cpu || jsonData.cpus;
+                components.push(...cpuArray);
+            }
+            // Handle direct ram array (fallback)
+            else if (Array.isArray(jsonData.ram) || Array.isArray(jsonData.memory)) {
+                const ramArray = jsonData.ram || jsonData.memory;
+                components.push(...ramArray);
+            }
+            // Handle direct nic array (fallback)
+            else if (Array.isArray(jsonData.nic) || Array.isArray(jsonData.network_cards)) {
+                const nicArray = jsonData.nic || jsonData.network_cards;
+                components.push(...nicArray);
+            }
+            // Handle direct pciecard array (fallback)
+            else if (Array.isArray(jsonData.pciecard) || Array.isArray(jsonData.pcie_cards)) {
+                const pcieArray = jsonData.pciecard || jsonData.pcie_cards;
+                components.push(...pcieArray);
+            }
+            // Handle direct hbacard array (fallback)
+            else if (Array.isArray(jsonData.hbacard) || Array.isArray(jsonData.hba_cards)) {
+                const hbaArray = jsonData.hbacard || jsonData.hba_cards;
+                components.push(...hbaArray);
+            }
         }
-        // Handle motherboard specifications structure
-        else if (jsonData.motherboard_specifications && jsonData.motherboard_specifications.manufacturers) {
-            jsonData.motherboard_specifications.manufacturers.forEach(manufacturer => {
-                if (manufacturer.series && Array.isArray(manufacturer.series)) {
-                    manufacturer.series.forEach(series => {
-                        if (series.models && Array.isArray(series.models)) {
-                            components.push(...series.models);
-                        }
-                    });
-                }
-            });
-        }
-        // Handle storage specifications structure
-        else if (jsonData.storage_specifications && jsonData.storage_specifications.manufacturers) {
-            jsonData.storage_specifications.manufacturers.forEach(manufacturer => {
-                if (manufacturer.series && Array.isArray(manufacturer.series)) {
-                    manufacturer.series.forEach(series => {
-                        if (series.models && Array.isArray(series.models)) {
-                            components.push(...series.models);
-                        }
-                    });
-                }
-            });
-        }
-        // Handle caddies array structure
-        else if (jsonData.caddies && Array.isArray(jsonData.caddies)) {
-            components.push(...jsonData.caddies);
-        }
-        // Handle direct models array
-        else if (jsonData.models && Array.isArray(jsonData.models)) {
-            components.push(...jsonData.models);
-        }
-        // Handle series -> models structure
-        else if (jsonData.series && Array.isArray(jsonData.series)) {
-            jsonData.series.forEach(series => {
-                if (series.models && Array.isArray(series.models)) {
-                    components.push(...series.models);
-                } else if (series.tiers && Array.isArray(series.tiers)) {
-                    // CPU structure: series -> tiers -> models
-                    series.tiers.forEach(tier => {
-                        if (tier.models && Array.isArray(tier.models)) {
-                            components.push(...tier.models);
-                        }
-                    });
-                }
-            });
-        }
-        // Handle direct storage array (if your JSON is just an array of storage items)
-        else if (Array.isArray(jsonData.storage) || Array.isArray(jsonData.storage_devices)) {
-            const storageArray = jsonData.storage || jsonData.storage_devices;
-            components.push(...storageArray);
-        }
-        // Handle direct chassis array (fallback)
-        else if (Array.isArray(jsonData.chassis) || Array.isArray(jsonData.chassis_models)) {
-            const chassisArray = jsonData.chassis || jsonData.chassis_models;
-            components.push(...chassisArray);
-        }
-        // Handle direct cpu array (fallback)
-        else if (Array.isArray(jsonData.cpu) || Array.isArray(jsonData.cpus)) {
-            const cpuArray = jsonData.cpu || jsonData.cpus;
-            components.push(...cpuArray);
-        }
-        // Handle direct ram array (fallback)
-        else if (Array.isArray(jsonData.ram) || Array.isArray(jsonData.memory)) {
-            const ramArray = jsonData.ram || jsonData.memory;
-            components.push(...ramArray);
-        }
-        // Handle direct nic array (fallback)
-        else if (Array.isArray(jsonData.nic) || Array.isArray(jsonData.network_cards)) {
-            const nicArray = jsonData.nic || jsonData.network_cards;
-            components.push(...nicArray);
-        }
-        // Handle direct pciecard array (fallback)
-        else if (Array.isArray(jsonData.pciecard) || Array.isArray(jsonData.pcie_cards)) {
-            const pcieArray = jsonData.pciecard || jsonData.pcie_cards;
-            components.push(...pcieArray);
-        }
-        // Handle direct hbacard array (fallback)
-        else if (Array.isArray(jsonData.hbacard) || Array.isArray(jsonData.hba_cards)) {
-            const hbaArray = jsonData.hbacard || jsonData.hba_cards;
-            components.push(...hbaArray);
-        }
+        return components;
     }
-    return components;
-}
 
     /**
  * Generate component name from JSON data
  */
-generateComponentNameFromJSON(jsonComponent) {
-    // Try different naming patterns based on component type
-    if (jsonComponent.model) {
-        return jsonComponent.model;
-    } else if (jsonComponent.name) {
-        return jsonComponent.name;
-    } else if (jsonComponent.memory_type && jsonComponent.capacity_GB) {
-        // RAM naming
-        return `${jsonComponent.memory_type} ${jsonComponent.capacity_GB}GB ${jsonComponent.module_type || 'DIMM'}`;
-    } else if (jsonComponent.storage_type && jsonComponent.capacity_GB) {
-        // Storage naming
-        const capacityTB = jsonComponent.capacity_GB >= 1000
-            ? `${(jsonComponent.capacity_GB / 1000).toFixed(1)}TB`
-            : `${jsonComponent.capacity_GB}GB`;
-        return `${jsonComponent.subtype || jsonComponent.storage_type} ${capacityTB}`;
-    } else if (jsonComponent.type && jsonComponent.capacity) {
-        return `${jsonComponent.type} ${jsonComponent.capacity}`;
+    generateComponentNameFromJSON(jsonComponent) {
+        // Try different naming patterns based on component type
+        if (jsonComponent.model) {
+            return jsonComponent.model;
+        } else if (jsonComponent.name) {
+            return jsonComponent.name;
+        } else if (jsonComponent.memory_type && jsonComponent.capacity_GB) {
+            // RAM naming
+            return `${jsonComponent.memory_type} ${jsonComponent.capacity_GB}GB ${jsonComponent.module_type || 'DIMM'}`;
+        } else if (jsonComponent.storage_type && jsonComponent.capacity_GB) {
+            // Storage naming
+            const capacityTB = jsonComponent.capacity_GB >= 1000
+                ? `${(jsonComponent.capacity_GB / 1000).toFixed(1)}TB`
+                : `${jsonComponent.capacity_GB}GB`;
+            return `${jsonComponent.subtype || jsonComponent.storage_type} ${capacityTB}`;
+        } else if (jsonComponent.type && jsonComponent.capacity) {
+            return `${jsonComponent.type} ${jsonComponent.capacity}`;
+        }
+        // Add storage-specific naming
+        else if (jsonComponent.capacity_GB && jsonComponent.interface) {
+            const capacityTB = jsonComponent.capacity_GB >= 1000
+                ? `${(jsonComponent.capacity_GB / 1000).toFixed(1)}TB`
+                : `${jsonComponent.capacity_GB}GB`;
+            return `${jsonComponent.interface} ${jsonComponent.form_factor || ''} ${capacityTB}`.trim();
+        }
+        return 'Unknown Component';
     }
-    // Add storage-specific naming
-    else if (jsonComponent.capacity_GB && jsonComponent.interface) {
-        const capacityTB = jsonComponent.capacity_GB >= 1000
-            ? `${(jsonComponent.capacity_GB / 1000).toFixed(1)}TB`
-            : `${jsonComponent.capacity_GB}GB`;
-        return `${jsonComponent.interface} ${jsonComponent.form_factor || ''} ${capacityTB}`.trim();
-    }
-    return 'Unknown Component';
-}
 
     /**
      * Extract manufacturer from JSON component
@@ -767,50 +771,50 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.memoryTypes = jsonComponent.memory_types || [];
                 break;
 
-        case 'motherboard':
-            // Handle socket (could be string or object)
+            case 'motherboard':
+                // Handle socket (could be string or object)
 
-            if (typeof jsonComponent.socket === 'object' && jsonComponent.socket !== null) {
-                component.socket = jsonComponent.socket.type || 'N/A';
-            } else {
-                component.socket = jsonComponent.socket || 'N/A';
-            }
+                if (typeof jsonComponent.socket === 'object' && jsonComponent.socket !== null) {
+                    component.socket = jsonComponent.socket.type || 'N/A';
+                } else {
+                    component.socket = jsonComponent.socket || 'N/A';
+                }
 
-            
-            component.formFactor = jsonComponent.form_factor || 'ATX';
-            component.chipset = jsonComponent.chipset || 'N/A';
-            console.log('JSON Component for Motherboard:', jsonComponent.memory);
-            // Handle memory specifications - check multiple possible property names
-            if (jsonComponent.memory) {
-                console.log('Memory Specifications:', jsonComponent.memory);
-                component.ramSlots = jsonComponent.memory.slots?.toString() ||  'N/A';
-                component.memoryType = jsonComponent.memory.type || 'N/A';
-                component.maxMemory = jsonComponent.memory.max_capacity_TB || 'N/A';
-            } 
-            // Check for direct memory properties
-            else if (jsonComponent.memory_slots || jsonComponent.memory_type || jsonComponent.max_memory_GB) {
-                component.ramSlots = jsonComponent.memory_slots?.toString() || 'N/A';
-                component.memoryType = jsonComponent.memory_type || 
-                                     jsonComponent.supported_memory_types?.[0] || 'N/A';
-                component.maxMemory = jsonComponent.max_memory_GB || 
-                                    jsonComponent.max_memory_capacity_GB || 'N/A';
-            }
-            // Check for memory in notes field (fallback)
-            else if (jsonComponent.notes) {
-                component.ramSlots = this.extractMemorySlotsFromNotes(jsonComponent.notes) || 'N/A';
-                component.memoryType = this.extractMemoryTypeFromNotes(jsonComponent.notes) || 'N/A';
-                component.maxMemory = this.extractMaxMemoryFromNotes(jsonComponent.notes) || 'N/A';
-            }
-            // Final fallback
-            else {
-                component.ramSlots = 'N/A';
-                component.memoryType = 'N/A';
-                component.maxMemory = 'N/A';
-            }
-            
-            component.pcieSlots = jsonComponent.pcie_slots?.toString() || 'N/A';
-            component.sataPorts = jsonComponent.sata_ports?.toString() || 'N/A';
-            break;
+
+                component.formFactor = jsonComponent.form_factor || 'ATX';
+                component.chipset = jsonComponent.chipset || 'N/A';
+                console.log('JSON Component for Motherboard:', jsonComponent.memory);
+                // Handle memory specifications - check multiple possible property names
+                if (jsonComponent.memory) {
+                    console.log('Memory Specifications:', jsonComponent.memory);
+                    component.ramSlots = jsonComponent.memory.slots?.toString() || 'N/A';
+                    component.memoryType = jsonComponent.memory.type || 'N/A';
+                    component.maxMemory = jsonComponent.memory.max_capacity_TB || 'N/A';
+                }
+                // Check for direct memory properties
+                else if (jsonComponent.memory_slots || jsonComponent.memory_type || jsonComponent.max_memory_GB) {
+                    component.ramSlots = jsonComponent.memory_slots?.toString() || 'N/A';
+                    component.memoryType = jsonComponent.memory_type ||
+                        jsonComponent.supported_memory_types?.[0] || 'N/A';
+                    component.maxMemory = jsonComponent.max_memory_GB ||
+                        jsonComponent.max_memory_capacity_GB || 'N/A';
+                }
+                // Check for memory in notes field (fallback)
+                else if (jsonComponent.notes) {
+                    component.ramSlots = this.extractMemorySlotsFromNotes(jsonComponent.notes) || 'N/A';
+                    component.memoryType = this.extractMemoryTypeFromNotes(jsonComponent.notes) || 'N/A';
+                    component.maxMemory = this.extractMaxMemoryFromNotes(jsonComponent.notes) || 'N/A';
+                }
+                // Final fallback
+                else {
+                    component.ramSlots = 'N/A';
+                    component.memoryType = 'N/A';
+                    component.maxMemory = 'N/A';
+                }
+
+                component.pcieSlots = jsonComponent.pcie_slots?.toString() || 'N/A';
+                component.sataPorts = jsonComponent.sata_ports?.toString() || 'N/A';
+                break;
 
 
             case 'ram':
@@ -883,7 +887,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 break;
             case 'pciecard':
                 console.log('JSON Component for PCIe Card:', jsonComponent.max_capacity_per_slot);
-                component.model = jsonComponent.model || 'N/A'; 
+                component.model = jsonComponent.model || 'N/A';
                 component.interface = jsonComponent.interface || 'PCIe';
                 component.max_capacity = jsonComponent.total_max_capacity || 'N/A';
                 component.busWidth = jsonComponent.bus_width || 'N/A';
@@ -1086,17 +1090,17 @@ generateComponentNameFromJSON(jsonComponent) {
             case 'cpu':
                 if (jsonItem.series && jsonItem.series[0]) {
                     const series = jsonItem.series[0];
-                component.cores = this.extractNumberFromRange(series.core_range) || 8;
-                component.threads = component.cores * 2; // Assume 2 threads per core
-                component.baseClock = 2.0 + Math.random() * 2.0; // 2.0-4.0 GHz
-                component.boostClock = component.baseClock + 0.5 + Math.random() * 0.5;
-                component.architecture = series.name || 'Unknown';
-                component.tdp = 65 + Math.floor(Math.random() * 100); // 65-165W
-                component.graphics = 'Integrated';
-                component.l2Cache = 0.5 + Math.random() * 1.0; // 0.5-1.5 MB
-                component.l3Cache = 8 + Math.floor(Math.random() * 32); // 8-40 MB
-                component.maxMemoryCapacity = 4 + Math.floor(Math.random() * 4); // 4-8 TB
-                component.memoryTypes = ['DDR5-4800']; // Default to DDR5
+                    component.cores = this.extractNumberFromRange(series.core_range) || 8;
+                    component.threads = component.cores * 2; // Assume 2 threads per core
+                    component.baseClock = 2.0 + Math.random() * 2.0; // 2.0-4.0 GHz
+                    component.boostClock = component.baseClock + 0.5 + Math.random() * 0.5;
+                    component.architecture = series.name || 'Unknown';
+                    component.tdp = 65 + Math.floor(Math.random() * 100); // 65-165W
+                    component.graphics = 'Integrated';
+                    component.l2Cache = 0.5 + Math.random() * 1.0; // 0.5-1.5 MB
+                    component.l3Cache = 8 + Math.floor(Math.random() * 32); // 8-40 MB
+                    component.maxMemoryCapacity = 4 + Math.floor(Math.random() * 4); // 4-8 TB
+                    component.memoryTypes = ['DDR5-4800']; // Default to DDR5
                 }
                 break;
             case 'motherboard':
@@ -1127,8 +1131,8 @@ generateComponentNameFromJSON(jsonComponent) {
                     const subtype = storageType.subtypes?.[0];
                     component.capacity = `${Math.floor(Math.random() * 8) + 1}TB`; // 1-8TB
                     component.type = subtype?.name || storageType.type || 'SSD';
-                    component.interface = subtype?.name?.includes('SATA') ? 'SATA' : 
-                                       subtype?.name?.includes('NVMe') ? 'PCIe' : 'SATA';
+                    component.interface = subtype?.name?.includes('SATA') ? 'SATA' :
+                        subtype?.name?.includes('NVMe') ? 'PCIe' : 'SATA';
                     component.readSpeed = subtype?.name?.includes('NVMe') ? '7000' : '550';
                     component.writeSpeed = subtype?.name?.includes('NVMe') ? '5000' : '520';
                     component.formFactor = subtype?.form_factors?.[0] || '2.5-inch';
@@ -1143,7 +1147,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.spec5 = 'N/A';
                 component.spec6 = 'N/A';
         }
-        
+
         return component;
     }
 
@@ -1166,7 +1170,7 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     extractSpec(notes, specType) {
         if (!notes) return null;
-        
+
         const patterns = {
             cores: /(\d+)\s*cores?/i,
             threads: /(\d+)\s*threads?/i,
@@ -1178,13 +1182,13 @@ generateComponentNameFromJSON(jsonComponent) {
             l2_cache: /(\d+)\s*mb\s*l2/i,
             l3_cache: /(\d+)\s*mb\s*l3/i
         };
-        
+
         const pattern = patterns[specType];
         if (pattern) {
             const match = notes.match(pattern);
             return match ? match[1] : null;
         }
-        
+
         return null;
     }
 
@@ -1193,7 +1197,7 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     extractManufacturer(notes) {
         if (!notes) return 'unknown';
-        
+
         if (/amd|ryzen/i.test(notes)) return 'amd';
         if (/intel|core/i.test(notes)) return 'intel';
         if (/corsair/i.test(notes)) return 'corsair';
@@ -1204,7 +1208,7 @@ generateComponentNameFromJSON(jsonComponent) {
         if (/asus/i.test(notes)) return 'asus';
         if (/msi/i.test(notes)) return 'msi';
         if (/gigabyte/i.test(notes)) return 'gigabyte';
-        
+
         return 'unknown';
     }
 
@@ -1213,7 +1217,7 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     addTypeSpecificSpecs(baseComponent, notes) {
         const component = { ...baseComponent };
-        
+
         switch (component.type) {
             case 'cpu':
                 component.cores = this.extractSpec(notes, 'cores') || 0;
@@ -1228,7 +1232,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.maxMemoryCapacity = this.extractSpec(notes, 'max_memory_capacity') || 0;
                 component.memoryTypes = this.extractSpec(notes, 'memory_types') || [];
                 break;
-                
+
             case 'ram':
                 component.capacity = this.extractSpec(notes, 'capacity') || 'N/A';
                 component.speed = this.extractSpec(notes, 'speed') || 'N/A';
@@ -1237,7 +1241,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.voltage = this.extractSpec(notes, 'voltage') || 'N/A';
                 component.formFactor = this.extractSpec(notes, 'form_factor') || 'DIMM';
                 break;
-                
+
             case 'motherboard':
                 component.socket = this.extractSpec(notes, 'socket') || 'N/A';
                 component.formFactor = this.extractSpec(notes, 'form_factor') || 'ATX';
@@ -1246,7 +1250,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.pcieSlots = this.extractSpec(notes, 'pcie_slots') || 'N/A';
                 component.sataPorts = this.extractSpec(notes, 'sata_ports') || 'N/A';
                 break;
-                
+
             case 'storage':
                 component.capacity = this.extractSpec(notes, 'capacity') || 'N/A';
                 component.type = this.extractSpec(notes, 'type') || 'SSD';
@@ -1255,7 +1259,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.writeSpeed = this.extractSpec(notes, 'write_speed') || 'N/A';
                 component.formFactor = this.extractSpec(notes, 'form_factor') || '2.5"';
                 break;
-                
+
             case 'nic':
                 component.speed = this.extractSpec(notes, 'speed') || '1Gbps';
                 component.interface = this.extractSpec(notes, 'interface') || 'PCIe';
@@ -1264,7 +1268,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.protocol = this.extractSpec(notes, 'protocol') || 'Ethernet';
                 component.features = this.extractSpec(notes, 'features') || 'N/A';
                 break;
-                
+
             default:
                 // Generic specs for unknown types
                 component.spec1 = this.extractSpec(notes, 'spec1') || 'N/A';
@@ -1274,7 +1278,7 @@ generateComponentNameFromJSON(jsonComponent) {
                 component.spec5 = this.extractSpec(notes, 'spec5') || 'N/A';
                 component.spec6 = this.extractSpec(notes, 'spec6') || 'N/A';
         }
-        
+
         return component;
     }
 
@@ -1283,7 +1287,7 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     async loadMockComponents() {
         const type = this.currentComponentType;
-        
+
         switch (type) {
             case 'cpu':
                 return this.getMockCPUs();
@@ -1766,7 +1770,7 @@ generateComponentNameFromJSON(jsonComponent) {
         const searchTerm = query.toLowerCase();
         this.filteredComponents = this.components.filter(component => {
             return component.name.toLowerCase().includes(searchTerm) ||
-                   component.architecture.toLowerCase().includes(searchTerm);
+                component.architecture.toLowerCase().includes(searchTerm);
         });
 
         this.renderComponents();
@@ -1778,16 +1782,14 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     renderComponentHeaders() {
         const headerContainer = document.getElementById('componentListHeader');
-        
+
         const headers = this.getComponentHeaders(this.currentComponentType);
-        
+
         headerContainer.innerHTML = `
-            <div></div>
-            <div></div>
-            <div>Name</div>
-            ${headers.map(header => `<div>${header}</div>`).join('')}
-           
-            
+            <div class="px-6 py-4 w-12 text-left font-semibold text-sm text-text-primary uppercase tracking-wider"></div>
+            <div class="px-6 py-4 w-16 text-left font-semibold text-sm text-text-primary uppercase tracking-wider"></div>
+            <div class="px-6 py-4 flex-1 text-left font-semibold text-sm text-text-primary uppercase tracking-wider">Name</div>
+            ${headers.map(header => `<div class="px-6 py-4 text-left font-semibold text-sm text-text-primary uppercase tracking-wider">${header}</div>`).join('')}
         `;
     }
 
@@ -1796,23 +1798,37 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     getComponentHeaders(componentType) {
         const headerMap = {
-            'cpu': ['Cores', 'Base Clock', 'Boost Clock', 'Architecture', 'TDP','Action'],
-            'ram': ['Capacity', 'Speed', 'Type', 'Form Factor','Action'],
-            'motherboard': ['Socket', 'Form Factor', 'Chipset', 'Memory Slots', 'Memory Type', 'Max Memory','Action'],
-            'storage': ['Capacity', 'Storage Type', 'Interface', 'Form Factor','Action'],
-            'nic': ['Speed', 'Interface', 'Ports', 'Connector', 'Protocol','Action'],
-            'chassis': ['Brand','Form Factor','Action'],
-            'caddy': ['Form Factor', 'Interface', 'Size','Action'],
-            'pciecard': ['Interface', 'max_capacity', 'Form Factor','Action'],
-            'hbacard': [ 'Interface', 'Protocol', 'Internal Ports','Action']
+            'cpu': ['Cores', 'Base Clock', 'Boost Clock', 'Architecture', 'TDP', 'Action'],
+            'ram': ['Capacity', 'Speed', 'Type', 'Form Factor', 'Action'],
+            'motherboard': ['Socket', 'Form Factor', 'Chipset', 'Memory Slots', 'Memory Type', 'Max Memory', 'Action'],
+            'storage': ['Capacity', 'Storage Type', 'Interface', 'Form Factor', 'Action'],
+            'nic': ['Speed', 'Interface', 'Ports', 'Connector', 'Protocol', 'Action'],
+            'chassis': ['Brand', 'Form Factor', 'Action'],
+            'caddy': ['Form Factor', 'Interface', 'Size', 'Action'],
+            'pciecard': ['Interface', 'max_capacity', 'Form Factor', 'Action'],
+            'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action']
         };
 
-        const headers = headerMap[componentType] || ['Spec 1', 'Spec 2', 'Spec 3', 'Spec 4', 'Spec 5', 'Spec 6'];
-        // Pad to 6 headers for consistent grid layout
-        while (headers.length < 6) {
-            headers.push('');
+        const headers = headerMap[componentType] || ['Spec 1', 'Spec 2', 'Spec 3', 'Spec 4', 'Spec 5'];
+
+        // Ensure we have exactly 5 spec headers (plus Action makes 6)
+        // If we have more than 5, truncate. If less, pad with empty strings.
+
+        // First, remove 'Action' if it exists in the array to avoid duplication
+        const cleanHeaders = headers.filter(h => h !== 'Action');
+
+        // Truncate to max 5
+        const truncatedHeaders = cleanHeaders.slice(0, 5);
+
+        // Pad with empty strings if less than 5
+        while (truncatedHeaders.length < 5) {
+            truncatedHeaders.push('');
         }
-        return headers;
+
+        // Add Action as the 6th header
+        truncatedHeaders.push('Action');
+
+        return truncatedHeaders;
     }
 
     /**
@@ -1820,37 +1836,41 @@ generateComponentNameFromJSON(jsonComponent) {
      */
     renderComponents() {
         const container = document.getElementById('componentList');
-        
+
         if (this.filteredComponents.length === 0) {
             container.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
-                    <i class="fas fa-search" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                    <p>No components found matching your criteria</p>
+                <div class="flex flex-col items-center justify-center py-12 px-6 text-center">
+                    <i class="fas fa-search text-5xl text-text-muted/30 mb-4"></i>
+                    <p class="text-sm text-text-muted font-medium">No components found matching your criteria</p>
                 </div>
             `;
             return;
         }
 
         container.innerHTML = this.filteredComponents.map(component => `
-            <div class="component-item ${!component.compatible ? 'incompatible' : ''}" data-id="${component.id}">
-                <div class="component-checkbox">
+            <div class="flex items-center border-b border-border-light transition-colors hover:bg-surface-hover ${!component.compatible ? 'opacity-60' : ''}" data-id="${component.id}">
+                <div class="px-6 py-4 w-12 flex items-center justify-center">
                     <input type="checkbox" ${!component.compatible ? 'disabled' : ''}
-                           onchange="window.configPage.toggleComponent('${component.id}')">
+                           onchange="window.configPage.toggleComponent('${component.id}')"
+                           class="w-4 h-4 text-primary">
                 </div>
-                <div class="component-image">
-                    <i class="${this.getComponentIcon(component.type || this.currentComponentType)}"></i>
+                <div class="px-6 py-4 w-16 flex items-center justify-center flex-shrink-0">
+                    <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center">
+                        <i class="${this.getComponentIcon(component.type || this.currentComponentType)} text-xl text-primary"></i>
+                    </div>
                 </div>
-                <div class="component-name">
-                    ${component.name}
+                <div class="px-6 py-4 flex-1 min-w-0">
+                    <div class="font-semibold text-sm text-text-primary truncate">${component.name}</div>
                     ${component.serial_number && component.serial_number !== 'N/A' ? `
-                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">
-                            S/N: ${component.serial_number}
-                        </div>
+                        <div class="text-xs text-text-muted mt-1">S/N: ${component.serial_number}</div>
                     ` : ''}
                 </div>
                 ${this.renderComponentSpecs(component)}
-                <div class="component-actions">
-                    <button class="btn-add" ${!component.compatible ? 'disabled' : ''}
+                <div class="px-6 py-4 flex-shrink-0">
+                    <button class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${component.compatible
+                ? 'bg-primary text-white hover:bg-primary-600 cursor-pointer'
+                : 'bg-surface-secondary text-text-muted cursor-not-allowed'
+            }" ${!component.compatible ? 'disabled' : ''}
                             onclick="window.configPage.addComponent('${component.id}')">
                         ${component.compatible ? 'Add' : 'Incompatible'}
                     </button>
@@ -1912,99 +1932,102 @@ generateComponentNameFromJSON(jsonComponent) {
     /**
      * Render component specifications based on type
      */
-renderComponentSpecs(component) {
-    let type = component.type || this.currentComponentType || this.component.memory_type || this.component.storage_type;
+    renderComponentSpecs(component) {
+        let type = component.type || this.currentComponentType || this.component?.memory_type || this.component?.storage_type;
 
-    if (type === 'DDR4' || type === 'DDR5') {
-        type = 'ram';
-    }
+        if (type === 'DDR4' || type === 'DDR5') {
+            type = 'ram';
+        }
 
-    if(type === "HDD" || type === "SSD" ){
+        if (type === "HDD" || type === "SSD") {
+            type = 'storage';
+        }
 
-        type = 'storage';
-    }
-    // Check if we're on mobile (screen width <= 768px)
-    const isMobile = window.innerWidth <= 768;
+        const specClass = 'px-6 py-4 text-sm text-text-secondary whitespace-nowrap';
 
-    if (isMobile) {
-        return this.renderMobileComponentSpecs(component, type);
+        // Desktop table layout
+        switch (type) {
+            case 'cpu':
+                return `
+                <div class="${specClass}">${this.formatValue(component.cores)}</div>
+                <div class="${specClass}">${component.baseClock ? parseFloat(component.baseClock).toFixed(2) + ' GHz' : 'N/A'}</div>
+                <div class="${specClass}">${component.boostClock ? parseFloat(component.boostClock).toFixed(2) + ' GHz' : 'N/A'}</div>
+                <div class="${specClass}">${this.formatValue(component.architecture)}</div>
+                <div class="${specClass}">${this.formatValue(component.tdp) !== 'N/A' ? this.formatValue(component.tdp) + ' W' : 'N/A'}</div>
+            `;
+            case 'ram':
+                return `
+                <div class="${specClass}">${this.formatValue(component.notes)}</div>
+                <div class="${specClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed_MTs) + ' MT/s' : 'N/A'}</div>
+                <div class="${specClass}">${this.formatValue(component.type)}</div>
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+            `;
+            case 'motherboard':
+                return `
+                <div class="${specClass}">${this.formatValue(component.socket)}</div>
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <div class="${specClass}">${this.formatValue(component.chipset)}</div>
+                <div class="${specClass}">${this.formatValue(component.ramSlots)}</div>
+                <div class="${specClass}">${this.formatValue(component.memoryType)}</div>
+                <div class="${specClass}">${this.formatValue(component.maxMemory) !== 'N/A' ? this.formatValue(component.maxMemory) + ' GB' : 'N/A'}</div>
+            `;
+            case 'storage':
+                return `
+                <div class="${specClass}">${this.formatValue(component.capacity)}</div>
+                <div class="${specClass}">${this.formatValue(component.storage_type || component.type)}</div>
+                <div class="${specClass}">${this.formatValue(component.interface)}</div>
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+            `;
+            case 'nic':
+                return `
+                <div class="${specClass}">${this.formatValue(component.speed)}</div>
+                <div class="${specClass}">${this.formatValue(component.interface)}</div>
+                <div class="${specClass}">${this.formatValue(component.ports)}</div>
+                <div class="${specClass}">${this.formatValue(component.connector)}</div>
+                <div class="${specClass}">${this.formatValue(component.protocol)}</div>
+            `;
+            case 'chassis':
+                return `
+                <div class="${specClass}">${this.formatValue(component.brand || component.manufacturer)}</div>
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <div class="${specClass}"></div>
+                <div class="${specClass}"></div>
+                <div class="${specClass}"></div>
+            `;
+            case 'caddy':
+                return `
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <div class="${specClass}">${this.formatValue(component.interface)}</div>
+                <div class="${specClass}">${this.formatValue(component.capacity || component.size)}</div>
+                <div class="${specClass}"></div>
+                <div class="${specClass}"></div>
+            `;
+            case 'pciecard':
+                return `
+                <div class="${specClass}">${this.formatValue(component.interface)}</div>
+                <div class="${specClass}">${this.formatValue(component.total_max_capacity || component.max_capacity)}</div>
+                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <div class="${specClass}"></div>
+                <div class="${specClass}"></div>
+            `;
+            case 'hbacard':
+                return `
+                <div class="${specClass}">${this.formatValue(component.interface)}</div>
+                <div class="${specClass}">${this.formatValue(component.protocol)}</div>
+                <div class="${specClass}">${this.formatValue(component.internal_ports)}</div>
+                <div class="${specClass}"></div>
+                <div class="${specClass}"></div>
+            `;
+            default:
+                return `
+                <div class="${specClass}">${this.formatValue(component.spec1)}</div>
+                <div class="${specClass}">${this.formatValue(component.spec2)}</div>
+                <div class="${specClass}">${this.formatValue(component.spec3)}</div>
+                <div class="${specClass}">${this.formatValue(component.spec4)}</div>
+                <div class="${specClass}">${this.formatValue(component.spec5)}</div>
+            `;
+        }
     }
-    // console.log(type);
-    // Desktop table layout
-    switch (type) {
-        case 'cpu':
-            return `
-                <div class="component-spec">${this.formatValue(component.cores)}</div>
-                <div class="component-spec">${component.baseClock ? parseFloat(component.baseClock).toFixed(2) + ' GHz' : 'N/A'}</div>
-                <div class="component-spec">${component.boostClock ? parseFloat(component.boostClock).toFixed(2) + ' GHz' : 'N/A'}</div>
-                <div class="component-spec">${this.formatValue(component.architecture)}</div>
-                <div class="component-spec">${this.formatValue(component.tdp) !== 'N/A' ? this.formatValue(component.tdp) + ' W' : 'N/A'}</div>
-            `;
-        case 'ram':
-          
-            return `
-                <div class="component-spec">${this.formatValue(component.notes)} </div>
-                <div class="component-spec">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed_MTs) + ' MT/s' : 'N/A'}</div>
-                <div class="component-spec">${this.formatValue(component.type)}</div>
-                <div class="component-spec">${this.formatValue(component.formFactor)}</div>
-            `;
-         case 'motherboard':
-            return `
-                <div class="component-spec">${this.formatValue(component.socket)}</div>
-                <div class="component-spec">${this.formatValue(component.formFactor)}</div>
-                <div class="component-spec">${this.formatValue(component.chipset)}</div>
-                <div class="component-spec">${this.formatValue(component.ramSlots)}</div>
-                <div class="component-spec">${this.formatValue(component.memoryType)}</div>
-                <div class="component-spec">${this.formatValue(component.maxMemory) !== 'N/A' ? this.formatValue(component.maxMemory) + ' GB' : 'N/A'}</div>
-            `;
-       case 'storage':
-            return `
-                <div class="component-spec">${this.formatValue(component.type)}</div>
-                <div class="component-spec">${this.formatValue(component.interface)}</div>
-                <div class="component-spec">${this.formatValue(component.formFactor)}</div>
-            `;
-        case 'nic':
-            return `
-                <div class="component-spec">${this.formatValue(component.speed)}</div>
-                <div class="component-spec">${this.formatValue(component.interface)}</div>
-                <div class="component-spec">${this.formatValue(component.ports)}</div>
-                <div class="component-spec">${this.formatValue(component.connector)}</div>
-                <div class="component-spec">${this.formatValue(component.protocol)}</div>
-            `;
-        case 'chassis':
-            return `
-                <div class="component-spec">${this.formatValue(component.formFactor)}</div>
-                <div class="component-spec">${this.formatValue(component.maxDrives)}</div>
-            `;
-        case 'caddy':
-            return `
-                <div class="component-spec">${this.formatValue(component.formFactor)}</div>
-                <div class="component-spec">${this.formatValue(component.interface)}</div>
-                <div class="component-spec">${this.formatValue(component.capacity)}</div>
-            `;
-        case 'pciecard':
-            return `
-                <div class="component-spec">${this.formatValue(component.interface)}</div>
-                <div class="component-spec">${this.formatValue(component.total_max_capacity)}</div>
-                <div class="component-spec">${this.formatValue(component.cores)}</div>
-            `;
-        case 'hbacard':
-            return `
-                <div class="component-spec">${this.formatValue(component.model)}</div>
-                <div class="component-spec">${this.formatValue(component.interface)}</div>
-                <div class="component-spec">${this.formatValue(component.internal_ports)}</div>
-            `;
-        default:
-            return `
-                <div class="component-spec">${this.formatValue(component.spec1)}</div>
-                <div class="component-spec">${this.formatValue(component.spec2)}</div>
-                <div class="component-spec">${this.formatValue(component.spec3)}</div>
-                <div class="component-spec">${this.formatValue(component.spec4)}</div>
-                <div class="component-spec">${this.formatValue(component.spec5)}</div>
-                <div class="component-spec">${this.formatValue(component.spec6)}</div>
-            `;
-    }
-}
     /**
      * Render mobile component specifications in card format
      */
@@ -2163,16 +2186,16 @@ renderComponentSpecs(component) {
 
         try {
             this.showLoading(true, 'Adding component...');
-            
+
             // Get config UUID from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
             const configUuid = urlParams.get('config');
             const returnPage = urlParams.get('return');
-            
+
             if (configUuid) {
                 // For JSON-based components, we need to create a temporary component entry
                 // in the database first, then add it to the configuration
-                
+
                 // First, try to add as a regular component (in case it exists in DB)
                 let result = await serverAPI.addComponentToServer(
                     configUuid,
@@ -2182,17 +2205,17 @@ renderComponentSpecs(component) {
                     '', // slot position
                     false // override
                 );
-                
+
                 // If that fails because component doesn't exist in DB, create it first
-                if (!result.success && result.message && 
+                if (!result.success && result.message &&
                     (result.message.includes('not found') || result.message.includes('Component not found'))) {
                     result = await this.createAndAddComponent(configUuid, component);
                 }
-                
+
                 if (result.success) {
                     this.showAlert(`${component.name} added successfully`, 'success');
                     this.updateCompatibilityBanner();
-                    
+
                     // If we came from a specific page, redirect back
                     if (returnPage === 'builder') {
                         setTimeout(() => {
@@ -2215,7 +2238,7 @@ renderComponentSpecs(component) {
                 this.showAlert(`${component.name} added successfully (Demo Mode)`, 'success');
                 this.updateCompatibilityBanner();
             }
-            
+
         } catch (error) {
             console.error('Error adding component:', error);
             this.showAlert('Failed to add component', 'error');
@@ -2227,13 +2250,13 @@ renderComponentSpecs(component) {
     /**
      * Create and add component (for JSON-based components not in database)
      */
-    
+
     async createAndAddComponent(configUuid, component) {
         try {
             // Generate a unique UUID for the JSON component
             const componentUuid = this.generateComponentUUID(component);
-            
-            
+
+
             // Use the existing addComponentToServer method (it now handles JSON components)
             const result = await serverAPI.addComponentToServer(
                 configUuid,
@@ -2243,7 +2266,7 @@ renderComponentSpecs(component) {
                 '', // slot position
                 false // override
             );
-            
+
             if (result.success) {
                 return result;
             } else {
@@ -2253,7 +2276,7 @@ renderComponentSpecs(component) {
                     message: result.message || 'Failed to add JSON component'
                 };
             }
-            
+
         } catch (error) {
             console.error('Error creating and adding component:', error);
             return {
@@ -2291,7 +2314,7 @@ renderComponentSpecs(component) {
      */
     getComponentSpecsForAPI(component) {
         const specs = {};
-        
+
         switch (this.currentComponentType) {
             case 'cpu':
                 specs.cores = component.cores;
@@ -2347,7 +2370,7 @@ renderComponentSpecs(component) {
                 specs.spec5 = component.spec5;
                 specs.spec6 = component.spec6;
         }
-        
+
         return specs;
     }
 
@@ -2399,18 +2422,18 @@ renderComponentSpecs(component) {
 
         try {
             this.showLoading(true, 'Adding selected components...');
-            
+
             for (const component of this.selectedComponents) {
                 if (component.compatible) {
                     // Add component via API
                     await serverAPI.addComponentToServer(configUuid, componentType, componentUuid);
                 }
             }
-            
+
             this.showAlert(`${this.selectedComponents.length} components added successfully`, 'success');
             this.selectedComponents = [];
             this.updateCompatibilityBanner();
-            
+
         } catch (error) {
             console.error('Error adding components:', error);
             this.showAlert('Failed to add components', 'error');
@@ -2433,11 +2456,11 @@ renderComponentSpecs(component) {
     updateCompatibilityBanner() {
         const banner = document.getElementById('compatibilityBanner');
         const message = document.getElementById('bannerMessage');
-        
+
         // Check for compatibility issues
         const incompatibleComponents = this.filteredComponents.filter(c => !c.compatible);
         const selectedIncompatible = this.selectedComponents.filter(c => !c.compatible);
-        
+
         if (selectedIncompatible.length > 0) {
             banner.className = 'compatibility-banner warning show';
             message.textContent = `Warning: ${selectedIncompatible.length} selected component(s) have compatibility issues`;
@@ -2466,9 +2489,9 @@ renderComponentSpecs(component) {
     showCompatibilityDetails() {
         const incompatibleComponents = this.filteredComponents.filter(c => !c.compatible);
         const selectedIncompatible = this.selectedComponents.filter(c => !c.compatible);
-        
+
         let details = '';
-        
+
         if (selectedIncompatible.length > 0) {
             details = 'Selected incompatible components:\n';
             selectedIncompatible.forEach(component => {
@@ -2482,7 +2505,7 @@ renderComponentSpecs(component) {
         } else {
             details = 'All components are compatible with your current configuration.';
         }
-        
+
         alert(details);
     }
 
@@ -2516,7 +2539,7 @@ renderComponentSpecs(component) {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
     }
 
@@ -2525,16 +2548,16 @@ renderComponentSpecs(component) {
      */
     renderComparisonTable() {
         if (this.selectedComponents.length === 0) return '';
-        
+
         const headers = ['Name', 'Cores', 'Threads', 'Base Clock', 'Boost Clock', 'TDP', 'Price'];
-        
+
         let table = '<table class="comparison-table-content">';
         table += '<thead><tr>';
         headers.forEach(header => {
             table += `<th>${header}</th>`;
         });
         table += '</tr></thead><tbody>';
-        
+
         this.selectedComponents.forEach(component => {
             table += '<tr>';
             table += `<td>${component.name}</td>`;
@@ -2546,7 +2569,7 @@ renderComponentSpecs(component) {
             table += `<td>$${component.price.toFixed(2)}</td>`;
             table += '</tr>';
         });
-        
+
         table += '</tbody></table>';
         return table;
     }
@@ -2579,18 +2602,18 @@ renderComponentSpecs(component) {
             'pciecard': 'PCIe Card',
             'hbacard': 'HBA Card'
         };
-        
+
         const displayName = typeMap[componentType] || componentType.toUpperCase();
-        
+
         // Update page title
         document.title = `Choose A ${displayName} - BDC IMS`;
-        
+
         // Update header
         const header = document.querySelector('.config-header h1');
         if (header) {
             header.textContent = `Choose A ${displayName}`;
         }
-        
+
         // Update search placeholder
         const searchInput = document.getElementById('componentSearch');
         if (searchInput) {
@@ -2617,7 +2640,7 @@ renderComponentSpecs(component) {
         const backButton = document.getElementById('backButton');
         const returnPage = backButton.getAttribute('data-return-page');
         const configUuid = backButton.getAttribute('data-config-uuid');
-        
+
         if (returnPage === 'builder' && configUuid) {
             // Check if we came from dashboard or standalone server page
             const referrer = document.referrer;

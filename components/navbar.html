@@ -1,43 +1,37 @@
 <!-- Shared Navigation Header -->
-<nav class="navbar">
-    <div class="nav-container">
-        <div class="nav-brand">
+<nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+    <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+        <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
             <i class="fas fa-server"></i>
             <span>BDC Inventory</span>
         </div>
 
-        <div class="nav-menu">
-            <!-- <div class="nav-search">
-                <i class="fas fa-search"></i>
-                <input type="text" id="globalSearch" placeholder="Search components...">
-            </div> -->
-
-            <div class="nav-user">
+        <div class="nav-menu flex items-center gap-4">
+            <div class="nav-user flex items-center gap-3">
                 <!-- Theme Toggle Button -->
-                <button
-                    id="themeToggleBtn"
-                    class="theme-toggle-btn"
-                    aria-label="Toggle theme"
-                    title="Toggle dark mode">
+                <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
                     <i class="fas fa-moon" id="themeToggleIcon"></i>
                 </button>
 
-                <div class="user-info">
-                    <span id="userDisplayName">Loading...</span>
-                    <span id="userRole">User</span>
+                <div class="user-info text-right hidden md:block">
+                    <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                    <span id="userRole" class="block text-xs text-text-muted">User</span>
                 </div>
-                <div class="user-avatar">
+                <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
                     <i class="fas fa-user"></i>
                 </div>
-                <div class="dropdown">
-                    <button class="dropdown-btn">
+                <div class="dropdown relative">
+                    <button class="dropdown-btn text-text-secondary hover:text-text-primary">
                         <i class="fas fa-chevron-down"></i>
                     </button>
-                    <div class="dropdown-content">
-                        <a href="#" id="changePassword">
+                    <div
+                        class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                        <a href="#" id="changePassword"
+                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                             <i class="fas fa-key"></i> Change Password
                         </a>
-                        <a href="#" id="logoutBtn">
+                        <a href="#" id="logoutBtn"
+                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>
