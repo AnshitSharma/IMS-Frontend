@@ -1,7 +1,8 @@
 // API Configuration and Helper Functions
 class ServerAPI {
     constructor() {
-        this.baseURL = 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php';
+        // Uses centralized config (see assets/js/config.js)
+        this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
         // Check both token keys for compatibility with dashboard
         this.token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
 

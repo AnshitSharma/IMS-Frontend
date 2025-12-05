@@ -2206,39 +2206,23 @@ class PCPartPickerBuilder {
         // or conditionally hide it based on your requirements
         }
         /**
-         * Show loading overlay
+         * Show loading overlay (delegates to global loading manager)
          */
     showLoading(message = 'Loading...', subtext = '') {
-        const loadingHtml = `
-            <div class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] opacity-100 visible pointer-events-auto transition-all duration-300">
-                <div class="bg-surface-card rounded-xl p-8 text-center shadow-xl flex flex-col items-center gap-4">
-                    <div class="relative w-16 h-16">
-                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse"></div>
-                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-90" style="animation-delay: 0.15s;"></div>
-                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-75" style="animation-delay: 0.3s;"></div>
-                        <div class="absolute inset-0 border-4 border-border rounded-lg animate-pulse scale-50" style="animation-delay: 0.45s;"></div>
-                    </div>
-                    <div class="text-lg font-semibold text-text-primary">${message}</div>
-                    ${subtext ? `<div class="text-sm text-text-muted">${subtext}</div>` : ''}
-                </div>
-            </div>
-        `;
-
-        const existingLoader = document.querySelector('.loading-overlay');
-        if (existingLoader) {
-            existingLoader.remove();
+        const fullMessage = subtext ? `${message} - ${subtext}` : message;
+        if (window.globalLoading) {
+            window.globalLoading.showLoading(true, fullMessage);
+        } else {
+            console.warn('Global loading manager not available');
         }
-
-        document.body.insertAdjacentHTML('beforeend', loadingHtml);
         }
 
         /**
-         * Hide loading overlay
+         * Hide loading overlay (delegates to global loading manager)
          */
     hideLoading() {
-        const loader = document.querySelector('.loading-overlay');
-        if (loader) {
-            loader.remove();
+        if (window.globalLoading) {
+            window.globalLoading.hide();
         }
         }
 

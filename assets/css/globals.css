@@ -566,13 +566,13 @@
     }
   }
 
-  /* Loading Overlay */
-  .loading-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-20 backdrop-blur-sm flex items-center justify-center z-loading;
+  /* Global Loading Overlay - Clean, Professional Design */
+  #globalLoadingOverlay {
+    @apply fixed inset-0 flex items-center justify-center z-[9999] transition-all duration-300;
   }
 
-  .loading-spinner {
-    @apply w-12 h-12 border-4 border-gray-300 border-t-primary rounded-full animate-spin;
+  #globalLoadingOverlay.hidden {
+    @apply invisible opacity-0;
   }
 
   /* Alert Banner */

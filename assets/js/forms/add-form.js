@@ -1790,14 +1790,10 @@ class AddComponentForm {
     }
 
     showLoading(show, message = 'Loading...') {
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            if (show) {
-                overlay.querySelector('p').textContent = message;
-                overlay.style.display = 'flex';
-            } else {
-                overlay.style.display = 'none';
-            }
+        if (window.globalLoading) {
+            window.globalLoading.showLoading(show, message);
+        } else {
+            console.warn('Global loading manager not available');
         }
     }
 

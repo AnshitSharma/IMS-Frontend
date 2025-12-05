@@ -80,39 +80,24 @@ window.utils = {
         }
     },
 
-    // Show/Hide loading overlay (Unified Loading System)
+    // Show/Hide loading overlay (Unified Loading System - delegates to global loading manager)
     showLoading(show = true, message = 'Loading...') {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        if (!loadingOverlay) {
-            console.warn('Loading overlay element not found');
-            return;
-        }
-
-        const messageEl = loadingOverlay.querySelector('p');
-
-        if (show) {
-            // Prevent duplicate loading overlays
-            if (loadingOverlay.dataset.loading === 'true') {
-                // Update message if already showing
-                if (messageEl) messageEl.textContent = message;
-                return;
-            }
-
-            loadingOverlay.dataset.loading = 'true';
-            if (messageEl) messageEl.textContent = message;
-            loadingOverlay.classList.remove('hidden');
-            loadingOverlay.style.display = 'flex';
+        // Use global loading manager if available
+        if (window.globalLoading) {
+            window.globalLoading.showLoading(show, message);
         } else {
-            loadingOverlay.dataset.loading = 'false';
-            loadingOverlay.classList.add('hidden');
-            loadingOverlay.style.display = 'none';
+            // Fallback for backward compatibility
+            console.warn('Global loading manager not available');
         }
     },
 
     // Check if loading is currently visible
     isLoading() {
-        const loadingOverlay = document.getElementById('loadingOverlay');
-        return loadingOverlay?.dataset.loading === 'true';
+        // Use global loading manager if available
+        if (window.globalLoading) {
+            return window.globalLoading.isLoading();
+        }
+        return false;
     },
 
     // Format date strings

@@ -2594,15 +2594,13 @@ class ConfigurationPage {
     }
 
     /**
-     * Show loading overlay
+     * Show loading overlay (delegates to global loading manager)
      */
     showLoading(show, message = 'Loading...') {
-        const overlay = document.getElementById('loadingOverlay');
-        if (show) {
-            overlay.style.display = 'flex';
-            overlay.querySelector('p').textContent = message;
+        if (window.globalLoading) {
+            window.globalLoading.showLoading(show, message);
         } else {
-            overlay.style.display = 'none';
+            console.warn('Global loading manager not available');
         }
     }
 

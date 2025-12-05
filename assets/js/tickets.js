@@ -13,7 +13,7 @@ class TicketsManager {
         this.searchTerm = '';
         this.statusFilter = '';
         this.priorityFilter = '';
-        this.apiBaseUrl = 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
+        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
     }
 
     /**
@@ -87,35 +87,32 @@ class TicketsManager {
                 throw new Error('Authentication token not found. Please login again.');
             }
 
-            // Build API URL with query parameters
-            const params = new URLSearchParams({
-                action: 'ticket-list',
-                page: this.currentPage,
-                limit: this.itemsPerPage,
-                order_by: 'created_at',
-                order_dir: 'DESC'
-            });
+            // Build FormData with parameters (API expects POST with body, not GET with params)
+            const formData = new FormData();
+            formData.append('action', 'ticket-list');
+            formData.append('page', this.currentPage);
+            formData.append('limit', this.itemsPerPage);
+            formData.append('order_by', 'created_at');
+            formData.append('order_dir', 'DESC');
 
             // Add filters if set
             if (this.statusFilter) {
-                params.append('status', this.statusFilter);
+                formData.append('status', this.statusFilter);
             }
             if (this.priorityFilter) {
-                params.append('priority', this.priorityFilter);
+                formData.append('priority', this.priorityFilter);
             }
             if (this.searchTerm) {
-                params.append('search', this.searchTerm);
+                formData.append('search', this.searchTerm);
             }
 
-            const url = `${this.apiBaseUrl}?${params.toString()}`;
-
-            // Make API call
-            const response = await fetch(url, {
-                method: 'GET',
+            // Make API call (POST with FormData, not GET with query params)
+            const response = await fetch(this.apiBaseUrl, {
+                method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
             });
 
             const result = await response.json();
@@ -196,25 +193,53 @@ class TicketsManager {
         this.hideStates();
 
         tbody.innerHTML = this.filteredTickets.map(ticket => {
+            const hasDescription = ticket.description && ticket.description.trim().length > 0;
             return `
-                <tr>
-                    <td><strong>${this.escapeHtml(ticket.ticket_number || 'N/A')}</strong></td>
-                    <td>
-                        <div style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${this.escapeHtml(ticket.title)}">
-                            ${this.escapeHtml(ticket.title)}
+                <tr class="group hover:bg-surface-hover transition-all duration-200 border-b border-border/50 last:border-0">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="font-mono text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20">
+                            #${this.escapeHtml(ticket.ticket_number || 'N/A')}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex flex-col max-w-[300px]">
+                            <span class="text-sm font-semibold text-text-primary truncate" title="${this.escapeHtml(ticket.title)}">
+                                ${this.escapeHtml(ticket.title)}
+                            </span>
+                            ${hasDescription ?
+                    `<span class="text-xs text-text-muted truncate mt-1 group-hover:text-text-secondary transition-colors">
+                                    ${this.escapeHtml(ticket.description)}
+                                </span>` : ''
+                }
                         </div>
                     </td>
-                    <td>${this.getStatusBadge(ticket.status)}</td>
-                    <td>${this.getPriorityBadge(ticket.priority)}</td>
-                    <td>${this.escapeHtml(ticket.assigned_to_username || 'Unassigned')}</td>
-                    <td>${this.formatDate(ticket.created_at)}</td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="action-btn" onclick="ticketsManager.viewTicket(${ticket.id})" title="View Details">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        ${this.getStatusBadge(ticket.status)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        ${this.getPriorityBadge(ticket.priority)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                             <div class="w-7 h-7 rounded-full bg-surface-secondary flex items-center justify-center text-xs text-text-muted ring-2 ring-surface-card">
+                                <i class="fas fa-user"></i>
+                             </div>
+                             <span class="text-sm font-medium text-text-secondary">${this.escapeHtml(ticket.assigned_to_username || 'Unassigned')}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-medium text-text-secondary">${this.formatDate(ticket.created_at)}</span>
+                            <span class="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">Created</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                        <div class="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button class="p-2 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-primary/20" onclick="ticketsManager.viewTicket(${ticket.id})" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="action-btn edit" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit">
-                                <i class="fas fa-edit"></i>
+                            <button class="p-2 text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-blue-200" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit">
+                                <i class="fas fa-pen"></i>
                             </button>
                         </div>
                     </td>
@@ -229,34 +254,50 @@ class TicketsManager {
      * Get status badge HTML
      */
     getStatusBadge(status) {
-        const statusConfig = {
-            'draft': { label: 'Draft', color: 'var(--warning-color)' },
-            'pending': { label: 'Pending', color: 'var(--info-color)' },
-            'approved': { label: 'Approved', color: 'var(--success-color)' },
-            'in_progress': { label: 'In Progress', color: 'var(--primary-color)' },
-            'deployed': { label: 'Deployed', color: 'var(--success-color)' },
-            'completed': { label: 'Completed', color: 'var(--success-color)' },
-            'rejected': { label: 'Rejected', color: 'var(--danger-color)' },
-            'cancelled': { label: 'Cancelled', color: 'var(--text-muted)' }
+        const statusMap = {
+            'draft': { classes: 'bg-gray-100 text-gray-600 border-gray-200', icon: 'fa-file' },
+            'pending': { classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'fa-clock' },
+            'approved': { classes: 'bg-green-50 text-green-700 border-green-200', icon: 'fa-check' },
+            'in_progress': { classes: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'fa-spinner fa-spin' },
+            'deployed': { classes: 'bg-teal-50 text-teal-700 border-teal-200', icon: 'fa-server' },
+            'completed': { classes: 'bg-green-100 text-green-800 border-green-300', icon: 'fa-check-circle' },
+            'rejected': { classes: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-times' },
+            'cancelled': { classes: 'bg-slate-100 text-slate-500 border-slate-200', icon: 'fa-ban' }
         };
 
-        const config = statusConfig[status] || { label: status, color: 'var(--text-muted)' };
-        return `<span class="status-badge" style="background-color: ${config.color}20; color: ${config.color}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${config.label}</span>`;
+        const key = (status || '').toLowerCase();
+        const config = statusMap[key] || { classes: 'bg-gray-50 text-gray-500 border-gray-200', icon: 'fa-circle' };
+        const label = status ? status.replace(/_/g, ' ') : 'Unknown';
+
+        return `
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.classes} capitalize shadow-sm">
+                <i class="fas ${config.icon} text-[10px] opacity-70"></i>
+                ${this.escapeHtml(label)}
+            </span>
+        `;
     }
 
     /**
      * Get priority badge HTML
      */
     getPriorityBadge(priority) {
-        const priorityConfig = {
-            'low': { label: 'Low', color: 'var(--info-color)' },
-            'medium': { label: 'Medium', color: 'var(--warning-color)' },
-            'high': { label: 'High', color: 'var(--danger-color)' },
-            'urgent': { label: 'Urgent', color: '#c41e3a' }
+        const priorityMap = {
+            'low': { classes: 'bg-slate-50 text-slate-600 border-slate-200', icon: 'fa-arrow-down' },
+            'medium': { classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'fa-minus' },
+            'high': { classes: 'bg-orange-50 text-orange-700 border-orange-200', icon: 'fa-arrow-up' },
+            'urgent': { classes: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-exclamation' }
         };
 
-        const config = priorityConfig[priority] || { label: priority, color: 'var(--text-muted)' };
-        return `<span class="priority-badge" style="background-color: ${config.color}20; color: ${config.color}; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">${config.label}</span>`;
+        const key = (priority || '').toLowerCase();
+        const config = priorityMap[key] || { classes: 'bg-gray-50 text-gray-500 border-gray-200', icon: 'fa-circle' };
+        const label = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Normal';
+
+        return `
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.classes} shadow-sm">
+                <i class="fas ${config.icon} text-[10px] opacity-70"></i>
+                ${this.escapeHtml(label)}
+            </span>
+        `;
     }
 
     /**
@@ -291,14 +332,18 @@ class TicketsManager {
                 throw new Error('Authentication token not found');
             }
 
-            const url = `${this.apiBaseUrl}?action=ticket-get&ticket_id=${ticketId}&include_history=true`;
+            // Build FormData with parameters (API expects POST with body, not GET with params)
+            const formData = new FormData();
+            formData.append('action', 'ticket-get');
+            formData.append('ticket_id', ticketId);
+            formData.append('include_history', 'true');
 
-            const response = await fetch(url, {
-                method: 'GET',
+            const response = await fetch(this.apiBaseUrl, {
+                method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
             });
 
             const result = await response.json();
@@ -495,8 +540,8 @@ class TicketsManager {
      * Get authentication token
      */
     getAuthToken() {
-        // Try to get token from localStorage
-        const token = localStorage.getItem('bdc_token');
+        // Try to get token from localStorage (check both possible keys)
+        const token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
         return token;
     }
 

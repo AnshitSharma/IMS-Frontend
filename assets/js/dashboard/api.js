@@ -4,8 +4,8 @@
 
 
 window.api = {
-    // Base configuration - Hardcoded for staging
-    baseURL: 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php',
+    // Base configuration - Uses centralized config (see assets/js/config.js)
+    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php',
 
     // Get auth token from localStorage
     getToken() {

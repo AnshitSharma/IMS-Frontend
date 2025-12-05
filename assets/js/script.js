@@ -1,6 +1,6 @@
-// API Configuration
+// API Configuration - Uses centralized config (see assets/js/config.js)
 const API_CONFIG = {
-    baseURL: 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php',
+    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php',
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
@@ -15,7 +15,6 @@ const registerForm = document.getElementById('registerForm');
 const loginFormElement = document.getElementById('loginFormElement');
 const registerFormElement = document.getElementById('registerFormElement');
 const alertMessage = document.getElementById('alertMessage');
-const loadingOverlay = document.getElementById('loadingOverlay');
 
 // Password Toggle Elements
 const toggleLoginPassword = document.getElementById('toggleLoginPassword');
@@ -499,14 +498,14 @@ function closeAlert() {
 }
 
 function showLoading() {
-    if (loadingOverlay) {
-        loadingOverlay.classList.add('show');
+    if (window.globalLoading) {
+        window.globalLoading.show('Processing...');
     }
 }
 
 function hideLoading() {
-    if (loadingOverlay) {
-        loadingOverlay.classList.remove('show');
+    if (window.globalLoading) {
+        window.globalLoading.hide();
     }
 }
 
