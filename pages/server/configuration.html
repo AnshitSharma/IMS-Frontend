@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,24 +8,29 @@
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
+
 <body class="bg-surface-main">
     <!-- Shared Navigation Header -->
     <div id="navbar-placeholder"></div>
 
-    <!-- Main Container -->
-    <div class="main-container flex">
+    <!-- Main Configuration Container -->
+    <div class="flex min-h-[calc(100vh-64px)]">
         <!-- Mobile Filter Button -->
-        <button class="mobile-filter-btn fixed bottom-4 right-4 lg:hidden bg-primary text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-40" id="mobile-filter-btn">
+        <button
+            class="fixed bottom-20 right-4 lg:hidden bg-primary text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-40"
+            id="mobile-filter-btn">
             <i class="fas fa-filter"></i>
         </button>
 
         <!-- Filter Overlay for Mobile -->
         <div class="filter-overlay fixed inset-0 bg-black/50 z-30 hidden"></div>
 
-        <!-- Left Sidebar -->
-        <aside class="config-sidebar w-80 bg-surface-card border-r border-border-light overflow-y-auto" id="config-sidebar">
+        <!-- Left Sidebar Filter Panel -->
+        <aside
+            class="config-sidebar w-72 min-w-[288px] bg-surface-card border-r border-border-light overflow-y-auto flex-shrink-0 h-[calc(100vh-64px)] sticky top-16"
+            id="config-sidebar">
             <!-- Mobile Filter Header -->
-            <div class="mobile-filter-header lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-light">
+            <div class="lg:hidden flex items-center justify-between px-4 py-3 border-b border-border-light">
                 <h3 class="font-semibold text-text-primary">Filters</h3>
                 <button class="mobile-filter-close text-text-disabled hover:text-text-muted">
                     <i class="fas fa-times text-xl"></i>
@@ -32,179 +38,121 @@
             </div>
 
             <!-- Part List Section -->
-            <div class="part-list-section p-4 border-b border-border-light">
-                <div class="part-list-header flex items-center gap-2 mb-3">
-                    <i class="fas fa-microchip text-primary"></i>
-                    <h3 class="font-semibold text-text-primary">Part List</h3>
+            <div class="p-4 border-b border-border-light">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fas fa-list text-primary"></i>
+                    <h3 class="font-semibold text-text-primary text-sm">Part List</h3>
                 </div>
-                <div class="compatibility-filter flex items-center gap-2 mb-4">
-                    <input type="checkbox" id="compatibilityFilter" checked class="w-4 h-4 text-primary">
-                    <label for="compatibilityFilter" class="text-sm text-text-secondary">Compatibility Filter</label>
-                </div>
-                <div class="part-summary bg-surface-main rounded-lg p-3">
-                    <div class="summary-item flex items-center justify-between">
-                        <span class="summary-label text-xs font-semibold text-text-muted">PARTS</span>
-                        <span class="summary-value text-lg font-bold text-text-primary" id="partsCount">0</span>
+                <label class="flex items-center gap-2 cursor-pointer mb-4">
+                    <input type="checkbox" id="compatibilityFilter" checked class="w-4 h-4 accent-primary">
+                    <span class="text-sm text-text-secondary">Compatibility Filter</span>
+                </label>
+                <div class="bg-surface-main rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-text-muted uppercase">PARTS</span>
+                        <span class="text-xl font-bold text-text-primary" id="partsCount">0</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Filters Section -->
-            <div class="filters-section p-4 space-y-6">
-                <h4 class="font-semibold text-text-primary mb-4">Filters</h4>
-
-                <!-- Manufacturer Filter -->
-                <div class="filter-group">
-                    <label class="block text-xs font-semibold text-text-muted mb-2">MANUFACTURER</label>
-                    <div class="radio-group space-y-2">
-                        <div class="flex items-center">
-                            <input type="radio" id="manufacturerAll" name="manufacturer" value="all" checked class="w-4 h-4 text-primary">
-                            <label for="manufacturerAll" class="ml-2 text-sm text-text-secondary">All</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="radio" id="manufacturerAMD" name="manufacturer" value="amd" class="w-4 h-4 text-primary">
-                            <label for="manufacturerAMD" class="ml-2 text-sm text-text-secondary">AMD</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="radio" id="manufacturerIntel" name="manufacturer" value="intel" class="w-4 h-4 text-primary">
-                            <label for="manufacturerIntel" class="ml-2 text-sm text-text-secondary">Intel</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Memory Types Filter -->
-                <div class="filter-group">
-                    <label class="block text-xs font-semibold text-text-muted mb-2">MEMORY TYPES</label>
-                    <div class="radio-group space-y-2">
-                        <div class="flex items-center">
-                            <input type="radio" id="memoryTypeAll" name="memoryType" value="all" checked class="w-4 h-4 text-primary">
-                            <label for="memoryTypeAll" class="ml-2 text-sm text-text-secondary">All</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="radio" id="memoryTypeDDR4" name="memoryType" value="ddr4" class="w-4 h-4 text-primary">
-                            <label for="memoryTypeDDR4" class="ml-2 text-sm text-text-secondary">DDR4</label>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="radio" id="memoryTypeDDR5" name="memoryType" value="ddr5" class="w-4 h-4 text-primary">
-                            <label for="memoryTypeDDR5" class="ml-2 text-sm text-text-secondary">DDR5</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Core Count Filter -->
-                <div class="filter-group">
-                    <label class="block text-xs font-semibold text-text-muted mb-2">CORE COUNT</label>
-                    <div class="range-filter">
-                        <input type="range" id="coreCountRange" min="1" max="64" value="1" class="slider w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer">
-                        <div class="range-labels flex justify-between text-xs text-text-muted mt-1">
-                            <span>1</span>
-                            <span>64</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Base Clock Filter -->
-                <div class="filter-group">
-                    <label class="block text-xs font-semibold text-text-muted mb-2">BASE CLOCK</label>
-                    <div class="range-filter">
-                        <input type="range" id="baseClockRange" min="1.0" max="5.0" value="1.0" step="0.1" class="slider w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer">
-                        <div class="range-labels flex justify-between text-xs text-text-muted mt-1">
-                            <span>1.0 GHz</span>
-                            <span>5.0 GHz</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Max Memory Capacity Filter -->
-                <div class="filter-group">
-                    <label class="block text-xs font-semibold text-text-muted mb-2">MAX MEMORY CAPACITY</label>
-                    <div class="range-filter">
-                        <input type="range" id="maxMemoryCapacityRange" min="1" max="32" value="1" step="1" class="slider w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer">
-                        <div class="range-labels flex justify-between text-xs text-text-muted mt-1">
-                            <span>1 TB</span>
-                            <span>32 TB</span>
-                        </div>
-                    </div>
-                </div>
+            <!-- Filters Section - Dynamically generated by JavaScript -->
+            <div class="filters-section p-4">
+                <!-- Filters will be loaded dynamically based on component type -->
             </div>
 
             <!-- Mobile Filter Footer -->
-            <div class="mobile-filter-footer lg:hidden px-4 py-3 border-t border-border-light">
-                <button class="mobile-filter-apply w-full bg-primary text-white py-2 rounded-lg hover:bg-primary-600 transition-colors">Apply Filters</button>
+            <div class="lg:hidden px-4 py-3 border-t border-border-light mt-auto">
+                <button
+                    class="mobile-filter-apply w-full bg-primary text-white py-2.5 rounded-lg hover:bg-primary-600 transition-colors font-medium">Apply
+                    Filters</button>
             </div>
         </aside>
 
         <!-- Main Content Area -->
-        <main class="config-main-content flex-1 overflow-y-auto">
+        <main class="flex-1 flex flex-col min-h-[calc(100vh-64px)] overflow-hidden">
             <!-- Header -->
-            <div class="config-header bg-surface-card border-b border-border-light px-6 py-4">
-                <div class="header-left flex items-center gap-4 mb-4">
-                    <button class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors hidden" id="backButton">
-                        <i class="fas fa-arrow-left"></i> Back to Builder
+            <div class="bg-surface-card border-b border-border-light px-6 py-4">
+                <div class="flex items-center gap-4 mb-4">
+                    <button
+                        class="flex items-center gap-2 px-4 py-2 bg-surface-secondary text-text-secondary rounded-lg hover:bg-surface-hover transition-colors text-sm font-medium"
+                        id="backButton">
+                        <i class="fas fa-arrow-left"></i>
+                        <span>Back to Builder</span>
                     </button>
-
-                    <h1 class="text-2xl font-bold text-text-primary">Choose A CPU</h1>
+                    <h1 class="text-2xl font-bold text-text-primary" id="pageTitle">Choose A CPU</h1>
                 </div>
-                <div class="header-actions flex flex-wrap items-center gap-3">
-                    <div class="search-box flex items-center gap-2 bg-surface-secondary px-4 py-2 rounded-lg flex-1 max-w-md">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div
+                        class="flex items-center gap-2 bg-surface-main px-4 py-2.5 rounded-lg flex-1 max-w-md border border-border-light">
                         <i class="fas fa-search text-text-disabled"></i>
-                        <input type="text" id="componentSearch" placeholder="CPUs"
-                               class="bg-transparent border-none outline-none text-sm flex-1">
+                        <input type="text" id="componentSearch" placeholder="Search CPUs..."
+                            class="bg-transparent border-none outline-none text-sm flex-1 text-text-primary placeholder:text-text-disabled">
                     </div>
-                    <div class="header-links">
-                        <button class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors" id="addFromFilter">
-                            Add From Filter
-                        </button>
-                    </div>
+                    <button
+                        class="px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+                        id="addFromFilter">
+                        Add From Filter
+                    </button>
                 </div>
             </div>
 
-            <!-- Component Count -->
-            <div class="component-count px-6 py-3 bg-surface-main border-b border-border-light">
-                <span id="componentCount" class="text-sm text-text-secondary font-medium">1430 Compatible Products</span>
+            <!-- Component Count & Selection -->
+            <div class="px-6 py-3 bg-surface-main border-b border-border-light flex items-center justify-between">
+                <span id="componentCount" class="text-sm text-text-secondary font-medium">0 Compatible Products</span>
+                <div class="flex gap-2">
+                    <button
+                        class="px-4 py-1.5 bg-surface-card border border-border-light text-text-secondary rounded-lg hover:bg-surface-hover transition-colors text-sm font-medium"
+                        id="selectAll">Select All</button>
+                    <button
+                        class="px-4 py-1.5 bg-surface-card border border-border-light text-text-secondary rounded-lg hover:bg-surface-hover transition-colors text-sm font-medium"
+                        id="selectNone">Select None</button>
+                </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="action-buttons px-6 py-3 bg-surface-card border-b border-border-light flex gap-2">
-                <button class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors text-sm" id="selectAll">Select All</button>
-                <button class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors text-sm" id="selectNone">Select None</button>
-            </div>
-
-            <!-- Component List -->
-            <div class="p-6">
+            <!-- Component List Table -->
+            <div class="flex-1 p-6 pb-20 overflow-y-auto">
                 <div class="bg-surface-card border border-border-light rounded-xl shadow-sm overflow-hidden">
-                    <div class="bg-surface-secondary border-b border-border-light flex items-center" id="componentListHeader">
-                        <!-- Column headers will be loaded here -->
-                    </div>
-                    <div class="bg-surface-card" id="componentList">
-                        <!-- Components will be loaded here -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
+                            <thead id="componentListHeader" class="bg-surface-secondary">
+                                <!-- Headers will be loaded dynamically -->
+                            </thead>
+                            <tbody id="componentList" class="divide-y divide-border-light">
+                                <!-- Components will be loaded dynamically -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </main>
     </div>
 
-    <!-- Compatibility Warning Banner -->
-    <div class="compatibility-banner fixed bottom-0 left-0 right-0 bg-warning-50 border-t-4 border-warning p-4 shadow-lg hidden z-50" id="compatibilityBanner">
-        <div class="banner-content max-w-screen-xl mx-auto flex items-center justify-between gap-4">
+    <!-- Compatibility Warning Banner (Fixed at bottom like image 0) -->
+    <div class="fixed bottom-0 left-0 right-0 bg-warning-50 border-t-4 border-warning px-6 py-3 shadow-lg z-50 hidden"
+        id="compatibilityBanner">
+        <div class="max-w-screen-xl mx-auto flex items-center justify-between gap-4">
             <div class="flex items-center gap-3">
-                <div class="banner-icon">
-                    <i class="fas fa-exclamation-triangle text-warning text-2xl"></i>
+                <div class="w-8 h-8 bg-warning rounded-full flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-white text-sm"></i>
                 </div>
-                <div class="banner-message">
-                    <span id="bannerMessage" class="text-sm font-medium text-warning-900">Checking component compatibility...</span>
-                </div>
+                <span id="bannerMessage" class="text-sm font-medium text-warning-900">Note: 1 component(s) are not
+                    compatible with your current configuration</span>
             </div>
-            <div class="banner-actions flex gap-2">
-                <button class="btn btn-sm btn-primary px-3 py-1 bg-primary text-white rounded text-sm hover:bg-primary-600 transition-colors" id="viewDetails">View Details</button>
-                <button class="btn btn-sm btn-secondary px-3 py-1 bg-surface-hover text-text-secondary rounded text-sm hover:bg-border transition-colors" id="dismissBanner">Dismiss</button>
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <button
+                    class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+                    id="viewDetails">View Details</button>
+                <button
+                    class="px-4 py-2 text-text-secondary hover:text-text-primary text-sm font-medium transition-colors"
+                    id="dismissBanner">Dismiss</button>
             </div>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
-        <div class="loading-spinner bg-surface-card rounded-lg p-8 text-center">
+    <div id="loadingOverlay"
+        class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
+        <div class="bg-surface-card rounded-lg p-8 text-center">
             <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
             <p class="text-text-secondary">Loading...</p>
         </div>
@@ -222,4 +170,5 @@
     <script src="../../assets/js/server/server-api.js"></script>
     <script src="../../assets/js/server/configuration.js"></script>
 </body>
+
 </html>

@@ -8,59 +8,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body class="bg-surface-main">
-    <!-- Hamburger Menu Button (Mobile) -->
-    <button class="hamburger-menu fixed top-4 left-4 z-50 lg:hidden" id="hamburgerBtn" aria-label="Toggle Menu">
-        <span class="block w-6 h-0.5 bg-text-primary mb-1"></span>
-        <span class="block w-6 h-0.5 bg-text-primary mb-1"></span>
-        <span class="block w-6 h-0.5 bg-text-primary"></span>
-    </button>
+    <!-- Shared Navigation Header -->
+    <div id="navbar-placeholder"></div>
 
-    <!-- Mobile Overlay -->
-    <div class="mobile-overlay fixed inset-0 bg-black/50 z-40 hidden" id="mobileOverlay"></div>
-
-    <!-- Navigation Header -->
-    <nav class="navbar bg-surface-card shadow-sm">
-        <div class="nav-container max-w-screen-2xl mx-auto navbar-padding py-3 flex items-center justify-between">
-            <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
-                <i class="fas fa-server"></i>
-                <span>BDC Inventory</span>
-            </div>
-
-            <div class="nav-menu flex items-center gap-4">
-                <div class="nav-search hidden lg:flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
-                    <i class="fas fa-search text-text-disabled"></i>
-                    <input type="text" id="globalSearch" placeholder="Search components..."
-                           class="bg-transparent border-none outline-none text-sm">
-                </div>
-
-                <div class="nav-user flex items-center gap-3">
-                    <div class="user-info text-right hidden md:block">
-                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
-                        <span id="userRole" class="block text-xs text-text-muted">User</span>
-                    </div>
-                    <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <div class="dropdown relative">
-                        <button class="dropdown-btn text-text-muted hover:text-text-primary">
-                            <i class="fas fa-chevron-down"></i>
-                        </button>
-                        <div class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border-light hidden">
-                            <a href="#" id="changePassword" class="block px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover">
-                                <i class="fas fa-key"></i> Change Password
-                            </a>
-                            <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-text-secondary hover:bg-surface-hover">
-                                <i class="fas fa-sign-out-alt"></i> Logout
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Main Container with Layout Wrapper -->
-    <div class="layout-wrapper">
+    <!-- Main Container -->
     <div class="main-container flex">
         <!-- Sidebar -->
         <aside class="sidebar w-64 bg-surface-card border-r border-border-light min-h-screen">
@@ -183,6 +134,7 @@
     <script src="../../assets/js/toast.js"></script>
     <script src="../../assets/js/dashboard/utils.js"></script>
     <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../components/navbar.js"></script>
     <script src="../../assets/js/server/server-api.js"></script>
     <script src="../../assets/js/server/pcpartpicker-builder.js"></script>
     <script src="../../assets/js/server/server-builder.js"></script>

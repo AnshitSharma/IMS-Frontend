@@ -115,8 +115,8 @@ class ConfigurationPage {
      * Setup mobile filter functionality
      */
     setupMobileFilters() {
-        // Mobile filter button
-        const mobileFilterBtn = document.querySelector('.mobile-filter-btn');
+        // Mobile filter button - use ID selector
+        const mobileFilterBtn = document.getElementById('mobile-filter-btn');
         const filterOverlay = document.querySelector('.filter-overlay');
         const mobileFilterClose = document.querySelector('.mobile-filter-close');
         const mobileFilterApply = document.querySelector('.mobile-filter-apply');
@@ -161,82 +161,70 @@ class ConfigurationPage {
 
     /**
      * Setup event listeners
+     * Note: Filter event listeners (pill buttons and range inputs) are attached dynamically
+     * by attachFilterListeners() when filters are rendered
      */
     setupEventListeners() {
-        document.querySelectorAll('input[name="manufacturer"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.filters.manufacturer = e.target.value;
-                this.applyFilters();
-            });
-        });
-
-        document.querySelectorAll('input[name="rating"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.filters.rating = e.target.value;
-                this.applyFilters();
-            });
-        });
-
-        document.getElementById('coreCountRange').addEventListener('input', (e) => {
-            this.filters.coreCount.min = parseInt(e.target.value);
-            this.applyFilters();
-        });
-
-
-
-        document.getElementById('baseClockRange').addEventListener('input', (e) => {
-            this.filters.baseClock.min = parseFloat(e.target.value);
-            this.applyFilters();
-        });
-
-        document.getElementById('maxMemoryCapacityRange').addEventListener('input', (e) => {
-            this.filters.maxMemoryCapacity.min = parseInt(e.target.value);
-            this.applyFilters();
-        });
-
-        document.querySelectorAll('input[name="memoryType"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                this.filters.memoryType = e.target.value;
-                this.applyFilters();
-            });
-        });
-
         // Search
-        document.getElementById('componentSearch').addEventListener('input', (e) => {
-            this.searchComponents(e.target.value);
-        });
+        const searchInput = document.getElementById('componentSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchComponents(e.target.value);
+            });
+        }
 
         // Action buttons
-        document.getElementById('selectAll').addEventListener('click', () => {
-            this.selectAllComponents();
-        });
+        const selectAllBtn = document.getElementById('selectAll');
+        if (selectAllBtn) {
+            selectAllBtn.addEventListener('click', () => {
+                this.selectAllComponents();
+            });
+        }
 
-        document.getElementById('selectNone').addEventListener('click', () => {
-            this.selectNoneComponents();
-        });
+        const selectNoneBtn = document.getElementById('selectNone');
+        if (selectNoneBtn) {
+            selectNoneBtn.addEventListener('click', () => {
+                this.selectNoneComponents();
+            });
+        }
 
-        document.getElementById('addFromFilter').addEventListener('click', () => {
-            this.addSelectedComponents();
-        });
+        const addFromFilterBtn = document.getElementById('addFromFilter');
+        if (addFromFilterBtn) {
+            addFromFilterBtn.addEventListener('click', () => {
+                this.addSelectedComponents();
+            });
+        }
 
         // Compatibility banner
-        document.getElementById('viewDetails').addEventListener('click', () => {
-            this.showCompatibilityDetails();
-        });
+        const viewDetailsBtn = document.getElementById('viewDetails');
+        if (viewDetailsBtn) {
+            viewDetailsBtn.addEventListener('click', () => {
+                this.showCompatibilityDetails();
+            });
+        }
 
-        document.getElementById('dismissBanner').addEventListener('click', () => {
-            this.dismissBanner();
-        });
+        const dismissBannerBtn = document.getElementById('dismissBanner');
+        if (dismissBannerBtn) {
+            dismissBannerBtn.addEventListener('click', () => {
+                this.dismissBanner();
+            });
+        }
 
-        // Compatibility filter
-        document.getElementById('compatibilityFilter').addEventListener('change', (e) => {
-            this.applyFilters();
-        });
+        // Compatibility filter checkbox
+        const compatibilityFilter = document.getElementById('compatibilityFilter');
+        if (compatibilityFilter) {
+            compatibilityFilter.addEventListener('change', () => {
+                this.applyFilters();
+            });
+        }
 
         // Back button
-        document.getElementById('backButton').addEventListener('click', () => {
-            this.goBack();
-        });
+        const backButton = document.getElementById('backButton');
+        if (backButton) {
+            backButton.addEventListener('click', () => {
+                this.goBack();
+            });
+        }
     }
 
     /**
@@ -378,39 +366,45 @@ class ConfigurationPage {
         const filterConfig = this.getFiltersForComponentType(componentType);
         const filtersSection = document.querySelector('.filters-section');
         if (!filtersSection) return;
-        let filtersHTML = '<h4>Filters</h4>';
+
+        let filtersHTML = '<h4 class="font-semibold text-text-primary text-sm mb-4">Filters</h4>';
+
         for (const [key, config] of Object.entries(filterConfig)) {
             if (config.type === 'radio') {
+                // Generate PILL BUTTONS instead of radio buttons
                 filtersHTML += `
                     <div class="mb-6">
-                        <label class="block text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">${config.label}</label>
-                        <div class="space-y-2">
+                        <label class="block text-xs font-semibold text-text-muted mb-3 uppercase tracking-wider">${config.label}</label>
+                        <div class="flex flex-wrap gap-2" data-filter-group="${key}">
                             ${config.options.map((option, index) => {
-                    const value = option.toLowerCase();
-                    const id = `${key}${option.replace(/\s+/g, '')}`;
-                    return `
-                                    <div class="flex items-center">
-                                        <input type="radio" id="${id}" name="${key}" value="${value}" ${index === 0 ? 'checked' : ''} 
-                                               class="w-4 h-4 text-primary bg-surface-main border-border focus:ring-primary focus:ring-2 cursor-pointer">
-                                        <label for="${id}" class="ml-2 text-sm text-text-secondary cursor-pointer select-none hover:text-text-primary transition-colors">${option}</label>
-                                    </div>
+                                const value = option.toLowerCase();
+                                const isActive = index === 0;
+                                return `
+                                    <button type="button"
+                                        class="filter-pill px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
+                                            ${isActive
+                                                ? 'border-primary bg-primary text-white'
+                                                : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
+                                        data-filter="${key}"
+                                        data-value="${value}">
+                                        ${option}
+                                    </button>
                                 `;
-                }).join('')}
-                        </div>              
+                            }).join('')}
+                        </div>
                     </div>
                 `;
             } else if (config.type === 'range') {
+                // Keep range sliders with Tailwind classes
                 filtersHTML += `
                     <div class="mb-6">
                         <label class="block text-xs font-semibold text-text-muted mb-2 uppercase tracking-wider">${config.label}</label>
-                        <div class="range-filter">
-                            <input type="range" id="${key}Range" min="${config.min}" max="${config.max}"
-                                   step="${config.step}" value="${config.min}" 
-                                   class="w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer accent-primary">
-                            <div class="flex justify-between text-xs text-text-muted mt-2 font-medium">
-                                <span>${config.min}${config.unit}</span>
-                                <span>${config.max}${config.unit}</span>
-                            </div>
+                        <input type="range" id="${key}Range" min="${config.min}" max="${config.max}"
+                               step="${config.step}" value="${config.min}"
+                               class="w-full h-2 bg-surface-hover rounded-lg appearance-none cursor-pointer accent-primary">
+                        <div class="flex justify-between text-xs text-text-muted mt-2">
+                            <span>${config.min}${config.unit}</span>
+                            <span>${config.max}${config.unit}</span>
                         </div>
                     </div>
                 `;
@@ -427,12 +421,27 @@ class ConfigurationPage {
      * Attach event listeners to filter controls
      */
     attachFilterListeners() {
-        // Radio button filters
-        document.querySelectorAll('.filters-section input[type="radio"]').forEach(radio => {
-            radio.addEventListener('change', () => this.applyFilters());
+        // Pill button filters (click event)
+        document.querySelectorAll('.filters-section .filter-pill').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const filterGroup = e.target.dataset.filter;
+
+                // Remove active state from all buttons in this group
+                document.querySelectorAll(`.filter-pill[data-filter="${filterGroup}"]`).forEach(btn => {
+                    btn.classList.remove('border-primary', 'bg-primary', 'text-white');
+                    btn.classList.add('border-border-light', 'bg-surface-card', 'text-text-secondary');
+                });
+
+                // Add active state to clicked button
+                e.target.classList.remove('border-border-light', 'bg-surface-card', 'text-text-secondary');
+                e.target.classList.add('border-primary', 'bg-primary', 'text-white');
+
+                // Apply filters
+                this.applyFilters();
+            });
         });
 
-        // Range filters
+        // Range filters (input event)
         document.querySelectorAll('.filters-section input[type="range"]').forEach(range => {
             range.addEventListener('input', () => this.applyFilters());
         });
@@ -1701,10 +1710,10 @@ class ConfigurationPage {
             // Apply each filter based on configuration
             for (const [key, config] of Object.entries(filterConfig)) {
                 if (config.type === 'radio') {
-                    // Get current radio selection
-                    const selectedRadio = document.querySelector(`input[name="${key}"]:checked`);
-                    if (selectedRadio) {
-                        const selectedValue = selectedRadio.value;
+                    // Get current pill button selection (active button has bg-primary class)
+                    const activeButton = document.querySelector(`.filter-pill[data-filter="${key}"].bg-primary`);
+                    if (activeButton) {
+                        const selectedValue = activeButton.dataset.value;
                         if (selectedValue !== 'all') {
                             // Special handling for memory types (array comparison)
                             if (key === 'memoryType') {
@@ -1718,7 +1727,7 @@ class ConfigurationPage {
                                     return false;
                                 }
                             } else {
-                                // Handle other radio filters
+                                // Handle other pill button filters
                                 const componentValue = this.formatValue(component[key]);
                                 if (componentValue && componentValue.toLowerCase() !== selectedValue.toLowerCase()) {
                                     // Check if component value contains the filter value
@@ -1786,10 +1795,12 @@ class ConfigurationPage {
         const headers = this.getComponentHeaders(this.currentComponentType);
 
         headerContainer.innerHTML = `
-            <div class="px-6 py-4 w-12 text-left font-semibold text-sm text-text-primary uppercase tracking-wider"></div>
-            <div class="px-6 py-4 w-16 text-left font-semibold text-sm text-text-primary uppercase tracking-wider"></div>
-            <div class="px-6 py-4 flex-1 text-left font-semibold text-sm text-text-primary uppercase tracking-wider">Name</div>
-            ${headers.map(header => `<div class="px-6 py-4 text-left font-semibold text-sm text-text-primary uppercase tracking-wider">${header}</div>`).join('')}
+            <tr class="bg-surface-secondary">
+                <th class="px-4 py-3 text-left font-semibold text-xs text-text-muted uppercase tracking-wider w-12"></th>
+                <th class="px-4 py-3 text-left font-semibold text-xs text-text-muted uppercase tracking-wider w-16"></th>
+                <th class="px-4 py-3 text-left font-semibold text-xs text-text-muted uppercase tracking-wider">Name</th>
+                ${headers.map(header => `<th class="px-4 py-3 text-left font-semibold text-xs text-text-muted uppercase tracking-wider">${header}</th>`).join('')}
+            </tr>
         `;
     }
 
@@ -1832,50 +1843,54 @@ class ConfigurationPage {
     }
 
     /**
-     * Render components list
+     * Render components list as proper table rows
      */
     renderComponents() {
         const container = document.getElementById('componentList');
 
         if (this.filteredComponents.length === 0) {
             container.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-12 px-6 text-center">
-                    <i class="fas fa-search text-5xl text-text-muted/30 mb-4"></i>
-                    <p class="text-sm text-text-muted font-medium">No components found matching your criteria</p>
-                </div>
+                <tr>
+                    <td colspan="8" class="py-12 px-6 text-center">
+                        <div class="flex flex-col items-center justify-center">
+                            <i class="fas fa-search text-5xl text-text-muted/30 mb-4"></i>
+                            <p class="text-sm text-text-muted font-medium">No components found matching your criteria</p>
+                        </div>
+                    </td>
+                </tr>
             `;
             return;
         }
 
         container.innerHTML = this.filteredComponents.map(component => `
-            <div class="flex items-center border-b border-border-light transition-colors hover:bg-surface-hover ${!component.compatible ? 'opacity-60' : ''}" data-id="${component.id}">
-                <div class="px-6 py-4 w-12 flex items-center justify-center">
+            <tr class="border-b border-border-light hover:bg-surface-hover transition-colors ${!component.compatible ? 'opacity-60' : ''}" data-id="${component.id}">
+                <td class="px-4 py-3 w-12">
                     <input type="checkbox" ${!component.compatible ? 'disabled' : ''}
                            onchange="window.configPage.toggleComponent('${component.id}')"
-                           class="w-4 h-4 text-primary">
-                </div>
-                <div class="px-6 py-4 w-16 flex items-center justify-center flex-shrink-0">
-                    <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center">
-                        <i class="${this.getComponentIcon(component.type || this.currentComponentType)} text-xl text-primary"></i>
+                           class="w-4 h-4 accent-primary">
+                </td>
+                <td class="px-4 py-3 w-16">
+                    <div class="w-10 h-10 bg-surface-secondary rounded-lg flex items-center justify-center">
+                        <i class="${this.getComponentIcon(component.type || this.currentComponentType)} text-lg text-primary"></i>
                     </div>
-                </div>
-                <div class="px-6 py-4 flex-1 min-w-0">
-                    <div class="font-semibold text-sm text-text-primary truncate">${component.name}</div>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="font-semibold text-sm text-text-primary">${component.name}</div>
                     ${component.serial_number && component.serial_number !== 'N/A' ? `
                         <div class="text-xs text-text-muted mt-1">S/N: ${component.serial_number}</div>
                     ` : ''}
-                </div>
-                ${this.renderComponentSpecs(component)}
-                <div class="px-6 py-4 flex-shrink-0">
+                </td>
+                ${this.renderComponentSpecsCells(component)}
+                <td class="px-4 py-3 text-center">
                     <button class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${component.compatible
-                ? 'bg-primary text-white hover:bg-primary-600 cursor-pointer'
-                : 'bg-surface-secondary text-text-muted cursor-not-allowed'
-            }" ${!component.compatible ? 'disabled' : ''}
-                            onclick="window.configPage.addComponent('${component.id}')">
+                        ? 'bg-primary text-white hover:bg-primary-600'
+                        : 'bg-surface-secondary text-text-muted cursor-not-allowed'
+                    }" ${!component.compatible ? 'disabled' : ''}
+                        onclick="window.configPage.addComponent('${component.id}')">
                         ${component.compatible ? 'Add' : 'Incompatible'}
                     </button>
-                </div>
-            </div>
+                </td>
+            </tr>
         `).join('');
     }
 
@@ -1930,9 +1945,9 @@ class ConfigurationPage {
     }
 
     /**
-     * Render component specifications based on type
+     * Render component specifications as table cells based on type
      */
-    renderComponentSpecs(component) {
+    renderComponentSpecsCells(component) {
         let type = component.type || this.currentComponentType || this.component?.memory_type || this.component?.storage_type;
 
         if (type === 'DDR4' || type === 'DDR5') {
@@ -1943,88 +1958,89 @@ class ConfigurationPage {
             type = 'storage';
         }
 
-        const specClass = 'px-6 py-4 text-sm text-text-secondary whitespace-nowrap';
+        const cellClass = 'px-4 py-3 text-sm text-text-secondary text-center whitespace-nowrap';
 
-        // Desktop table layout
+        // Desktop table layout with proper <td> elements
         switch (type) {
             case 'cpu':
                 return `
-                <div class="${specClass}">${this.formatValue(component.cores)}</div>
-                <div class="${specClass}">${component.baseClock ? parseFloat(component.baseClock).toFixed(2) + ' GHz' : 'N/A'}</div>
-                <div class="${specClass}">${component.boostClock ? parseFloat(component.boostClock).toFixed(2) + ' GHz' : 'N/A'}</div>
-                <div class="${specClass}">${this.formatValue(component.architecture)}</div>
-                <div class="${specClass}">${this.formatValue(component.tdp) !== 'N/A' ? this.formatValue(component.tdp) + ' W' : 'N/A'}</div>
+                <td class="${cellClass}">${this.formatValue(component.cores)}</td>
+                <td class="${cellClass}">${component.baseClock ? parseFloat(component.baseClock).toFixed(2) + ' GHz' : 'N/A'}</td>
+                <td class="${cellClass}">${component.boostClock ? parseFloat(component.boostClock).toFixed(2) + ' GHz' : 'N/A'}</td>
+                <td class="${cellClass}">${this.formatValue(component.architecture)}</td>
+                <td class="${cellClass}">${this.formatValue(component.tdp) !== 'N/A' ? this.formatValue(component.tdp) + ' W' : 'N/A'}</td>
             `;
             case 'ram':
                 return `
-                <div class="${specClass}">${this.formatValue(component.notes)}</div>
-                <div class="${specClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed_MTs) + ' MT/s' : 'N/A'}</div>
-                <div class="${specClass}">${this.formatValue(component.type)}</div>
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <td class="${cellClass}">${this.formatValue(component.notes)}</td>
+                <td class="${cellClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed_MTs) + ' MT/s' : 'N/A'}</td>
+                <td class="${cellClass}">${this.formatValue(component.type)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}"></td>
             `;
             case 'motherboard':
                 return `
-                <div class="${specClass}">${this.formatValue(component.socket)}</div>
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
-                <div class="${specClass}">${this.formatValue(component.chipset)}</div>
-                <div class="${specClass}">${this.formatValue(component.ramSlots)}</div>
-                <div class="${specClass}">${this.formatValue(component.memoryType)}</div>
-                <div class="${specClass}">${this.formatValue(component.maxMemory) !== 'N/A' ? this.formatValue(component.maxMemory) + ' GB' : 'N/A'}</div>
+                <td class="${cellClass}">${this.formatValue(component.socket)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}">${this.formatValue(component.chipset)}</td>
+                <td class="${cellClass}">${this.formatValue(component.ramSlots)}</td>
+                <td class="${cellClass}">${this.formatValue(component.memoryType)}</td>
             `;
             case 'storage':
                 return `
-                <div class="${specClass}">${this.formatValue(component.capacity)}</div>
-                <div class="${specClass}">${this.formatValue(component.storage_type || component.type)}</div>
-                <div class="${specClass}">${this.formatValue(component.interface)}</div>
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
+                <td class="${cellClass}">${this.formatValue(component.capacity)}</td>
+                <td class="${cellClass}">${this.formatValue(component.storage_type || component.type)}</td>
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}"></td>
             `;
             case 'nic':
                 return `
-                <div class="${specClass}">${this.formatValue(component.speed)}</div>
-                <div class="${specClass}">${this.formatValue(component.interface)}</div>
-                <div class="${specClass}">${this.formatValue(component.ports)}</div>
-                <div class="${specClass}">${this.formatValue(component.connector)}</div>
-                <div class="${specClass}">${this.formatValue(component.protocol)}</div>
+                <td class="${cellClass}">${this.formatValue(component.speed)}</td>
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.ports)}</td>
+                <td class="${cellClass}">${this.formatValue(component.connector)}</td>
+                <td class="${cellClass}">${this.formatValue(component.protocol)}</td>
             `;
             case 'chassis':
                 return `
-                <div class="${specClass}">${this.formatValue(component.brand || component.manufacturer)}</div>
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
-                <div class="${specClass}"></div>
-                <div class="${specClass}"></div>
-                <div class="${specClass}"></div>
+                <td class="${cellClass}">${this.formatValue(component.brand || component.manufacturer)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
             `;
             case 'caddy':
                 return `
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
-                <div class="${specClass}">${this.formatValue(component.interface)}</div>
-                <div class="${specClass}">${this.formatValue(component.capacity || component.size)}</div>
-                <div class="${specClass}"></div>
-                <div class="${specClass}"></div>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.capacity || component.size)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
             `;
             case 'pciecard':
                 return `
-                <div class="${specClass}">${this.formatValue(component.interface)}</div>
-                <div class="${specClass}">${this.formatValue(component.total_max_capacity || component.max_capacity)}</div>
-                <div class="${specClass}">${this.formatValue(component.formFactor)}</div>
-                <div class="${specClass}"></div>
-                <div class="${specClass}"></div>
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.total_max_capacity || component.max_capacity)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
             `;
             case 'hbacard':
                 return `
-                <div class="${specClass}">${this.formatValue(component.interface)}</div>
-                <div class="${specClass}">${this.formatValue(component.protocol)}</div>
-                <div class="${specClass}">${this.formatValue(component.internal_ports)}</div>
-                <div class="${specClass}"></div>
-                <div class="${specClass}"></div>
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.protocol)}</td>
+                <td class="${cellClass}">${this.formatValue(component.internal_ports)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
             `;
             default:
                 return `
-                <div class="${specClass}">${this.formatValue(component.spec1)}</div>
-                <div class="${specClass}">${this.formatValue(component.spec2)}</div>
-                <div class="${specClass}">${this.formatValue(component.spec3)}</div>
-                <div class="${specClass}">${this.formatValue(component.spec4)}</div>
-                <div class="${specClass}">${this.formatValue(component.spec5)}</div>
+                <td class="${cellClass}">${this.formatValue(component.spec1)}</td>
+                <td class="${cellClass}">${this.formatValue(component.spec2)}</td>
+                <td class="${cellClass}">${this.formatValue(component.spec3)}</td>
+                <td class="${cellClass}">${this.formatValue(component.spec4)}</td>
+                <td class="${cellClass}">${this.formatValue(component.spec5)}</td>
             `;
         }
     }
@@ -2452,32 +2468,35 @@ class ConfigurationPage {
 
     /**
      * Update compatibility banner
+     * Shows banner when compatibility filter is UNCHECKED and there are incompatible items
      */
     updateCompatibilityBanner() {
         const banner = document.getElementById('compatibilityBanner');
         const message = document.getElementById('bannerMessage');
+        const compatibilityFilter = document.getElementById('compatibilityFilter');
 
-        // Check for compatibility issues
-        const incompatibleComponents = this.filteredComponents.filter(c => !c.compatible);
+        // Count incompatible items in full list (not filtered)
+        const incompatibleCount = this.components.filter(c => !c.compatible).length;
         const selectedIncompatible = this.selectedComponents.filter(c => !c.compatible);
 
+        // Show warning banner when:
+        // 1. User has selected incompatible items OR
+        // 2. Compatibility filter is UNCHECKED and there are incompatible items
         if (selectedIncompatible.length > 0) {
-            banner.className = 'compatibility-banner warning show';
+            // Warning state: user selected incompatible items
+            banner.classList.remove('hidden');
             message.textContent = `Warning: ${selectedIncompatible.length} selected component(s) have compatibility issues`;
             this.compatibilityState.hasWarnings = true;
             this.compatibilityState.hasErrors = true;
-        } else if (incompatibleComponents.length > 0) {
-            banner.className = 'compatibility-banner show';
-            message.textContent = `Note: ${incompatibleComponents.length} component(s) are not compatible with your current configuration`;
+        } else if (!compatibilityFilter?.checked && incompatibleCount > 0) {
+            // Note state: filter unchecked and incompatible items exist
+            banner.classList.remove('hidden');
+            message.textContent = `Note: ${incompatibleCount} component(s) are not compatible with your current configuration`;
             this.compatibilityState.hasWarnings = true;
             this.compatibilityState.hasErrors = false;
-        } else if (this.selectedComponents.length > 0) {
-            banner.className = 'compatibility-banner show';
-            message.textContent = `All ${this.selectedComponents.length} selected component(s) are compatible`;
-            this.compatibilityState.hasWarnings = false;
-            this.compatibilityState.hasErrors = false;
         } else {
-            banner.className = 'compatibility-banner';
+            // Hide banner: either filter is checked or no incompatible items
+            banner.classList.add('hidden');
             this.compatibilityState.hasWarnings = false;
             this.compatibilityState.hasErrors = false;
         }
@@ -2514,7 +2533,7 @@ class ConfigurationPage {
      */
     dismissBanner() {
         const banner = document.getElementById('compatibilityBanner');
-        banner.className = 'compatibility-banner';
+        banner.classList.add('hidden');
     }
 
     /**

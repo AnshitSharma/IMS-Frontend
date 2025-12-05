@@ -1320,40 +1320,37 @@ class ServerBuilder {
     }
 
     /**
-     * Show loading overlay
+     * Show loading overlay (delegates to unified utils.js loading)
      */
     showLoading(message = 'Loading...', subtext = '') {
-        const loadingHtml = `
-            <div class="loading-overlay active">
-                <div class="loading-content">
-                    <div class="server-loader">
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
-                        <div class="server-layer"></div>
-                    </div>
-                    <div class="loading-text">${message}</div>
-                    ${subtext ? `<div class="loading-subtext">${subtext}</div>` : ''}
-                </div>
-            </div>
-        `;
-
-        const existingLoader = document.querySelector('.loading-overlay');
-        if (existingLoader) {
-            existingLoader.remove();
+        // Use unified loading system from utils.js
+        const fullMessage = subtext ? `${message}\n${subtext}` : message;
+        if (typeof utils !== 'undefined' && utils.showLoading) {
+            utils.showLoading(true, fullMessage);
+        } else {
+            // Fallback for direct usage
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                const p = overlay.querySelector('p');
+                if (p) p.textContent = fullMessage;
+            }
         }
-
-        document.body.insertAdjacentHTML('beforeend', loadingHtml);
     }
 
     /**
-     * Hide loading overlay
+     * Hide loading overlay (delegates to unified utils.js loading)
      */
     hideLoading() {
-        const loader = document.querySelector('.loading-overlay');
-        if (loader) {
-            loader.classList.remove('active');
-            setTimeout(() => loader.remove(), 300);
+        // Use unified loading system from utils.js
+        if (typeof utils !== 'undefined' && utils.showLoading) {
+            utils.showLoading(false);
+        } else {
+            // Fallback for direct usage
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
         }
     }
 

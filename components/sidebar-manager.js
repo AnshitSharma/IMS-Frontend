@@ -35,10 +35,14 @@ class SidebarManager {
     /**
      * Setup mobile menu event handlers
      */
+    /**
+     * Setup mobile menu event handlers
+     */
     setupMobileMenu() {
         const hamburgerBtn = document.getElementById('hamburgerBtn');
         const mobileOverlay = document.getElementById('mobileOverlay');
         const sidebar = document.querySelector('.sidebar');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
 
         if (!hamburgerBtn || !mobileOverlay || !sidebar) {
             console.warn('Sidebar elements not found for mobile menu setup');
@@ -55,6 +59,13 @@ class SidebarManager {
         mobileOverlay.addEventListener('click', () => {
             this.closeSidebar();
         });
+
+        // Close sidebar on close button click
+        if (closeSidebarBtn) {
+            closeSidebarBtn.addEventListener('click', () => {
+                this.closeSidebar();
+            });
+        }
 
         // Close sidebar on ESC key
         document.addEventListener('keydown', (e) => {
@@ -98,7 +109,19 @@ class SidebarManager {
         if (!sidebar || !mobileOverlay || !hamburgerBtn) return;
 
         const isActive = sidebar.classList.toggle('active');
-        mobileOverlay.classList.toggle('active', isActive);
+
+        // For transform transition
+        if (isActive) {
+            sidebar.classList.remove('-translate-x-full');
+            mobileOverlay.classList.remove('hidden');
+            // Small delay to allow display:block to apply before opacity transition
+            setTimeout(() => mobileOverlay.classList.remove('opacity-0'), 10);
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            mobileOverlay.classList.add('opacity-0');
+            setTimeout(() => mobileOverlay.classList.add('hidden'), 300);
+        }
+
         hamburgerBtn.classList.toggle('active', isActive);
 
         // Prevent body scroll when sidebar is open
@@ -113,8 +136,16 @@ class SidebarManager {
         const mobileOverlay = document.getElementById('mobileOverlay');
         const hamburgerBtn = document.getElementById('hamburgerBtn');
 
-        if (sidebar) sidebar.classList.remove('active');
-        if (mobileOverlay) mobileOverlay.classList.remove('active');
+        if (sidebar) {
+            sidebar.classList.remove('active');
+            sidebar.classList.add('-translate-x-full');
+        }
+
+        if (mobileOverlay) {
+            mobileOverlay.classList.add('opacity-0');
+            setTimeout(() => mobileOverlay.classList.add('hidden'), 300);
+        }
+
         if (hamburgerBtn) hamburgerBtn.classList.remove('active');
 
         document.body.style.overflow = '';
@@ -205,38 +236,54 @@ class SidebarManager {
         // Remove active class from all menu items
         document.querySelectorAll('.menu-item').forEach(item => {
             item.classList.remove('active');
-            item.querySelector('a')?.classList.remove('bg-primary-50', 'border-l-4', 'border-primary');
-            item.querySelector('a')?.classList.add('hover:bg-slate-50');
+            const link = item.querySelector('a');
+            if (link) {
+                link.classList.remove('bg-primary-50', 'text-primary');
+                link.classList.add('text-text-secondary', 'hover:bg-surface-hover', 'hover:text-text-primary');
+
+                const icon = link.querySelector('i');
+                if (icon) {
+                    icon.classList.remove('text-primary');
+                    icon.classList.add('text-text-muted');
+                }
+
+                const count = link.querySelector('.count');
+                if (count) {
+                    count.classList.remove('bg-primary-100', 'text-primary-700');
+                    count.classList.add('bg-surface-secondary', 'text-text-muted');
+                }
+            }
         });
 
         // Get current page
         const path = window.location.pathname;
         const page = path.split('/').pop() || 'index.html';
+        const componentName = page.replace('.html', '');
 
         // Find and activate current page
-        const currentMenuItem = document.querySelector(`[data-component="${page.replace('.html', '')}"]`);
+        const currentMenuItem = document.querySelector(`[data-component="${componentName}"]`);
         if (currentMenuItem) {
             currentMenuItem.classList.add('active');
             const link = currentMenuItem.querySelector('a');
-            if (link && !page.includes('dashboard')) {
-                link.classList.add('bg-primary-50', 'border-l-4', 'border-primary');
-                link.classList.remove('hover:bg-slate-50');
-                // Update text color to primary
-                const span = link.querySelector('span');
-                if (span) {
-                    span.classList.remove('text-slate-700');
-                    span.classList.add('text-primary', 'font-medium');
-                }
-                // Update icon color
+            if (link) {
+                link.classList.remove('text-text-secondary', 'hover:bg-surface-hover', 'hover:text-text-primary');
+                link.classList.add('bg-primary-50', 'text-primary');
+
                 const icon = link.querySelector('i');
                 if (icon) {
-                    icon.classList.remove('text-slate-600');
+                    icon.classList.remove('text-text-muted');
                     icon.classList.add('text-primary');
+                }
+
+                const count = link.querySelector('.count');
+                if (count) {
+                    count.classList.remove('bg-surface-secondary', 'text-text-muted');
+                    count.classList.add('bg-primary-100', 'text-primary-700');
                 }
             }
         }
 
-        this.activeComponent = page.replace('.html', '');
+        this.activeComponent = componentName;
     }
 
     /**

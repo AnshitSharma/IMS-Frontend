@@ -80,17 +80,39 @@ window.utils = {
         }
     },
 
-    // Show/Hide loading overlay
+    // Show/Hide loading overlay (Unified Loading System)
     showLoading(show = true, message = 'Loading...') {
         const loadingOverlay = document.getElementById('loadingOverlay');
-        if (!loadingOverlay) return;
+        if (!loadingOverlay) {
+            console.warn('Loading overlay element not found');
+            return;
+        }
+
+        const messageEl = loadingOverlay.querySelector('p');
 
         if (show) {
-            loadingOverlay.querySelector('p').textContent = message;
+            // Prevent duplicate loading overlays
+            if (loadingOverlay.dataset.loading === 'true') {
+                // Update message if already showing
+                if (messageEl) messageEl.textContent = message;
+                return;
+            }
+
+            loadingOverlay.dataset.loading = 'true';
+            if (messageEl) messageEl.textContent = message;
+            loadingOverlay.classList.remove('hidden');
             loadingOverlay.style.display = 'flex';
         } else {
+            loadingOverlay.dataset.loading = 'false';
+            loadingOverlay.classList.add('hidden');
             loadingOverlay.style.display = 'none';
         }
+    },
+
+    // Check if loading is currently visible
+    isLoading() {
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        return loadingOverlay?.dataset.loading === 'true';
     },
 
     // Format date strings
