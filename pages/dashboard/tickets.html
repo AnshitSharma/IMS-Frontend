@@ -80,18 +80,61 @@
                                 <select id="ticketStatusFilter"
                                     class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
                                     <option value="">All Status</option>
-                                    <option value="open">Open</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
                                     <option value="in_progress">In Progress</option>
-                                    <option value="resolved">Resolved</option>
-                                    <option value="closed">Closed</option>
+                                    <option value="deployed">Deployed</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <select id="ticketPriorityFilter"
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
+                                    <option value="">All Priority</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
                                 </select>
                             </div>
+                            <button id="refreshTicketsBtn"
+                                class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary"
+                                title="Refresh tickets">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                             <button
                                 class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
                                 id="createTicketBtn">
                                 <i class="fas fa-plus"></i> Create Ticket
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="ticketsLoadingState" class="text-center py-12 hidden">
+                        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                        <p class="text-text-muted">Loading tickets...</p>
+                    </div>
+
+                    <!-- Error State -->
+                    <div id="ticketsErrorState" class="text-center py-12 bg-surface-card rounded-lg hidden">
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                        <p class="text-text-primary font-semibold mb-2">Failed to load tickets</p>
+                        <p id="ticketsErrorMessage" class="text-text-muted mb-4">An error occurred</p>
+                        <button onclick="ticketsManager.loadTickets()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
+                            Try Again
+                        </button>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="ticketsEmptyState" class="text-center py-12 bg-surface-card rounded-lg hidden">
+                        <i class="fas fa-ticket-alt text-4xl text-text-muted mb-4"></i>
+                        <p class="text-text-primary font-semibold mb-2">No tickets found</p>
+                        <p class="text-text-muted mb-4">Create your first ticket to get started</p>
+                        <button id="createFirstTicketBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
+                            <i class="fas fa-plus mr-2"></i>Create Ticket
+                        </button>
                     </div>
 
                     <!-- Tickets Table -->
@@ -127,6 +170,17 @@
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Pagination -->
+                    <div id="ticketsPaginationContainer" class="flex justify-between items-center mt-4 px-4 hidden">
+                        <div id="ticketsPaginationInfo" class="text-sm text-text-muted">
+                            Showing 1-20 of 100 tickets
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 border border-border rounded hover:bg-surface-hover">Previous</button>
+                            <button class="px-3 py-1 border border-border rounded hover:bg-surface-hover">Next</button>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -134,7 +188,8 @@
 
     <!-- Modal Container -->
     <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden"
+        style="z-index: 2000;">
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
@@ -144,6 +199,23 @@
             </div>
             <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody">
                 <!-- Modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Ticket Details Modal -->
+    <div id="ticketDetailsModal"
+        class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden"
+        style="z-index: 2000;">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 class="text-xl font-semibold text-text-primary">Ticket Details</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" onclick="ticketsManager.closeDetailsModal()">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="ticketDetailsBody">
+                <!-- Ticket details will be loaded here -->
             </div>
         </div>
     </div>
@@ -186,6 +258,18 @@
         loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
     </script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
+    <script>
+        // Initialize tickets manager
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof initTickets === 'function') {
+                initTickets();
+            } else if (typeof TicketsManager !== 'undefined') {
+                // Fallback: Initialize directly if function doesn't exist
+                window.ticketsManager = new TicketsManager();
+                window.ticketsManager.init();
+            }
+        });
+    </script>
     <script>
         // Theme Toggle Handler for Dashboard
         (function () {

@@ -300,6 +300,19 @@
     @apply content-['*'] text-danger ml-1;
   }
 
+  /* Form Grid Layouts */
+  .form-grid {
+    @apply grid gap-4;
+  }
+
+  .form-grid.two-column {
+    @apply grid-cols-1 md:grid-cols-2;
+  }
+
+  .form-grid.three-column {
+    @apply grid-cols-1 md:grid-cols-3;
+  }
+
   /* Status Badges */
   .badge-status {
     @apply inline-block px-3 py-1 rounded-full text-xs font-medium;

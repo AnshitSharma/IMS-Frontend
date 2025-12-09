@@ -20,18 +20,24 @@ class TicketsManager {
      * Initialize tickets manager
      */
     init() {
+        console.log('TicketsManager.init() called');
         this.setupEventListeners();
+        this.setupModalClickHandlers();
         this.loadTickets();
+        console.log('TicketsManager initialized successfully');
     }
 
     /**
      * Setup event listeners for tickets page
      */
     setupEventListeners() {
+        console.log('Setting up event listeners...');
+
         // Refresh button
         const refreshBtn = document.getElementById('refreshTicketsBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadTickets());
+            console.log('Refresh button listener attached');
         }
 
         // Create ticket buttons
@@ -39,10 +45,21 @@ class TicketsManager {
         const createFirstBtn = document.getElementById('createFirstTicketBtn');
 
         if (createBtn) {
-            createBtn.addEventListener('click', () => this.showCreateTicketForm());
+            createBtn.addEventListener('click', () => {
+                console.log('Create button clicked');
+                this.showCreateTicketForm();
+            });
+            console.log('Create ticket button listener attached');
+        } else {
+            console.warn('Create ticket button not found');
         }
+
         if (createFirstBtn) {
-            createFirstBtn.addEventListener('click', () => this.showCreateTicketForm());
+            createFirstBtn.addEventListener('click', () => {
+                console.log('Create first button clicked');
+                this.showCreateTicketForm();
+            });
+            console.log('Create first ticket button listener attached');
         }
 
         // Search input
@@ -444,7 +461,7 @@ class TicketsManager {
             </div>
         `;
 
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
     }
 
     /**
@@ -453,29 +470,454 @@ class TicketsManager {
     closeDetailsModal() {
         const modal = document.getElementById('ticketDetailsModal');
         if (modal) {
-            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Setup modal overlay click handlers
+     */
+    setupModalClickHandlers() {
+        // Close modals when clicking on overlay
+        const modalContainer = document.getElementById('modalContainer');
+        const ticketDetailsModal = document.getElementById('ticketDetailsModal');
+
+        if (modalContainer) {
+            modalContainer.addEventListener('click', (e) => {
+                if (e.target === modalContainer) {
+                    this.closeTicketModal();
+                }
+            });
+        }
+
+        if (ticketDetailsModal) {
+            ticketDetailsModal.addEventListener('click', (e) => {
+                if (e.target === ticketDetailsModal) {
+                    this.closeDetailsModal();
+                }
+            });
         }
     }
 
     /**
      * Edit ticket
      */
-    editTicket(ticketId) {
-        if (window.toastNotification) {
-            toastNotification.show('Edit ticket functionality coming soon', 'info');
-        } else {
-            alert('Edit ticket functionality coming soon');
+    async editTicket(ticketId) {
+        try {
+            console.log('editTicket called with ID:', ticketId);
+
+            // Check permission - skip if api not loaded yet
+            if (window.api && window.api.utils) {
+                const hasPermission = window.api.utils.hasPermission('ticket.edit_own');
+                console.log('Has edit permission:', hasPermission);
+                if (!hasPermission) {
+                    if (window.toastNotification) {
+                        toastNotification.show('You do not have permission to edit tickets', 'error');
+                    } else {
+                        alert('You do not have permission to edit tickets');
+                    }
+                    return;
+                }
+            } else {
+                console.warn('API utils not loaded, skipping permission check');
+            }
+
+            // Fetch ticket details
+            const token = this.getAuthToken();
+            if (!token) {
+                throw new Error('Authentication token not found');
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'ticket-get');
+            formData.append('ticket_id', ticketId);
+
+            const response = await fetch(this.apiBaseUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data && result.data.ticket) {
+                const ticket = result.data.ticket;
+
+                // Check if ticket is in draft status
+                if (ticket.status !== 'draft') {
+                    if (window.toastNotification) {
+                        toastNotification.show('Only draft tickets can be edited', 'error');
+                    }
+                    return;
+                }
+
+                // Show edit form with ticket data
+                this.showEditTicketForm(ticket);
+            } else {
+                throw new Error(result.message || 'Failed to load ticket');
+            }
+        } catch (error) {
+            console.error('Error loading ticket for edit:', error);
+            if (window.toastNotification) {
+                toastNotification.show('Failed to load ticket: ' + error.message, 'error');
+            }
         }
     }
 
     /**
      * Show create ticket form
      */
-    showCreateTicketForm() {
-        if (window.toastNotification) {
-            toastNotification.show('Create ticket functionality coming soon', 'info');
-        } else {
-            alert('Create ticket functionality coming soon');
+    async showCreateTicketForm() {
+        try {
+            console.log('showCreateTicketForm called');
+
+            // Check permission - skip if api not loaded yet
+            if (window.api && window.api.utils) {
+                const hasPermission = window.api.utils.hasPermission('ticket.create');
+                console.log('Has create permission:', hasPermission);
+                if (!hasPermission) {
+                    if (window.toastNotification) {
+                        toastNotification.show('You do not have permission to create tickets', 'error');
+                    } else {
+                        alert('You do not have permission to create tickets');
+                    }
+                    return;
+                }
+            } else {
+                console.warn('API utils not loaded, skipping permission check');
+            }
+
+            // Load component data
+            console.log('Loading component data...');
+            await this.loadComponentData();
+
+            // Show modal
+            const modal = document.getElementById('modalContainer');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            console.log('Modal elements:', { modal, modalTitle, modalBody });
+
+            if (!modal || !modalTitle || !modalBody) {
+                console.error('Modal elements not found');
+                return;
+            }
+
+            modalTitle.textContent = 'Create New Ticket';
+            modalBody.innerHTML = this.getTicketFormHTML();
+
+            // Setup event listeners
+            this.setupTicketFormListeners(false);
+
+            console.log('Removing hidden class from modal');
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error showing create form:', error);
+            if (window.toastNotification) {
+                toastNotification.show('Failed to load form: ' + error.message, 'error');
+            } else {
+                alert('Failed to load form: ' + error.message);
+            }
+        }
+    }
+
+    /**
+     * Show edit ticket form
+     */
+    async showEditTicketForm(ticket) {
+        try {
+            // Load component data
+            await this.loadComponentData();
+
+            // Show modal
+            const modal = document.getElementById('modalContainer');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+
+            if (!modal || !modalTitle || !modalBody) return;
+
+            modalTitle.textContent = `Edit Ticket #${ticket.ticket_number}`;
+            modalBody.innerHTML = this.getTicketFormHTML(ticket);
+
+            // Setup event listeners
+            this.setupTicketFormListeners(true, ticket);
+
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error showing edit form:', error);
+            if (window.toastNotification) {
+                toastNotification.show('Failed to load form: ' + error.message, 'error');
+            }
+        }
+    }
+
+    /**
+     * Load component data from JSON files
+     */
+    async loadComponentData() {
+        if (this.componentData) return; // Already loaded
+
+        this.componentData = {
+            cpu: [],
+            ram: [],
+            storage: [],
+            motherboard: [],
+            nic: [],
+            caddy: [],
+            chassis: [],
+            pciecard: [],
+            hbacard: []
+        };
+
+        try {
+            // Load all component JSON files
+            const componentTypes = {
+                cpu: '../../data/cpu-jsons/Cpu-details-level-3.json',
+                ram: '../../data/Ram-jsons/ram_detail.json',
+                storage: '../../data/storage-jsons/storage-level-3.json',
+                motherboard: '../../data/motherboad-jsons/motherboard-level-3.json',
+                nic: '../../data/nic-jsons/nic-level-3.json',
+                caddy: '../../data/caddy-jsons/caddy_details.json',
+                chassis: '../../data/chasis-jsons/chasis-level-3.json',
+                pciecard: '../../data/pci-jsons/pci-level-3.json',
+                hbacard: '../../data/hbacard-jsons/hbacard-level-3.json'
+            };
+
+            for (const [type, path] of Object.entries(componentTypes)) {
+                try {
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.componentData[type] = this.flattenComponentData(data);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to load ${type} data:`, error);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading component data:', error);
+        }
+    }
+
+    /**
+     * Flatten component data to extract UUIDs and names
+     */
+    flattenComponentData(data) {
+        const components = [];
+
+        if (Array.isArray(data)) {
+            data.forEach(brand => {
+                if (brand.models && Array.isArray(brand.models)) {
+                    brand.models.forEach(model => {
+                        if (model.uuid) {
+                            components.push({
+                                uuid: model.uuid,
+                                name: this.getComponentName(model, brand),
+                                brand: brand.brand || 'Unknown'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        return components;
+    }
+
+    /**
+     * Get component display name
+     */
+    getComponentName(model, brand) {
+        return model.model ||
+               model.memory_type ||
+               model.storage_type ||
+               model.name ||
+               `${brand.brand || ''} ${brand.series || 'Component'}`.trim();
+    }
+
+    /**
+     * Get ticket form HTML
+     */
+    getTicketFormHTML(ticket = null) {
+        const isEdit = !!ticket;
+
+        return `
+            <form id="ticketForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label for="ticketTitle" class="block text-sm font-semibold text-text-primary mb-2">
+                            Title <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="ticketTitle" required
+                            class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                            placeholder="Enter ticket title"
+                            value="${isEdit ? this.escapeHtml(ticket.title) : ''}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ticketPriority" class="block text-sm font-semibold text-text-primary mb-2">
+                            Priority <span class="text-red-500">*</span>
+                        </label>
+                        <select id="ticketPriority" required
+                            class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                            <option value="low" ${isEdit && ticket.priority === 'low' ? 'selected' : ''}>Low</option>
+                            <option value="medium" ${isEdit && ticket.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                            <option value="high" ${isEdit && ticket.priority === 'high' ? 'selected' : ''}>High</option>
+                            <option value="urgent" ${isEdit && ticket.priority === 'urgent' ? 'selected' : ''}>Urgent</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="ticketDescription" class="block text-sm font-semibold text-text-primary mb-2">
+                        Description <span class="text-red-500">*</span>
+                    </label>
+                    <textarea id="ticketDescription" required rows="4"
+                        class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                        placeholder="Enter detailed description">${isEdit ? this.escapeHtml(ticket.description) : ''}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="ticketTargetServer" class="block text-sm font-semibold text-text-primary mb-2">
+                        Target Server UUID <span class="text-text-muted text-xs">(Optional)</span>
+                    </label>
+                    <input type="text" id="ticketTargetServer"
+                        class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                        placeholder="Enter target server UUID"
+                        value="${isEdit && ticket.target_server_uuid ? this.escapeHtml(ticket.target_server_uuid) : ''}">
+                </div>
+
+                <div class="border-t border-border pt-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-semibold text-text-primary">Component Items <span class="text-text-muted text-sm">(Optional)</span></h4>
+                        <button type="button" id="addComponentBtn"
+                            class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2">
+                            <i class="fas fa-plus"></i> Add Component
+                        </button>
+                    </div>
+                    <div id="componentItemsContainer" class="space-y-3">
+                        <!-- Component items will be added here -->
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-4 border-t border-border">
+                    <button type="button" id="cancelTicketBtn"
+                        class="px-6 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary">
+                        Cancel
+                    </button>
+                    <button type="submit" id="saveTicketBtn"
+                        class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2">
+                        <i class="fas fa-save"></i>
+                        ${isEdit ? 'Update Ticket' : 'Create Ticket'}
+                    </button>
+                </div>
+            </form>
+        `;
+    }
+
+    /**
+     * Get component item HTML
+     */
+    getComponentItemHTML(index, item = null) {
+        const componentTypes = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard'];
+
+        return `
+            <div class="component-item bg-surface-secondary/30 p-4 rounded-lg border border-border" data-index="${index}">
+                <div class="flex items-start gap-3">
+                    <div class="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3">
+                        <div class="form-group">
+                            <label class="block text-xs font-medium text-text-muted mb-1">Component Type</label>
+                            <select class="component-type-select w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                                <option value="">Select Type</option>
+                                ${componentTypes.map(type => `
+                                    <option value="${type}" ${item && item.component_type === type ? 'selected' : ''}>
+                                        ${type.charAt(0).toUpperCase() + type.slice(1)}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+
+                        <div class="form-group md:col-span-2">
+                            <label class="block text-xs font-medium text-text-muted mb-1">Component</label>
+                            <select class="component-uuid-select w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                                <option value="">Select Component</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="block text-xs font-medium text-text-muted mb-1">Quantity</label>
+                            <input type="number" min="1" max="99" value="${item ? item.quantity : '1'}"
+                                class="component-quantity w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="block text-xs font-medium text-text-muted mb-1">Action</label>
+                            <select class="component-action w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                                <option value="add" ${item && item.action === 'add' ? 'selected' : ''}>Add</option>
+                                <option value="remove" ${item && item.action === 'remove' ? 'selected' : ''}>Remove</option>
+                                <option value="replace" ${item && item.action === 'replace' ? 'selected' : ''}>Replace</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="button" class="remove-component-btn mt-6 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Setup ticket form event listeners
+     */
+    setupTicketFormListeners(isEdit, ticket = null) {
+        // Close modal button
+        const modalClose = document.getElementById('modalClose');
+        const cancelBtn = document.getElementById('cancelTicketBtn');
+
+        if (modalClose) {
+            modalClose.onclick = () => this.closeTicketModal();
+        }
+        if (cancelBtn) {
+            cancelBtn.onclick = () => this.closeTicketModal();
+        }
+
+        // Add component button
+        const addComponentBtn = document.getElementById('addComponentBtn');
+        if (addComponentBtn) {
+            addComponentBtn.onclick = () => this.addComponentItem();
+        }
+
+        // Form submit
+        const form = document.getElementById('ticketForm');
+        if (form) {
+            form.onsubmit = (e) => {
+                e.preventDefault();
+                if (isEdit) {
+                    this.submitUpdateTicket(ticket.id);
+                } else {
+                    this.submitCreateTicket();
+                }
+            };
+        }
+
+        // Load existing items for edit mode
+        if (isEdit && ticket.items && ticket.items.length > 0) {
+            ticket.items.forEach(() => this.addComponentItem());
+            // Populate the items after adding
+            setTimeout(() => this.populateComponentItems(ticket.items), 100);
+        }
+    }
+
+    /**
+     * Close ticket modal
+     */
+    closeTicketModal() {
+        const modal = document.getElementById('modalContainer');
+        if (modal) {
+            modal.classList.add('hidden');
         }
     }
 
@@ -572,6 +1014,288 @@ class TicketsManager {
         };
         return date.toLocaleDateString('en-US', options);
     }
+
+    /**
+     * Add component item to form
+     */
+    addComponentItem(item = null) {
+        const container = document.getElementById('componentItemsContainer');
+        if (!container) return;
+
+        const index = container.children.length;
+        const itemHTML = this.getComponentItemHTML(index, item);
+
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = itemHTML;
+        const itemElement = tempDiv.firstElementChild;
+
+        container.appendChild(itemElement);
+
+        // Setup event listeners for this item
+        this.setupComponentItemListeners(itemElement, item);
+    }
+
+    /**
+     * Setup component item event listeners
+     */
+    setupComponentItemListeners(itemElement, existingItem = null) {
+        const typeSelect = itemElement.querySelector('.component-type-select');
+        const uuidSelect = itemElement.querySelector('.component-uuid-select');
+        const removeBtn = itemElement.querySelector('.remove-component-btn');
+
+        // Type change handler
+        if (typeSelect) {
+            typeSelect.addEventListener('change', (e) => {
+                this.populateComponentUUIDs(e.target.value, uuidSelect);
+            });
+
+            // Populate UUIDs if type is already selected
+            if (existingItem && existingItem.component_type) {
+                this.populateComponentUUIDs(existingItem.component_type, uuidSelect, existingItem.component_uuid);
+            }
+        }
+
+        // Remove button handler
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                itemElement.remove();
+            });
+        }
+    }
+
+    /**
+     * Populate component UUID dropdown
+     */
+    populateComponentUUIDs(componentType, uuidSelect, selectedUUID = null) {
+        if (!uuidSelect || !componentType) return;
+
+        uuidSelect.innerHTML = '<option value="">Select Component</option>';
+
+        const components = this.componentData[componentType] || [];
+        components.forEach(comp => {
+            const option = document.createElement('option');
+            option.value = comp.uuid;
+            option.textContent = `${comp.brand} - ${comp.name}`;
+            if (selectedUUID && comp.uuid === selectedUUID) {
+                option.selected = true;
+            }
+            uuidSelect.appendChild(option);
+        });
+    }
+
+    /**
+     * Populate component items (for edit mode)
+     */
+    populateComponentItems(items) {
+        const container = document.getElementById('componentItemsContainer');
+        if (!container) return;
+
+        const itemElements = container.querySelectorAll('.component-item');
+        items.forEach((item, index) => {
+            if (itemElements[index]) {
+                const element = itemElements[index];
+                const typeSelect = element.querySelector('.component-type-select');
+                const uuidSelect = element.querySelector('.component-uuid-select');
+                const quantityInput = element.querySelector('.component-quantity');
+                const actionSelect = element.querySelector('.component-action');
+
+                if (typeSelect) typeSelect.value = item.component_type;
+                if (uuidSelect) this.populateComponentUUIDs(item.component_type, uuidSelect, item.component_uuid);
+                if (quantityInput) quantityInput.value = item.quantity;
+                if (actionSelect) actionSelect.value = item.action;
+            }
+        });
+    }
+
+    /**
+     * Collect component items from form
+     */
+    collectComponentItems() {
+        const container = document.getElementById('componentItemsContainer');
+        if (!container) return [];
+
+        const items = [];
+        const itemElements = container.querySelectorAll('.component-item');
+
+        itemElements.forEach(element => {
+            const typeSelect = element.querySelector('.component-type-select');
+            const uuidSelect = element.querySelector('.component-uuid-select');
+            const quantityInput = element.querySelector('.component-quantity');
+            const actionSelect = element.querySelector('.component-action');
+
+            const type = typeSelect ? typeSelect.value : '';
+            const uuid = uuidSelect ? uuidSelect.value : '';
+            const quantity = quantityInput ? parseInt(quantityInput.value) : 1;
+            const action = actionSelect ? actionSelect.value : 'add';
+
+            // Only include items that have both type and UUID selected
+            if (type && uuid) {
+                items.push({
+                    component_type: type,
+                    component_uuid: uuid,
+                    quantity: quantity,
+                    action: action
+                });
+            }
+        });
+
+        return items;
+    }
+
+    /**
+     * Submit create ticket
+     */
+    async submitCreateTicket() {
+        try {
+            const title = document.getElementById('ticketTitle').value.trim();
+            const description = document.getElementById('ticketDescription').value.trim();
+            const priority = document.getElementById('ticketPriority').value;
+            const targetServer = document.getElementById('ticketTargetServer').value.trim();
+
+            // Validate required fields
+            if (!title) {
+                if (window.toastNotification) {
+                    toastNotification.show('Title is required', 'error');
+                }
+                return;
+            }
+
+            if (!description) {
+                if (window.toastNotification) {
+                    toastNotification.show('Description is required', 'error');
+                }
+                return;
+            }
+
+            // Collect component items
+            const items = this.collectComponentItems();
+
+            // Prepare request data
+            const token = this.getAuthToken();
+            if (!token) {
+                throw new Error('Authentication token not found');
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'ticket-create');
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('priority', priority);
+
+            if (targetServer) {
+                formData.append('target_server_uuid', targetServer);
+            }
+
+            // Send items as JSON string (API expects JSON array)
+            formData.append('items', JSON.stringify(items));
+
+            // Show loading
+            this.showLoading(true);
+
+            const response = await fetch(this.apiBaseUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (window.toastNotification) {
+                    toastNotification.show('Ticket created successfully', 'success');
+                }
+                this.closeTicketModal();
+                this.loadTickets(); // Reload tickets list
+            } else {
+                throw new Error(result.message || 'Failed to create ticket');
+            }
+
+        } catch (error) {
+            console.error('Error creating ticket:', error);
+            if (window.toastNotification) {
+                toastNotification.show('Failed to create ticket: ' + error.message, 'error');
+            }
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    /**
+     * Submit update ticket
+     */
+    async submitUpdateTicket(ticketId) {
+        try {
+            const title = document.getElementById('ticketTitle').value.trim();
+            const description = document.getElementById('ticketDescription').value.trim();
+            const priority = document.getElementById('ticketPriority').value;
+            const targetServer = document.getElementById('ticketTargetServer').value.trim();
+
+            // Validate required fields
+            if (!title) {
+                if (window.toastNotification) {
+                    toastNotification.show('Title is required', 'error');
+                }
+                return;
+            }
+
+            if (!description) {
+                if (window.toastNotification) {
+                    toastNotification.show('Description is required', 'error');
+                }
+                return;
+            }
+
+            // Prepare request data
+            const token = this.getAuthToken();
+            if (!token) {
+                throw new Error('Authentication token not found');
+            }
+
+            const formData = new FormData();
+            formData.append('action', 'ticket-update');
+            formData.append('ticket_id', ticketId);
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('priority', priority);
+
+            if (targetServer) {
+                formData.append('target_server_uuid', targetServer);
+            }
+
+            // Show loading
+            this.showLoading(true);
+
+            const response = await fetch(this.apiBaseUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (window.toastNotification) {
+                    toastNotification.show('Ticket updated successfully', 'success');
+                }
+                this.closeTicketModal();
+                this.loadTickets(); // Reload tickets list
+            } else {
+                throw new Error(result.message || 'Failed to update ticket');
+            }
+
+        } catch (error) {
+            console.error('Error updating ticket:', error);
+            if (window.toastNotification) {
+                toastNotification.show('Failed to update ticket: ' + error.message, 'error');
+            }
+        } finally {
+            this.showLoading(false);
+        }
+    }
 }
 
 // Initialize tickets manager when loaded
@@ -579,8 +1303,15 @@ let ticketsManager = null;
 
 // Function to initialize tickets (called from dashboard.js)
 function initTickets() {
+    console.log('initTickets() function called');
     if (!ticketsManager) {
+        console.log('Creating new TicketsManager instance');
         ticketsManager = new TicketsManager();
+        // Make it globally accessible
+        window.ticketsManager = ticketsManager;
     }
     ticketsManager.init();
 }
+
+// Make initTickets globally accessible
+window.initTickets = initTickets;
