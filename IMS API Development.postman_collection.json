@@ -217,7 +217,7 @@
 							"formdata": [
 								{
 									"key": "action",
-									"value": "acl-assign_role",
+									"value": "roles-assign",
 									"type": "text"
 								},
 								{
@@ -257,7 +257,7 @@
 							"formdata": [
 								{
 									"key": "action",
-									"value": "acl-remove_role",
+									"value": "roles-remove_user",
 									"type": "text"
 								},
 								{
@@ -2079,7 +2079,7 @@
 					"formdata": [
 						{
 							"key": "action",
-							"value": "acl-assign_role",
+							"value": "roles-assign",
 							"type": "text"
 						},
 						{

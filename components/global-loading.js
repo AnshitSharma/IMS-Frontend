@@ -52,7 +52,7 @@ class GlobalLoadingManager {
 
                         <!-- Center server icon -->
                         <div class="relative z-10 w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                            <i class="fas fa-server text-white text-lg"></i>
+                            <i class="fas fa-server  text-white text-lg"></i>
                         </div>
                     </div>
 

@@ -465,7 +465,7 @@ window.api = {
 
         // Assign role to user
         async assignRole(userId, roleId) {
-            return await api.request('acl-assign_role', {
+            return await api.request('roles-assign', {
                 user_id: userId,
                 role_id: roleId
             });
@@ -473,7 +473,7 @@ window.api = {
 
         // Remove role from user
         async removeRole(userId, roleId) {
-            return await api.request('acl-remove_role', {
+            return await api.request('roles-remove_user', {
                 user_id: userId,
                 role_id: roleId
             });
