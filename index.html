@@ -13,160 +13,16 @@
             font-family: 'Inter', sans-serif;
         }
 
-        /* Enhanced Grid Background */
-        .grid-bg {
-            background-size: 40px 40px;
-            background-image:
-                linear-gradient(to right, rgba(13, 148, 136, 0.08) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(13, 148, 136, 0.08) 1px, transparent 1px);
-        }
-
-        /* Circuit pattern overlay */
-        .circuit-pattern {
-            background-image:
-                radial-gradient(circle at 20% 30%, rgba(13, 148, 136, 0.15) 1px, transparent 1px),
-                radial-gradient(circle at 80% 70%, rgba(13, 148, 136, 0.15) 1px, transparent 1px),
-                radial-gradient(circle at 40% 80%, rgba(13, 148, 136, 0.1) 1px, transparent 1px),
-                radial-gradient(circle at 60% 20%, rgba(13, 148, 136, 0.1) 1px, transparent 1px);
-            background-size: 100px 100px;
-        }
-
-        /* Floating node animation */
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0) rotate(0deg);
-                opacity: 0.6;
-            }
-
-            50% {
-                transform: translateY(-20px) rotate(180deg);
-                opacity: 1;
-            }
-        }
-
-        @keyframes pulse-glow {
-
-            0%,
-            100% {
-                box-shadow: 0 0 20px rgba(13, 148, 136, 0.3);
-            }
-
-            50% {
-                box-shadow: 0 0 40px rgba(13, 148, 136, 0.6);
-            }
-        }
-
-        @keyframes data-flow {
-            0% {
-                transform: translateY(100%) scaleY(0);
-                opacity: 0;
-            }
-
-            50% {
-                transform: translateY(0) scaleY(1);
-                opacity: 1;
-            }
-
-            100% {
-                transform: translateY(-100%) scaleY(0);
-                opacity: 0;
-            }
-        }
-
-        .floating-node {
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .floating-node:nth-child(2) {
-            animation-delay: -2s;
-        }
-
-        .floating-node:nth-child(3) {
-            animation-delay: -4s;
-        }
-
-        /* Server rack visual element */
-        .server-rack {
-            background: linear-gradient(180deg,
-                    rgba(13, 148, 136, 0.1) 0%,
-                    rgba(13, 148, 136, 0.05) 50%,
-                    rgba(13, 148, 136, 0.1) 100%);
-            border: 1px solid rgba(13, 148, 136, 0.2);
-        }
-
-        .server-unit {
-            background: linear-gradient(90deg,
-                    rgba(15, 23, 42, 0.9) 0%,
-                    rgba(30, 41, 59, 0.9) 100%);
-            border: 1px solid rgba(13, 148, 136, 0.3);
-        }
-
-        .server-led {
-            animation: pulse-glow 2s ease-in-out infinite;
-        }
-
-        .server-led:nth-child(2) {
-            animation-delay: -0.5s;
-        }
-
-        .server-led:nth-child(3) {
-            animation-delay: -1s;
-        }
-
-        /* Data flow lines */
-        .data-line {
-            background: linear-gradient(180deg,
-                    transparent 0%,
-                    rgba(13, 148, 136, 0.8) 50%,
-                    transparent 100%);
-            animation: data-flow 3s ease-in-out infinite;
-        }
-
-        .data-line:nth-child(2) {
-            animation-delay: -1s;
-        }
-
-        .data-line:nth-child(3) {
-            animation-delay: -2s;
-        }
-
-        /* Network topology dots */
-        .network-node {
-            background: rgba(13, 148, 136, 0.8);
-            box-shadow: 0 0 10px rgba(13, 148, 136, 0.5);
-        }
-
-        .network-line {
-            background: linear-gradient(90deg,
-                    transparent 0%,
-                    rgba(13, 148, 136, 0.3) 50%,
-                    transparent 100%);
-        }
-
-        .form-container.active {
-            display: block;
-            animation: fadeIn 0.4s ease-out forwards;
-        }
-
+        /* Form Container Toggle */
         .form-container {
             display: none;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .form-container.active {
+            display: block;
         }
 
-        /* Loader Animation */
+        /* Button Loader */
         .btn-loader {
             display: none;
             width: 20px;
@@ -195,7 +51,7 @@
             }
         }
 
-        /* Input Group Focus Within Styles */
+        /* Input Group Focus */
         .input-group:focus-within {
             border-color: #0D9488;
             box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.1);
@@ -205,45 +61,36 @@
             color: #0D9488;
         }
 
-        /* Fix for validation error message from script.js */
+        /* Validation Error Styling */
         .field-error {
             width: 100%;
             color: #ef4444;
-            /* Red color */
             font-size: 0.75rem;
-            /* Small text */
             margin-top: 0.5rem;
             flex-basis: 100%;
-            /* Force wrap */
             order: 3;
-            /* Ensure it drops to bottom */
             font-weight: 500;
             padding-left: 0.25rem;
         }
 
-        /* Override inline styles from script.js validation */
-        /* 1. Prevent red box inside the input */
         .input-group input {
             border: none !important;
             box-shadow: none !important;
             outline: none !important;
         }
 
-        /* 2. Apply the error style to the PARENT container instead */
-        /* Uses :has() to detect if the child .field-error exists */
         .input-group:has(.field-error) {
             border-color: #ef4444 !important;
             box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
         }
 
-        /* Ensure input outline is removed */
         .input-group input:focus,
         .input-group input:active {
             outline: none !important;
             box-shadow: none !important;
         }
 
-        /* Custom Checkbox - show tick when checked */
+        /* Custom Checkbox */
         .custom-checkbox:has(input:checked) .checkbox-icon {
             opacity: 1;
         }
@@ -257,12 +104,10 @@
         button.active {
             background-color: white;
             color: #0d9488 !important;
-            /* Teal */
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             transition: all 0.2s ease;
         }
 
-        /* Hide the old sliding indicator as we use button styles now */
         .toggle-indicator {
             display: none;
         }
@@ -275,17 +120,6 @@
     <div class="fixed inset-0 z-0">
         <!-- Base Gradient -->
         <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100/80 to-teal-50/60"></div>
-
-        <!-- Grid Pattern -->
-        <div class="absolute inset-0 grid-bg opacity-60"></div>
-
-        <!-- Circuit Pattern Overlay -->
-        <div class="absolute inset-0 circuit-pattern opacity-40"></div>
-
-        <!-- Ambient Glow Orbs -->
-        <div class="absolute top-0 right-1/4 w-[600px] h-[600px] bg-primary/8 rounded-full blur-[100px]"></div>
-        <div class="absolute bottom-0 left-0 w-[500px] h-[500px] bg-teal-400/10 rounded-full blur-[80px]"></div>
-        <div class="absolute top-1/2 left-1/3 w-[300px] h-[300px] bg-cyan-400/5 rounded-full blur-[60px]"></div>
     </div>
 
     <!-- Main Content -->
@@ -295,25 +129,11 @@
         <div
             class="hidden lg:flex flex-1 flex-col justify-between p-12 lg:p-16 border-r border-slate-200/60 bg-gradient-to-br from-white/60 via-white/40 to-teal-50/30 backdrop-blur-sm relative overflow-hidden">
 
-            <!-- Decorative Elements - Server Rack Silhouette -->
-            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-32 h-[400px] opacity-[0.04]">
-                <div class="w-full h-full flex flex-col gap-2 p-2">
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                    <div class="flex-1 bg-slate-900 rounded"></div>
-                </div>
-            </div>
-
             <!-- Header Logo -->
             <div class="flex items-center gap-3 relative z-10">
                 <div
-                    class="w-11 h-11 rounded-xl bg-white border border-teal-100 flex items-center justify-center shadow-lg shadow-teal-500/10">
-                    <i class="fas fa-server text-teal-600 text-lg"></i>
+                    class="w-14 h-14 rounded-xl bg-white border border-teal-100 flex items-center justify-center shadow-lg shadow-teal-500/10">
+                    <i class="fas fa-server text-teal-600 text-2xl"></i>
                 </div>
                 <div>
                     <span class="text-xl font-bold text-primary tracking-wide block">BDC IMS</span>
