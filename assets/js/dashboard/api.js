@@ -495,20 +495,78 @@ window.api = {
         // Check if user has specific permission
         hasPermission(permission) {
             const user = api.getUser();
-            if (!user || !user.permissions) {
+            console.log('[DEBUG] hasPermission called for:', permission);
+            console.log('[DEBUG] User object:', user);
+
+            if (!user) {
+                console.log('[DEBUG] No user found, returning false');
                 return false;
             }
-            return user.permissions.includes(permission);
+
+            // Superadmin bypasses all permission checks
+            const isSuperadmin = this.hasRole('superadmin');
+            console.log('[DEBUG] Is superadmin:', isSuperadmin);
+
+            if (isSuperadmin) {
+                return true;
+            }
+
+            // Check permissions array
+            if (!user.permissions) {
+                console.log('[DEBUG] No permissions array, returning false');
+                return false;
+            }
+            const hasIt = user.permissions.includes(permission);
+            console.log('[DEBUG] Has permission in array:', hasIt);
+            return hasIt;
         },
 
         // Check if user has any of the specified roles
         hasRole(roles) {
             const user = api.getUser();
-            if (!user || !user.roles) {
+            if (!user) {
                 return false;
             }
 
-            const userRoles = user.roles.map(role => role.name);
+            // Build list of user's role names
+            let userRoles = [];
+
+            // Check roles array (array of objects with 'name' property)
+            if (user.roles && Array.isArray(user.roles)) {
+                userRoles = user.roles.map(role =>
+                    typeof role === 'string' ? role : (role.name || '')
+                );
+            }
+
+            // Also check primary_role field
+            if (user.primary_role) {
+                const primaryRoleName = typeof user.primary_role === 'string'
+                    ? user.primary_role
+                    : (user.primary_role.name || '');
+                if (primaryRoleName && !userRoles.includes(primaryRoleName)) {
+                    userRoles.push(primaryRoleName);
+                }
+            }
+
+            // Also check role field (single role)
+            if (user.role) {
+                const roleName = typeof user.role === 'string'
+                    ? user.role
+                    : (user.role.name || '');
+                if (roleName && !userRoles.includes(roleName)) {
+                    userRoles.push(roleName);
+                }
+            }
+
+            // Check username for 'superadmin' (fallback when API doesn't return roles)
+            if (user.username === 'superadmin' && !userRoles.includes('superadmin')) {
+                userRoles.push('superadmin');
+            }
+
+            if (userRoles.length === 0) {
+                return false;
+            }
+
             return Array.isArray(roles)
                 ? roles.some(role => userRoles.includes(role))
                 : userRoles.includes(roles);
