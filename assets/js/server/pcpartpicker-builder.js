@@ -725,7 +725,7 @@ class PCPartPickerBuilder {
                 </div>
 
                 <!-- Finish Configuration Button -->
-                <div class="flex justify-end my-6">
+                <div class="flex justify-center my-6">
                     <button class="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-all shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg" onclick="window.pcppBuilder.finishConfiguration()">
                         <i class="fas fa-check-circle text-lg"></i>
                         Finish Setup

@@ -83,7 +83,8 @@ class ServerListManager {
             const result = await serverAPI.getServerConfigs(50, 0, 1);
 
             if (result.success && result.data && result.data.configurations) {
-                this.servers = result.data.configurations;
+                // Filter out virtual servers (only show where is_virtual = false)
+                this.servers = result.data.configurations.filter(server => !server.is_virtual);
                 this.renderServerList();
             } else {
                 container.innerHTML = `
@@ -161,9 +162,14 @@ class ServerListManager {
                             <h5 class="mb-0" style="font-size: 1.125rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">
                                 <i class="fas fa-server me-2" style="flex-shrink: 0;"></i><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; max-width: 100%;">${server.server_name}</span>
                             </h5>
-                            <span class="server-status ${statusInfo.class}" style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; flex-shrink: 0; white-space: nowrap;">
-                                ${statusInfo.text}
-                            </span>
+                            <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
+                                <span style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: rgba(255, 255, 255, 0.2); white-space: nowrap;">
+                                    #${server.id}
+                                </span>
+                                <span class="server-status ${statusInfo.class}" style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; white-space: nowrap;">
+                                    ${statusInfo.text}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body" style="padding: 1.5rem; background: white;">

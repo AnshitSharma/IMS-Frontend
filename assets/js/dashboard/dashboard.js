@@ -760,35 +760,63 @@ class Dashboard {
 
     async showAddServerForm() {
         const formContent = `
-        <form id="createServerForm" style="max-width: 500px; margin: 0 auto;">
-            <div class="form-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;">
-                
-                <div class="toggle-group" style="display: flex; align-items: center; gap: 12px;">
-                    <span style="font-size: 14px; color: #666; font-weight: 500;">Advanced View</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="advancedViewToggle">
-                        <span class="toggle-slider">
-                        </span>
-                    </label>
+        <form id="createServerForm" class="max-w-lg mx-auto">
+            <!-- Header Section with Icon -->
+            <div class="flex items-center justify-center mb-6 pb-6 border-b border-slate-200">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shadow-lg transform transition-transform hover:scale-105">
+                        <i class="fas fa-server text-white text-2xl"></i>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-sm text-slate-500">Configure your new server infrastructure</p>
+                    </div>
                 </div>
             </div>
+
+            <!-- Toggle Section -->
+            <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl mb-6 border border-slate-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+                        <i class="fas fa-cog text-teal-600 text-sm"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-medium text-slate-700">Advanced Configuration</span>
+                        <p class="text-xs text-slate-500">Show additional options</p>
+                    </div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="advancedViewToggle">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
             
-            <div id="standardForm">
+            <!-- Standard Form Fields -->
+            <div id="standardForm" class="space-y-5">
                 <div class="form-group">
-                    <label for="serverName" class="form-label required">Server Name</label>
+                    <label for="serverName" class="form-label required flex items-center gap-2">
+                        <i class="fas fa-tag text-teal-600 text-sm"></i>
+                        Server Name
+                    </label>
                     <input type="text" class="form-input" id="serverName" required
                            placeholder="e.g., Production Web Server">
                 </div>
                 <div class="form-group">
-                    <label for="description" class="form-label">Description</label>
+                    <label for="description" class="form-label flex items-center gap-2">
+                        <i class="fas fa-align-left text-teal-600 text-sm"></i>
+                        Description
+                    </label>
                     <textarea class="form-textarea" id="description" rows="3"
                               placeholder="Enter server description and purpose"></textarea>
                 </div>
             </div>
             
-            <div id="advancedForm" style="display: none;">
+            <!-- Advanced Form Fields -->
+            <div id="advancedForm" class="hidden space-y-5">
                 <div class="form-group">
-                    <label for="startWith" class="form-label">Start Configuration With</label>
+                    <label for="startWith" class="form-label flex items-center gap-2">
+                        <i class="fas fa-play-circle text-teal-600 text-sm"></i>
+                        Start Configuration With
+                    </label>
                     <select class="form-select" id="startWith">
                         <option value="motherboard">Motherboard (Recommended)</option>
                         <option value="cpu">CPU</option>
@@ -796,13 +824,16 @@ class Dashboard {
                         <option value="storage">Storage</option>
                         <option value="nic">Network Interface Card</option>
                     </select>
-                    <p class="form-help">
-                        <i class="fas fa-info-circle"></i>
-                        Starting with Motherboard ensures better component compatibility
-                    </p>
+                    <div class="flex items-start gap-2 mt-3 p-3 bg-teal-50 rounded-lg border border-teal-200">
+                        <i class="fas fa-lightbulb text-teal-600 text-sm mt-0.5"></i>
+                        <p class="text-xs text-teal-700">Starting with Motherboard ensures better component compatibility and smoother configuration workflow.</p>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label for="serverType" class="form-label">Server Type</label>
+                    <label for="serverType" class="form-label flex items-center gap-2">
+                        <i class="fas fa-layer-group text-teal-600 text-sm"></i>
+                        Server Type
+                    </label>
                     <select class="form-select" id="serverType">
                         <option value="standard">Standard</option>
                         <option value="high-availability">High Availability</option>
@@ -811,7 +842,10 @@ class Dashboard {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="environment" class="form-label">Environment</label>
+                    <label for="environment" class="form-label flex items-center gap-2">
+                        <i class="fas fa-code-branch text-teal-600 text-sm"></i>
+                        Environment
+                    </label>
                     <select class="form-select" id="environment">
                         <option value="production">Production</option>
                         <option value="staging">Staging</option>
@@ -821,14 +855,18 @@ class Dashboard {
                 </div>
             </div>
             
-            <div class="form-actions">
-                <button type="button" class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Create Server
+            <!-- Form Actions -->
+            <div class="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-200">
+                <button type="button" class="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-all duration-200 flex items-center gap-2" onclick="dashboard.closeModal()">
+                    <i class="fas fa-times text-sm"></i>
+                    Cancel
+                </button>
+                <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg font-medium hover:from-teal-700 hover:to-teal-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 transform hover:-translate-y-0.5">
+                    <i class="fas fa-plus text-sm"></i>
+                    Create Server
                 </button>
             </div>
         </form>
-        
     `;
 
         this.showModal('Create New Server', formContent);
@@ -838,18 +876,15 @@ class Dashboard {
         const standardForm = document.getElementById('standardForm');
         const advancedForm = document.getElementById('advancedForm');
 
+
         if (toggle) {
             toggle.addEventListener('change', function () {
-                const toggleStatus = this.parentElement.querySelector('.toggle-status');
-
                 if (this.checked) {
-                    standardForm.style.display = 'none';
-                    advancedForm.style.display = 'block';
-                    toggleStatus.textContent = 'On';
+                    standardForm.classList.add('hidden');
+                    advancedForm.classList.remove('hidden');
                 } else {
-                    standardForm.style.display = 'block';
-                    advancedForm.style.display = 'none';
-                    toggleStatus.textContent = 'Off';
+                    standardForm.classList.remove('hidden');
+                    advancedForm.classList.add('hidden');
                 }
             });
         }
