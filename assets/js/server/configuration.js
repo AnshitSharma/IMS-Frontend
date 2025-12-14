@@ -377,20 +377,20 @@ class ConfigurationPage {
                         <label class="block text-xs font-semibold text-text-muted mb-3 uppercase tracking-wider">${config.label}</label>
                         <div class="flex flex-wrap gap-2" data-filter-group="${key}">
                             ${config.options.map((option, index) => {
-                                const value = option.toLowerCase();
-                                const isActive = index === 0;
-                                return `
+                    const value = option.toLowerCase();
+                    const isActive = index === 0;
+                    return `
                                     <button type="button"
                                         class="filter-pill px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
                                             ${isActive
-                                                ? 'border-primary bg-primary text-white'
-                                                : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
+                            ? 'border-primary bg-primary text-white'
+                            : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
                                         data-filter="${key}"
                                         data-value="${value}">
                                         ${option}
                                     </button>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -1883,9 +1883,9 @@ class ConfigurationPage {
                 ${this.renderComponentSpecsCells(component)}
                 <td class="px-4 py-3 text-center">
                     <button class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${component.compatible
-                        ? 'bg-primary text-white hover:bg-primary-600'
-                        : 'bg-surface-secondary text-text-muted cursor-not-allowed'
-                    }" ${!component.compatible ? 'disabled' : ''}
+                ? 'bg-primary text-white hover:bg-primary-600'
+                : 'bg-surface-secondary text-text-muted cursor-not-allowed'
+            }" ${!component.compatible ? 'disabled' : ''}
                         onclick="window.configPage.addComponent('${component.id}')">
                         ${component.compatible ? 'Add' : 'Incompatible'}
                     </button>
@@ -2723,11 +2723,11 @@ style.textContent = `
     
     .component-item.incompatible {
         opacity: 0.6;
-        background-color: #fef2f2;
+        background-color: var(--color-danger-light, #FEE2E2);
     }
 
     .star.empty {
-        color: #d1d5db;
+        color: var(--color-text-disabled, #94A3B8);
     }
 
     /* Compatibility Badge Styles */
@@ -2744,15 +2744,15 @@ style.textContent = `
     }
 
     .compatibility-badge.compatible {
-        background-color: #d1fae5;
-        color: #065f46;
-        border: 1px solid #6ee7b7;
+        background-color: var(--color-success-light, #DCFCE7);
+        color: var(--color-success-hover, #16A34A);
+        border: 1px solid var(--color-success, #22C55E);
     }
 
     .compatibility-badge.incompatible {
-        background-color: #fee2e2;
-        color: #991b1b;
-        border: 1px solid #fca5a5;
+        background-color: var(--color-danger-light, #FEE2E2);
+        color: var(--color-danger-hover, #B91C1C);
+        border: 1px solid var(--color-danger, #DC2626);
     }
 
     .compatibility-badge i {

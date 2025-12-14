@@ -188,8 +188,8 @@ function validatePasswordMatch(passwordInput, confirmInput) {
 function setFieldError(input, message) {
     clearFieldError(input);
 
-    input.style.borderColor = '#ff416c';
-    input.style.boxShadow = '0 0 0 3px rgba(255, 65, 108, 0.1)';
+    input.style.borderColor = 'var(--color-danger)';
+    input.style.boxShadow = '0 0 0 3px rgba(220, 38, 38, 0.1)';
 
     const errorElement = document.createElement('div');
     errorElement.className = 'field-error';

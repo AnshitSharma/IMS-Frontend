@@ -90,7 +90,7 @@ class ServerListManager {
                 container.innerHTML = `
                     <div class="col-12">
                         <div class="text-center py-5">
-                            <i class="fas fa-server" style="font-size: 3rem; color: #e5e7eb; margin-bottom: 1rem;"></i>
+                            <i class="fas fa-server" style="font-size: 3rem; color: var(--color-text-disabled); margin-bottom: 1rem;"></i>
                             <p class="text-muted">No server configurations found</p>
                             <button class="btn btn-primary mt-3" onclick="window.serverListManager.showCreateModal()">
                                 <i class="fas fa-plus me-1"></i>Create Your First Server
@@ -123,7 +123,7 @@ class ServerListManager {
             container.innerHTML = `
                 <div class="col-12">
                     <div class="text-center py-5">
-                        <i class="fas fa-server" style="font-size: 3rem; color: #e5e7eb; margin-bottom: 1rem;"></i>
+                        <i class="fas fa-server" style="font-size: 3rem; color: var(--color-text-disabled); margin-bottom: 1rem;"></i>
                         <p class="text-muted">No server configurations found</p>
                         <button class="btn btn-primary mt-3" onclick="window.serverListManager.showCreateModal()">
                             <i class="fas fa-plus me-1"></i>Create Your First Server
@@ -156,8 +156,8 @@ class ServerListManager {
 
         return `
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="server-card" data-uuid="${server.config_uuid}" style="cursor: pointer; transition: transform 0.2s; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
-                    <div class="card-header" style="background: linear-gradient(135deg, #2b2685d3 0%, #000000f3 100%); color: white; padding: 1rem;">
+                <div class="server-card" data-uuid="${server.config_uuid}" style="cursor: pointer; transition: transform 0.2s; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden;">
+                    <div class="card-header" style="background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-hover) 100%); color: white; padding: 1rem;">
                         <div class="d-flex justify-content-between align-items-center gap-2">
                             <h5 class="mb-0" style="font-size: 1.125rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">
                                 <i class="fas fa-server me-2" style="flex-shrink: 0;"></i><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; max-width: 100%;">${server.server_name}</span>
@@ -172,17 +172,17 @@ class ServerListManager {
                             </div>
                         </div>
                     </div>
-                    <div class="card-body" style="padding: 1.5rem; background: white;">
+                    <div class="card-body" style="padding: 1.5rem; background: var(--color-surface-card);">
                         ${server.description ? `<p class="text-muted mb-3" style="font-size: 0.875rem;">${server.description}</p>` : ''}
 
-                        <div class="d-flex justify-content-between align-items-center mb-3" style="padding: 0.75rem; background: #f9fafb; border-radius: 8px;">
-                            <span style="font-size: 0.875rem; color: #6b7280;">
+                        <div class="d-flex justify-content-between align-items-center mb-3" style="padding: 0.75rem; background: var(--color-surface-hover); border-radius: 8px;">
+                            <span style="font-size: 0.875rem; color: var(--color-text-muted);">
                                 <i class="fas fa-microchip me-2"></i>Components
                             </span>
-                            <span style="font-weight: 600; color: #4f46e5;">${componentCount}</span>
+                            <span style="font-weight: 600; color: var(--color-primary);">${componentCount}</span>
                         </div>
 
-                        <div style="font-size: 0.75rem; color: #9ca3af; margin-bottom: 1rem;">
+                        <div style="font-size: 0.75rem; color: var(--color-text-disabled); margin-bottom: 1rem;">
                             <div><i class="fas fa-calendar me-2"></i>Created: ${this.formatDate(server.created_at)}</div>
                             ${server.updated_at ? `<div><i class="fas fa-clock me-2"></i>Modified: ${this.formatDate(server.updated_at)}</div>` : ''}
                         </div>
@@ -213,31 +213,31 @@ class ServerListManager {
             try {
                 const ram = JSON.parse(server.ram_configuration);
                 count += Array.isArray(ram) ? ram.length : 0;
-            } catch (e) {}
+            } catch (e) { }
         }
         if (server.storage_configuration) {
             try {
                 const storage = JSON.parse(server.storage_configuration);
                 count += Array.isArray(storage) ? storage.length : 0;
-            } catch (e) {}
+            } catch (e) { }
         }
         if (server.nic_configuration) {
             try {
                 const nic = JSON.parse(server.nic_configuration);
                 count += Array.isArray(nic) ? nic.length : 0;
-            } catch (e) {}
+            } catch (e) { }
         }
         if (server.caddy_configuration) {
             try {
                 const caddy = JSON.parse(server.caddy_configuration);
                 count += Array.isArray(caddy) ? caddy.length : 0;
-            } catch (e) {}
+            } catch (e) { }
         }
         if (server.pciecard_configurations) {
             try {
                 const pcie = JSON.parse(server.pciecard_configurations);
                 count += Array.isArray(pcie) ? pcie.length : 0;
-            } catch (e) {}
+            } catch (e) { }
         }
         return count;
     }
@@ -334,49 +334,49 @@ class ServerListManager {
     /**
      * Delete server configuration
      */
-  async deleteServer(uuid) {
-    if (!confirm('Are you sure you want to delete this server configuration?')) {
-        return;
-    }
+    async deleteServer(uuid) {
+        if (!confirm('Are you sure you want to delete this server configuration?')) {
+            return;
+        }
 
-    try {
-        // Show loading state on the delete button
-        const deleteBtn = event.target.closest('.btn-outline-danger');
-        const originalContent = deleteBtn.innerHTML;
-        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        deleteBtn.disabled = true;
+        try {
+            // Show loading state on the delete button
+            const deleteBtn = event.target.closest('.btn-outline-danger');
+            const originalContent = deleteBtn.innerHTML;
+            deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            deleteBtn.disabled = true;
 
-        const result = await serverAPI.deleteServerConfig(uuid);
+            const result = await serverAPI.deleteServerConfig(uuid);
 
-        if (result.success) {
-            this.showToast('Server configuration deleted successfully', 'success');
-            // Remove the card immediately for better UX
-            const card = document.querySelector(`[data-uuid="${uuid}"]`);
-            if (card) {
-                card.style.opacity = '0.5';
-                setTimeout(() => {
+            if (result.success) {
+                this.showToast('Server configuration deleted successfully', 'success');
+                // Remove the card immediately for better UX
+                const card = document.querySelector(`[data-uuid="${uuid}"]`);
+                if (card) {
+                    card.style.opacity = '0.5';
+                    setTimeout(() => {
+                        this.loadServerList();
+                    }, 300);
+                } else {
                     this.loadServerList();
-                }, 300);
+                }
             } else {
-                this.loadServerList();
+                this.showToast(result.message || 'Failed to delete server configuration', 'danger');
+                // Reset button state on error
+                deleteBtn.innerHTML = originalContent;
+                deleteBtn.disabled = false;
             }
-        } else {
-            this.showToast(result.message || 'Failed to delete server configuration', 'danger');
+        } catch (error) {
+            console.error('Error deleting server:', error);
+            this.showToast('Failed to delete server configuration', 'danger');
             // Reset button state on error
-            deleteBtn.innerHTML = originalContent;
-            deleteBtn.disabled = false;
-        }
-    } catch (error) {
-        console.error('Error deleting server:', error);
-        this.showToast('Failed to delete server configuration', 'danger');
-        // Reset button state on error
-        const deleteBtn = event.target.closest('.btn-outline-danger');
-        if (deleteBtn) {
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.disabled = false;
+            const deleteBtn = event.target.closest('.btn-outline-danger');
+            if (deleteBtn) {
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.disabled = false;
+            }
         }
     }
-}
 
     /**
      * Show toast notification
@@ -392,14 +392,14 @@ class ServerListManager {
 
         const toastClass = `toast-${type}`;
         const icon = type === 'success' ? 'fa-check-circle' :
-                    type === 'danger' ? 'fa-times-circle' :
-                    type === 'warning' ? 'fa-exclamation-triangle' :
+            type === 'danger' ? 'fa-times-circle' :
+                type === 'warning' ? 'fa-exclamation-triangle' :
                     'fa-info-circle';
 
         const title = type === 'success' ? 'Success' :
-                     type === 'danger' ? 'Error' :
-                     type === 'warning' ? 'Warning' :
-                     'Information';
+            type === 'danger' ? 'Error' :
+                type === 'warning' ? 'Warning' :
+                    'Information';
 
         const toastId = `toast-${Date.now()}`;
         const toastHtml = `

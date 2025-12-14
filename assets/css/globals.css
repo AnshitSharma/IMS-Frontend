@@ -135,6 +135,27 @@
 
   /* Light mode colors (default) */
   :root {
+    /* Primary Brand Colors (Teal) */
+    --color-primary: #0D9488;
+    --color-primary-hover: #0F766E;
+    --color-primary-light: #14B8A6;
+    --color-primary-lighter: #5EEAD4;
+    --color-primary-lightest: #CCFBF1;
+
+    /* Status Colors */
+    --color-success: #22C55E;
+    --color-success-hover: #16A34A;
+    --color-success-light: #DCFCE7;
+    --color-warning: #EAB308;
+    --color-warning-hover: #CA8A04;
+    --color-warning-light: #FEF9C3;
+    --color-danger: #DC2626;
+    --color-danger-hover: #B91C1C;
+    --color-danger-light: #FEE2E2;
+    --color-info: #0EA5E9;
+    --color-info-hover: #0284C7;
+    --color-info-light: #E0F2FE;
+
     /* Text colors */
     --color-text-primary: #0F172A;
     --color-text-secondary: #334155;
@@ -376,15 +397,15 @@
     @apply absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300;
   }
 
-  .toggle-switch input:checked + .toggle-slider {
+  .toggle-switch input:checked+.toggle-slider {
     @apply bg-primary;
   }
 
-  .toggle-switch input:checked + .toggle-slider::before {
+  .toggle-switch input:checked+.toggle-slider::before {
     transform: translateX(20px);
   }
 
-  .toggle-switch input:focus + .toggle-slider {
+  .toggle-switch input:focus+.toggle-slider {
     @apply ring-2 ring-primary/20;
   }
 
@@ -407,19 +428,19 @@
   }
 
   .badge-success {
-    @apply badge-status bg-success-light text-green-900;
+    @apply badge-status bg-success-light text-success-900;
   }
 
   .badge-warning {
-    @apply badge-status bg-warning-light text-amber-900;
+    @apply badge-status bg-warning-light text-warning-900;
   }
 
   .badge-danger {
-    @apply badge-status bg-danger-light text-red-900;
+    @apply badge-status bg-danger-light text-danger-900;
   }
 
   .badge-info {
-    @apply badge-status bg-info-light text-blue-900;
+    @apply badge-status bg-info-light text-info-900;
   }
 
   /* Cards */
@@ -596,6 +617,63 @@
 
   .btn-confirm.disabled {
     @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Component Category Styles */
+  .component-category {
+    @apply border border-border-light rounded-lg mb-3 overflow-hidden;
+  }
+
+  .component-category.missing {
+    @apply border-warning/30 bg-warning-light/5;
+  }
+
+  .category-header {
+    @apply flex items-center gap-3 p-3 bg-surface-hover border-b border-border-light;
+  }
+
+  .category-header i {
+    @apply text-primary text-lg;
+  }
+
+  .category-name {
+    @apply flex-1 font-semibold text-text-primary;
+  }
+
+  .category-status {
+    @apply px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  .category-status.missing {
+    @apply bg-warning-light text-warning;
+  }
+
+  .category-status.selected {
+    @apply bg-success-light text-success;
+  }
+
+  .component-items {
+    @apply p-3;
+  }
+
+  .component-items.empty {
+    @apply text-center py-4;
+  }
+
+  .empty-message {
+    @apply text-sm text-text-muted italic;
+  }
+
+  .component-item {
+    @apply flex items-center justify-between p-2 bg-surface-card rounded border border-border-light mb-2 last:mb-0;
+  }
+
+  .component-item-name {
+    @apply text-sm font-medium text-text-primary;
+  }
+
+  .component-item-details {
+    @apply text-xs text-text-muted;
   }
 
   /* Toast Notification Base */
@@ -811,19 +889,19 @@
 
   /* Alert Banner */
   .alert-banner {
-    @apply fixed top-navbar left-0 right-0 px-6 py-4 bg-warning-light border-b border-warning text-amber-900 flex items-center gap-4 animate-alert-slide z-alert;
+    @apply fixed top-navbar left-0 right-0 px-6 py-4 bg-warning-light border-b border-warning text-warning-900 flex items-center gap-4 animate-alert-slide z-alert;
   }
 
   .alert-banner.success {
-    @apply bg-success-light border-success text-green-900;
+    @apply bg-success-light border-success text-success-900;
   }
 
   .alert-banner.error {
-    @apply bg-danger-light border-danger text-red-900;
+    @apply bg-danger-light border-danger text-danger-900;
   }
 
   .alert-banner.info {
-    @apply bg-info-light border-info text-blue-900;
+    @apply bg-info-light border-info text-info-900;
   }
 
   .alert-icon {
@@ -1283,6 +1361,7 @@
   }
 
   @media (min-width: 1024px) {
+
     /* On desktop, ensure sidebar is static and content flows properly */
     .sidebar {
       @apply static translate-x-0 flex-shrink-0;

@@ -19,7 +19,7 @@
             height: 100%;
             z-index: -1;
             overflow: hidden;
-            background: linear-gradient(135deg, #0D9488 0%, #14B8A6 100%);
+            background: linear-gradient(135deg, var(--color-primary, #0D9488) 0%, var(--color-primary-light, #14B8A6) 100%);
         }
         .particle {
             position: absolute;
@@ -41,7 +41,7 @@
             100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
         }
         .logo {
-            background: linear-gradient(45deg, #0D9488, #14B8A6);
+            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-light, #14B8A6));
             animation: logoFloat 3s ease-in-out infinite;
         }
         @keyframes logoFloat {
@@ -52,7 +52,7 @@
             color: white;
         }
         .toggle-indicator {
-            background: linear-gradient(45deg, #0D9488, #0F766E);
+            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-hover, #0F766E));
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
         }
@@ -60,7 +60,7 @@
             transform: translateX(100%);
         }
         .auth-btn {
-            background: linear-gradient(45deg, #0D9488, #0F766E);
+            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-hover, #0F766E));
             box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
         }
         .auth-btn:hover {
@@ -71,12 +71,12 @@
             transform: translateY(0);
         }
         .checkmark {
-            border: 2px solid #E2E8F0;
+            border: 2px solid var(--color-border-light, #E2E8F0);
             transition: all 0.3s ease;
         }
         .remember-me input:checked + .checkmark {
-            background: #0D9488;
-            border-color: #0D9488;
+            background: var(--color-primary, #0D9488);
+            border-color: var(--color-primary, #0D9488);
         }
         .remember-me input:checked + .checkmark::after {
             content: '✓';
@@ -102,15 +102,15 @@
             transform: translateX(0);
         }
         .alert.success {
-            background: linear-gradient(45deg, #22C55E, #16A34A);
+            background: linear-gradient(45deg, var(--color-success, #22C55E), var(--color-success-hover, #16A34A));
             color: white;
         }
         .alert.error {
-            background: linear-gradient(45deg, #DC2626, #B91C1C);
+            background: linear-gradient(45deg, var(--color-danger, #DC2626), var(--color-danger-hover, #B91C1C));
             color: white;
         }
         .alert.warning {
-            background: linear-gradient(45deg, #EAB308, #CA8A04);
+            background: linear-gradient(45deg, var(--color-warning, #EAB308), var(--color-warning-hover, #CA8A04));
             color: white;
         }
     </style>
@@ -162,9 +162,9 @@
         <div class="flex-1 flex items-center justify-center p-10 bg-white/95 backdrop-blur-xl">
             <div class="w-full max-w-md">
                 <!-- Form Toggle Buttons -->
-                <div class="flex bg-gray-100 rounded-2xl p-1 mb-10 relative shadow-inset">
-                    <button class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="loginToggle">Sign In</button>
-                    <button class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-gray-500 z-10 relative" id="registerToggle">Sign Up</button>
+                <div class="flex bg-slate-100 rounded-2xl p-1 mb-10 relative shadow-inset">
+                    <button class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-slate-500 z-10 relative" id="loginToggle">Sign In</button>
+                    <button class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-slate-500 z-10 relative" id="registerToggle">Sign Up</button>
                     <div class="toggle-indicator absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] rounded-xl"></div>
                 </div>
 
@@ -178,25 +178,25 @@
                     <form id="loginFormElement">
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="text" id="loginUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <i class="fas fa-user absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="text" id="loginUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="loginPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleLoginPassword">
+                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="password" id="loginPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleLoginPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
-                            <label class="remember-me flex items-center cursor-pointer text-sm text-gray-500 gap-2.5">
+                            <label class="remember-me flex items-center cursor-pointer text-sm text-slate-500 gap-2.5">
                                 <input type="checkbox" id="rememberMe" class="hidden">
-                                <span class="checkmark w-5 h-5 border-2 border-gray-200 rounded relative"></span>
+                                <span class="checkmark w-5 h-5 border-2 border-slate-200 rounded relative"></span>
                                 Remember me
                             </label>
                             <a href="#" class="text-primary no-underline text-sm font-medium transition-all hover:text-primary-dark hover:underline">Forgot Password?</a>
@@ -219,23 +219,23 @@
                     <form id="registerFormElement">
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-user absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="text" id="registerUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <i class="fas fa-user absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="text" id="registerUsername" name="username" placeholder="Username" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-envelope absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <i class="fas fa-envelope absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
                             </div>
                         </div>
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="registerPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleRegisterPassword">
+                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="password" id="registerPassword" name="password" placeholder="Password" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleRegisterPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
@@ -243,18 +243,18 @@
 
                         <div class="mb-6">
                             <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-gray-500 text-base z-10"></i>
-                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required class="input-field w-full px-14 py-4 border-2 border-gray-200 rounded-2xl bg-white text-gray-900 placeholder-gray-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-gray-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleConfirmPassword">
+                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
+                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm Password" required class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                <button type="button" class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10" id="toggleConfirmPassword">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </div>
                         </div>
 
                         <div class="mb-8">
-                            <label class="remember-me flex items-center cursor-pointer text-sm text-gray-500 gap-2.5">
+                            <label class="remember-me flex items-center cursor-pointer text-sm text-slate-500 gap-2.5">
                                 <input type="checkbox" id="agreeTerms" required class="hidden">
-                                <span class="checkmark w-5 h-5 border-2 border-gray-200 rounded relative"></span>
+                                <span class="checkmark w-5 h-5 border-2 border-slate-200 rounded relative"></span>
                                 I agree to the <a href="#" class="terms-link text-primary ml-1">Terms & Conditions</a>
                             </label>
                         </div>
