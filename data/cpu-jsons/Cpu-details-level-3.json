@@ -63,6 +63,35 @@
           },
           "UUID": "545e143b-57b3-419e-86e5-1df6f7aa8fxx"
 
+        },
+        {
+          "model": "Xeon E-2378",
+          "architecture": "Rocket Lake",
+          "base_frequency_GHz": 3.2,
+          "max_frequency_GHz": 4.8,
+          "all_core_turbo_GHz": 4.0,
+          "cores": 8,
+          "threads": 16,
+          "l1_cache": "8 × 80 KB",
+          "l2_cache": "8 × 512 KB",
+          "l3_cache": "16 MB",
+          "tdp_W": 65,
+          "max_memory_capacity_TB": 0.128,
+          "memory_channels": 2,
+          "memory_types": ["DDR4-3200"],
+          "pcie_lanes": 20,
+          "pcie_generation": 4,
+          "socket": "LGA 1200",
+          "dimensions_mm": {
+            "width": 37.5,
+            "height": 37.5
+          },
+          "power_efficiency": {
+            "idle_power_W": 15,
+            "avg_power_under_load_W": 55,
+            "perf_per_watt_score": 7.8
+          },
+          "UUID": "d93a4790-959d-4cd4-8e95-bb1b9c85b9fd"
         }
       ]
     },
@@ -109,7 +138,36 @@
             "perf_per_watt_score": 8.7
           },
           "UUID": "d3b5f1c2-9f4e-4c2a-8e6b-7a9f3e2d1c4b"
-          
+
+        },
+        {
+          "model": "EPYC 7443P",
+          "architecture": "Zen 3",
+          "base_frequency_GHz": 2.9,
+          "max_frequency_GHz": 4.0,
+          "all_core_turbo_GHz": 3.4,
+          "cores": 16,
+          "threads": 32,
+          "l1_cache": "16 × 64 KB",
+          "l2_cache": "16 × 512 KB",
+          "l3_cache": "128 MB",
+          "tdp_W": 200,
+          "max_memory_capacity_TB": 4,
+          "memory_channels": 8,
+          "memory_types": ["DDR4-3200"],
+          "pcie_lanes": 128,
+          "pcie_generation": 4,
+          "socket": "SP3",
+          "dimensions_mm": {
+            "width": 75.4,
+            "height": 58.5
+          },
+          "power_efficiency": {
+            "idle_power_W": 45,
+            "avg_power_under_load_W": 175,
+            "perf_per_watt_score": 8.9
+          },
+          "UUID": "41849749-8d19-4366-b41a-afda6fa46b58"
         }
       ]
     }

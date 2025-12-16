@@ -234,7 +234,7 @@ class Dashboard {
     }
 
     updateDashboardStats(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard', 'sfp'];
         components.forEach(component => {
             if (stats[component]) {
                 const stat = stats[component];

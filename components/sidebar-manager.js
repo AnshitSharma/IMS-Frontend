@@ -219,7 +219,7 @@ class SidebarManager {
      * Update sidebar UI with current counts
      */
     updateSidebarCounts(counts) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard', 'servers'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard', 'sfp', 'servers'];
 
         components.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);

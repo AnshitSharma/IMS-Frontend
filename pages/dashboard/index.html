@@ -390,6 +390,39 @@
                             </div>
                         </div>
 
+                        <!-- SFP Modules Card -->
+                        <div
+                            class="stat-card sfp-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
+                            <div
+                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
+                                <i class="fas fa-plug text-9xl text-purple-500"></i>
+                            </div>
+                            <div class="relative z-10">
+                                <div class="flex items-center gap-4 mb-6">
+                                    <div
+                                        class="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500">
+                                        <i class="fas fa-plug text-xl"></i>
+                                    </div>
+                                    <h3 class="text-base font-semibold text-text-secondary">SFP Modules</h3>
+                                </div>
+                                <div class="flex items-end justify-between">
+                                    <div>
+                                        <h3 id="dashSfpTotal"
+                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
+                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
+                                    </div>
+                                    <div class="text-xs space-y-1.5 text-right">
+                                        <div class="text-text-muted font-medium">Avail: <span id="dashSfpAvailable"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">In Use: <span id="dashSfpInUse"
+                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                        <div class="text-text-muted font-medium">Failed: <span id="dashSfpFailed"
+                                                class="text-danger font-bold ml-1">0</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Servers Card -->
                         <div
                             class="stat-card servers-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">

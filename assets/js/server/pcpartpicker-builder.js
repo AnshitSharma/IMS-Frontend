@@ -16,7 +16,8 @@ class PCPartPickerBuilder {
             caddy: [],
             pciecard: [],
             nic: [],
-            hbacard: []
+            hbacard: [],
+            sfp: []
         };
 
         this.componentTypes = [
@@ -91,6 +92,14 @@ class PCPartPickerBuilder {
                 icon: 'fas fa-hdd',
                 multiple: true,
                 required: false
+            },
+            {
+                type: 'sfp',
+                name: 'SFP Modules',
+                description: 'Fiber Transceivers',
+                icon: 'fas fa-plug',
+                multiple: true,
+                required: false
             }
         ];
 
@@ -152,7 +161,6 @@ class PCPartPickerBuilder {
         try {
             this.showLoading('Loading server configuration...');
 
-
             // Check if serverAPI is available
             if (typeof serverAPI === 'undefined') {
                 console.error('serverAPI is not available!');
@@ -172,16 +180,10 @@ class PCPartPickerBuilder {
             } else {
                 console.error('Failed to load configuration:', result);
                 this.showAlert(result.message || 'Failed to load configuration', 'danger');
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 2000);
             }
         } catch (error) {
             console.error('Error loading configuration:', error);
             this.showAlert('Failed to load server configuration', 'danger');
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 2000);
         } finally {
             this.hideLoading();
         }
@@ -246,7 +248,8 @@ class PCPartPickerBuilder {
             caddy: [],
             pciecard: [],
             nic: [],
-            hbacard: []
+            hbacard: [],
+            sfp: []
         };
 
         // Parse components from the API structure
@@ -1209,7 +1212,7 @@ class PCPartPickerBuilder {
         }
    
     renderComponentRow(componentType) {
-        const components = this.selectedComponents[componentType.type];
+        const components = this.selectedComponents[componentType.type] || [];
         const hasComponents = components.length > 0;
         const isMultiple = componentType.multiple;
 

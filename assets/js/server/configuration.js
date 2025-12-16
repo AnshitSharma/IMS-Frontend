@@ -357,6 +357,13 @@ class ConfigurationPage {
                 maxDevice: { type: 'range', label: 'MAX DEVICE', min: 1, max: 256, step: 1, unit: '' },
                 interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe 3.0', 'PCIe 4.0'] },
                 dataRate: { type: 'radio', label: 'DATA RATE', options: ['All', '6 Gb/s', '12 Gb/s', '24 Gb/s'] }
+            },
+            'sfp': {
+                type: { type: 'radio', label: 'TYPE', options: ['All', 'SFP', 'SFP+', 'SFP28', 'SFP+ DAC'] },
+                speed: { type: 'radio', label: 'SPEED', options: ['All', '1Gbps', '10Gbps', '25Gbps'] },
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Intel', 'Cisco', 'HP/HPE', 'Dell', 'Mellanox', 'Generic'] },
+                fiberType: { type: 'radio', label: 'FIBER TYPE', options: ['All', 'MMF', 'SMF', 'Copper'] },
+                reach: { type: 'range', label: 'REACH (m)', min: 1, max: 10000, step: 50, unit: 'm' }
             }
         };
 
@@ -540,7 +547,6 @@ class ConfigurationPage {
      */
     async matchUUIDsWithJSON(apiComponents, jsonDataArray) {
         const matchedComponents = [];
-        const processedUUIDs = new Set();
         let componentId = 1;
 
         // Create a map of API components by UUID for quick lookup
@@ -549,7 +555,7 @@ class ConfigurationPage {
             apiComponentMap[apiComp.uuid] = apiComp;
         });
 
-        // First pass: Search through all JSON data to find matching UUIDs
+        // Search through all JSON data to find matching UUIDs
         for (const jsonData of jsonDataArray) {
             const components = this.extractComponentsFromJSON(jsonData);
 
@@ -584,43 +590,10 @@ class ConfigurationPage {
                     this.addJSONSpecsToComponent(component, jsonComponent);
 
                     matchedComponents.push(component);
-                    processedUUIDs.add(uuid);
                     componentId++;
                 }
             }
         }
-
-        // Second pass: Add API components that don't have matching JSON data
-        // These are components that exist in inventory but don't have detailed specs in JSON
-        apiComponents.forEach(apiComp => {
-            if (!processedUUIDs.has(apiComp.uuid)) {
-                // Create component from API data only (using notes field for specifications)
-                const component = {
-                    id: apiComp.uuid,
-                    name: this.generateComponentNameFromAPIData(apiComp),
-                    type: this.currentComponentType,
-                    rating: 5,
-                    reviewCount: 0,
-                    price: 0,
-                    manufacturer: this.extractManufacturerFromAPIData(apiComp),
-                    compatible: apiComp.is_compatible === true,
-                    compatibilityScore: apiComp.compatibility_score || 0,
-                    compatibilityIssues: apiComp.compatibility_reason ? [apiComp.compatibility_reason] : [],
-                    // Add database info
-                    serial_number: apiComp.serial_number || 'N/A',
-                    status: apiComp.status || 1,
-                    location: apiComp.location || '',
-                    notes: apiComp.notes || ''
-                };
-
-                // Add basic specs from API data
-                this.addAPISpecsToComponent(component, apiComp);
-
-                matchedComponents.push(component);
-                componentId++;
-            }
-        });
-
         return matchedComponents;
     }
 
@@ -793,149 +766,6 @@ class ConfigurationPage {
             return jsonComponent.manufacturer.toLowerCase();
         }
         return 'unknown';
-    }
-
-    /**
-     * Generate component name from API data (when JSON data is not available)
-     */
-    generateComponentNameFromAPIData(apiComp) {
-        // Try to extract component name from the notes field
-        if (apiComp.notes) {
-            // Look for patterns like "Brand: X, Series: Y, Model: Z"
-            const modelMatch = apiComp.notes.match(/Model:\s*([^,\n]+)/i);
-            if (modelMatch) {
-                return modelMatch[1].trim();
-            }
-
-            // Look for brand and series
-            const brandMatch = apiComp.notes.match(/Brand:\s*([^,\n]+)/i);
-            const seriesMatch = apiComp.notes.match(/Series:\s*([^,\n]+)/i);
-
-            if (brandMatch && seriesMatch) {
-                return `${brandMatch[1].trim()} ${seriesMatch[1].trim()}`;
-            } else if (brandMatch) {
-                return brandMatch[1].trim();
-            }
-
-            // If notes is just a simple description, use it directly
-            // Truncate if too long
-            if (apiComp.notes.length < 80) {
-                return apiComp.notes;
-            }
-        }
-
-        // Fallback: use serial number or generic name
-        return apiComp.serial_number || `${this.currentComponentType.toUpperCase()} Component`;
-    }
-
-    /**
-     * Extract manufacturer from API data
-     */
-    extractManufacturerFromAPIData(apiComp) {
-        // Try to extract manufacturer from notes field
-        if (apiComp.notes) {
-            const brandMatch = apiComp.notes.match(/Brand:\s*([^,\n]+)/i);
-            if (brandMatch) {
-                return brandMatch[1].trim().toLowerCase();
-            }
-
-            // Check for common manufacturer names in notes
-            const manufacturers = ['intel', 'amd', 'nvidia', 'samsung', 'crucial', 'western digital', 'seagate', 'micron', 'corsair', 'kingston'];
-            const notesLower = apiComp.notes.toLowerCase();
-            for (const mfr of manufacturers) {
-                if (notesLower.includes(mfr)) {
-                    return mfr;
-                }
-            }
-        }
-
-        return 'unknown';
-    }
-
-    /**
-     * Add specifications from API data to component (when JSON data is not available)
-     */
-    addAPISpecsToComponent(component, apiComp) {
-        // Parse the notes field to extract specifications
-        if (!apiComp.notes) {
-            return;
-        }
-
-        const notes = apiComp.notes;
-
-        switch (this.currentComponentType) {
-            case 'cpu':
-                // Try to extract CPU specs from notes
-                const coresMatch = notes.match(/(\d+)[\s-]core/i);
-                const baseClockMatch = notes.match(/(\d+\.?\d*)\s*GHz/i);
-                const archMatch = notes.match(/Architecture:\s*([^,\n]+)/i);
-
-                component.cores = coresMatch ? parseInt(coresMatch[1]) : 0;
-                component.threads = 0; // Not available in basic notes
-                component.baseClock = baseClockMatch ? parseFloat(baseClockMatch[1]) : 0;
-                component.boostClock = 0; // Not available
-                component.architecture = archMatch ? archMatch[1].trim() : 'Unknown';
-                component.tdp = 0;
-                component.graphics = 'Unknown';
-                component.l2Cache = 0;
-                component.l3Cache = 0;
-                component.maxMemoryCapacity = 0;
-                component.memoryTypes = [];
-                break;
-
-            case 'motherboard':
-                const socketMatch = notes.match(/Socket:\s*([^,\n]+)/i);
-                const formFactorMatch = notes.match(/Form Factor:\s*([^,\n]+)/i);
-                const chipsetMatch = notes.match(/Chipset:\s*([^,\n]+)/i);
-
-                component.socket = socketMatch ? socketMatch[1].trim() : 'N/A';
-                component.formFactor = formFactorMatch ? formFactorMatch[1].trim() : 'N/A';
-                component.chipset = chipsetMatch ? chipsetMatch[1].trim() : 'N/A';
-                component.ramSlots = 'N/A';
-                component.memoryType = 'N/A';
-                component.maxMemory = 'N/A';
-                component.pcieSlots = 'N/A';
-                component.sataPorts = 'N/A';
-                break;
-
-            case 'ram':
-                const capacityMatch = notes.match(/(\d+)\s*GB/i);
-                const typeMatch = notes.match(/DDR\d/i);
-                const speedMatch = notes.match(/(\d+)\s*MHz/i);
-
-                component.capacity = capacityMatch ? parseInt(capacityMatch[1]) : 0;
-                component.type = typeMatch ? typeMatch[0] : 'Unknown';
-                component.speed = speedMatch ? parseInt(speedMatch[1]) : 0;
-                component.formFactor = 'DIMM';
-                component.modules = 1;
-                break;
-
-            case 'storage':
-                const storageCapMatch = notes.match(/(\d+\.?\d*)\s*(TB|GB)/i);
-                const interfaceMatch = notes.match(/Interface:\s*([^,\n]+)/i);
-                const typeMatchStorage = notes.match(/Type:\s*([^,\n]+)/i);
-
-                if (storageCapMatch) {
-                    let capacity = parseFloat(storageCapMatch[1]);
-                    if (storageCapMatch[2].toUpperCase() === 'TB') {
-                        capacity = capacity * 1000; // Convert to GB
-                    }
-                    component.capacity = capacity;
-                } else {
-                    component.capacity = 0;
-                }
-
-                component.type = typeMatchStorage ? typeMatchStorage[1].trim() : 'Unknown';
-                component.interface = interfaceMatch ? interfaceMatch[1].trim() : 'Unknown';
-                component.formFactor = 'N/A';
-                component.readSpeed = 0;
-                component.writeSpeed = 0;
-                break;
-
-            default:
-                // For other component types, no specific parsing
-                break;
-        }
     }
 
     /**
@@ -1154,7 +984,8 @@ class ConfigurationPage {
             'chassis': ['../data/chasis-jsons/chasis-level-3.json'],
             'caddy': ['../data/caddy-jsons/caddy_details.json'],
             'pciecard': ['../data/pci-jsons/pci-level-3.json'],
-            'hbacard': ['../data/hbacard-jsons/hbacard-level-3.json']
+            'hbacard': ['../data/hbacard-jsons/hbacard-level-3.json'],
+            'sfp': ['../data/sfp-jsons/sfp-level-3.json']
         };
 
         const paths = jsonPaths[componentType] || [];
@@ -1252,6 +1083,13 @@ class ConfigurationPage {
                     return `${subtype?.name || storageType.type || 'SSD'} ${Math.floor(Math.random() * 8) + 1}TB`;
                 }
                 break;
+            case 'sfp':
+                if (jsonItem.brand && jsonItem.series) {
+                    const series = jsonItem.series[0];
+                    const model = series.models?.[0];
+                    return `${jsonItem.brand} ${model?.model || series.name} ${model?.speed || ''}`;
+                }
+                break;
             default:
                 return `${this.currentComponentType.toUpperCase()} Component ${id}`;
         }
@@ -1322,6 +1160,20 @@ class ConfigurationPage {
                     component.readSpeed = subtype?.name?.includes('NVMe') ? '7000' : '550';
                     component.writeSpeed = subtype?.name?.includes('NVMe') ? '5000' : '520';
                     component.formFactor = subtype?.form_factors?.[0] || '2.5-inch';
+                }
+                break;
+            case 'sfp':
+                if (jsonItem.series && jsonItem.series[0]) {
+                    const series = jsonItem.series[0];
+                    const model = series.models?.[0];
+                    if (model) {
+                        component.type = model.type || 'SFP';
+                        component.speed = model.speed || '1Gbps';
+                        component.wavelength = model.wavelength || 'N/A';
+                        component.reach = model.reach || 'N/A';
+                        component.connector = model.connector || 'LC';
+                        component.fiberType = model.fiber_type || 'N/A';
+                    }
                 }
                 break;
             default:
@@ -1491,6 +1343,8 @@ class ConfigurationPage {
                 return this.getMockCaddies();
             case 'pciecard':
                 return this.getMockPCIeCards();
+            case 'sfp':
+                return this.getMockSFPs();
             default:
                 return this.getMockCPUs(); // Default to CPU
         }
@@ -1869,6 +1723,65 @@ class ConfigurationPage {
     }
 
     /**
+     * Get mock SFP data
+     */
+    getMockSFPs() {
+        return [
+            {
+                id: 'sfp-1',
+                name: 'Intel FTLX8571D3BCL-IN 10Gbps',
+                type: 'sfp',
+                sfpType: 'SFP+',
+                speed: '10Gbps',
+                wavelength: '850nm',
+                reach: '300m',
+                connector: 'LC',
+                fiberType: 'MMF',
+                rating: 5,
+                reviewCount: 125,
+                price: 89.99,
+                manufacturer: 'intel',
+                compatible: true,
+                compatibilityScore: 0.95
+            },
+            {
+                id: 'sfp-2',
+                name: 'Cisco SFP-10G-SR 10Gbps',
+                type: 'sfp',
+                sfpType: 'SFP+',
+                speed: '10Gbps',
+                wavelength: '850nm',
+                reach: '300m',
+                connector: 'LC',
+                fiberType: 'MMF',
+                rating: 5,
+                reviewCount: 245,
+                price: 125.00,
+                manufacturer: 'cisco',
+                compatible: true,
+                compatibilityScore: 0.98
+            },
+            {
+                id: 'sfp-3',
+                name: 'Generic SFP-10G-DAC-1M',
+                type: 'sfp',
+                sfpType: 'SFP+ DAC',
+                speed: '10Gbps',
+                wavelength: 'N/A',
+                reach: '1m',
+                connector: 'SFP+ to SFP+',
+                fiberType: 'Copper',
+                rating: 4,
+                reviewCount: 89,
+                price: 24.99,
+                manufacturer: 'generic',
+                compatible: true,
+                compatibilityScore: 0.90
+            }
+        ];
+    }
+
+    /**
      * Apply filters to components dynamically based on current component type
      */
     applyFilters() {
@@ -1994,7 +1907,8 @@ class ConfigurationPage {
             'chassis': ['Brand', 'Form Factor', 'Action'],
             'caddy': ['Form Factor', 'Interface', 'Size', 'Action'],
             'pciecard': ['Interface', 'max_capacity', 'Form Factor', 'Action'],
-            'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action']
+            'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action'],
+            'sfp': ['Type', 'Speed', 'Wavelength', 'Reach', 'Connector', 'Action']
         };
 
         const headers = headerMap[componentType] || ['Spec 1', 'Spec 2', 'Spec 3', 'Spec 4', 'Spec 5'];
@@ -2086,7 +2000,8 @@ class ConfigurationPage {
             'chassis': 'fas fa-server',
             'caddy': 'fas fa-server',
             'pciecard': 'fas fa-expand-arrows-alt',
-            'hbacard': 'fas fa-hdd'
+            'hbacard': 'fas fa-hdd',
+            'sfp': 'fas fa-plug'
         };
         return iconMap[componentType] || 'fas fa-microchip';
     }
@@ -2211,6 +2126,14 @@ class ConfigurationPage {
                 <td class="${cellClass}"></td>
                 <td class="${cellClass}"></td>
             `;
+            case 'sfp':
+                return `
+                <td class="${cellClass}">${this.formatValue(component.type)}</td>
+                <td class="${cellClass}">${this.formatValue(component.speed)}</td>
+                <td class="${cellClass}">${this.formatValue(component.wavelength)}</td>
+                <td class="${cellClass}">${this.formatValue(component.reach)}</td>
+                <td class="${cellClass}">${this.formatValue(component.connector)}</td>
+            `;
             default:
                 return `
                 <td class="${cellClass}">${this.formatValue(component.spec1)}</td>
@@ -2323,6 +2246,16 @@ class ConfigurationPage {
                     // { label: 'Base Clock', value: component.baseClock || 'N/A', icon: 'fas fa-tachometer-alt' },
                     // { label: 'Boost Clock', value: component.boostClock || 'N/A', icon: 'fas fa-rocket' },
                     // { label: 'TDP', value: component.tdp || 'N/A', icon: 'fas fa-bolt' }
+                );
+                break;
+            case 'sfp':
+                specs.push(
+                    { label: 'Type', value: component.type || 'N/A', icon: 'fas fa-tag' },
+                    { label: 'Speed', value: component.speed || 'N/A', icon: 'fas fa-tachometer-alt' },
+                    { label: 'Wavelength', value: component.wavelength || 'N/A', icon: 'fas fa-wave-square' },
+                    { label: 'Reach', value: component.reach || 'N/A', icon: 'fas fa-arrows-alt-h' },
+                    { label: 'Connector', value: component.connector || 'N/A', icon: 'fas fa-plug' },
+                    { label: 'Fiber Type', value: component.fiberType || 'N/A', icon: 'fas fa-ethernet' }
                 );
                 break;
             default:
