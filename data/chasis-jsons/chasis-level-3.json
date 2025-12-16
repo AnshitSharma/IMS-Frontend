@@ -446,7 +446,45 @@
             "series_name": "Standard ATX Cases",
             "models": [
               {
-                "uuid": "generic-4u-server-001",
+                "uuid": "abaa2c58-c08c-46f0-abcf-2242400e907c",
+                "model": "Generic 4U Server Case",
+                "brand": "Generic/Custom",
+                "series": "Standard ATX Cases",
+                "type": "Rack",
+                "u_size": 4,
+                "height": 17.78,
+                "form_factor": "4U",
+                "chassis_type": "Server Case",
+                "drive_bays": {
+                  "total_bays": 8,
+                  "bay_configuration": [
+                    {
+                      "bay_type": "3.5_inch",
+                      "count": 8,
+                      "hot_swap": false,
+                      "tool_less": false,
+                      "position": "internal"
+                    }
+                  ]
+                },
+                "backplane": {
+                  "model": "Generic SATA Backplane",
+                  "interface": "SATA3",
+                  "ports": 8,
+                  "connector_type": "SATA",
+                  "supports_sata": true,
+                  "supports_sas": false,
+                  "supports_nvme": false
+                },
+                "power_supply": {
+                  "redundant": false,
+                  "wattage": 650,
+                  "efficiency": "80_plus_bronze",
+                  "standard_atx": true
+                }
+              },
+              {
+                "uuid": "f0bb3152-1157-40d4-9547-5a1654cd29dd",
                 "model": "Generic 4U Server Case",
                 "brand": "Generic/Custom",
                 "series": "Standard ATX Cases",

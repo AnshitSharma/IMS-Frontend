@@ -16,7 +16,27 @@
             "interface": "PCIe 2.1 x4",
             "power": "8W",
             "features": ["SR-IOV", "VMDq", "IEEE 1588"],
+            "uuid": "64992d14-c775-4002-8ed5-419404909d75"
+          },
+          {
+            "model": "I350-T4",
+            "ports": 4,
+            "port_type": "RJ45",
+            "speeds": ["1GbE", "100Mbps", "10Mbps"],
+            "interface": "PCIe 2.1 x4",
+            "power": "8W",
+            "features": ["SR-IOV", "VMDq", "IEEE 1588"],
             "uuid": "i350-t4-1234-5678-90ab-cdef01234567"
+          },
+          {
+            "model": "I350-T2",
+            "ports": 2,
+            "port_type": "RJ45",
+            "speeds": ["1GbE", "100Mbps", "10Mbps"],
+            "interface": "PCIe 2.1 x4",
+            "power": "6W",
+            "features": ["SR-IOV", "VMDq", "IEEE 1588"],
+            "uuid": "f85c377e-f4a2-46eb-9f2e-a466581d1ee4"
           },
           {
             "model": "I350-T2",
@@ -43,6 +63,16 @@
             "interface": "PCIe 2.0 x8",
             "power": "12W",
             "features": ["SR-IOV", "DCB", "FCoE"],
+            "uuid": "bbad8dd7-bc61-4297-9067-9155c35ef89b"
+          },
+          {
+            "model": "X520-DA2",
+            "ports": 2,
+            "port_type": "SFP+",
+            "speeds": ["10GbE", "1GbE"],
+            "interface": "PCIe 2.0 x8",
+            "power": "12W",
+            "features": ["SR-IOV", "DCB", "FCoE"],
             "uuid": "x520-da2-3456-789a-bcde-f01234567890"
           },
           {
@@ -53,7 +83,7 @@
             "interface": "PCIe 2.0 x8",
             "power": "15W",
             "features": ["SR-IOV", "DCB"],
-            "uuid": "x520-t2-4567-89ab-cdef-012345678901"
+            "uuid": "5a63e63f-9a08-4c60-956b-f57d857ca25b"
           }
         ]
       },

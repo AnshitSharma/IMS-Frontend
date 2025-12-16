@@ -21,6 +21,7 @@
         "chipset": "Intel C741",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 8,
           "slots": 32,
           "channels": 8,
@@ -59,10 +60,26 @@
           ],
           "riser_slots": [
             {
-              "count": 4,
-              "slot_type": "standard",
+              "type": "PCIe 5.0 x16 Riser",
+              "count": 2,
+              "lanes": 16,
+              "pcie_generation": 5,
               "form_factor_support": ["1U", "2U"],
-              "max_height_mm": 106.68
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["RSC-RR2U-E16", "RSC-R2UW-E16"]
+            },
+            {
+              "type": "PCIe 5.0 x8 Riser",
+              "count": 2,
+              "lanes": 8,
+              "pcie_generation": 5,
+              "form_factor_support": ["1U", "2U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["RSC-RR2U-E8"]
             }
           ],
           "riser_compatibility": {
@@ -130,10 +147,6 @@
               "count": 2
             }
           ],
-          "recommended_psu": {
-            "wattage": 1600,
-            "redundancy": true
-          },
           "energy_efficiency_features": [
             "Dynamic Power Management",
             "Advanced Power States",
@@ -289,6 +302,7 @@
         "chipset": "Intel C741",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 8,
           "slots": 32,
           "channels": 8,
@@ -324,7 +338,36 @@
               "pcie_lanes": 16,
               "pcie_generation": 5
             }
-          ]
+          ],
+          "riser_slots": [
+            {
+              "type": "PCIe 5.0 x16 Riser",
+              "count": 2,
+              "lanes": 16,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["RSC-RR2U-E16", "RSC-R2UW-E16"]
+            },
+            {
+              "type": "PCIe 5.0 x8 Riser",
+              "count": 2,
+              "lanes": 8,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["RSC-RR2U-E8"]
+            }
+          ],
+          "riser_compatibility": {
+            "max_risers": 4,
+            "slot_spacing_mm": 20.32,
+            "available_mounting_length_mm": 280
+          }
         },
         "storage": {
           "sata": {
@@ -377,6 +420,7 @@
         "chipset": "Intel C741",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 8,
           "slots": 32,
           "channels": 8,
@@ -412,7 +456,36 @@
               "pcie_lanes": 16,
               "pcie_generation": 5
             }
-          ]
+          ],
+          "riser_slots": [
+            {
+              "type": "PCIe 5.0 x16 Riser",
+              "count": 3,
+              "lanes": 16,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["GIGABYTE PCIe Riser x16"]
+            },
+            {
+              "type": "PCIe 5.0 x8 Riser",
+              "count": 2,
+              "lanes": 8,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["GIGABYTE PCIe Riser x8"]
+            }
+          ],
+          "riser_compatibility": {
+            "max_risers": 5,
+            "slot_spacing_mm": 20.32,
+            "available_mounting_length_mm": 280
+          }
         },
         "storage": {
           "sata": {
@@ -472,11 +545,8 @@
               "type": "6-pin PCIe Aux",
               "count": 2
             }
-          ],
-          "recommended_psu": {
-            "wattage": 1600,
-            "redundancy": true
-          }
+          ]
+         
         }
       }
     ]
@@ -503,6 +573,7 @@
         "chipset": "AMD SP5 Integrated",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 6,
           "slots": 24,
           "channels": 12,
@@ -538,7 +609,36 @@
               "pcie_lanes": 16,
               "pcie_generation": 5
             }
-          ]
+          ],
+          "riser_slots": [
+            {
+              "type": "PCIe 5.0 x16 Riser",
+              "count": 3,
+              "lanes": 16,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["ASRock Rack PCIe Riser x16"]
+            },
+            {
+              "type": "PCIe 5.0 x8 Riser",
+              "count": 2,
+              "lanes": 8,
+              "pcie_generation": 5,
+              "form_factor_support": ["2U", "3U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
+              "riser_card_required": true,
+              "supported_riser_models": ["ASRock Rack PCIe Riser x8"]
+            }
+          ],
+          "riser_compatibility": {
+            "max_risers": 5,
+            "slot_spacing_mm": 20.32,
+            "available_mounting_length_mm": 280
+          }
         },
         "storage": {
           "sata": {
@@ -598,11 +698,7 @@
               "type": "6-pin PCIe Aux",
               "count": 2
             }
-          ],
-          "recommended_psu": {
-            "wattage": 1600,
-            "redundancy": true
-          }
+          ]
         }
       }
     ]
@@ -710,11 +806,7 @@
               "type": "8-pin CPU",
               "count": 2
             }
-          ],
-          "recommended_psu": {
-            "wattage": 1200,
-            "redundancy": true
-          }
+          ]
         },
         "cooling": {
           "fan_headers": 6,
@@ -752,6 +844,7 @@
         "chipset": "Intel C741",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 8,
           "slots": 32,
           "channels": 8,
@@ -780,13 +873,21 @@
               "count": 3,
               "lanes": 16,
               "pcie_generation": 5,
+              "form_factor_support": ["2U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
               "riser_card_required": true,
               "supported_riser_models": [
                 "Dell Riser Config 1A",
                 "Dell Riser Config 2A"
               ]
             }
-          ]
+          ],
+          "riser_compatibility": {
+            "max_risers": 3,
+            "slot_spacing_mm": 20.32,
+            "available_mounting_length_mm": 350
+          }
         },
         "storage": {
           "sata": {
@@ -843,10 +944,6 @@
               "count": 4
             }
           ],
-          "recommended_psu": {
-            "wattage": 1600,
-            "redundancy": true
-          },
           "energy_efficiency_features": [
             "Dynamic Power Management",
             "Fresh Air Cooling",
@@ -890,6 +987,7 @@
         "chipset": "AMD SP5 Integrated",
         "memory": {
           "type": "DDR5",
+          "module_types": ["RDIMM", "LRDIMM"],
           "max_capacity_TB": 6,
           "slots": 24,
           "channels": 12,
@@ -904,6 +1002,9 @@
               "count": 4,
               "lanes": 16,
               "pcie_generation": 5,
+              "form_factor_support": ["2U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
               "riser_card_required": true,
               "supported_riser_models": [
                 "HPE PCIe Riser Kit 1",
@@ -915,10 +1016,18 @@
               "count": 2,
               "lanes": 8,
               "pcie_generation": 5,
+              "form_factor_support": ["2U"],
+              "max_height_mm": 106.68,
+              "bifurcation_support": true,
               "riser_card_required": true,
               "supported_riser_models": ["HPE PCIe Riser Kit 3"]
             }
-          ]
+          ],
+          "riser_compatibility": {
+            "max_risers": 6,
+            "slot_spacing_mm": 20.32,
+            "available_mounting_length_mm": 370
+          }
         },
         "storage": {
           "sata": {
@@ -975,10 +1084,6 @@
               "count": 4
             }
           ],
-          "recommended_psu": {
-            "wattage": 1600,
-            "redundancy": true
-          },
           "energy_efficiency_features": [
             "HPE Power Regulator",
             "Dynamic Power Capping",

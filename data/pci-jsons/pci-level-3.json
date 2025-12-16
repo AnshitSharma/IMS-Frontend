@@ -36,7 +36,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power + optional 6-pin"
         },
-        "uuid": "nvme-adaptor-4m2p-001-ijkl9012"
+        "UUID": "nvme-adaptor-4m2p-001-ijkl9012"
       },
       {
         "model": "AOM-SNG-2M2P",
@@ -68,7 +68,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-2m2p-001-mnop3456"
+        "UUID": "nvme-adaptor-2m2p-001-mnop3456"
       }
     ]
   },
@@ -109,7 +109,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-asus-hyper-x16-gen4-abcd1234"
+        "UUID": "nvme-adaptor-asus-hyper-x16-gen4-abcd1234"
       },
       {
         "model": "Hyper M.2 x16 Gen 5",
@@ -141,7 +141,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power + 6-pin PCIe"
         },
-        "uuid": "nvme-adaptor-asus-hyper-x16-gen5-efgh5678"
+        "UUID": "nvme-adaptor-asus-hyper-x16-gen5-efgh5678"
       }
     ]
   },
@@ -187,7 +187,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-gigabyte-gen4-aic-ijkl9012"
+        "UUID": "nvme-adaptor-gigabyte-gen4-aic-ijkl9012"
       }
     ]
   },
@@ -234,7 +234,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power + 8-pin PCIe"
         },
-        "uuid": "nvme-adaptor-highpoint-ssd7580a-mnop3456"
+        "UUID": "nvme-adaptor-highpoint-ssd7580a-mnop3456"
       },
       {
         "model": "SSD7540",
@@ -271,7 +271,7 @@
           "low_profile_bracket": false,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-highpoint-ssd7540-qrst7890"
+        "UUID": "nvme-adaptor-highpoint-ssd7540-qrst7890"
       }
     ]
   },
@@ -312,7 +312,7 @@
           "low_profile_bracket": true,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-startech-pex4m2e1-uvwx4567"
+        "UUID": "nvme-adaptor-startech-pex4m2e1-uvwx4567"
       },
       {
         "model": "PEX2M2E1",
@@ -344,7 +344,7 @@
           "low_profile_bracket": true,
           "power_requirements": "PCIe slot power only"
         },
-        "uuid": "nvme-adaptor-startech-pex2m2e1-yzab8901"
+        "UUID": "nvme-adaptor-startech-pex2m2e1-yzab8901"
       }
     ]
   },
@@ -387,7 +387,7 @@
           "expansion_slot": "1x PCIe x8 low profile",
           "power_passthrough": true
         },
-        "uuid": "riser-1u-e8r-001-qrst7890"
+        "UUID": "riser-1u-e8r-001-qrst7890"
       },
       {
         "model": "RSC-R1UU-2E8R",
@@ -421,7 +421,7 @@
           "expansion_slots": "2x PCIe x8 low profile",
           "power_passthrough": true
         },
-        "uuid": "riser-1u-2e8r-001-uvwx4567"
+        "UUID": "riser-1u-2e8r-001-uvwx4567"
       },
       {
         "model": "RSC-R2UU-E16R",
@@ -456,7 +456,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-2u-e16r-001-yzab8901"
+        "UUID": "riser-2u-e16r-001-yzab8901"
       },
       {
         "model": "RSC-R2UU-2E16R",
@@ -491,7 +491,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-2u-2e16r-001-cdef2345"
+        "UUID": "riser-2u-2e16r-001-cdef2345"
       },
       {
         "model": "RSC-R2UU-3E8R",
@@ -526,7 +526,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-2u-3e8r-001-ghij6789"
+        "UUID": "riser-2u-3e8r-001-ghij6789"
       }
     ]
   },
@@ -570,7 +570,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-dell-r750-rsr1-klmn0123"
+        "UUID": "riser-dell-r750-rsr1-klmn0123"
       },
       {
         "model": "PowerEdge R750 Riser 2",
@@ -605,7 +605,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-dell-r750-rsr2-opqr4567"
+        "UUID": "riser-dell-r750-rsr2-opqr4567"
       }
     ]
   },
@@ -649,7 +649,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-hpe-dl380-g10p-rsr1-stuv8901"
+        "UUID": "riser-hpe-dl380-g10p-rsr1-stuv8901"
       },
       {
         "model": "DL380 Gen10+ Secondary Riser",
@@ -684,7 +684,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-hpe-dl380-g10p-rsr2-wxyz2345"
+        "UUID": "riser-hpe-dl380-g10p-rsr2-wxyz2345"
       },
       {
         "model": "DL380 Gen10+ Tertiary Riser",
@@ -719,7 +719,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-hpe-dl380-g10p-rsr3-abcd6789"
+        "UUID": "riser-hpe-dl380-g10p-rsr3-abcd6789"
       }
     ]
   },
@@ -763,7 +763,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-4u-w4-66g4-efgh0123"
+        "UUID": "riser-4u-w4-66g4-efgh0123"
       },
       {
         "model": "RSC-W-68G4",
@@ -798,7 +798,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-4u-w-68g4-ijkl4567"
+        "UUID": "riser-4u-w-68g4-ijkl4567"
       },
       {
         "model": "RSC-W2-66",
@@ -833,7 +833,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-tower-w2-66-mnop8901"
+        "UUID": "riser-tower-w2-66-mnop8901"
       }
     ]
   },
@@ -877,7 +877,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-asus-pike-3108-qrst2345"
+        "UUID": "riser-asus-pike-3108-qrst2345"
       },
       {
         "model": "HYPER DUAL Riser",
@@ -912,7 +912,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-asus-hyper-dual-uvwx6789"
+        "UUID": "riser-asus-hyper-dual-uvwx6789"
       }
     ]
   },
@@ -956,7 +956,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-lenovo-sr650v2-rsr1-yzab0123"
+        "UUID": "riser-lenovo-sr650v2-rsr1-yzab0123"
       },
       {
         "model": "SR650 V2 PCIe FH/FL Riser 2",
@@ -991,7 +991,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-lenovo-sr650v2-rsr2-cdef4567"
+        "UUID": "riser-lenovo-sr650v2-rsr2-cdef4567"
       },
       {
         "model": "SR650 V2 PCIe LP Riser",
@@ -1026,7 +1026,7 @@
           "power_passthrough": true,
           "supports_gpu": false
         },
-        "uuid": "riser-lenovo-sr650v2-lp-ghij8901"
+        "UUID": "riser-lenovo-sr650v2-lp-ghij8901"
       }
     ]
   },
@@ -1070,7 +1070,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-cisco-c240m6-rsr1-klmn2345"
+        "UUID": "riser-cisco-c240m6-rsr1-klmn2345"
       },
       {
         "model": "UCS C240 M6 PCIe Riser 2",
@@ -1105,7 +1105,7 @@
           "power_passthrough": true,
           "supports_gpu": true
         },
-        "uuid": "riser-cisco-c240m6-rsr2-opqr6789"
+        "UUID": "riser-cisco-c240m6-rsr2-opqr6789"
       }
     ]
   }

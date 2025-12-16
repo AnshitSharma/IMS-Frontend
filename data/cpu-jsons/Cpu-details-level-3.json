@@ -29,10 +29,10 @@
           },
           "power_efficiency": {
             "idle_power_W": 65,
-            "avg_power_under_load_W": 280,
+            "avg_power_under_load_W": 280,  
             "perf_per_watt_score": 8.2
           },
-          "uuid": "545e143b-57b3-419e-86e5-1df6f7aa8fd3"
+          "UUID": "545e143b-57b3-419e-86e5-1df6f7aa8fd3"
         },
         {
           "model": "Platinum 8470",
@@ -61,7 +61,7 @@
             "avg_power_under_load_W": 265,
             "perf_per_watt_score": 8.4
           },
-          "uuid": "545e143b-57b3-419e-86e5-1df6f7aa8fxx"
+          "UUID": "545e143b-57b3-419e-86e5-1df6f7aa8fxx"
 
         }
       ]
@@ -108,7 +108,7 @@
             "avg_power_under_load_W": 285,
             "perf_per_watt_score": 8.7
           },
-          "uuid": "d3b5f1c2-9f4e-4c2a-8e6b-7a9f3e2d1c4b"
+          "UUID": "d3b5f1c2-9f4e-4c2a-8e6b-7a9f3e2d1c4b"
           
         }
       ]

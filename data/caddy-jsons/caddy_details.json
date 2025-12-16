@@ -179,6 +179,114 @@
       "weight": "48g",
       "material": "Aluminum & ABS",
       "connector": "M.2 to SATA"
+    },
+    {
+      "uuid": "d7f1a3b5-8e4c-4f9d-9a2b-3c5d6e7f8a9",
+      "model": "Generic Test Caddy 1",
+      "type": "2.5-inch HDD/SSD Caddy",
+      "compatibility": {
+        "drive_type": ["HDD", "SSD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Aluminum",
+      "connector": "SATA to SATA"
+    },
+    {
+      "uuid": "d7f1a3b5-8e4c-4f9d-9a2b-3c5d6e7f8a9b",
+      "model": "Generic Test Caddy 2",
+      "type": "2.5-inch HDD/SSD Caddy",
+      "compatibility": {
+        "drive_type": ["HDD", "SSD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Aluminum",
+      "connector": "SATA to SATA"
+    },
+    {
+      "uuid": "invalid-test-uuid-999",
+      "model": "Test Caddy Invalid",
+      "type": "Test Caddy",
+      "compatibility": {
+        "drive_type": ["HDD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Plastic",
+      "connector": "SATA to SATA"
+    },
+    {
+      "uuid": "99999999-9999-9999-9999-999999999999",
+      "model": "Test Caddy 999",
+      "type": "Test Caddy",
+      "compatibility": {
+        "drive_type": ["HDD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Plastic",
+      "connector": "SATA to SATA"
+    },
+    {
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "model": "Test Caddy 000",
+      "type": "Test Caddy",
+      "compatibility": {
+        "drive_type": ["HDD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Plastic",
+      "connector": "SATA to SATA"
+    },
+    {
+      "uuid": "ffffffff-ffff-ffff-ffff-ffffffffffff",
+      "model": "Test Caddy FFF",
+      "type": "Test Caddy",
+      "compatibility": {
+        "drive_type": ["HDD"],
+        "size": "2.5-inch",
+        "interface": "SATA III"
+      },
+      "dimensions": {
+        "width": "70mm",
+        "height": "9.5mm",
+        "depth": "100mm"
+      },
+      "weight": "50g",
+      "material": "Plastic",
+      "connector": "SATA to SATA"
     }
   ]
 }

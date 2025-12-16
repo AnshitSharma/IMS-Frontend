@@ -1012,7 +1012,7 @@
 
 .pill-button.active {
   @apply bg-primary text-white border-primary shadow-sm;
-  @apply hover:bg-primary-dark hover:border-primary-dark;
+  @apply hover:bg-primary-dark hover:border-primary-dark hover:text-white;
 }
 
 .pill-button:disabled {

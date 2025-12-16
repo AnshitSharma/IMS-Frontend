@@ -377,20 +377,20 @@ class ConfigurationPage {
                         <label class="block text-xs font-semibold text-text-muted mb-3 uppercase tracking-wider">${config.label}</label>
                         <div class="flex flex-wrap gap-2" data-filter-group="${key}">
                             ${config.options.map((option, index) => {
-                    const value = option.toLowerCase();
-                    const isActive = index === 0;
-                    return `
+                                const value = option.toLowerCase();
+                                const isActive = index === 0;
+                                return `
                                     <button type="button"
                                         class="filter-pill px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
                                             ${isActive
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
+                                                ? 'border-primary bg-primary text-white'
+                                                : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
                                         data-filter="${key}"
                                         data-value="${value}">
                                         ${option}
                                     </button>
                                 `;
-                }).join('')}
+                            }).join('')}
                         </div>
                     </div>
                 `;
@@ -540,6 +540,7 @@ class ConfigurationPage {
      */
     async matchUUIDsWithJSON(apiComponents, jsonDataArray) {
         const matchedComponents = [];
+        const processedUUIDs = new Set();
         let componentId = 1;
 
         // Create a map of API components by UUID for quick lookup
@@ -548,7 +549,7 @@ class ConfigurationPage {
             apiComponentMap[apiComp.uuid] = apiComp;
         });
 
-        // Search through all JSON data to find matching UUIDs
+        // First pass: Search through all JSON data to find matching UUIDs
         for (const jsonData of jsonDataArray) {
             const components = this.extractComponentsFromJSON(jsonData);
 
@@ -583,10 +584,43 @@ class ConfigurationPage {
                     this.addJSONSpecsToComponent(component, jsonComponent);
 
                     matchedComponents.push(component);
+                    processedUUIDs.add(uuid);
                     componentId++;
                 }
             }
         }
+
+        // Second pass: Add API components that don't have matching JSON data
+        // These are components that exist in inventory but don't have detailed specs in JSON
+        apiComponents.forEach(apiComp => {
+            if (!processedUUIDs.has(apiComp.uuid)) {
+                // Create component from API data only (using notes field for specifications)
+                const component = {
+                    id: apiComp.uuid,
+                    name: this.generateComponentNameFromAPIData(apiComp),
+                    type: this.currentComponentType,
+                    rating: 5,
+                    reviewCount: 0,
+                    price: 0,
+                    manufacturer: this.extractManufacturerFromAPIData(apiComp),
+                    compatible: apiComp.is_compatible === true,
+                    compatibilityScore: apiComp.compatibility_score || 0,
+                    compatibilityIssues: apiComp.compatibility_reason ? [apiComp.compatibility_reason] : [],
+                    // Add database info
+                    serial_number: apiComp.serial_number || 'N/A',
+                    status: apiComp.status || 1,
+                    location: apiComp.location || '',
+                    notes: apiComp.notes || ''
+                };
+
+                // Add basic specs from API data
+                this.addAPISpecsToComponent(component, apiComp);
+
+                matchedComponents.push(component);
+                componentId++;
+            }
+        });
+
         return matchedComponents;
     }
 
@@ -759,6 +793,149 @@ class ConfigurationPage {
             return jsonComponent.manufacturer.toLowerCase();
         }
         return 'unknown';
+    }
+
+    /**
+     * Generate component name from API data (when JSON data is not available)
+     */
+    generateComponentNameFromAPIData(apiComp) {
+        // Try to extract component name from the notes field
+        if (apiComp.notes) {
+            // Look for patterns like "Brand: X, Series: Y, Model: Z"
+            const modelMatch = apiComp.notes.match(/Model:\s*([^,\n]+)/i);
+            if (modelMatch) {
+                return modelMatch[1].trim();
+            }
+
+            // Look for brand and series
+            const brandMatch = apiComp.notes.match(/Brand:\s*([^,\n]+)/i);
+            const seriesMatch = apiComp.notes.match(/Series:\s*([^,\n]+)/i);
+
+            if (brandMatch && seriesMatch) {
+                return `${brandMatch[1].trim()} ${seriesMatch[1].trim()}`;
+            } else if (brandMatch) {
+                return brandMatch[1].trim();
+            }
+
+            // If notes is just a simple description, use it directly
+            // Truncate if too long
+            if (apiComp.notes.length < 80) {
+                return apiComp.notes;
+            }
+        }
+
+        // Fallback: use serial number or generic name
+        return apiComp.serial_number || `${this.currentComponentType.toUpperCase()} Component`;
+    }
+
+    /**
+     * Extract manufacturer from API data
+     */
+    extractManufacturerFromAPIData(apiComp) {
+        // Try to extract manufacturer from notes field
+        if (apiComp.notes) {
+            const brandMatch = apiComp.notes.match(/Brand:\s*([^,\n]+)/i);
+            if (brandMatch) {
+                return brandMatch[1].trim().toLowerCase();
+            }
+
+            // Check for common manufacturer names in notes
+            const manufacturers = ['intel', 'amd', 'nvidia', 'samsung', 'crucial', 'western digital', 'seagate', 'micron', 'corsair', 'kingston'];
+            const notesLower = apiComp.notes.toLowerCase();
+            for (const mfr of manufacturers) {
+                if (notesLower.includes(mfr)) {
+                    return mfr;
+                }
+            }
+        }
+
+        return 'unknown';
+    }
+
+    /**
+     * Add specifications from API data to component (when JSON data is not available)
+     */
+    addAPISpecsToComponent(component, apiComp) {
+        // Parse the notes field to extract specifications
+        if (!apiComp.notes) {
+            return;
+        }
+
+        const notes = apiComp.notes;
+
+        switch (this.currentComponentType) {
+            case 'cpu':
+                // Try to extract CPU specs from notes
+                const coresMatch = notes.match(/(\d+)[\s-]core/i);
+                const baseClockMatch = notes.match(/(\d+\.?\d*)\s*GHz/i);
+                const archMatch = notes.match(/Architecture:\s*([^,\n]+)/i);
+
+                component.cores = coresMatch ? parseInt(coresMatch[1]) : 0;
+                component.threads = 0; // Not available in basic notes
+                component.baseClock = baseClockMatch ? parseFloat(baseClockMatch[1]) : 0;
+                component.boostClock = 0; // Not available
+                component.architecture = archMatch ? archMatch[1].trim() : 'Unknown';
+                component.tdp = 0;
+                component.graphics = 'Unknown';
+                component.l2Cache = 0;
+                component.l3Cache = 0;
+                component.maxMemoryCapacity = 0;
+                component.memoryTypes = [];
+                break;
+
+            case 'motherboard':
+                const socketMatch = notes.match(/Socket:\s*([^,\n]+)/i);
+                const formFactorMatch = notes.match(/Form Factor:\s*([^,\n]+)/i);
+                const chipsetMatch = notes.match(/Chipset:\s*([^,\n]+)/i);
+
+                component.socket = socketMatch ? socketMatch[1].trim() : 'N/A';
+                component.formFactor = formFactorMatch ? formFactorMatch[1].trim() : 'N/A';
+                component.chipset = chipsetMatch ? chipsetMatch[1].trim() : 'N/A';
+                component.ramSlots = 'N/A';
+                component.memoryType = 'N/A';
+                component.maxMemory = 'N/A';
+                component.pcieSlots = 'N/A';
+                component.sataPorts = 'N/A';
+                break;
+
+            case 'ram':
+                const capacityMatch = notes.match(/(\d+)\s*GB/i);
+                const typeMatch = notes.match(/DDR\d/i);
+                const speedMatch = notes.match(/(\d+)\s*MHz/i);
+
+                component.capacity = capacityMatch ? parseInt(capacityMatch[1]) : 0;
+                component.type = typeMatch ? typeMatch[0] : 'Unknown';
+                component.speed = speedMatch ? parseInt(speedMatch[1]) : 0;
+                component.formFactor = 'DIMM';
+                component.modules = 1;
+                break;
+
+            case 'storage':
+                const storageCapMatch = notes.match(/(\d+\.?\d*)\s*(TB|GB)/i);
+                const interfaceMatch = notes.match(/Interface:\s*([^,\n]+)/i);
+                const typeMatchStorage = notes.match(/Type:\s*([^,\n]+)/i);
+
+                if (storageCapMatch) {
+                    let capacity = parseFloat(storageCapMatch[1]);
+                    if (storageCapMatch[2].toUpperCase() === 'TB') {
+                        capacity = capacity * 1000; // Convert to GB
+                    }
+                    component.capacity = capacity;
+                } else {
+                    component.capacity = 0;
+                }
+
+                component.type = typeMatchStorage ? typeMatchStorage[1].trim() : 'Unknown';
+                component.interface = interfaceMatch ? interfaceMatch[1].trim() : 'Unknown';
+                component.formFactor = 'N/A';
+                component.readSpeed = 0;
+                component.writeSpeed = 0;
+                break;
+
+            default:
+                // For other component types, no specific parsing
+                break;
+        }
     }
 
     /**
@@ -1883,9 +2060,9 @@ class ConfigurationPage {
                 ${this.renderComponentSpecsCells(component)}
                 <td class="px-4 py-3 text-center">
                     <button class="px-4 py-2 text-sm font-medium rounded-lg transition-all ${component.compatible
-                ? 'bg-primary text-white hover:bg-primary-600'
-                : 'bg-surface-secondary text-text-muted cursor-not-allowed'
-            }" ${!component.compatible ? 'disabled' : ''}
+                        ? 'bg-primary text-white hover:bg-primary-600'
+                        : 'bg-surface-secondary text-text-muted cursor-not-allowed'
+                    }" ${!component.compatible ? 'disabled' : ''}
                         onclick="window.configPage.addComponent('${component.id}')">
                         ${component.compatible ? 'Add' : 'Incompatible'}
                     </button>
@@ -2723,11 +2900,11 @@ style.textContent = `
     
     .component-item.incompatible {
         opacity: 0.6;
-        background-color: var(--color-danger-light, #FEE2E2);
+        background-color: #fef2f2;
     }
 
     .star.empty {
-        color: var(--color-text-disabled, #94A3B8);
+        color: #d1d5db;
     }
 
     /* Compatibility Badge Styles */
@@ -2744,15 +2921,15 @@ style.textContent = `
     }
 
     .compatibility-badge.compatible {
-        background-color: var(--color-success-light, #DCFCE7);
-        color: var(--color-success-hover, #16A34A);
-        border: 1px solid var(--color-success, #22C55E);
+        background-color: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
     }
 
     .compatibility-badge.incompatible {
-        background-color: var(--color-danger-light, #FEE2E2);
-        color: var(--color-danger-hover, #B91C1C);
-        border: 1px solid var(--color-danger, #DC2626);
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
     }
 
     .compatibility-badge i {
