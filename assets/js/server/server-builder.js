@@ -1,9 +1,9 @@
 /**
- * PC Part Picker Style Server Builder
- * Modern interface matching PC Part Picker design
+ * Server Builder
+ * Modern interface for building server configurations
  */
 
-class PCPartPickerBuilder {
+class ServerBuilder {
     constructor() {
         this.currentConfig = null;
         this.motherboardDetails = null; // Will store motherboard JSON data
@@ -176,7 +176,7 @@ class PCPartPickerBuilder {
 
                 this.currentConfig = configData;
                 await this.parseExistingComponents(configData);
-                this.renderPCPartPickerInterface();
+                this.renderServerBuilderInterface();
             } else {
                 console.error('Failed to load configuration:', result);
                 this.showAlert(result.message || 'Failed to load configuration', 'danger');
@@ -679,7 +679,7 @@ class PCPartPickerBuilder {
     /**
      * Render the PC Part Picker style interface
      */
-    renderPCPartPickerInterface() {
+    renderServerBuilderInterface() {
 
         if (!this.currentConfig) {
             console.error('No configuration loaded');
@@ -729,7 +729,7 @@ class PCPartPickerBuilder {
 
                 <!-- Finish Configuration Button -->
                 <div class="flex justify-center my-6">
-                    <button class="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-all shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg" onclick="window.pcppBuilder.finishConfiguration()">
+                    <button class="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-all shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg" onclick="window.serverBuilder.finishConfiguration()">
                         <i class="fas fa-check-circle text-lg"></i>
                         Finish Setup
                     </button>
@@ -878,7 +878,7 @@ class PCPartPickerBuilder {
                             <i class="fas fa-server"></i>
                             Server Configuration Summary
                         </h3>
-                        <button class="modal-close" onclick="window.pcppBuilder.closeFinishModal()">
+                        <button class="modal-close" onclick="window.serverBuilder.closeFinishModal()">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -907,7 +907,7 @@ class PCPartPickerBuilder {
                                         <div class="warning-item critical">
                                             <i class="fas fa-exclamation-circle"></i>
                                             <span class="warning-text">${type.name} is required</span>
-                                            <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${type.type}')">
+                                            <button class="btn-fix" onclick="window.serverBuilder.fixIssueAndProceed('${type.type}')">
                                                 <i class="fas fa-wrench"></i>
                                                 Auto Fix
                                             </button>
@@ -929,7 +929,7 @@ class PCPartPickerBuilder {
                                             <i class="${issue.icon}"></i>
                                             <span class="warning-text">${issue.message}</span>
                                             ${issue.action ? `
-                                                <button class="btn-fix" onclick="window.pcppBuilder.fixIssueAndProceed('${issue.action.actionType}')">
+                                                <button class="btn-fix" onclick="window.serverBuilder.fixIssueAndProceed('${issue.action.actionType}')">
                                                     <i class="fas fa-wrench"></i>
                                                     Auto Fix
                                                 </button>
@@ -968,13 +968,13 @@ class PCPartPickerBuilder {
                     </div>
                     
                     <div class="modal-footer">
-                        <button class="btn-cancel" onclick="window.pcppBuilder.closeFinishModal()">
+                        <button class="btn-cancel" onclick="window.serverBuilder.closeFinishModal()">
                             <i class="fas fa-times"></i>
                             Cancel
                         </button>
                         
                         ${isReady ? `
-                            <button class="btn-confirm" onclick="window.pcppBuilder.proceedWithSave()">
+                            <button class="btn-confirm" onclick="window.serverBuilder.proceedWithSave()">
                                 <i class="fas fa-check"></i>
                                 Confirm & Save Configuration
                             </button>
@@ -1123,10 +1123,10 @@ class PCPartPickerBuilder {
      */
     renderTestInterface() {
         const testHtml = `
-            <div class="pcpp-container">
-                <div class="pcpp-header">
-                    <h1 class="pcpp-title">Builder Test</h1>
-                    <p class="pcpp-subtitle">This confirms the builder is working</p>
+            <div class="server-builder-container">
+                <div class="server-builder-header">
+                    <h1 class="server-builder-title">Builder Test</h1>
+                    <p class="server-builder-subtitle">This confirms the builder is working</p>
                 </div>
                 
                 <div class="compatibility-banner success">
@@ -1226,7 +1226,7 @@ class PCPartPickerBuilder {
                     return `
                     <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
                         <span class="text-sm font-medium">${displayName}${position}</span>
-                        <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                        <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
                             <i class="fas fa-times text-xs"></i>
                         </button>
                         ${index < components.length - 1 ? '<span class="text-text-muted font-normal mx-1">/</span>' : ''}
@@ -1251,7 +1251,7 @@ class PCPartPickerBuilder {
                         <div class="flex flex-wrap items-center gap-2">
                             ${componentsDisplay}
                             <span class="text-text-muted font-normal mx-1">/</span>
-                            <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-transparent text-primary border border-primary rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary/10" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
+                            <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-transparent text-primary border border-primary rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary/10" onclick="window.serverBuilder.addComponent('${componentType.type}')">
                                 <i class="fas fa-plus"></i>
                                 Add More
                             </button>
@@ -1282,7 +1282,7 @@ class PCPartPickerBuilder {
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
                                 <span class="text-sm font-medium">${displayName}${position}</span>
-                                <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                                <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
                                     <i class="fas fa-times text-xs"></i>
                                 </button>
                             </span>
@@ -1309,7 +1309,7 @@ class PCPartPickerBuilder {
                     </div>
                 </td>
                 <td class="px-6 py-4 align-middle text-right">
-                    <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary-600 hover:-translate-y-px" onclick="window.pcppBuilder.addComponent('${componentType.type}')">
+                    <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary-600 hover:-translate-y-px" onclick="window.serverBuilder.addComponent('${componentType.type}')">
                         <i class="fas fa-plus"></i>
                         ${buttonText}
                     </button>
@@ -2080,7 +2080,7 @@ class PCPartPickerBuilder {
         const hasComponent = issue.componentType && this.selectedComponents[issue.componentType] && this.selectedComponents[issue.componentType].length > 0;
 
         return `
-            <div class="issue-item ${severityClass} ${hasComponent ? 'clickable' : ''}" onclick="window.pcppBuilder.handleIssueClick('${issue.componentType || ''}', this)">
+            <div class="issue-item ${severityClass} ${hasComponent ? 'clickable' : ''}" onclick="window.serverBuilder.handleIssueClick('${issue.componentType || ''}', this)">
                 <div class="issue-header">
                     <div class="issue-icon">
                         <i class="${iconClass}"></i>
@@ -2090,7 +2090,7 @@ class PCPartPickerBuilder {
                         <div class="issue-message">${issue.message}</div>
                     </div>
                     <div class="issue-actions">
-                        ${issue.action ? `<button class="issue-action-btn" onclick="event.stopPropagation(); window.pcppBuilder.addComponent('${issue.action.actionType}')">${issue.action.text}</button>` : ''}
+                        ${issue.action ? `<button class="issue-action-btn" onclick="event.stopPropagation(); window.serverBuilder.addComponent('${issue.action.actionType}')">${issue.action.text}</button>` : ''}
                         ${hasComponent ? '<i class="fas fa-arrow-up scroll-icon"></i>' : ''}
                     </div>
                 </div>
@@ -2173,7 +2173,7 @@ class PCPartPickerBuilder {
     }
     toggleAdvancedView(enabled) {
         // Add/remove advanced view classes
-        const container = document.querySelector('.pcpp-container');
+        const container = document.querySelector('.server-builder-container');
         if (enabled) {
             container.classList.add('advanced-view');
             this.showAdvancedFeatures();
@@ -2251,7 +2251,7 @@ class PCPartPickerBuilder {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    window.pcppBuilder = new PCPartPickerBuilder();
+    window.serverBuilder = new ServerBuilder();
 });
 
 // Add CSS animations and styles

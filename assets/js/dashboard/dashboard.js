@@ -955,10 +955,10 @@ class Dashboard {
         };
 
         // Use PC part picker builder if available
-        if (window.pcppBuilder) {
+        if (window.serverBuilder) {
             try {
-                window.pcppBuilder.currentConfig = null;
-                await window.pcppBuilder.loadExistingConfig(configUuid);
+                window.serverBuilder.currentConfig = null;
+                await window.serverBuilder.loadExistingConfig(configUuid);
                 // The PC part picker builder will now render directly to serverBuilderContent
             } catch (error) {
                 console.error('Error loading PC part picker builder:', error);
@@ -1886,9 +1886,9 @@ class Dashboard {
             // document.getElementById('serverBuilderSubtitle').textContent = 'PC Part Picker Style Interface';
 
             // Use PC part picker builder if available
-            if (window.pcppBuilder) {
-                window.pcppBuilder.currentConfig = null;
-                await window.pcppBuilder.loadExistingConfig(configUuid);
+            if (window.serverBuilder) {
+                window.serverBuilder.currentConfig = null;
+                await window.serverBuilder.loadExistingConfig(configUuid);
                 // The PC part picker builder will now render directly to serverBuilderContent
             } else {
                 this.showServerBuilderError('PC Part Picker Builder not available');
