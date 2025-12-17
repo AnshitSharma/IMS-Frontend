@@ -995,6 +995,82 @@
 }
 
 /* ============================================================
+   MOTHERBOARD USAGE - SLOT STYLING
+   ============================================================ */
+
+/* Socket Item (CPU Sockets) */
+.socket-item {
+  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
+  @apply bg-surface-card border-border-light;
+}
+
+.socket-item.occupied {
+  @apply border-primary bg-primary/5;
+}
+
+.socket-item.empty {
+  @apply border-border opacity-60;
+}
+
+/* Memory Slot (RAM Slots) */
+.memory-slot {
+  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
+  @apply bg-surface-card border-border-light mb-2 last:mb-0;
+}
+
+.memory-slot.occupied {
+  @apply border-primary bg-primary/5;
+}
+
+.memory-slot.empty {
+  @apply border-border opacity-60;
+}
+
+/* Expansion Slot (PCIe, HBA, NIC) */
+.expansion-slot {
+  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
+  @apply bg-surface-card border-border-light mb-2 last:mb-0;
+}
+
+.expansion-slot.occupied {
+  @apply border-primary bg-primary/5;
+}
+
+.expansion-slot.empty {
+  @apply border-border opacity-60;
+}
+
+/* Slot Labels and Components */
+.slot-label {
+  @apply text-xs sm:text-sm font-semibold text-text-primary uppercase tracking-wide;
+}
+
+.slot-component {
+  @apply text-xs sm:text-sm font-medium text-text-primary flex items-center gap-2;
+}
+
+.slot-empty {
+  @apply text-xs sm:text-sm text-text-muted italic;
+}
+
+/* Component with Type (for expansion slots showing component type) */
+.component-with-type {
+  @apply flex items-center gap-2 text-xs sm:text-sm;
+}
+
+.component-with-type i {
+  @apply text-primary;
+}
+
+.component-type {
+  @apply font-medium text-text-secondary;
+}
+
+.component-name {
+  @apply font-semibold text-text-primary;
+}
+
+/* ============================================================
    PILL BUTTON FILTER SYSTEM
    ============================================================ */
 

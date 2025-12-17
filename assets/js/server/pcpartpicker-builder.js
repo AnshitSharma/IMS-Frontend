@@ -107,7 +107,7 @@ class PCPartPickerBuilder {
         this.performanceWarnings = [];
 
         this.init();
-        }
+    }
 
     init() {
 
@@ -117,11 +117,11 @@ class PCPartPickerBuilder {
         }
 
         this.loadServerConfig();
-        }
+    }
 
-        /**
-         * Check if user is authenticated
-         */
+    /**
+     * Check if user is authenticated
+     */
     checkAuthentication() {
         const token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
 
@@ -135,11 +135,11 @@ class PCPartPickerBuilder {
         }
 
         return true;
-        }
+    }
 
-        /**
-         * Load server configuration from URL parameters
-         */
+    /**
+     * Load server configuration from URL parameters
+     */
     loadServerConfig() {
         const urlParams = new URLSearchParams(window.location.search);
         const configUuid = urlParams.get('config');
@@ -152,11 +152,11 @@ class PCPartPickerBuilder {
                 window.location.href = 'index.html';
             }
         }
-        }
+    }
 
-        /**
-         * Load existing configuration from API
-         */
+    /**
+     * Load existing configuration from API
+     */
     async loadExistingConfig(configUuid) {
         try {
             this.showLoading('Loading server configuration...');
@@ -187,56 +187,56 @@ class PCPartPickerBuilder {
         } finally {
             this.hideLoading();
         }
-        }
+    }
 
-        /**
-         * Parse existing components from configuration
-         */
-        // async parseExistingComponents(config) {
+    /**
+     * Parse existing components from configuration
+     */
+    // async parseExistingComponents(config) {
 
-        //     // Reset components first
-        //     this.selectedComponents = {
-        //         cpu: [],
-        //         motherboard: [],
-        //         ram: [],
-        //         storage: [],
-        //         chassis: [],
-        //         caddy: [],
-        //         pciecard: [],
-        //         nic: [],
-        //         hbacard: []
-        //     };
+    //     // Reset components first
+    //     this.selectedComponents = {
+    //         cpu: [],
+    //         motherboard: [],
+    //         ram: [],
+    //         storage: [],
+    //         chassis: [],
+    //         caddy: [],
+    //         pciecard: [],
+    //         nic: [],
+    //         hbacard: []
+    //     };
 
-        //     // Parse components from the API structure
-        //     if (config.components) {
-        //         const components = config.components;
+    //     // Parse components from the API structure
+    //     if (config.components) {
+    //         const components = config.components;
 
-        //         Object.keys(components).forEach(type => {
-        //             const typeComponents = components[type];
+    //         Object.keys(components).forEach(type => {
+    //             const typeComponents = components[type];
 
-        //             if (Array.isArray(typeComponents) && typeComponents.length > 0) {
-        //                 this.selectedComponents[type] = typeComponents.map(comp => ({
-        //                     uuid: comp.uuid,
-        //                     serial_number: comp.serial_number || 'Not Found',
-        //                     quantity: comp.quantity || 1,
-        //                     slot_position: comp.slot_position || '',
-        //                     added_at: comp.added_at || ''
-        //                 }));
+    //             if (Array.isArray(typeComponents) && typeComponents.length > 0) {
+    //                 this.selectedComponents[type] = typeComponents.map(comp => ({
+    //                     uuid: comp.uuid,
+    //                     serial_number: comp.serial_number || 'Not Found',
+    //                     quantity: comp.quantity || 1,
+    //                     slot_position: comp.slot_position || '',
+    //                     added_at: comp.added_at || ''
+    //                 }));
 
-        //             }
-        //         });
-        //     }
+    //             }
+    //         });
+    //     }
 
-        //     // Load motherboard details from JSON if motherboard is selected
-        //     if (this.selectedComponents.motherboard.length > 0) {
-        //         await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
-        //     }
+    //     // Load motherboard details from JSON if motherboard is selected
+    //     if (this.selectedComponents.motherboard.length > 0) {
+    //         await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
+    //     }
 
-        //     this.checkCompatibility();
-        // }
-/**
- * Parse existing components from configuration
- */
+    //     this.checkCompatibility();
+    // }
+    /**
+     * Parse existing components from configuration
+     */
     async parseExistingComponents(config) {
         // Reset components first
         this.selectedComponents = {
@@ -282,17 +282,17 @@ class PCPartPickerBuilder {
         }
 
         this.checkCompatibility();
-        }
-/**
- * Render chassis details - Dynamic based on chassis JSON
- */
+    }
+    /**
+     * Render chassis details - Dynamic based on chassis JSON
+     */
     renderChassisDetails() {
         const chassisComponents = this.selectedComponents.chassis || [];
         const chassisData = this.chassisDetails;
 
-    if (!chassisData) {
-        // Fallback if no chassis data
-        return chassisComponents.map((chassis, index) => `
+        if (!chassisData) {
+            // Fallback if no chassis data
+            return chassisComponents.map((chassis, index) => `
             <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
                 <span class="text-[13px] font-medium text-text-secondary">Chassis</span>
                 <span class="text-sm font-semibold text-text-primary">
@@ -353,11 +353,11 @@ class PCPartPickerBuilder {
             </div>
         </div>
         `;
-}
+    }
 
-/**
- * Render drive bays configuration
- */
+    /**
+     * Render drive bays configuration
+     */
     renderDriveBays(driveBays) {
         if (!driveBays.bay_configuration) return '';
 
@@ -367,7 +367,7 @@ class PCPartPickerBuilder {
             <span class="spec-value">${bay.count} bays ${bay.hot_swap ? '(Hot-swap)' : ''}</span>
         </div>
         `).join('');
-}
+    }
     /**
      * Load motherboard details from JSON
      */
@@ -406,9 +406,9 @@ class PCPartPickerBuilder {
     //         console.error('Error loading motherboard details:', error);
     //     }
     // }
-/**
- * Load motherboard details from JSON
- */
+    /**
+     * Load motherboard details from JSON
+     */
     async loadMotherboardDetails(uuid) {
         try {
             // Fetch motherboard JSON
@@ -444,18 +444,18 @@ class PCPartPickerBuilder {
         } catch (error) {
             console.error('Error loading motherboard details:', error);
         }
-        }
+    }
 
-/**
- * Render caddy sockets - Dynamic based on motherboard JSON
- */
+    /**
+     * Render caddy sockets - Dynamic based on motherboard JSON
+     */
     renderCaddySockets() {
         const caddyComponents = this.selectedComponents.caddy || [];
         const motherboardData = this.motherboardDetails;
 
-    if (!motherboardData || !motherboardData.caddySockets || motherboardData.caddySockets.length === 0) {
-        // Fallback if no caddy socket data
-        return caddyComponents.map((caddy, index) => `
+        if (!motherboardData || !motherboardData.caddySockets || motherboardData.caddySockets.length === 0) {
+            // Fallback if no caddy socket data
+            return caddyComponents.map((caddy, index) => `
             <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
                 <span class="text-[13px] font-medium text-text-secondary">Caddy Socket ${index + 1}</span>
                 <span class="text-sm font-semibold text-text-primary">
@@ -478,11 +478,11 @@ class PCPartPickerBuilder {
         const caddySockets = motherboardData.caddySockets;
 
         caddySockets.forEach((socket, index) => {
-        const caddy = caddyComponents[index];
-        const socketType = socket.type || 'Caddy';
-        const socketSize = socket.size ? ` (${socket.size})` : '';
-        
-        html += `
+            const caddy = caddyComponents[index];
+            const socketType = socket.type || 'Caddy';
+            const socketSize = socket.size ? ` (${socket.size})` : '';
+
+            html += `
             <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 ${caddy ? 'border-primary' : 'border-border opacity-60'} transition-all">
                 <span class="text-[13px] font-medium text-text-secondary">${socketType} Socket ${index + 1}${socketSize}</span>
                 <span class="${caddy ? 'text-sm font-semibold text-text-primary' : 'text-sm text-text-muted italic'}">
@@ -499,7 +499,7 @@ class PCPartPickerBuilder {
         });
 
         return html;
-}
+    }
     /**
      * Check compatibility issues
      */
@@ -586,7 +586,7 @@ class PCPartPickerBuilder {
     //             group: 'compatibility'
     //         });
     //     }
-       
+
     // }
     /**
  * Check compatibility issues
@@ -597,26 +597,26 @@ class PCPartPickerBuilder {
 
         // Check for missing required components
         this.componentTypes.forEach(compType => {
-        if (compType.required && this.selectedComponents[compType.type].length === 0) {
-            this.compatibilityIssues.push({
-                severity: 'critical',
-                type: 'missing_component',
-                icon: 'fas fa-exclamation-triangle',
-                title: `Missing ${compType.name}`,
-                message: `No ${compType.name} selected. Adding a ${compType.name.toLowerCase()} is required for the system to function.`,
-                details: `A ${compType.name.toLowerCase()} is essential for your server configuration. Without it, the system cannot operate properly.`,
-                links: [
-                    { text: 'Learn about server components', url: 'guide/' },
-                    { text: 'Server build guide', url: 'server-build-guide/' }
-                ],
-                action: {
-                    text: `Add ${compType.name}`,
-                    callback: () => this.addComponent(compType.type),
-                    actionType: compType.type
-                },
-                group: 'required_components'
-            });
-        }
+            if (compType.required && this.selectedComponents[compType.type].length === 0) {
+                this.compatibilityIssues.push({
+                    severity: 'critical',
+                    type: 'missing_component',
+                    icon: 'fas fa-exclamation-triangle',
+                    title: `Missing ${compType.name}`,
+                    message: `No ${compType.name} selected. Adding a ${compType.name.toLowerCase()} is required for the system to function.`,
+                    details: `A ${compType.name.toLowerCase()} is essential for your server configuration. Without it, the system cannot operate properly.`,
+                    links: [
+                        { text: 'Learn about server components', url: 'guide/' },
+                        { text: 'Server build guide', url: 'server-build-guide/' }
+                    ],
+                    action: {
+                        text: `Add ${compType.name}`,
+                        callback: () => this.addComponent(compType.type),
+                        actionType: compType.type
+                    },
+                    group: 'required_components'
+                });
+            }
         });
 
         // Check for CPU cooler if CPU is selected
@@ -674,13 +674,13 @@ class PCPartPickerBuilder {
         //         group: 'compatibility'
         //     });
         // }
-}
+    }
 
     /**
      * Render the PC Part Picker style interface
      */
     renderPCPartPickerInterface() {
-        
+
         if (!this.currentConfig) {
             console.error('No configuration loaded');
             // Show a test interface to verify the builder is working
@@ -690,7 +690,7 @@ class PCPartPickerBuilder {
 
         const serverName = this.currentConfig.server_name || this.currentConfig.ServerName || 'Unnamed Server';
         document.title = `${serverName} - Server Builder`;
-        
+
 
         const hasIssues = this.compatibilityIssues.length > 0;
         const estimatedPower = this.calculateEstimatedPower();
@@ -823,46 +823,46 @@ class PCPartPickerBuilder {
         } else {
             console.error('No target element found for rendering');
         }
-        }
-/**
- * Finish configuration and save the server
- */
-// finishConfiguration() {
-//     // Check if all required components are selected
-//     const missingRequired = this.componentTypes.filter(type => 
-//         type.required && this.selectedComponents[type.type].length === 0
-//     );
+    }
+    /**
+     * Finish configuration and save the server
+     */
+    // finishConfiguration() {
+    //     // Check if all required components are selected
+    //     const missingRequired = this.componentTypes.filter(type => 
+    //         type.required && this.selectedComponents[type.type].length === 0
+    //     );
 
-//     if (missingRequired.length > 0) {
-//         const missingNames = missingRequired.map(type => type.name).join(', ');
-//         this.showAlert(`Please add the following required components: ${missingNames}`, 'warning');
-//         return;
-//     }
+    //     if (missingRequired.length > 0) {
+    //         const missingNames = missingRequired.map(type => type.name).join(', ');
+    //         this.showAlert(`Please add the following required components: ${missingNames}`, 'warning');
+    //         return;
+    //     }
 
-//     // Show confirmation dialog
-//     if (confirm('Are you sure you want to finish the configuration? This will save your server configuration.')) {
-//         this.saveConfiguration();
-//     }
-// }
-/**
- * Finish configuration and save the server
- */
+    //     // Show confirmation dialog
+    //     if (confirm('Are you sure you want to finish the configuration? This will save your server configuration.')) {
+    //         this.saveConfiguration();
+    //     }
+    // }
+    /**
+     * Finish configuration and save the server
+     */
     finishConfiguration() {
         // Check if all required components are selected
-        const missingRequired = this.componentTypes.filter(type => 
-        type.required && this.selectedComponents[type.type].length === 0
+        const missingRequired = this.componentTypes.filter(type =>
+            type.required && this.selectedComponents[type.type].length === 0
         );
 
         // Get all compatibility issues
         const allIssues = [...this.compatibilityIssues, ...this.performanceWarnings];
-        
+
         // Show the confirmation modal
         this.showFinishConfirmationModal(missingRequired, allIssues);
-}
+    }
 
-/**
- * Show finish confirmation modal with warnings and component list
- */
+    /**
+     * Show finish confirmation modal with warnings and component list
+     */
     showFinishConfirmationModal(missingRequired, allIssues) {
         const hasMissingRequired = missingRequired.length > 0;
         const hasIssues = allIssues.length > 0;
@@ -997,52 +997,52 @@ class PCPartPickerBuilder {
 
         // Add modal to body
         document.body.insertAdjacentHTML('beforeend', modalHtml);
-}
-/**
- * Fix issue and proceed to add component
- */
+    }
+    /**
+     * Fix issue and proceed to add component
+     */
     fixIssueAndProceed(componentType) {
         // Close the modal first
         this.closeFinishModal();
-        
+
         // Then redirect to add the required component
         setTimeout(() => {
-        this.addComponent(componentType);
+            this.addComponent(componentType);
         }, 300);
-}
-/**
- * Close the finish confirmation modal
- */
+    }
+    /**
+     * Close the finish confirmation modal
+     */
     closeFinishModal() {
         const modal = document.querySelector('.finish-confirmation-modal');
-    if (modal) {
-        modal.classList.remove('active');
-        setTimeout(() => modal.remove(), 300);
+        if (modal) {
+            modal.classList.remove('active');
+            setTimeout(() => modal.remove(), 300);
         }
-}
+    }
 
-/**
- * Proceed with saving after confirmation
- */
+    /**
+     * Proceed with saving after confirmation
+     */
     proceedWithSave() {
         this.closeFinishModal();
         this.saveConfiguration();
-}
+    }
 
-/**
- * Get total components count
- */
+    /**
+     * Get total components count
+     */
     getTotalComponentsCount() {
         let count = 0;
         Object.values(this.selectedComponents).forEach(components => {
-        count += components.length;
+            count += components.length;
         });
         return count;
-}
+    }
 
-/**
- * Save the final configuration
- */
+    /**
+     * Save the final configuration
+     */
     async saveConfiguration() {
         try {
             this.showLoading('Saving server configuration...');
@@ -1066,19 +1066,19 @@ class PCPartPickerBuilder {
         } finally {
             this.hideLoading();
         }
-        }
+    }
 
-/**
- * Get component summary list HTML
- */
+    /**
+     * Get component summary list HTML
+     */
     getComponentSummaryList() {
         let html = '';
-        
+
         this.componentTypes.forEach(componentType => {
-        const components = this.selectedComponents[componentType.type];
-        
-        if (components.length > 0) {
-            html += `
+            const components = this.selectedComponents[componentType.type];
+
+            if (components.length > 0) {
+                html += `
                 <div class="component-category">
                     <div class="category-header">
                         <i class="${componentType.icon}"></i>
@@ -1098,8 +1098,8 @@ class PCPartPickerBuilder {
                     </div>
                 </div>
             `;
-        } else {
-            html += `
+            } else {
+                html += `
                 <div class="component-category missing">
                     <div class="category-header">
                         <i class="${componentType.icon}"></i>
@@ -1111,11 +1111,11 @@ class PCPartPickerBuilder {
                     </div>
                 </div>
             `;
-        }
+            }
         });
-        
+
         return html || '<div class="no-components">No components selected yet</div>';
-}
+    }
 
 
     /**
@@ -1168,7 +1168,7 @@ class PCPartPickerBuilder {
                 
             </div>
         `;
-        
+
         // Check if we're in the dashboard or standalone
         const targetElement = document.getElementById('serverBuilderContent') || document.getElementById('app');
         if (targetElement) {
@@ -1176,10 +1176,10 @@ class PCPartPickerBuilder {
         } else {
             console.error('No target element found for test interface');
         }
-        }
-/**
- * Load chassis details from JSON
- */
+    }
+    /**
+     * Load chassis details from JSON
+     */
     async loadChassisDetails(uuid) {
         try {
             // Fetch chassis JSON
@@ -1209,21 +1209,21 @@ class PCPartPickerBuilder {
             console.error('Error loading chassis details:', error);
             return null;
         }
-        }
-   
+    }
+
     renderComponentRow(componentType) {
         const components = this.selectedComponents[componentType.type] || [];
         const hasComponents = components.length > 0;
         const isMultiple = componentType.multiple;
 
-    if (hasComponents) {
-        if (isMultiple) {
-            // Show all selected components separated by "/" with "Add More" at the end
-            const componentsDisplay = components.map((comp, index) => {
-                const displayName = comp.serial_number || 'Unnamed Component';
-                const position = comp.slot_position ? ` (${comp.slot_position})` : '';
+        if (hasComponents) {
+            if (isMultiple) {
+                // Show all selected components separated by "/" with "Add More" at the end
+                const componentsDisplay = components.map((comp, index) => {
+                    const displayName = comp.serial_number || 'Unnamed Component';
+                    const position = comp.slot_position ? ` (${comp.slot_position})` : '';
 
-                return `
+                    return `
                     <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
                         <span class="text-sm font-medium">${displayName}${position}</span>
                         <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.pcppBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
@@ -1232,9 +1232,9 @@ class PCPartPickerBuilder {
                         ${index < components.length - 1 ? '<span class="text-text-muted font-normal mx-1">/</span>' : ''}
                     </span>
                 `;
-            }).join('');
+                }).join('');
 
-            return `
+                return `
                 <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
                     <td class="px-6 py-4 align-middle">
                         <div class="flex items-center gap-4">
@@ -1259,13 +1259,13 @@ class PCPartPickerBuilder {
                     </td>
                 </tr>
             `;
-        } else {
-            // Single component - show only the component WITHOUT any replace button
-            const comp = components[0];
-            const displayName = comp.serial_number || 'Unnamed Component';
-            const position = comp.slot_position ? ` (${comp.slot_position})` : '';
+            } else {
+                // Single component - show only the component WITHOUT any replace button
+                const comp = components[0];
+                const displayName = comp.serial_number || 'Unnamed Component';
+                const position = comp.slot_position ? ` (${comp.slot_position})` : '';
 
-            return `
+                return `
                 <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
                     <td class="px-6 py-4 align-middle">
                         <div class="flex items-center gap-4">
@@ -1290,12 +1290,12 @@ class PCPartPickerBuilder {
                     </td>
                 </tr>
             `;
-        }
+            }
         } else {
-        // No components yet - show add button
-        const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
+            // No components yet - show add button
+            const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
 
-        return `
+            return `
             <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
                 <td class="px-6 py-4 align-middle">
                     <div class="flex items-center gap-4">
@@ -1317,14 +1317,14 @@ class PCPartPickerBuilder {
             </tr>
         `;
         }
-}
+    }
     renderSocketSlots() {
         const cpuComponents = this.selectedComponents.cpu;
         const motherboardData = this.motherboardDetails;
 
-    if (!motherboardData || !motherboardData.socket) {
-        // Fallback if no motherboard data
-        return cpuComponents.map((cpu, index) => `
+        if (!motherboardData || !motherboardData.socket) {
+            // Fallback if no motherboard data
+            return cpuComponents.map((cpu, index) => `
             <div class="socket-item occupied">
                 <span class="slot-label">CPU Socket ${cpuComponents.length > 1 ? (index + 1) : ''}</span>
                 <span class="slot-component">${cpu.serial_number}</span>
@@ -1341,9 +1341,9 @@ class PCPartPickerBuilder {
         const socketType = motherboardData.socket.type || 'Unknown';
         let html = '';
 
-    for (let i = 0; i < socketCount; i++) {
-        const cpu = cpuComponents[i];
-        html += `
+        for (let i = 0; i < socketCount; i++) {
+            const cpu = cpuComponents[i];
+            html += `
             <div class="socket-item ${cpu ? 'occupied' : 'empty'}">
                 <span class="slot-label">CPU Socket ${socketCount > 1 ? (i + 1) : ''} (${socketType})</span>
                 <span class="${cpu ? 'slot-component' : 'slot-empty'}">
@@ -1354,7 +1354,7 @@ class PCPartPickerBuilder {
         }
 
         return html;
-}
+    }
 
     /**
      * Render chassis socket - Dynamic based on motherboard JSON
@@ -1380,59 +1380,59 @@ class PCPartPickerBuilder {
                 <span class="slot-component">${chassisSocket}</span>
             </div>
         `;
-        }
+    }
 
-        /**
-         * Render memory slots - Dynamic based on motherboard JSON
-         */
-        // renderMemorySlots() {
-        //     const ramComponents = this.selectedComponents.ram;
-        //     const motherboardData = this.motherboardDetails;
+    /**
+     * Render memory slots - Dynamic based on motherboard JSON
+     */
+    // renderMemorySlots() {
+    //     const ramComponents = this.selectedComponents.ram;
+    //     const motherboardData = this.motherboardDetails;
 
-        //     if (!motherboardData || !motherboardData.memory) {
-        //         // Fallback to 4 slots if no motherboard data
-        //         let html = '';
-        //         for (let i = 0; i < 4; i++) {
-        //             const ram = ramComponents[i];
-        //             html += `
-        //                 <div class="memory-slot">
-        //                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
-        //                     <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-        //                 </div>
-        //             `;
-        //         }
-        //         return html;
-        //     }
+    //     if (!motherboardData || !motherboardData.memory) {
+    //         // Fallback to 4 slots if no motherboard data
+    //         let html = '';
+    //         for (let i = 0; i < 4; i++) {
+    //             const ram = ramComponents[i];
+    //             html += `
+    //                 <div class="memory-slot">
+    //                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
+    //                     <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
+    //                 </div>
+    //             `;
+    //         }
+    //         return html;
+    //     }
 
-        //     const memorySlots = motherboardData.memory.slots || 4;
-        //     const memoryType = motherboardData.memory.type || 'DIMM';
-        //     let html = '';
+    //     const memorySlots = motherboardData.memory.slots || 4;
+    //     const memoryType = motherboardData.memory.type || 'DIMM';
+    //     let html = '';
 
-        //     for (let i = 0; i < memorySlots; i++) {
-        //         const ram = ramComponents[i];
-        //         html += `
-        //             <div class="memory-slot">
-        //                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
-        //                 <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-        //             </div>
-        //         `;
-        //     }
+    //     for (let i = 0; i < memorySlots; i++) {
+    //         const ram = ramComponents[i];
+    //         html += `
+    //             <div class="memory-slot">
+    //                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
+    //                 <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
+    //             </div>
+    //         `;
+    //     }
 
-        //     return html;
-        // }
-        /**
- * Render memory slots - Dynamic based on motherboard JSON
- */
+    //     return html;
+    // }
+    /**
+* Render memory slots - Dynamic based on motherboard JSON
+*/
     renderMemorySlots() {
         const ramComponents = this.selectedComponents.ram;
         const motherboardData = this.motherboardDetails;
 
-    if (!motherboardData || !motherboardData.memory) {
-        // Fallback to 4 slots if no motherboard data
-        let html = '';
-        for (let i = 0; i < 4; i++) {
-            const ram = ramComponents[i];
-            html += `
+        if (!motherboardData || !motherboardData.memory) {
+            // Fallback to 4 slots if no motherboard data
+            let html = '';
+            for (let i = 0; i < 4; i++) {
+                const ram = ramComponents[i];
+                html += `
                 <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
                     <span class="${ram ? 'slot-component' : 'slot-empty'}">
@@ -1440,17 +1440,17 @@ class PCPartPickerBuilder {
                     </span>
                 </div>
             `;
-        }
-        return html;
+            }
+            return html;
         }
 
         const memorySlots = motherboardData.memory.slots || 4;
         const memoryType = motherboardData.memory.type || 'DIMM';
         let html = '';
 
-    for (let i = 0; i < memorySlots; i++) {
-        const ram = ramComponents[i];
-        html += `
+        for (let i = 0; i < memorySlots; i++) {
+            const ram = ramComponents[i];
+            html += `
             <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
                 <span class="${ram ? 'slot-component' : 'slot-empty'}">
@@ -1461,7 +1461,7 @@ class PCPartPickerBuilder {
         }
 
         return html;
-}
+    }
 
     /**
      * Render expansion slots - Dynamic based on motherboard JSON
@@ -1540,70 +1540,70 @@ class PCPartPickerBuilder {
 
     //     return html || '<div class="expansion-slot"><span class="slot-label">No expansion slots</span></div>';
     // }
-/**
- * Render expansion slots - Dynamic based on motherboard JSON
- */
-// renderExpansionSlots() {
-//     const pcieComponents = this.selectedComponents.pciecard || [];
-//     const hbaComponents = this.selectedComponents.hbacard || [];
-//     const nicComponents = this.selectedComponents.nic || [];
-//     const motherboardData = this.motherboardDetails;
+    /**
+     * Render expansion slots - Dynamic based on motherboard JSON
+     */
+    // renderExpansionSlots() {
+    //     const pcieComponents = this.selectedComponents.pciecard || [];
+    //     const hbaComponents = this.selectedComponents.hbacard || [];
+    //     const nicComponents = this.selectedComponents.nic || [];
+    //     const motherboardData = this.motherboardDetails;
 
-//     // Combine all expansion components
-//     const allExpansionComponents = [
-//         ...pcieComponents.map(comp => ({ ...comp, type: 'pcie' })),
-//         ...hbaComponents.map(comp => ({ ...comp, type: 'hba' })),
-//         ...nicComponents.map(comp => ({ ...comp, type: 'nic' }))
-//     ];
+    //     // Combine all expansion components
+    //     const allExpansionComponents = [
+    //         ...pcieComponents.map(comp => ({ ...comp, type: 'pcie' })),
+    //         ...hbaComponents.map(comp => ({ ...comp, type: 'hba' })),
+    //         ...nicComponents.map(comp => ({ ...comp, type: 'nic' }))
+    //     ];
 
-//     if (!motherboardData || !motherboardData.expansion_slots) {
-//         // Fallback to basic PCIe slots
-//         let html = '';
-//         const totalSlots = Math.max(4, allExpansionComponents.length);
-        
-//         for (let i = 0; i < totalSlots; i++) {
-//             const component = allExpansionComponents[i];
-//             html += `
-//                 <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-//                     <span class="slot-label">PCIe Slot ${i + 1}</span>
-//                     <span class="${component ? 'slot-component' : 'slot-empty'}">
-//                         ${component ? component.serial_number : 'Empty'}
-//                     </span>
-//                 </div>
-//             `;
-//         }
-//         return html;
-//     }
+    //     if (!motherboardData || !motherboardData.expansion_slots) {
+    //         // Fallback to basic PCIe slots
+    //         let html = '';
+    //         const totalSlots = Math.max(4, allExpansionComponents.length);
 
-//     let html = '';
-//     let componentIndex = 0;
+    //         for (let i = 0; i < totalSlots; i++) {
+    //             const component = allExpansionComponents[i];
+    //             html += `
+    //                 <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
+    //                     <span class="slot-label">PCIe Slot ${i + 1}</span>
+    //                     <span class="${component ? 'slot-component' : 'slot-empty'}">
+    //                         ${component ? component.serial_number : 'Empty'}
+    //                     </span>
+    //                 </div>
+    //             `;
+    //         }
+    //         return html;
+    //     }
 
-//     // Handle regular PCIe slots
-//     if (motherboardData.expansion_slots.pcie_slots) {
-//         motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
-//             const slotCount = slotGroup.count || 1;
-//             const slotType = slotGroup.type || 'PCIe';
+    //     let html = '';
+    //     let componentIndex = 0;
 
-//             for (let i = 0; i < slotCount; i++) {
-//                 const component = allExpansionComponents[componentIndex];
-//                 html += `
-//                     <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-//                         <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
-//                         <span class="${component ? 'slot-component' : 'slot-empty'}">
-//                             ${component ? component.serial_number : 'Empty'}
-//                         </span>
-//                     </div>
-//                 `;
-//                 componentIndex++;
-//             }
-//         });
-//     }
+    //     // Handle regular PCIe slots
+    //     if (motherboardData.expansion_slots.pcie_slots) {
+    //         motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
+    //             const slotCount = slotGroup.count || 1;
+    //             const slotType = slotGroup.type || 'PCIe';
 
-//     return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
-// }
-/**
- * Render expansion slots - Dynamic based on motherboard JSON with component types
- */
+    //             for (let i = 0; i < slotCount; i++) {
+    //                 const component = allExpansionComponents[componentIndex];
+    //                 html += `
+    //                     <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
+    //                         <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
+    //                         <span class="${component ? 'slot-component' : 'slot-empty'}">
+    //                             ${component ? component.serial_number : 'Empty'}
+    //                         </span>
+    //                     </div>
+    //                 `;
+    //                 componentIndex++;
+    //             }
+    //         });
+    //     }
+
+    //     return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+    // }
+    /**
+     * Render expansion slots - Dynamic based on motherboard JSON with component types
+     */
     renderExpansionSlots() {
         const pcieComponents = this.selectedComponents.pciecard || [];
         const hbaComponents = this.selectedComponents.hbacard || [];
@@ -1612,31 +1612,31 @@ class PCPartPickerBuilder {
 
         // Combine all expansion components with their types
         const allExpansionComponents = [
-        ...pcieComponents.map(comp => ({ 
-            ...comp, 
-            type: 'PCIe Card',
-            typeIcon: 'fas fa-credit-card'
-        })),
-        ...hbaComponents.map(comp => ({ 
-            ...comp, 
-            type: 'HBA Card',
-            typeIcon: 'fas fa-hdd'
-        })),
-        ...nicComponents.map(comp => ({ 
-            ...comp, 
-            type: 'Network Card',
-            typeIcon: 'fas fa-network-wired'
-        }))
+            ...pcieComponents.map(comp => ({
+                ...comp,
+                type: 'PCIe Card',
+                typeIcon: 'fas fa-credit-card'
+            })),
+            ...hbaComponents.map(comp => ({
+                ...comp,
+                type: 'HBA Card',
+                typeIcon: 'fas fa-hdd'
+            })),
+            ...nicComponents.map(comp => ({
+                ...comp,
+                type: 'Network Card',
+                typeIcon: 'fas fa-network-wired'
+            }))
         ];
 
-    if (!motherboardData || !motherboardData.expansion_slots) {
-        // Fallback to basic PCIe slots with component types
-        let html = '';
-        const totalSlots = Math.max(4, allExpansionComponents.length);
-        
-        for (let i = 0; i < totalSlots; i++) {
-            const component = allExpansionComponents[i];
-            html += `
+        if (!motherboardData || !motherboardData.expansion_slots) {
+            // Fallback to basic PCIe slots with component types
+            let html = '';
+            const totalSlots = Math.max(4, allExpansionComponents.length);
+
+            for (let i = 0; i < totalSlots; i++) {
+                const component = allExpansionComponents[i];
+                html += `
                 <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
                     <span class="slot-label">PCIe Slot ${i + 1}</span>
                     <span class="${component ? 'slot-component' : 'slot-empty'}">
@@ -1650,22 +1650,22 @@ class PCPartPickerBuilder {
                     </span>
                 </div>
             `;
-        }
-        return html;
+            }
+            return html;
         }
 
         let html = '';
         let componentIndex = 0;
 
         // Handle regular PCIe slots
-    if (motherboardData.expansion_slots.pcie_slots) {
-        motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
-            const slotCount = slotGroup.count || 1;
-            const slotType = slotGroup.type || 'PCIe';
+        if (motherboardData.expansion_slots.pcie_slots) {
+            motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
+                const slotCount = slotGroup.count || 1;
+                const slotType = slotGroup.type || 'PCIe';
 
-            for (let i = 0; i < slotCount; i++) {
-                const component = allExpansionComponents[componentIndex];
-                html += `
+                for (let i = 0; i < slotCount; i++) {
+                    const component = allExpansionComponents[componentIndex];
+                    html += `
                     <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
                         <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
                         <span class="${component ? 'slot-component' : 'slot-empty'}">
@@ -1679,138 +1679,138 @@ class PCPartPickerBuilder {
                         </span>
                     </div>
                 `;
-                componentIndex++;
-            }
-        });
+                    componentIndex++;
+                }
+            });
         }
 
         return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
-}
+    }
 
 
-/**
- * Render storage - Dynamic based on motherboard JSON
- */
-// renderStorageAndUSB() {
-//     const motherboardData = this.motherboardDetails;
-//     const storageComponents = this.selectedComponents.storage || [];
+    /**
+     * Render storage - Dynamic based on motherboard JSON
+     */
+    // renderStorageAndUSB() {
+    //     const motherboardData = this.motherboardDetails;
+    //     const storageComponents = this.selectedComponents.storage || [];
 
-//     if (!motherboardData || !motherboardData.storage) {
-//         // Fallback with dynamic storage components
-//         let html = '';
-        
-//         // Show occupied storage slots first
-//         storageComponents.forEach((storage, index) => {
-//             html += `
-//                 <div class="expansion-slot occupied">
-//                     <span class="slot-label">Storage ${index + 1}</span>
-//                     <span class="slot-component">
-//                         <div class="component-with-type">
-//                             <i class="fas fa-hdd"></i>
-//                             <span class="component-type">Storage:</span>
-//                             <span class="component-name">${storage.serial_number}</span>
-//                         </div>
-//                     </span>
-//                 </div>
-//             `;
-//         });
-        
-//         // Show available slots
-//         const remainingSlots = Math.max(2, 4 - storageComponents.length);
-//         for (let i = 0; i < remainingSlots; i++) {
-//             html += `
-//                 <div class="expansion-slot empty">
-//                     <span class="slot-label">Storage ${storageComponents.length + i + 1}</span>
-//                     <span class="slot-empty">Available</span>
-//                 </div>
-//             `;
-//         }
-        
-//         return html;
-//     }
+    //     if (!motherboardData || !motherboardData.storage) {
+    //         // Fallback with dynamic storage components
+    //         let html = '';
 
-//     let html = '';
-//     let storageIndex = 0;
+    //         // Show occupied storage slots first
+    //         storageComponents.forEach((storage, index) => {
+    //             html += `
+    //                 <div class="expansion-slot occupied">
+    //                     <span class="slot-label">Storage ${index + 1}</span>
+    //                     <span class="slot-component">
+    //                         <div class="component-with-type">
+    //                             <i class="fas fa-hdd"></i>
+    //                             <span class="component-type">Storage:</span>
+    //                             <span class="component-name">${storage.serial_number}</span>
+    //                         </div>
+    //                     </span>
+    //                 </div>
+    //             `;
+    //         });
 
-//     // M.2 NVMe slots
-//     if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
-//         motherboardData.storage.nvme.m2_slots.forEach((m2Group, index) => {
-//             const m2Count = m2Group.count || 0;
-//             const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
+    //         // Show available slots
+    //         const remainingSlots = Math.max(2, 4 - storageComponents.length);
+    //         for (let i = 0; i < remainingSlots; i++) {
+    //             html += `
+    //                 <div class="expansion-slot empty">
+    //                     <span class="slot-label">Storage ${storageComponents.length + i + 1}</span>
+    //                     <span class="slot-empty">Available</span>
+    //                 </div>
+    //             `;
+    //         }
 
-//             for (let i = 0; i < m2Count; i++) {
-//                 const storage = storageComponents[storageIndex];
-//                 html += `
-//                     <div class="expansion-slot ${storage ? 'occupied' : 'empty'}">
-//                         <span class="slot-label">M.2 Slot ${i + 1} (${formFactors})</span>
-//                         <span class="${storage ? 'slot-component' : 'slot-empty'}">
-//                             ${storage ? `
-//                                 <div class="component-with-type">
-//                                     <i class="fas fa-hdd"></i>
-//                                     <span class="component-type">NVMe:</span>
-//                                     <span class="component-name">${storage.serial_number}</span>
-//                                 </div>
-//                             ` : 'Empty'}
-//                         </span>
-//                     </div>
-//                 `;
-//                 if (storage) storageIndex++;
-//             }
-//         });
-//     }
+    //         return html;
+    //     }
 
-//     // SATA ports
-//     if (motherboardData.storage.sata) {
-//         const sataPorts = motherboardData.storage.sata.ports || 0;
-//         if (sataPorts > 0) {
-//             // Show occupied SATA devices
-//             for (let i = 0; i < sataPorts && storageIndex < storageComponents.length; i++) {
-//                 const storage = storageComponents[storageIndex];
-//                 if (storage) {
-//                     html += `
-//                         <div class="expansion-slot occupied">
-//                             <span class="slot-label">SATA Port ${i + 1}</span>
-//                             <span class="slot-component">
-//                                 <div class="component-with-type">
-//                                     <i class="fas fa-hdd"></i>
-//                                     <span class="component-type">SATA:</span>
-//                                     <span class="component-name">${storage.serial_number}</span>
-//                                 </div>
-//                             </span>
-//                         </div>
-//                     `;
-//                     storageIndex++;
-//                 }
-//             }
-//             // Show remaining empty SATA ports
-//             const remainingSataPorts = sataPorts - (storageComponents.length - storageIndex);
-//             for (let i = 0; i < remainingSataPorts; i++) {
-//                 html += `
-//                     <div class="expansion-slot empty">
-//                         <span class="slot-label">SATA Port ${storageIndex + i + 1}</span>
-//                         <span class="slot-empty">Available</span>
-//                     </div>
-//                 `;
-//             }
-//         }
-//     }
+    //     let html = '';
+    //     let storageIndex = 0;
 
-//     return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
-// }
-/**
- * Render storage - Only show M.2 slots from motherboard JSON
- */
+    //     // M.2 NVMe slots
+    //     if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
+    //         motherboardData.storage.nvme.m2_slots.forEach((m2Group, index) => {
+    //             const m2Count = m2Group.count || 0;
+    //             const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
+
+    //             for (let i = 0; i < m2Count; i++) {
+    //                 const storage = storageComponents[storageIndex];
+    //                 html += `
+    //                     <div class="expansion-slot ${storage ? 'occupied' : 'empty'}">
+    //                         <span class="slot-label">M.2 Slot ${i + 1} (${formFactors})</span>
+    //                         <span class="${storage ? 'slot-component' : 'slot-empty'}">
+    //                             ${storage ? `
+    //                                 <div class="component-with-type">
+    //                                     <i class="fas fa-hdd"></i>
+    //                                     <span class="component-type">NVMe:</span>
+    //                                     <span class="component-name">${storage.serial_number}</span>
+    //                                 </div>
+    //                             ` : 'Empty'}
+    //                         </span>
+    //                     </div>
+    //                 `;
+    //                 if (storage) storageIndex++;
+    //             }
+    //         });
+    //     }
+
+    //     // SATA ports
+    //     if (motherboardData.storage.sata) {
+    //         const sataPorts = motherboardData.storage.sata.ports || 0;
+    //         if (sataPorts > 0) {
+    //             // Show occupied SATA devices
+    //             for (let i = 0; i < sataPorts && storageIndex < storageComponents.length; i++) {
+    //                 const storage = storageComponents[storageIndex];
+    //                 if (storage) {
+    //                     html += `
+    //                         <div class="expansion-slot occupied">
+    //                             <span class="slot-label">SATA Port ${i + 1}</span>
+    //                             <span class="slot-component">
+    //                                 <div class="component-with-type">
+    //                                     <i class="fas fa-hdd"></i>
+    //                                     <span class="component-type">SATA:</span>
+    //                                     <span class="component-name">${storage.serial_number}</span>
+    //                                 </div>
+    //                             </span>
+    //                         </div>
+    //                     `;
+    //                     storageIndex++;
+    //                 }
+    //             }
+    //             // Show remaining empty SATA ports
+    //             const remainingSataPorts = sataPorts - (storageComponents.length - storageIndex);
+    //             for (let i = 0; i < remainingSataPorts; i++) {
+    //                 html += `
+    //                     <div class="expansion-slot empty">
+    //                         <span class="slot-label">SATA Port ${storageIndex + i + 1}</span>
+    //                         <span class="slot-empty">Available</span>
+    //                     </div>
+    //                 `;
+    //             }
+    //         }
+    //     }
+
+    //     return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
+    // }
+    /**
+     * Render storage - Only show M.2 slots from motherboard JSON
+     */
     renderStorageAndUSB() {
         const motherboardData = this.motherboardDetails;
         const storageComponents = this.selectedComponents.storage || [];
 
-    if (!motherboardData || !motherboardData.storage) {
-        // If no motherboard data, show basic storage slots
-        let html = '';
-        
-        // Show occupied storage slots first
-        storageComponents.forEach((storage, index) => {
-            html += `
+        if (!motherboardData || !motherboardData.storage) {
+            // If no motherboard data, show basic storage slots
+            let html = '';
+
+            // Show occupied storage slots first
+            storageComponents.forEach((storage, index) => {
+                html += `
                 <div class="expansion-slot occupied">
                     <span class="slot-label">Storage ${index + 1}</span>
                     <span class="slot-component">
@@ -1822,34 +1822,34 @@ class PCPartPickerBuilder {
                     </span>
                 </div>
             `;
-        });
-        
-        // Show available slots only if we have storage components
-        const remainingSlots = Math.max(2, 4 - storageComponents.length);
-        for (let i = 0; i < remainingSlots; i++) {
-            html += `
+            });
+
+            // Show available slots only if we have storage components
+            const remainingSlots = Math.max(2, 4 - storageComponents.length);
+            for (let i = 0; i < remainingSlots; i++) {
+                html += `
                 <div class="expansion-slot empty">
                     <span class="slot-label">Storage ${storageComponents.length + i + 1}</span>
                     <span class="slot-empty">Available</span>
                 </div>
             `;
-        }
-        
-        return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
+            }
+
+            return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
         }
 
         let html = '';
         let storageIndex = 0;
 
         // ONLY show M.2 NVMe slots - hide SAS, SATA, and U.2
-    if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
-        motherboardData.storage.nvme.m2_slots.forEach((m2Group, groupIndex) => {
-            const m2Count = m2Group.count || 0;
-            const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
+        if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
+            motherboardData.storage.nvme.m2_slots.forEach((m2Group, groupIndex) => {
+                const m2Count = m2Group.count || 0;
+                const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
 
-            for (let i = 0; i < m2Count; i++) {
-                const storage = storageComponents[storageIndex];
-                html += `
+                for (let i = 0; i < m2Count; i++) {
+                    const storage = storageComponents[storageIndex];
+                    html += `
                     <div class="expansion-slot ${storage ? 'occupied' : 'empty'}">
                         <span class="slot-label">M.2 Slot ${groupIndex * m2Count + i + 1} (${formFactors})</span>
                         <span class="${storage ? 'slot-component' : 'slot-empty'}">
@@ -1863,17 +1863,17 @@ class PCPartPickerBuilder {
                         </span>
                     </div>
                 `;
-                if (storage) storageIndex++;
-            }
-        });
+                    if (storage) storageIndex++;
+                }
+            });
         }
 
         // REMOVED: U.2 slots, SATA ports, and SAS ports sections
 
         // If no M.2 slots found in motherboard data but we have storage components, show them
-    if (html === '' && storageComponents.length > 0) {
-        storageComponents.forEach((storage, index) => {
-            html += `
+        if (html === '' && storageComponents.length > 0) {
+            storageComponents.forEach((storage, index) => {
+                html += `
                 <div class="expansion-slot occupied">
                     <span class="slot-label">Storage ${index + 1}</span>
                     <span class="slot-component">
@@ -1885,18 +1885,18 @@ class PCPartPickerBuilder {
                     </span>
                 </div>
             `;
-        });
+            });
         }
 
         return html || '<div class="expansion-slot empty"><span class="slot-label">No M.2 slots available</span></div>';
-}
+    }
 
     /**
      * Calculate estimated power consumption
      */
     calculateEstimatedPower() {
         let totalPower = 0;
-        
+
         Object.keys(this.selectedComponents).forEach(type => {
             const components = this.selectedComponents[type];
             if (Array.isArray(components)) {
@@ -1916,34 +1916,34 @@ class PCPartPickerBuilder {
                 });
             }
         });
-        
-        return totalPower || 374; // Default fallback
-        }
 
-        /**
-         * Add component to configuration
-         */
+        return totalPower || 374; // Default fallback
+    }
+
+    /**
+     * Add component to configuration
+     */
     async addComponent(type) {
         try {
-            
+
             if (!this.currentConfig || !this.currentConfig.config_uuid) {
                 this.showAlert('No server configuration loaded', 'error');
                 return;
             }
 
             const configUuid = this.currentConfig.config_uuid;
-            
+
             // Always redirect to external configuration page (same as server index)
             window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
         } catch (error) {
             console.error('Error adding component:', error);
             this.showAlert('Failed to open component selection', 'error');
         }
-        }
+    }
 
-        /**
-         * Remove component from configuration
-         */
+    /**
+     * Remove component from configuration
+     */
     async removeComponent(type, uuid) {
         if (!confirm('Are you sure you want to remove this component?')) {
             return;
@@ -1970,36 +1970,36 @@ class PCPartPickerBuilder {
         } finally {
             this.hideLoading();
         }
-        }
+    }
 
-        /**
-         * Get total issues count
-         */
+    /**
+     * Get total issues count
+     */
     getTotalIssuesCount() {
         return this.compatibilityIssues.length + this.performanceWarnings.length;
-        }
+    }
 
-        /**
-         * Get issues resolved count
-         */
+    /**
+     * Get issues resolved count
+     */
     getIssuesResolvedCount() {
         // For now, assume all issues are unresolved. In a real implementation,
         // this would track which issues have been addressed.
         return 0;
-        }
+    }
 
-        /**
-         * Get issues resolved percentage
-         */
+    /**
+     * Get issues resolved percentage
+     */
     getIssuesResolvedPercentage() {
         const total = this.getTotalIssuesCount();
         if (total === 0) return 100;
         return Math.round((this.getIssuesResolvedCount() / total) * 100);
-        }
+    }
 
-        /**
-         * Render grouped issues
-         */
+    /**
+     * Render grouped issues
+     */
     renderGroupedIssues() {
         const allIssues = [...this.compatibilityIssues, ...this.performanceWarnings];
         const groupedIssues = this.groupIssuesByCategory(allIssues);
@@ -2022,11 +2022,11 @@ class PCPartPickerBuilder {
                 </div>
             `;
         }).join('');
-        }
+    }
 
-        /**
-         * Group issues by category
-         */
+    /**
+     * Group issues by category
+     */
     groupIssuesByCategory(issues) {
         const groups = {};
         issues.forEach(issue => {
@@ -2037,11 +2037,11 @@ class PCPartPickerBuilder {
             groups[group].push(issue);
         });
         return groups;
-        }
+    }
 
-        /**
-         * Get group title
-         */
+    /**
+     * Get group title
+     */
     getGroupTitle(groupKey) {
         const titles = {
             'required_components': 'Required Components',
@@ -2053,11 +2053,11 @@ class PCPartPickerBuilder {
             'general': 'General Issues'
         };
         return titles[groupKey] || 'General Issues';
-        }
+    }
 
-        /**
-         * Get group icon
-         */
+    /**
+     * Get group icon
+     */
     getGroupIcon(groupKey) {
         const icons = {
             'required_components': 'fas fa-exclamation-triangle',
@@ -2069,11 +2069,11 @@ class PCPartPickerBuilder {
             'general': 'fas fa-info-circle'
         };
         return icons[groupKey] || 'fas fa-info-circle';
-        }
+    }
 
-        /**
-         * Render individual issue item
-         */
+    /**
+     * Render individual issue item
+     */
     renderIssueItem(issue) {
         const severityClass = `severity-${issue.severity || 'info'}`;
         const iconClass = issue.icon || 'fas fa-info-circle';
@@ -2096,22 +2096,22 @@ class PCPartPickerBuilder {
                 </div>
             </div>
         `;
-        }
+    }
 
-        /**
-         * Handle issue item click
-         */
+    /**
+     * Handle issue item click
+     */
     handleIssueClick(componentType, element) {
         if (componentType && this.selectedComponents[componentType] && this.selectedComponents[componentType].length > 0) {
             this.scrollToComponent(componentType);
         } else {
             element.classList.toggle('expanded');
         }
-        }
+    }
 
-        /**
-         * Scroll to component in table
-         */
+    /**
+     * Scroll to component in table
+     */
     scrollToComponent(type) {
         const element = document.getElementById(`component-row-${type}`);
         if (element) {
@@ -2123,16 +2123,16 @@ class PCPartPickerBuilder {
                 element.style.backgroundColor = '';
             }, 2000);
         }
-        }
+    }
 
-        /**
-         * Attach event listeners
-         */
+    /**
+     * Attach event listeners
+     */
     attachEventListeners() {
-         // Toggle switch functionality
+        // Toggle switch functionality
         const toggleSwitch = document.getElementById('advancedViewToggle');
         const toggleState = document.getElementById('toggleState');
-        
+
         if (toggleSwitch && toggleState) {
             toggleSwitch.addEventListener('change', (e) => {
                 const isChecked = e.target.checked;
@@ -2151,7 +2151,7 @@ class PCPartPickerBuilder {
         // Issue group expansion toggles
         const issueGroupHeaders = document.querySelectorAll('.issues-group-header');
         issueGroupHeaders.forEach(header => {
-            header.addEventListener('click', function() {
+            header.addEventListener('click', function () {
                 const group = this.closest('.issues-group');
                 group.classList.toggle('expanded');
             });
@@ -2160,7 +2160,7 @@ class PCPartPickerBuilder {
         // Individual issue expansion toggles
         const expandableIssues = document.querySelectorAll('.issue-item.expandable');
         expandableIssues.forEach(issue => {
-            issue.addEventListener('click', function() {
+            issue.addEventListener('click', function () {
                 this.classList.toggle('expanded');
             });
         });
@@ -2170,7 +2170,7 @@ class PCPartPickerBuilder {
         issueGroups.forEach(group => {
             group.classList.add('expanded');
         });
-        }
+    }
     toggleAdvancedView(enabled) {
         // Add/remove advanced view classes
         const container = document.querySelector('.pcpp-container');
@@ -2181,36 +2181,36 @@ class PCPartPickerBuilder {
             container.classList.remove('advanced-view');
             this.hideAdvancedFeatures();
         }
-        
+
         // Show feedback
         this.showAlert(`Advanced view ${enabled ? 'enabled' : 'disabled'}`, 'info');
-        }
-        /**
-         * Show advanced features
-         */
+    }
+    /**
+     * Show advanced features
+     */
     showAdvancedFeatures() {
         // Add any advanced features you want to show
         console.log('Advanced view enabled');
-        
+
         // Example: Show additional technical details
         const motherboardSection = document.querySelector('.motherboard-section');
         if (motherboardSection) {
             motherboardSection.style.display = 'block';
         }
-        }
-        /**
-         * Hide advanced features
-         */
+    }
+    /**
+     * Hide advanced features
+     */
     hideAdvancedFeatures() {
         // Hide any advanced features
         console.log('Advanced view disabled');
-        
+
         // Example: You might want to keep motherboard section always visible
         // or conditionally hide it based on your requirements
-        }
-        /**
-         * Show loading overlay (delegates to global loading manager)
-         */
+    }
+    /**
+     * Show loading overlay (delegates to global loading manager)
+     */
     showLoading(message = 'Loading...', subtext = '') {
         const fullMessage = subtext ? `${message} - ${subtext}` : message;
         if (window.globalLoading) {
@@ -2218,20 +2218,20 @@ class PCPartPickerBuilder {
         } else {
             console.warn('Global loading manager not available');
         }
-        }
+    }
 
-        /**
-         * Hide loading overlay (delegates to global loading manager)
-         */
+    /**
+     * Hide loading overlay (delegates to global loading manager)
+     */
     hideLoading() {
         if (window.globalLoading) {
             window.globalLoading.hide();
         }
-        }
+    }
 
-        /**
-         * Show alert notification
-         */
+    /**
+     * Show alert notification
+     */
     showAlert(message, type = 'info') {
         const typeMap = {
             'danger': 'error',
@@ -2246,7 +2246,7 @@ class PCPartPickerBuilder {
             toastNotification.show(message, mappedType);
         } else {
         }
-        }
+    }
 }
 
 // Initialize when DOM is ready

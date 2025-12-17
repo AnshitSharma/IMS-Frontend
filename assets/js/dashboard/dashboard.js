@@ -515,9 +515,9 @@ class Dashboard {
         if (servers.length === 0) {
             serverCardsGrid.innerHTML = `
                 <div class="col-span-full text-center py-16">
-                    <i class="fas fa-server text-6xl text-slate-300 mb-4"></i>
-                    <h3 class="text-xl font-semibold text-slate-800 mb-2">No Servers Found</h3>
-                    <p class="text-slate-600 mb-6">Start building your first server configuration</p>
+                    <i class="fas fa-server text-6xl text-text-muted mb-4"></i>
+                    <h3 class="text-xl font-semibold text-text-primary mb-2">No Servers Found</h3>
+                    <p class="text-text-secondary mb-6">Start building your first server configuration</p>
                     <button class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
                         <i class="fas fa-plus"></i> Create New Server
                     </button>
@@ -537,7 +537,7 @@ class Dashboard {
         };
 
         serverCardsGrid.innerHTML = servers.map(server => `
-            <div class="bg-white border border-slate-200 rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 flex flex-col gap-4 cursor-pointer group" data-server-uuid="${server.config_uuid}">
+            <div class="bg-surface-card border border-border rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 flex flex-col gap-4 cursor-pointer group" data-server-uuid="${server.config_uuid}">
                 <!-- Header -->
                 <div class="flex justify-between items-start gap-3">
                     <div class="flex-1 min-w-0">
@@ -546,15 +546,15 @@ class Dashboard {
                                 <i class="fas fa-server text-white"></i>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <h3 class="text-lg font-semibold text-slate-800 truncate mb-1.5 group-hover:text-teal-700 transition-colors">
+                                <h3 class="text-lg font-semibold text-text-primary truncate mb-1.5 group-hover:text-teal-700 transition-colors">
                                     ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
                                 </h3>
                                 ${getStatusBadge(server.configuration_status)}
                             </div>
                         </div>
-                        ${server.description ? `<p class="text-sm text-slate-600 mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
+                        ${server.description ? `<p class="text-sm text-text-secondary mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
                     </div>
-                    <button class="px-3 py-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0"
+                    <button class="px-3 py-2 bg-surface-hover text-text-muted rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0"
                             onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
                             title="Delete Server">
                         <i class="fas fa-trash text-sm"></i>
@@ -562,36 +562,36 @@ class Dashboard {
                 </div>
 
                 <!-- Stats -->
-                <div class="flex gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                <div class="flex gap-3 p-3 bg-surface-hover rounded-lg border border-border">
                     <div class="flex items-center gap-2 flex-1">
-                        <div class="w-8 h-8 rounded-md bg-white flex items-center justify-center shadow-sm border border-slate-100">
+                        <div class="w-8 h-8 rounded-md bg-surface-card flex items-center justify-center shadow-sm border border-border">
                             <i class="fas fa-microchip text-teal-600 text-sm"></i>
                         </div>
                         <div class="flex items-center justify-between flex-1">
-                            <span class="text-xs font-medium text-slate-600 uppercase tracking-wide">Components</span>
-                            <span class="text-xl font-bold text-slate-800">${server.total_component_types || 0}</span>
+                            <span class="text-xs font-medium text-text-secondary uppercase tracking-wide">Components</span>
+                            <span class="text-xl font-bold text-text-primary">${server.total_component_types || 0}</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Meta -->
-                <div class="flex flex-col gap-2 pt-3 border-t border-slate-100">
+                <div class="flex flex-col gap-2 pt-3 border-t border-border">
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-500 flex items-center gap-1.5">
-                            <i class="fas fa-calendar text-xs mr-1 text-slate-400"></i>Created
+                        <span class="text-text-muted flex items-center gap-1.5">
+                            <i class="fas fa-calendar text-xs mr-1 text-text-muted"></i>Created
                         </span>
-                        <span class="text-slate-700 font-medium">${utils.formatDate(server.created_at)}</span>
+                        <span class="text-text-secondary font-medium">${utils.formatDate(server.created_at)}</span>
                     </div>
                     <div class="flex justify-between items-center text-sm">
-                        <span class="text-slate-500 flex items-center gap-1.5">
-                            <i class="fas fa-clock text-xs mr-1 text-slate-400"></i>Modified
+                        <span class="text-text-muted flex items-center gap-1.5">
+                            <i class="fas fa-clock text-xs mr-1 text-text-muted"></i>Modified
                         </span>
-                        <span class="text-slate-700 font-medium">${utils.formatDate(server.last_modified)}</span>
+                        <span class="text-text-secondary font-medium">${utils.formatDate(server.last_modified)}</span>
                     </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="flex gap-2 pt-3 border-t border-slate-100">
+                <div class="flex gap-2 pt-3 border-t border-border">
                     <button class="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm hover:shadow-md transition-all duration-200 font-medium text-sm flex items-center justify-center gap-2"
                             onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                             title="Configure server components">
@@ -2088,6 +2088,51 @@ class Dashboard {
                 </button>
             </div>
         `;
+    }
+
+    /**
+     * Switch view
+     */
+    async switchView(viewName) {
+        // Hide all content sections
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        this.currentComponent = viewName;
+
+        // Handle specific views
+        if (viewName === 'dashboard') {
+            const view = document.getElementById('dashboardView');
+            if (view) view.classList.add('active');
+            await this.loadDashboard();
+        } else if (viewName === 'servers') {
+            const view = document.getElementById('serverView');
+            if (view) view.classList.add('active');
+            await this.loadServerList();
+        } else if (viewName === 'serverBuilder') {
+            const view = document.getElementById('serverBuilderView');
+            if (view) view.classList.add('active');
+            await this.loadServerBuilder();
+        } else {
+            // General fallback
+            const viewId = viewName.endsWith('View') ? viewName : viewName + 'View';
+            const view = document.getElementById(viewId);
+
+            if (view) {
+                view.classList.add('active');
+            } else {
+                console.warn(`View ${viewName} not found, defaulting to dashboard`);
+                const dashboardView = document.getElementById('dashboardView');
+                if (dashboardView) dashboardView.classList.add('active');
+                await this.loadDashboard();
+            }
+        }
+
+        // Update URL to reflect view (optional but good for history)
+        const url = new URL(window.location);
+        url.searchParams.set('view', viewName);
+        window.history.pushState({}, '', url);
     }
 
     handleInitialView() {
