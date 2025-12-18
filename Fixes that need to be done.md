@@ -1,11 +1,3 @@
-Tickets
-      -tickets are not adding
-
-
-Access Control
- 	      
-	     - Verify that roles can be added successfully.
-             - Verify that deleting roles is not allowed.
 
 Servers:
 	- When creating a new server:

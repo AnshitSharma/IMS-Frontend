@@ -122,7 +122,7 @@ class EditFormComponent {
             }
         } catch (error) {
             console.error('Error updating component:', error);
-            utils.showAlert('An error occurred while updating the component.', 'error');
+            utils.showAlert(error.message || 'An error occurred while updating the component', 'error');
         }
     }
 

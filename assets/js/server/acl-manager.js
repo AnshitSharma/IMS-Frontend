@@ -731,7 +731,7 @@ class ACLManager {
             }
         } catch (error) {
             console.error('Error saving role:', error);
-            toast.error('An error occurred while saving the role: ' + error.message);
+            toast.error(error.message || 'An error occurred while saving the role');
         } finally {
             utils.showLoading(false);
         }
@@ -758,7 +758,7 @@ class ACLManager {
             }
         } catch (error) {
             console.error('Error deleting role:', error);
-            toast.error('An error occurred while deleting the role');
+            toast.error(error.message || 'An error occurred while deleting the role');
         } finally {
             utils.showLoading(false);
         }
@@ -810,7 +810,7 @@ class ACLManager {
             }
         } catch (error) {
             console.error('Error assigning user:', error);
-            toast.error('An error occurred while assigning the user');
+            toast.error(error.message || 'An error occurred while assigning the user');
         } finally {
             utils.showLoading(false);
         }
@@ -861,7 +861,7 @@ class ACLManager {
             }
         } catch (error) {
             console.error('Error removing user:', error);
-            toast.error('An error occurred while removing the user');
+            toast.error(error.message || 'An error occurred while removing the user');
         } finally {
             utils.showLoading(false);
         }

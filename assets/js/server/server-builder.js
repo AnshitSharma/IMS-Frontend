@@ -106,17 +106,18 @@ class ServerBuilder {
         this.compatibilityIssues = [];
         this.performanceWarnings = [];
 
+        this.loading = false;
         this.init();
     }
 
-    init() {
+    async init() {
 
         // Check authentication
         if (!this.checkAuthentication()) {
             return;
         }
 
-        this.loadServerConfig();
+        await this.loadServerConfig();
     }
 
     /**
@@ -140,13 +141,13 @@ class ServerBuilder {
     /**
      * Load server configuration from URL parameters
      */
-    loadServerConfig() {
+    async loadServerConfig() {
         const urlParams = new URLSearchParams(window.location.search);
         const configUuid = urlParams.get('config');
 
 
         if (configUuid) {
-            this.loadExistingConfig(configUuid);
+            await this.loadExistingConfig(configUuid);
         } else {
             if (window.location.pathname.includes('builder')) {
                 window.location.href = 'index.html';
@@ -158,13 +159,17 @@ class ServerBuilder {
      * Load existing configuration from API
      */
     async loadExistingConfig(configUuid) {
+        if (this.loading) return;
+
         try {
+            this.loading = true;
             this.showLoading('Loading server configuration...');
 
             // Check if serverAPI is available
             if (typeof serverAPI === 'undefined') {
                 console.error('serverAPI is not available!');
                 this.showAlert('Server API not available', 'danger');
+                this.renderErrorState('Server API not available. Please refresh the page.');
                 this.hideLoading();
                 return;
             }
@@ -180,12 +185,45 @@ class ServerBuilder {
             } else {
                 console.error('Failed to load configuration:', result);
                 this.showAlert(result.message || 'Failed to load configuration', 'danger');
+                this.renderErrorState(result.message || 'Failed to load configuration');
             }
         } catch (error) {
             console.error('Error loading configuration:', error);
             this.showAlert('Failed to load server configuration', 'danger');
+            this.renderErrorState('Failed to load server configuration. Please try again.');
         } finally {
             this.hideLoading();
+            this.loading = false;
+        }
+    }
+
+    /**
+     * Render error state when configuration fails to load
+     */
+    renderErrorState(errorMessage) {
+        const targetElement = document.getElementById('serverBuilderContent') || document.getElementById('app');
+        if (targetElement) {
+            targetElement.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16 px-6">
+                    <div class="bg-surface-card border border-border-light rounded-xl p-8 max-w-md w-full text-center">
+                        <div class="w-16 h-16 mx-auto mb-4 bg-danger/10 rounded-full flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-3xl text-danger"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-text-primary mb-2">Failed to Load Configuration</h3>
+                        <p class="text-text-secondary mb-6">${errorMessage}</p>
+                        <div class="flex flex-col gap-3">
+                            <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2" onclick="window.location.reload()">
+                                <i class="fas fa-redo"></i>
+                                Retry
+                            </button>
+                            <button class="w-full px-4 py-2.5 bg-surface-hover text-text-secondary rounded-lg font-medium hover:bg-border transition-colors flex items-center justify-center gap-2" onclick="window.location.href='index.html'">
+                                <i class="fas fa-arrow-left"></i>
+                                Back to Server List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
     }
 
@@ -282,6 +320,35 @@ class ServerBuilder {
         }
 
         this.checkCompatibility();
+
+        // Sidebar counts should show inventory totals, not build-specific counts
+        // this.updateSidebarCounts();
+    }
+
+    /**
+     * Update sidebar component counts
+     * This updates the count badges in the sidebar to reflect the current configuration
+     */
+    updateSidebarCounts() {
+        const countElements = {
+            'cpu': document.getElementById('cpuCount'),
+            'ram': document.getElementById('ramCount'),
+            'storage': document.getElementById('storageCount'),
+            'motherboard': document.getElementById('motherboardCount'),
+            'nic': document.getElementById('nicCount'),
+            'caddy': document.getElementById('caddyCount'),
+            'chassis': document.getElementById('chassisCount'),
+            'pciecard': document.getElementById('pciecardCount'),
+            'sfp': document.getElementById('sfpCount'),
+            'hbacard': document.getElementById('hbacardCount'),
+            'servers': document.getElementById('serversCount')
+        };
+
+        for (const [type, element] of Object.entries(countElements)) {
+            if (element && this.selectedComponents[type]) {
+                element.textContent = this.selectedComponents[type].length;
+            }
+        }
     }
     /**
      * Render chassis details - Dynamic based on chassis JSON
@@ -1062,7 +1129,7 @@ class ServerBuilder {
             }
         } catch (error) {
             console.error('Error saving configuration:', error);
-            this.showAlert('An error occurred while saving the configuration', 'error');
+            this.showAlert(error.message || 'An error occurred while saving the configuration', 'error');
         } finally {
             this.hideLoading();
         }
@@ -1937,7 +2004,7 @@ class ServerBuilder {
             window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
         } catch (error) {
             console.error('Error adding component:', error);
-            this.showAlert('Failed to open component selection', 'error');
+            this.showAlert(error.message || 'Failed to open component selection', 'error');
         }
     }
 

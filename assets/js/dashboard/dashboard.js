@@ -226,7 +226,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error loading dashboard:', error);
-            utils.showAlert('Failed to load dashboard data', 'error');
+            utils.showAlert(error.message || 'Failed to load dashboard data', 'error');
         } finally {
             this.loadingStates.dashboard = false;
             utils.showLoading(false);
@@ -365,7 +365,7 @@ class Dashboard {
             await this.loadSidebarCounts();
         } catch (error) {
             console.error(`Error loading ${componentType} components:`, error);
-            utils.showAlert(`Failed to load ${componentType} components`, 'error');
+            utils.showAlert(error.message || `Failed to load ${componentType} components`, 'error');
         } finally {
             this.loadingStates.components = false;
             utils.showLoading(false);
@@ -424,7 +424,7 @@ class Dashboard {
 
         } catch (error) {
             console.error(`Error loading servers:`, error);
-            utils.showAlert(`Failed to load servers`, 'error');
+            utils.showAlert(error.message || 'Failed to load servers', 'error');
             this.renderServerList([]);
         } finally {
             this.loadingStates.servers = false;
@@ -930,8 +930,8 @@ class Dashboard {
                         utils.showAlert(result.message || 'Failed to create server', 'error');
                     }
                 } catch (error) {
-                    utils.showAlert('An error occurred while creating the server.', 'error');
                     console.error('Create server error:', error);
+                    utils.showAlert(error.message || 'An error occurred while creating the server', 'error');
                 } finally {
                     utils.showLoading(false);
                 }
@@ -1079,7 +1079,7 @@ class Dashboard {
 
         } catch (error) {
             console.error('Error loading server configuration:', error);
-            utils.showAlert('Failed to load server configuration', 'error');
+            utils.showAlert(error.message || 'Failed to load server configuration', 'error');
             builderContent.innerHTML = `
                 <div class="empty-state" style="text-align: center; padding: 60px 24px;">
                     <i class="fas fa-exclamation-triangle" style="font-size: 64px; color: var(--danger-color); margin-bottom: 16px;"></i>
@@ -1474,7 +1474,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error adding component:', error);
-            utils.showAlert('Failed to add component', 'error');
+            utils.showAlert(error.message || 'Failed to add component', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1504,7 +1504,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error removing component:', error);
-            utils.showAlert('Failed to remove component', 'error');
+            utils.showAlert(error.message || 'Failed to remove component', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1562,7 +1562,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error validating configuration:', error);
-            utils.showAlert('Failed to validate configuration', 'error');
+            utils.showAlert(error.message || 'Failed to validate configuration', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1586,7 +1586,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error deploying configuration:', error);
-            utils.showAlert('Failed to deploy configuration', 'error');
+            utils.showAlert(error.message || 'Failed to deploy configuration', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1610,7 +1610,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error loading edit form:', error);
-            utils.showAlert('Failed to load the edit component form.', 'error');
+            utils.showAlert(error.message || 'Failed to load the edit component form', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1629,7 +1629,7 @@ class Dashboard {
                 }
             } catch (error) {
                 console.error('Error deleting component:', error);
-                utils.showAlert('Failed to delete component', 'error');
+                utils.showAlert(error.message || 'Failed to delete component', 'error');
             } finally {
                 utils.showLoading(false);
             }
@@ -1676,7 +1676,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error bulk updating components:', error);
-            utils.showAlert('Failed to update components', 'error');
+            utils.showAlert(error.message || 'Failed to update components', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1711,7 +1711,7 @@ class Dashboard {
                 await this.loadDashboard();
             } catch (error) {
                 console.error('Error bulk deleting components:', error);
-                utils.showAlert('Failed to delete components', 'error');
+                utils.showAlert(error.message || 'Failed to delete components', 'error');
             } finally {
                 utils.showLoading(false);
             }
@@ -1820,7 +1820,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error changing password:', error);
-            utils.showAlert('Failed to change password', 'error');
+            utils.showAlert(error.message || 'Failed to change password', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1839,7 +1839,7 @@ class Dashboard {
                 }
             } catch (error) {
                 console.error('Error deleting server:', error);
-                utils.showAlert('Failed to delete server', 'error');
+                utils.showAlert(error.message || 'Failed to delete server', 'error');
             } finally {
                 utils.showLoading(false);
             }
@@ -1887,7 +1887,17 @@ class Dashboard {
 
             // Use PC part picker builder if available
             if (window.serverBuilder) {
-                window.serverBuilder.currentConfig = null;
+                // Check if it's already loading or has this config to avoid flicker
+                if (window.serverBuilder.loading) {
+                    console.log('Server builder is already loading, skipping redundant call');
+                    return;
+                }
+
+                if (window.serverBuilder.currentConfig && window.serverBuilder.currentConfig.config_uuid === configUuid) {
+                    console.log('Server builder already has this config loaded');
+                    return;
+                }
+
                 await window.serverBuilder.loadExistingConfig(configUuid);
                 // The PC part picker builder will now render directly to serverBuilderContent
             } else {
@@ -2044,7 +2054,7 @@ class Dashboard {
             }
         } catch (error) {
             console.error('Error adding component:', error);
-            utils.showAlert('Failed to add component', 'error');
+            utils.showAlert(error.message || 'Failed to add component', 'error');
         } finally {
             utils.showLoading(false);
         }

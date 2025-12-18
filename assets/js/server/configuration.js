@@ -497,7 +497,7 @@ class ConfigurationPage {
 
         } catch (error) {
             console.error('Error loading components:', error);
-            this.showAlert('Failed to load components', 'error');
+            this.showAlert(error.message || 'Failed to load components', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -2367,7 +2367,7 @@ class ConfigurationPage {
 
         } catch (error) {
             console.error('Error adding component:', error);
-            this.showAlert('Failed to add component', 'error');
+            this.showAlert(error.message || 'Failed to add component', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -2562,7 +2562,7 @@ class ConfigurationPage {
 
         } catch (error) {
             console.error('Error adding components:', error);
-            this.showAlert('Failed to add components', 'error');
+            this.showAlert(error.message || 'Failed to add components', 'error');
         } finally {
             this.showLoading(false);
         }

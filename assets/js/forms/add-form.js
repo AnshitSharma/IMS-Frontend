@@ -113,7 +113,7 @@ class AddComponentForm {
 
         } catch (error) {
             console.error('Error loading component type:', error);
-            this.showAlert('Failed to load component specifications', 'error');
+            this.showAlert(error.message || 'Failed to load component specifications', 'error');
         } finally {
             this.showLoading(false);
         }

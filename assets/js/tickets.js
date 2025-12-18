@@ -14,6 +14,10 @@ class TicketsManager {
         this.statusFilter = '';
         this.priorityFilter = '';
         this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
+
+        // Cache for users and roles to avoid duplicate API calls
+        this.cachedUsers = null;
+        this.cachedRoles = null;
     }
 
     /**
@@ -237,12 +241,7 @@ class TicketsManager {
                         ${this.getPriorityBadge(ticket.priority)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="flex items-center gap-2">
-                             <div class="w-7 h-7 rounded-full bg-surface-secondary flex items-center justify-center text-xs text-text-muted ring-2 ring-surface-card">
-                                <i class="fas fa-user"></i>
-                             </div>
-                             <span class="text-sm font-medium text-text-secondary">${this.escapeHtml(ticket.assigned_to_username || 'Unassigned')}</span>
-                        </div>
+                        ${this.getAssignedToDisplay(ticket)}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex flex-col">
@@ -314,6 +313,37 @@ class TicketsManager {
                 <i class="fas ${config.icon} text-[10px] opacity-70"></i>
                 ${this.escapeHtml(label)}
             </span>
+        `;
+    }
+
+    /**
+     * Get assigned to display HTML
+     * Priority: assigned_user > assigned_role > Unassigned
+     */
+    getAssignedToDisplay(ticket) {
+        let displayName = 'Unassigned';
+        let icon = 'fa-user';
+        let isRole = false;
+
+        // Check for assigned_user first (takes priority)
+        if (ticket.assigned_user && ticket.assigned_user.username) {
+            displayName = ticket.assigned_user.username;
+            icon = 'fa-user';
+        }
+        // Fall back to assigned_role if no assigned_user
+        else if (ticket.assigned_role && ticket.assigned_role.name) {
+            displayName = ticket.assigned_role.name;
+            icon = 'fa-users';
+            isRole = true;
+        }
+
+        return `
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full ${isRole ? 'bg-primary/10' : 'bg-surface-secondary'} flex items-center justify-center text-xs ${isRole ? 'text-primary' : 'text-text-muted'} ring-2 ring-surface-card">
+                    <i class="fas ${icon}"></i>
+                </div>
+                <span class="text-sm font-medium text-text-secondary">${this.escapeHtml(displayName)}</span>
+            </div>
         `;
     }
 
@@ -779,6 +809,43 @@ class TicketsManager {
                         placeholder="Enter detailed description">${isEdit ? this.escapeHtml(ticket.description) : ''}</textarea>
                 </div>
 
+                <!-- Assignment Section -->
+                <div class="form-group">
+                    <label class="block text-sm font-semibold text-text-primary mb-2">
+                        Assign To <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex gap-4 mb-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="assignmentType" value="user"
+                                class="w-4 h-4 text-primary focus:ring-primary"
+                                ${isEdit && ticket.assigned_to ? 'checked' : (!isEdit ? 'checked' : '')}>
+                            <span class="text-sm text-text-primary">Assign to User</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="assignmentType" value="role"
+                                class="w-4 h-4 text-primary focus:ring-primary"
+                                ${isEdit && ticket.assigned_to_role && !ticket.assigned_to ? 'checked' : ''}>
+                            <span class="text-sm text-text-primary">Assign to Role</span>
+                        </label>
+                    </div>
+
+                    <!-- User Dropdown -->
+                    <div id="userAssignmentContainer" class="${isEdit && ticket.assigned_to_role && !ticket.assigned_to ? 'hidden' : ''}">
+                        <select id="ticketAssignedUser"
+                            class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                            <option value="">Loading users...</option>
+                        </select>
+                    </div>
+
+                    <!-- Role Dropdown -->
+                    <div id="roleAssignmentContainer" class="${isEdit && ticket.assigned_to_role && !ticket.assigned_to ? '' : 'hidden'}">
+                        <select id="ticketAssignedRole"
+                            class="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
+                            <option value="">Loading roles...</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="ticketTargetServer" class="block text-sm font-semibold text-text-primary mb-2">
                         Target Server UUID <span class="text-text-muted text-xs">(Optional)</span>
@@ -890,6 +957,26 @@ class TicketsManager {
             addComponentBtn.onclick = () => this.addComponentItem();
         }
 
+        // Assignment type toggle listeners
+        const assignmentRadios = document.querySelectorAll('input[name="assignmentType"]');
+        const userContainer = document.getElementById('userAssignmentContainer');
+        const roleContainer = document.getElementById('roleAssignmentContainer');
+
+        assignmentRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'user') {
+                    userContainer.classList.remove('hidden');
+                    roleContainer.classList.add('hidden');
+                } else {
+                    userContainer.classList.add('hidden');
+                    roleContainer.classList.remove('hidden');
+                }
+            });
+        });
+
+        // Load users and roles for dropdowns
+        this.loadAssignmentOptions(isEdit, ticket);
+
         // Form submit
         const form = document.getElementById('ticketForm');
         if (form) {
@@ -908,6 +995,86 @@ class TicketsManager {
             ticket.items.forEach(() => this.addComponentItem());
             // Populate the items after adding
             setTimeout(() => this.populateComponentItems(ticket.items), 100);
+        }
+    }
+
+    /**
+     * Load users and roles for assignment dropdowns
+     */
+    async loadAssignmentOptions(isEdit = false, ticket = null) {
+        const token = this.getAuthToken();
+        if (!token) return;
+
+        try {
+            // Use cached data if available, otherwise fetch from API
+            if (!this.cachedUsers || !this.cachedRoles) {
+                console.log('Fetching users and roles from API...');
+
+                const [usersResponse, rolesResponse] = await Promise.all([
+                    fetch(`${this.apiBaseUrl}?action=users-list`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${this.apiBaseUrl}?action=roles-list`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+
+                const usersResult = await usersResponse.json();
+                const rolesResult = await rolesResponse.json();
+
+                // Cache the results
+                if (usersResult.success && usersResult.data?.users) {
+                    this.cachedUsers = usersResult.data.users;
+                }
+                if (rolesResult.success && rolesResult.data?.roles) {
+                    this.cachedRoles = rolesResult.data.roles;
+                }
+
+                console.log('Users and roles cached successfully');
+            } else {
+                console.log('Using cached users and roles data');
+            }
+
+            // Populate users dropdown from cache
+            const userSelect = document.getElementById('ticketAssignedUser');
+            if (userSelect && this.cachedUsers) {
+                userSelect.innerHTML = '<option value="">Select a user...</option>';
+                this.cachedUsers.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = `${user.username} (${user.email || 'No email'})`;
+                    if (isEdit && ticket && ticket.assigned_to == user.id) {
+                        option.selected = true;
+                    }
+                    userSelect.appendChild(option);
+                });
+            } else if (userSelect) {
+                userSelect.innerHTML = '<option value="">No users available</option>';
+            }
+
+            // Populate roles dropdown from cache
+            const roleSelect = document.getElementById('ticketAssignedRole');
+            if (roleSelect && this.cachedRoles) {
+                roleSelect.innerHTML = '<option value="">Select a role...</option>';
+                this.cachedRoles.forEach(role => {
+                    const option = document.createElement('option');
+                    option.value = role.id;
+                    option.textContent = role.display_name || role.name;
+                    if (isEdit && ticket && ticket.assigned_to_role == role.id) {
+                        option.selected = true;
+                    }
+                    roleSelect.appendChild(option);
+                });
+            } else if (roleSelect) {
+                roleSelect.innerHTML = '<option value="">No roles available</option>';
+            }
+
+        } catch (error) {
+            console.error('Error loading assignment options:', error);
+            const userSelect = document.getElementById('ticketAssignedUser');
+            const roleSelect = document.getElementById('ticketAssignedRole');
+            if (userSelect) userSelect.innerHTML = '<option value="">Error loading users</option>';
+            if (roleSelect) roleSelect.innerHTML = '<option value="">Error loading roles</option>';
         }
     }
 
@@ -1152,6 +1319,11 @@ class TicketsManager {
             const priority = document.getElementById('ticketPriority').value;
             const targetServer = document.getElementById('ticketTargetServer').value.trim();
 
+            // Get assignment values
+            const assignmentType = document.querySelector('input[name="assignmentType"]:checked')?.value;
+            const assignedUserId = document.getElementById('ticketAssignedUser')?.value;
+            const assignedRoleId = document.getElementById('ticketAssignedRole')?.value;
+
             // Validate required fields
             if (!title) {
                 if (window.toastNotification) {
@@ -1163,6 +1335,21 @@ class TicketsManager {
             if (!description) {
                 if (window.toastNotification) {
                     toastNotification.show('Description is required', 'error');
+                }
+                return;
+            }
+
+            // Validate assignment
+            if (assignmentType === 'user' && !assignedUserId) {
+                if (window.toastNotification) {
+                    toastNotification.show('Please select a user to assign this ticket to', 'error');
+                }
+                return;
+            }
+
+            if (assignmentType === 'role' && !assignedRoleId) {
+                if (window.toastNotification) {
+                    toastNotification.show('Please select a role to assign this ticket to', 'error');
                 }
                 return;
             }
@@ -1181,6 +1368,13 @@ class TicketsManager {
             formData.append('title', title);
             formData.append('description', description);
             formData.append('priority', priority);
+
+            // Add assignment field based on selection
+            if (assignmentType === 'user' && assignedUserId) {
+                formData.append('assigned_to', assignedUserId);
+            } else if (assignmentType === 'role' && assignedRoleId) {
+                formData.append('assigned_to_role', assignedRoleId);
+            }
 
             if (targetServer) {
                 formData.append('target_server_uuid', targetServer);

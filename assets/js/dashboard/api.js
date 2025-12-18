@@ -89,11 +89,25 @@ window.api = {
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Try to parse JSON response even for non-ok responses
+            // Many APIs return error details in the response body
+            let result;
+            try {
+                result = await response.json();
+            } catch (parseError) {
+                // If JSON parsing fails and response is not ok, throw HTTP error
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                throw parseError;
             }
 
-            const result = await response.json();
+            // For non-ok responses, if we have an API message, throw it
+            // This ensures the actual API error message reaches the catch block
+            if (!response.ok && !result.success) {
+                const errorMessage = result.message || `HTTP ${response.status}: ${response.statusText}`;
+                throw new Error(errorMessage);
+            }
 
             // Handle token expiration
             if (result.code === 401 && result.message &&
@@ -111,11 +125,24 @@ window.api = {
                         body: formData
                     });
 
-                    if (!retryResponse.ok) {
-                        throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+                    // Try to parse JSON response even for non-ok responses
+                    let retryResult;
+                    try {
+                        retryResult = await retryResponse.json();
+                    } catch (parseError) {
+                        if (!retryResponse.ok) {
+                            throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+                        }
+                        throw parseError;
                     }
 
-                    return await retryResponse.json();
+                    // For non-ok responses, if we have an API message, throw it
+                    if (!retryResponse.ok && !retryResult.success) {
+                        const errorMessage = retryResult.message || `HTTP ${retryResponse.status}: ${retryResponse.statusText}`;
+                        throw new Error(errorMessage);
+                    }
+
+                    return retryResult;
                 } else {
                     // Refresh failed, redirect to login
                     this.handleAuthFailure();

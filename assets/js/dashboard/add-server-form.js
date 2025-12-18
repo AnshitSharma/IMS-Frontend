@@ -29,8 +29,8 @@ function initializeAddServerForm() {
                     utils.showAlert(api.utils.formatError(result), 'error');
                 }
             } catch (error) {
-                utils.showAlert('An error occurred while creating the server.', 'error');
                 console.error('Create server error:', error);
+                utils.showAlert(error.message || 'An error occurred while creating the server', 'error');
             } finally {
                 utils.showLoading(false);
             }
