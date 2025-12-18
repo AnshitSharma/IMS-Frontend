@@ -74,7 +74,7 @@ class ConfigurationPage {
             if (backButton) {
                 backButton.classList.remove('hidden');
                 backButton.addEventListener('click', () => {
-                    window.location.href = `builder.html?config=${configUuid}`;
+                    window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
                 });
             }
         }
@@ -2345,15 +2345,7 @@ class ConfigurationPage {
                     // If we came from a specific page, redirect back
                     if (returnPage === 'builder') {
                         setTimeout(() => {
-                            // Check if we came from dashboard or standalone server page
-                            const referrer = document.referrer;
-                            if (referrer && referrer.includes('/dashboard/')) {
-                                // Redirect back to dashboard
-                                window.location.href = `../../pages/dashboard/index.html?view=serverBuilder&config=${configUuid}`;
-                            } else {
-                                // Redirect to standalone builder
-                                window.location.href = `builder.html?config=${configUuid}`;
-                            }
+                            window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
                         }, 1500);
                     }
                 } else {
@@ -2769,15 +2761,8 @@ class ConfigurationPage {
         const configUuid = backButton.getAttribute('data-config-uuid');
 
         if (returnPage === 'builder' && configUuid) {
-            // Check if we came from dashboard or standalone server page
-            const referrer = document.referrer;
-            if (referrer && referrer.includes('/dashboard/')) {
-                // Redirect back to dashboard
-                window.location.href = `../../pages/dashboard/index.html?view=serverBuilder&config=${configUuid}`;
-            } else {
-                // Redirect to standalone builder
-                window.location.href = `builder.html?config=${configUuid}`;
-            }
+            // Always redirect to servers page with serverBuilder view
+            window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
         } else {
             // Default fallback
             window.history.back();

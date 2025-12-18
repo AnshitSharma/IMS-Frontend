@@ -59,13 +59,20 @@ class ServerAPI {
     }
 
     // Server Configuration APIs
-    async createServerConfig(serverName, description, startWith) {
-        return await this.makeRequest({
+    async createServerConfig(serverName, description, startWith, isVirtual) {
+        const requestData = {
             action: 'server-create-start',
             server_name: serverName,
             description: description,
-            start_with: startWith
-        });
+            is_virtual: isVirtual
+        };
+
+        // Only include start_with if it's provided
+        if (startWith) {
+            requestData.start_with = startWith;
+        }
+
+        return await this.makeRequest(requestData);
     }
 
     async getServerConfigs(limit = 20, offset = 0, status = 1) {

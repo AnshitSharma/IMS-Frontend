@@ -18,7 +18,7 @@
 <body class="bg-surface-main">
     <!-- Navigation Header -->
     <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
-        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between pl-14 lg:pl-3">
             <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
                 <i class="fas fa-server"></i>
                 <span>BDC Inventory</span>
@@ -227,7 +227,11 @@
                 console.error('Failed to load sidebar component:', error);
             }
         }
-        loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
+        // Store promise globally so dashboard.js can wait for it
+        window.sidebarReady = loadSidebarComponent().catch(err => {
+            console.error('Sidebar loading error:', err);
+            return null;
+        });
     </script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
     <script>

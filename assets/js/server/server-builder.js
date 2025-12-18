@@ -764,22 +764,6 @@ class ServerBuilder {
 
         const interfaceHtml = `
             <div class="w-full mx-auto">
-                <!-- Header with Toggle -->
-                <div class="flex justify-between items-center mb-8 pb-4 border-b border-border-light">
-                    <div>
-                        <h1 class="text-3xl font-bold text-text-primary m-0">${serverName}</h1>
-                        <p class="text-sm text-text-muted mt-1 mb-0">Server Configuration Builder</p>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-text-secondary">Advanced View</span>
-                        <label class="relative inline-block w-11 h-6">
-                            <input type="checkbox" id="advancedViewToggle" class="opacity-0 w-0 h-0 peer">
-                            <span class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-border transition-all duration-300 rounded-full before:absolute before:content-[''] before:h-[18px] before:w-[18px] before:left-[3px] before:bottom-[3px] before:bg-white before:transition-all before:duration-300 before:rounded-full peer-checked:bg-primary peer-checked:before:translate-x-5"></span>
-                        </label>
-                        <span class="text-sm font-medium text-text-secondary min-w-[30px]" id="toggleState">Off</span>
-                    </div>
-                </div>
-
                <!-- Component Selection Table -->
                 <div class="bg-surface-card rounded-xl border border-border-light overflow-hidden mb-6">
                     <table class="w-full border-collapse">

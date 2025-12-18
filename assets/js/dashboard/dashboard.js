@@ -22,7 +22,12 @@ class Dashboard {
     }
 
     async init() {
-        // Initialize sidebar manager first (loads counts with caching)
+        // Wait for sidebar HTML to be loaded first (if loading asynchronously)
+        if (window.sidebarReady) {
+            await window.sidebarReady;
+        }
+
+        // Initialize sidebar manager (loads counts with caching)
         if (window.sidebarManager) {
             await window.sidebarManager.init();
         }
@@ -90,7 +95,7 @@ class Dashboard {
         // Refresh components
         const refreshComponents = document.getElementById('refreshComponents');
         if (refreshComponents) {
-            refreshComponents.addEventListener('click', () => this.loadComponentList(this.currentComponent));
+            refreshComponents.addEventListener('click', () => this.loadComponentList(this.currentComponent, true));
         }
 
         // Refresh servers
@@ -829,30 +834,6 @@ class Dashboard {
                         <p class="text-xs text-teal-700">Starting with Motherboard ensures better component compatibility and smoother configuration workflow.</p>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="serverType" class="form-label flex items-center gap-2">
-                        <i class="fas fa-layer-group text-teal-600 text-sm"></i>
-                        Server Type
-                    </label>
-                    <select class="form-select" id="serverType">
-                        <option value="standard">Standard</option>
-                        <option value="high-availability">High Availability</option>
-                        <option value="load-balancer">Load Balancer</option>
-                        <option value="database">Database</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="environment" class="form-label flex items-center gap-2">
-                        <i class="fas fa-code-branch text-teal-600 text-sm"></i>
-                        Environment
-                    </label>
-                    <select class="form-select" id="environment">
-                        <option value="production">Production</option>
-                        <option value="staging">Staging</option>
-                        <option value="development">Development</option>
-                        <option value="testing">Testing</option>
-                    </select>
-                </div>
             </div>
             
             <!-- Form Actions -->
@@ -880,10 +861,10 @@ class Dashboard {
         if (toggle) {
             toggle.addEventListener('change', function () {
                 if (this.checked) {
-                    standardForm.classList.add('hidden');
+                    // Show both standard and advanced fields
                     advancedForm.classList.remove('hidden');
                 } else {
-                    standardForm.classList.remove('hidden');
+                    // Hide only advanced fields, keep standard visible
                     advancedForm.classList.add('hidden');
                 }
             });
@@ -898,14 +879,25 @@ class Dashboard {
                 const isAdvancedView = toggle.checked;
                 const serverName = document.getElementById('serverName').value.trim();
                 const description = document.getElementById('description').value.trim();
-                let startWith = 'motherboard'; // Default
 
+                // Determine is_virtual based on toggle state
+                const isVirtual = isAdvancedView;
+
+                // Only get startWith if advanced view is enabled
+                let startWith = null;
                 if (isAdvancedView) {
                     startWith = document.getElementById('startWith').value;
-                    // You can collect other advanced fields here
-                    const serverType = document.getElementById('serverType').value;
-                    const environment = document.getElementById('environment').value;
                 }
+
+                // Debug logging
+                console.log('Form Submission Debug:', {
+                    toggleChecked: toggle.checked,
+                    isAdvancedView: isAdvancedView,
+                    isVirtual: isVirtual,
+                    startWith: startWith,
+                    serverName: serverName,
+                    description: description
+                });
 
                 if (!serverName) {
                     utils.showAlert('Please enter a server name', 'warning');
@@ -914,7 +906,7 @@ class Dashboard {
 
                 try {
                     utils.showLoading(true, 'Creating server...');
-                    const result = await api.servers.createConfig(serverName, description, startWith);
+                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual);
                     if (result.success) {
                         utils.showAlert('Server created successfully!', 'success');
                         this.closeModal();
@@ -2124,6 +2116,8 @@ class Dashboard {
             const view = document.getElementById('serverBuilderView');
             if (view) view.classList.add('active');
             await this.loadServerBuilder();
+            // Ensure sidebar counts are up to date after returning from configuration page
+            await this.loadSidebarCounts();
         } else {
             // General fallback
             const viewId = viewName.endsWith('View') ? viewName : viewName + 'View';

@@ -1,17 +1,17 @@
-<!-- Hamburger Menu Button (Mobile) -->
+<!-- Hamburger Menu Button (Mobile) - Positioned to not overlap with navbar brand -->
 <button
-    class="hamburger-menu fixed top-4 left-4 z-50 lg:hidden bg-surface-card text-text-secondary hover:text-primary rounded-lg p-2 shadow-md transition-colors"
+    class="hamburger-menu fixed top-3 left-3 z-hamburger lg:hidden bg-surface-card text-text-secondary hover:text-primary rounded-lg p-2.5 shadow-md transition-colors border border-border-light"
     id="hamburgerBtn" aria-label="Toggle Menu">
-    <i class="fas fa-bars text-xl"></i>
+    <i class="fas fa-bars text-lg"></i>
 </button>
 
-<!-- Mobile Overlay -->
-<div class="mobile-overlay fixed inset-0 bg-black/50 z-40 hidden backdrop-blur-sm transition-opacity"
+<!-- Mobile Overlay - z-index above navbar (1000) but below sidebar -->
+<div class="mobile-overlay fixed inset-0 bg-black/50 z-[1001] hidden backdrop-blur-sm transition-opacity"
     id="mobileOverlay"></div>
 
-<!-- Sidebar -->
+<!-- Sidebar - z-index above overlay on mobile, static on desktop -->
 <aside
-    class="sidebar w-64 bg-surface-card border-r border-border min-h-screen fixed lg:static z-40 flex flex-col transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-sidebar lg:shadow-none">
+    class="sidebar w-64 bg-surface-card border-r border-border min-h-screen fixed lg:static z-[1001] lg:z-auto flex flex-col transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-sidebar lg:shadow-none">
     <div class="sidebar-header px-6 py-6 border-b border-border flex items-center justify-between">
         <h3 class="font-bold text-lg text-primary tracking-wide">Components</h3>
         <button class="lg:hidden text-text-muted hover:text-text-primary transition-colors" id="closeSidebarBtn">

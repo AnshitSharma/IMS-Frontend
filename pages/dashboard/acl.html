@@ -329,8 +329,11 @@
                 console.error('Failed to load sidebar component:', error);
             }
         }
-        // Load sidebar first, with error handling
-        loadSidebarComponent().catch(err => console.error('Sidebar loading error:', err));
+        // Store promise globally so dashboard.js can wait for it
+        window.sidebarReady = loadSidebarComponent().catch(err => {
+            console.error('Sidebar loading error:', err);
+            return null;
+        });
     </script>
     <!-- Load ACL manager AFTER sidebar is being loaded -->
     <script src="../../assets/js/server/acl-manager.js"></script>

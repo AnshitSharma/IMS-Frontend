@@ -71,8 +71,10 @@ window.api = {
                 data[key].forEach(item => {
                     formData.append(`${key}[]`, item);
                 });
-            } else if (data[key] !== undefined) {
-                formData.append(key, data[key] === null ? 'null' : data[key]);
+            } else if (data[key] !== undefined && data[key] !== null) {
+                // Convert boolean to string for FormData
+                const value = typeof data[key] === 'boolean' ? String(data[key]) : data[key];
+                formData.append(key, value);
             }
         });
 
@@ -309,12 +311,28 @@ window.api = {
     },
 
     servers: {
-        async createConfig(serverName, description, startWith) {
-            return await api.request('server-create-start', {
+        async createConfig(serverName, description, startWith, isVirtual) {
+            const requestData = {
                 server_name: serverName,
                 description: description,
-                start_with: startWith
+                is_virtual: isVirtual
+            };
+
+            // Only include start_with if it's provided and not null
+            if (startWith !== null && startWith !== undefined) {
+                requestData.start_with = startWith;
+            }
+
+            // Debug logging
+            console.log('API createConfig called with:', {
+                serverName,
+                description,
+                startWith,
+                isVirtual,
+                requestData
             });
+
+            return await api.request('server-create-start', requestData);
         },
 
         async listConfigs(params = {}) {
