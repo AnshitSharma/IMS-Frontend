@@ -19,9 +19,18 @@
     <!-- Navigation Header -->
     <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
         <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
-            <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
-                <i class="fas fa-server"></i>
-                <span>BDC Inventory</span>
+            <!-- Mobile Hamburger + Brand -->
+            <div class="flex items-center gap-3">
+                <!-- Hamburger Menu Button (Mobile Only) -->
+                <button
+                    class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                    id="hamburgerBtn" aria-label="Toggle Menu">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
+                    <i class="fas fa-server"></i>
+                    <span>BDC Inventory</span>
+                </div>
             </div>
 
             <div class="nav-menu flex items-center gap-4">

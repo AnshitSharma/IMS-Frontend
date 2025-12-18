@@ -23,7 +23,7 @@ class SidebarManager {
         // Load from localStorage first
         this.loadFromLocalStorage();
 
-        // Setup mobile menu handlers
+        // Setup mobile menu handlers (may need to be called again after sidebar HTML loads)
         this.setupMobileMenu();
 
         // Set active component based on current page
@@ -33,10 +33,18 @@ class SidebarManager {
     }
 
     /**
-     * Setup mobile menu event handlers
+     * Reinitialize mobile menu after sidebar HTML is dynamically loaded
+     * This should be called after sidebar HTML is injected into the DOM
      */
+    reinitMobileMenu() {
+        this.mobileMenuInitialized = false;
+        this.setupMobileMenu();
+        this.setActiveComponent();
+    }
+
     /**
      * Setup mobile menu event handlers
+     * Can be called multiple times safely - will only attach listeners once
      */
     setupMobileMenu() {
         const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -45,9 +53,17 @@ class SidebarManager {
         const closeSidebarBtn = document.getElementById('closeSidebarBtn');
 
         if (!hamburgerBtn || !mobileOverlay || !sidebar) {
-            console.warn('Sidebar elements not found for mobile menu setup');
+            console.warn('[SidebarManager] Sidebar elements not found for mobile menu setup');
             return;
         }
+
+        // Prevent duplicate event listeners
+        if (this.mobileMenuInitialized) {
+            console.log('[SidebarManager] Mobile menu already initialized');
+            return;
+        }
+
+        console.log('[SidebarManager] Setting up mobile menu handlers');
 
         // Toggle sidebar on hamburger click
         hamburgerBtn.addEventListener('click', (e) => {
@@ -67,12 +83,16 @@ class SidebarManager {
             });
         }
 
-        // Close sidebar on ESC key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && sidebar.classList.contains('active')) {
-                this.closeSidebar();
-            }
-        });
+        // Close sidebar on ESC key (only add once)
+        if (!this.escKeyListenerAdded) {
+            document.addEventListener('keydown', (e) => {
+                const sidebarEl = document.querySelector('.sidebar');
+                if (e.key === 'Escape' && sidebarEl && sidebarEl.classList.contains('active')) {
+                    this.closeSidebar();
+                }
+            });
+            this.escKeyListenerAdded = true;
+        }
 
         // Close sidebar when clicking menu items on mobile
         const menuLinks = sidebar.querySelectorAll('.menu-item a');
@@ -85,17 +105,24 @@ class SidebarManager {
             });
         });
 
-        // Handle window resize
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                // Close sidebar if resizing to desktop view
-                if (window.innerWidth > 1024 && sidebar.classList.contains('active')) {
-                    this.closeSidebar();
-                }
-            }, 250);
-        });
+        // Handle window resize (only add once)
+        if (!this.resizeListenerAdded) {
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    const sidebarEl = document.querySelector('.sidebar');
+                    // Close sidebar if resizing to desktop view
+                    if (window.innerWidth > 1024 && sidebarEl && sidebarEl.classList.contains('active')) {
+                        this.closeSidebar();
+                    }
+                }, 250);
+            });
+            this.resizeListenerAdded = true;
+        }
+
+        this.mobileMenuInitialized = true;
+        console.log('[SidebarManager] Mobile menu setup complete');
     }
 
     /**

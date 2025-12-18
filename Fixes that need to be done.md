@@ -1,16 +1,4 @@
 
-Servers:
-	- When creating a new server:
-		The "Advanced Configuration"
-		"Show additional options" button is visible.
-		Clicking on this button does not open any additional configuration options.
-		The server cannot be created using Advanced Configuration.
-        - Server can be created and delete.
-	- In CPU its show nothing for adding component.
-	- CPU and other hardware components cannot be configured or added after server creation.
-	- Only one component can be added at a time.
-	- When attempting to add another component, the system throws an error and the component is not added.
-	- Advanced View button not working.
 
 HBA Cards
 	When creating an HBA Card using the "Add Component" button:
