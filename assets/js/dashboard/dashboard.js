@@ -617,21 +617,46 @@ class Dashboard {
         const totalPages = Math.ceil(pagination.total / pagination.limit);
         const currentPage = pagination.page;
         let paginationHTML = '';
-        paginationHTML += `<button ${currentPage === 1 ? 'disabled' : ''} onclick="dashboard.goToPage(${currentPage - 1})"><i class="fas fa-chevron-left"></i> Previous</button>`;
+
+        // Previous Button
+        paginationHTML += `
+            <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} 
+                    onclick="window.dashboard.goToPage(${currentPage - 1})" 
+                    title="Previous Page">
+                <i class="fas fa-chevron-left"></i> 
+                <span class="hidden sm:inline">Previous</span>
+            </button>`;
+
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, currentPage + 2);
+
         if (startPage > 1) {
-            paginationHTML += `<button onclick="dashboard.goToPage(1)">1</button>`;
-            if (startPage > 2) paginationHTML += `<span>...</span>`;
+            paginationHTML += `<button class="pagination-btn" onclick="window.dashboard.goToPage(1)">1</button>`;
+            if (startPage > 2) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
         }
+
         for (let i = startPage; i <= endPage; i++) {
-            paginationHTML += `<button ${i === currentPage ? 'class="active"' : ''} onclick="dashboard.goToPage(${i})">${i}</button>`;
+            paginationHTML += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                        onclick="window.dashboard.goToPage(${i})">
+                    ${i}
+                </button>`;
         }
+
         if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationHTML += `<span>...</span>`;
-            paginationHTML += `<button onclick="dashboard.goToPage(${totalPages})">${totalPages}</button>`;
+            if (endPage < totalPages - 1) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
+            paginationHTML += `<button class="pagination-btn" onclick="window.dashboard.goToPage(${totalPages})">${totalPages}</button>`;
         }
-        paginationHTML += `<button ${currentPage === totalPages ? 'disabled' : ''} onclick="dashboard.goToPage(${currentPage + 1})">Next <i class="fas fa-chevron-right"></i></button>`;
+
+        // Next Button
+        paginationHTML += `
+            <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} 
+                    onclick="window.dashboard.goToPage(${currentPage + 1})" 
+                    title="Next Page">
+                <span class="hidden sm:inline">Next</span>
+                <i class="fas fa-chevron-right"></i>
+            </button>`;
+
         paginationContainer.innerHTML = paginationHTML;
     }
 

@@ -1431,6 +1431,23 @@
     }
   }
 
+  /* Pagination */
+  .pagination-btn {
+    @apply px-3 py-1.5 bg-surface-card border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:border-primary-lighter hover:text-primary transition-all duration-200 flex items-center gap-1.5 min-h-[36px] min-w-[36px] justify-center;
+  }
+
+  .pagination-btn.active {
+    @apply bg-primary text-white border-primary hover:bg-primary-hover hover:border-primary;
+  }
+
+  .pagination-btn:disabled {
+    @apply opacity-50 cursor-not-allowed hover:bg-surface-card hover:border-border hover:text-text-secondary;
+  }
+
+  .pagination-ellipsis {
+    @apply px-2 text-text-muted;
+  }
+
   /* Layout adjustments for sidebar + main content */
   .main-container {
     @apply flex;
