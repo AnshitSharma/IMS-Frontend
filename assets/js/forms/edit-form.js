@@ -40,7 +40,7 @@ class EditFormComponent {
 
         let fieldsHtml = this.renderCommonFields();
 
-        
+
 
         this.formContainer.innerHTML = fieldsHtml;
     }
@@ -50,7 +50,7 @@ class EditFormComponent {
             <div class="form-section">
                 <h4 class="form-section-title">Inventory Details</h4>
                 <div class="form-grid two-column">
-                    ${this.renderSelectField('Status', 'Status', this.componentData.Status, [{value: 1, text: 'Available'}, {value: 2, text: 'In Use'}, {value: 0, text: 'Failed'}])}
+                    ${this.renderSelectField('Status', 'Status', this.componentData.Status, [{ value: 1, text: 'Available' }, { value: 2, text: 'In Use' }, { value: 0, text: 'Failed' }])}
                     ${this.renderTextField('ServerUUID', 'Server UUID', this.componentData.ServerUUID)}
                     ${this.renderTextField('Location', 'Location', this.componentData.Location)}
                     ${this.renderTextField('RackPosition', 'Rack Position', this.componentData.RackPosition)}
@@ -67,9 +67,9 @@ class EditFormComponent {
         `;
     }
 
-    
 
-    
+
+
 
     renderTextField(name, label, value) {
         return `
@@ -115,7 +115,14 @@ class EditFormComponent {
                 utils.showAlert('Component updated successfully!', 'success');
                 if (window.dashboard && typeof window.dashboard.closeModal === 'function') {
                     window.dashboard.closeModal();
-                    window.dashboard.fetchAndDisplayData(this.componentType);
+
+                    // Refresh component list and dashboard if functions exist
+                    if (typeof window.dashboard.loadComponentList === 'function') {
+                        window.dashboard.loadComponentList(this.componentType, true);
+                    }
+                    if (typeof window.dashboard.loadDashboard === 'function') {
+                        window.dashboard.loadDashboard();
+                    }
                 }
             } else {
                 utils.showAlert(result.message || 'Failed to update component.', 'error');

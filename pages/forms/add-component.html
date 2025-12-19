@@ -16,13 +16,13 @@
     <form id="addComponentForm" class="component-form">
         <!-- Component Type Selection -->
         <div class="form-section mb-6">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Component Type</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Type</h3>
             <div class="form-group">
                 <label
-                    class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500">Select
+                    class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Select
                     Component Type</label>
                 <select id="componentType"
-                    class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                     required>
                     <option value="">Choose Component Type</option>
                     <option value="cpu">CPU</option>
@@ -40,27 +40,27 @@
 
         <!-- Component Specification (Dynamic based on type) -->
         <div id="specificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Component Specification</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Specification</h3>
 
             <!-- Cascading Dropdowns for components with JSON data -->
             <div id="cascadingDropdowns" class="hidden">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div class="form-group" id="dropdown1Group">
                         <label
-                            class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
                             id="dropdown1Label">Field 1</label>
                         <select id="dropdown1Select"
-                            class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                             <option value="">Select</option>
                         </select>
                     </div>
 
                     <div class="form-group" id="dropdown2Group">
                         <label
-                            class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
                             id="dropdown2Label">Field 2</label>
                         <select id="dropdown2Select"
-                            class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
                             disabled>
                             <option value="">Select</option>
                         </select>
@@ -68,10 +68,10 @@
 
                     <div class="form-group" id="dropdown3Group">
                         <label
-                            class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
                             id="dropdown3Label">Field 3</label>
                         <select id="dropdown3Select"
-                            class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
                             disabled>
                             <option value="">Select</option>
                         </select>
@@ -82,10 +82,10 @@
                 <div class="grid grid-cols-1 gap-4 hidden" id="dropdown4Row">
                     <div class="form-group" id="dropdown4Group">
                         <label
-                            class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
                             id="dropdown4Label">Specific Model</label>
                         <select id="dropdown4Select"
-                            class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
                             disabled>
                             <option value="">Select Model</option>
                         </select>
@@ -95,8 +95,8 @@
 
             <!-- Component Details Display -->
             <div id="componentDetails"
-                class="component-details bg-slate-50 border border-slate-200 rounded-lg p-4 mt-4 hidden">
-                <h4 class="font-semibold text-slate-800 mb-3">Selected Component Details</h4>
+                class="component-details bg-surface-hover border border-border-light rounded-lg p-4 mt-4 hidden">
+                <h4 class="font-semibold text-text-primary mb-3">Selected Component Details</h4>
                 <div id="detailsContent">
                     <!-- Details will be populated dynamically -->
                 </div>
@@ -105,25 +105,25 @@
 
         <!-- Component Identification -->
         <div id="identificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Component Identification</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Identification</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500">Component
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Component
                         UUID</label>
                     <input type="text" id="componentUUID"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-100 cursor-not-allowed"
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-secondary text-text-primary cursor-not-allowed"
                         readonly required>
-                    <small class="block mt-1 text-sm text-slate-600">Auto-filled from component selection</small>
+                    <small class="block mt-1 text-sm text-text-muted">Auto-filled from component selection</small>
                 </div>
 
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500">Serial
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Serial
                         Number</label>
                     <input type="text" id="serialNumber"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required placeholder="Enter unique serial number">
                 </div>
             </div>
@@ -131,14 +131,14 @@
 
         <!-- Status and Assignment -->
         <div id="statusSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Status & Assignment</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Status & Assignment</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-slate-700 mb-2 required after:content-['_*'] after:text-red-500">Status</label>
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Status</label>
                     <select id="status"
-                        class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required>
                         <option value="">Select Status</option>
                         <option value="1">Available</option>
@@ -151,20 +151,20 @@
 
         <!-- Location Information -->
         <div id="locationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Location Information</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Location Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Location</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Location</label>
                     <input type="text" id="location"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="e.g., Datacenter A, Warehouse East">
                 </div>
 
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Rack Position</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Rack Position</label>
                     <input type="text" id="rackPosition"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         placeholder="e.g., Rack B4, Shelf A2">
                 </div>
             </div>
@@ -172,27 +172,27 @@
 
         <!-- Date Information -->
         <div id="datesSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Date Information</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Date Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Purchase Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Purchase Date</label>
                     <input type="date" id="purchaseDate"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 </div>
 
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Installation Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Installation Date</label>
                     <input type="date" id="installationDate"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Warranty End Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Warranty End Date</label>
                     <input type="date" id="warrantyEndDate"
-                        class="form-input w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 </div>
                 <div class="form-group">
                     <!-- Empty div for spacing -->
@@ -202,13 +202,13 @@
 
         <!-- Flag and Notes -->
         <div id="flagSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Additional Information</h3>
+            <h3 class="text-lg font-semibold text-text-primary mb-4">Additional Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Flag</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Flag</label>
                     <select id="flag"
-                        class="form-select w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                         <option value="">No Flag</option>
                         <option value="Backup">Backup</option>
                         <option value="Critical">Critical</option>
@@ -226,17 +226,17 @@
         <!-- Notes -->
         <div id="notesSection" class="form-section mb-6 hidden">
             <div class="form-group">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Notes</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
                 <textarea id="notes"
-                    class="form-textarea w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
+                    class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
                     rows="4" placeholder="Additional notes, specifications, or remarks..."></textarea>
             </div>
         </div>
 
         <!-- Form Actions -->
-        <div class="form-actions flex items-center justify-end gap-3 mt-6 pt-6 border-t border-slate-200">
+        <div class="form-actions flex items-center justify-end gap-3 mt-6 pt-6 border-t border-border-light">
             <button type="button"
-                class="btn btn-secondary px-6 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                class="btn btn-secondary px-6 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover transition-colors"
                 onclick="closeForm()">
                 Cancel
             </button>
@@ -255,9 +255,9 @@
 <!-- Loading Overlay -->
 <div id="loadingOverlay"
     class="loading-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
-    <div class="loading-content bg-white p-8 rounded-lg text-center">
+    <div class="loading-content bg-surface-card p-8 rounded-lg text-center">
         <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-        <p class="text-slate-700">Loading component data...</p>
+        <p class="text-text-primary">Loading component data...</p>
     </div>
 </div>
 

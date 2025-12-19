@@ -9,7 +9,8 @@ class AddComponentForm {
         this.jsonData = {};
         this.selectedComponent = null;
         this.componentSpecification = {};
-        
+        this.isSubmitting = false;
+
         this.init();
     }
 
@@ -101,19 +102,17 @@ class AddComponentForm {
 
             // Initialize dropdowns if JSON data is available
             if (this.jsonData && Array.isArray(this.jsonData) && this.jsonData.length > 0) {
-                // Special handling for Caddy (flat structure, no brand/series)
-                if (componentType === 'caddy') {
-                    this.initializeCaddyDropdown();
-                } else {
-                    this.initializeDropdowns();
-                }
+                // Initialize dropdowns for all components (including caddy)
+                this.initializeDropdowns();
             } else {
                 this.showBasicFormOnly();
             }
 
         } catch (error) {
             console.error('Error loading component type:', error);
-            this.showAlert(error.message || 'Failed to load component specifications', 'error');
+            if (typeof toast !== 'undefined') {
+                toast.error(error.message || 'Failed to load component specifications');
+            }
         } finally {
             this.showLoading(false);
         }
@@ -1546,7 +1545,13 @@ class AddComponentForm {
     }
 
     async handleFormSubmit() {
+        // Prevent multiple submissions
+        if (this.isSubmitting) {
+            return;
+        }
+
         try {
+            this.isSubmitting = true;
             const submitBtn = document.getElementById('submitBtn');
             const btnText = submitBtn.querySelector('.btn-text');
             const btnLoader = submitBtn.querySelector('.btn-loader');
@@ -1564,17 +1569,20 @@ class AddComponentForm {
             // Collect form data
             const formData = this.collectFormData();
 
-
             // Submit to API
             const result = await this.submitComponent(formData);
 
-
             if (result.success || result.status === 1) {
-                this.showAlert('Component added successfully!', 'success');
+                // Show success toast
+                if (typeof toast !== 'undefined') {
+                    toast.success('Component added successfully!');
+                }
 
                 // Reset form and close modal
                 setTimeout(() => {
                     this.resetForm();
+                    this.isSubmitting = false;
+
                     // Close modal if in dashboard context
                     if (window.dashboard && typeof window.dashboard.closeModal === 'function') {
                         window.dashboard.closeModal();
@@ -1595,13 +1603,18 @@ class AddComponentForm {
 
         } catch (error) {
             console.error('Error submitting form:', error);
-            this.showAlert(error.message, 'error');
-        } finally {
-            // Reset button state
+
+            // Show error toast
+            if (typeof toast !== 'undefined') {
+                toast.error(error.message);
+            }
+
+            // Reset button state on error
+            this.isSubmitting = false;
             const submitBtn = document.getElementById('submitBtn');
             const btnText = submitBtn.querySelector('.btn-text');
             const btnLoader = submitBtn.querySelector('.btn-loader');
-            
+
             submitBtn.disabled = false;
             btnText.style.display = 'inline-block';
             btnLoader.style.display = 'none';
@@ -1633,7 +1646,9 @@ class AddComponentForm {
             if (!field.value.trim()) {
                 field.focus();
                 const fieldLabel = this.getFieldLabel(field);
-                this.showAlert(`Please fill in the ${fieldLabel} field`, 'warning');
+                if (typeof toast !== 'undefined') {
+                    toast.warning(`Please fill in the ${fieldLabel} field`);
+                }
                 return false;
             }
         }
@@ -1750,6 +1765,7 @@ class AddComponentForm {
         this.jsonData = [];
         this.selectedComponent = null;
         this.componentSpecification = {};
+        this.isSubmitting = false;
 
         // Remove custom specification forms
         const existingCustomForm = document.getElementById('customSpecForm');
@@ -1795,30 +1811,6 @@ class AddComponentForm {
         } else {
             console.warn('Global loading manager not available');
         }
-    }
-
-    showAlert(message, type = 'info') {
-        const container = document.getElementById('alertContainer');
-        if (!container) {
-            alert(message);
-            return;
-        }
-
-        const alert = document.createElement('div');
-        alert.className = `alert alert-${type}`;
-        alert.innerHTML = `
-            <span>${message}</span>
-            <button type="button" class="alert-close" onclick="this.parentElement.remove()">×</button>
-        `;
-
-        container.appendChild(alert);
-
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (alert.parentElement) {
-                alert.remove();
-            }
-        }, 5000);
     }
 }
 

@@ -390,8 +390,8 @@ class ConfigurationPage {
                                     <button type="button"
                                         class="filter-pill px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all
                                             ${isActive
-                            ? 'border-primary bg-primary text-white'
-                            : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary'}"
+                            ? 'border-primary bg-primary text-white hover:bg-primary-hover hover:text-white'
+                            : 'border-border-light bg-surface-card text-text-secondary hover:border-primary hover:text-primary hover:bg-primary/5'}"
                                         data-filter="${key}"
                                         data-value="${value}">
                                         ${option}
@@ -435,13 +435,13 @@ class ConfigurationPage {
 
                 // Remove active state from all buttons in this group
                 document.querySelectorAll(`.filter-pill[data-filter="${filterGroup}"]`).forEach(btn => {
-                    btn.classList.remove('border-primary', 'bg-primary', 'text-white');
-                    btn.classList.add('border-border-light', 'bg-surface-card', 'text-text-secondary');
+                    btn.classList.remove('border-primary', 'bg-primary', 'text-white', 'hover:bg-primary-hover', 'hover:text-white');
+                    btn.classList.add('border-border-light', 'bg-surface-card', 'text-text-secondary', 'hover:border-primary', 'hover:text-primary', 'hover:bg-primary/5');
                 });
 
                 // Add active state to clicked button
-                e.target.classList.remove('border-border-light', 'bg-surface-card', 'text-text-secondary');
-                e.target.classList.add('border-primary', 'bg-primary', 'text-white');
+                e.target.classList.remove('border-border-light', 'bg-surface-card', 'text-text-secondary', 'hover:border-primary', 'hover:text-primary', 'hover:bg-primary/5');
+                e.target.classList.add('border-primary', 'bg-primary', 'text-white', 'hover:bg-primary-hover', 'hover:text-white');
 
                 // Apply filters
                 this.applyFilters();
