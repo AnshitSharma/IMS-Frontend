@@ -122,15 +122,15 @@ class AddComponentForm {
     hideJSONDropdowns() {
         const cascadingDropdowns = document.getElementById('cascadingDropdowns');
         const componentDetails = document.getElementById('componentDetails');
-        
+
         if (cascadingDropdowns) {
             cascadingDropdowns.style.display = 'none';
-            
+
             // Remove required attribute from hidden dropdowns to prevent validation errors
             const brandSelect = document.getElementById('brandSelect');
             const seriesSelect = document.getElementById('seriesSelect');
             const modelSelect = document.getElementById('modelSelect');
-            
+
             if (brandSelect) {
                 brandSelect.removeAttribute('required');
                 brandSelect.value = '';
@@ -151,15 +151,15 @@ class AddComponentForm {
 
     showJSONDropdowns() {
         const cascadingDropdowns = document.getElementById('cascadingDropdowns');
-        
+
         if (cascadingDropdowns) {
             cascadingDropdowns.style.display = 'block';
-            
+
             // Re-add required attribute to visible dropdowns
             const brandSelect = document.getElementById('brandSelect');
             const seriesSelect = document.getElementById('seriesSelect');
             const modelSelect = document.getElementById('modelSelect');
-            
+
             if (brandSelect) brandSelect.setAttribute('required', 'required');
             if (seriesSelect) seriesSelect.setAttribute('required', 'required');
             if (modelSelect) modelSelect.setAttribute('required', 'required');
@@ -1250,9 +1250,9 @@ class AddComponentForm {
         // Create a consistent UUID based on brand-series-model
         const baseString = `${brand}-${series}-${model}-${index}`;
         const hash = this.simpleHash(baseString);
-        
+
         // Format as UUID
-        const uuid = `${hash.substr(0,8)}-${hash.substr(8,4)}-4${hash.substr(13,3)}-${hash.substr(16,4)}-${hash.substr(20,12)}`;
+        const uuid = `${hash.substr(0, 8)}-${hash.substr(8, 4)}-4${hash.substr(13, 3)}-${hash.substr(16, 4)}-${hash.substr(20, 12)}`;
         return uuid;
     }
 
@@ -1278,7 +1278,7 @@ class AddComponentForm {
         // Get selected model data
         const modelSelect = document.getElementById('modelSelect');
         const selectedOption = modelSelect.options[modelSelect.selectedIndex];
-        
+
         if (selectedOption.dataset.modelData) {
             try {
                 const modelData = JSON.parse(selectedOption.dataset.modelData);
@@ -1399,14 +1399,47 @@ class AddComponentForm {
                 'Max Devices': { value: modelData.max_devices || 'N/A', icon: 'fas fa-hdd' }
             };
         } else if (this.currentComponentType === 'pciecard') {
-            details = {
-                'Model': { value: modelData.model || 'N/A', icon: 'fas fa-credit-card' },
-                'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
-                'M.2 Slots': { value: modelData.m2_slots || 'N/A', icon: 'fas fa-th' },
-                'Form Factors': { value: modelData.m2_form_factors?.join(', ') || 'N/A', icon: 'fas fa-ruler' },
-                'Max Capacity': { value: modelData.total_max_capacity || 'N/A', icon: 'fas fa-database' },
-                'Power': { value: modelData.power_consumption?.typical_W ? `${modelData.power_consumption.typical_W}W` : 'N/A', icon: 'fas fa-bolt' }
-            };
+            // Get the component subtype to display appropriate fields
+            const subtype = modelData._subtype || '';
+
+            if (subtype === 'Riser Card') {
+                // Riser Card specific fields
+                details = {
+                    'Model': { value: modelData.model || 'N/A', icon: 'fas fa-credit-card' },
+                    'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
+                    'Form Factor': { value: modelData.form_factor || 'N/A', icon: 'fas fa-ruler' },
+                    'PCIe Slots': { value: modelData.pcie_slots || 'N/A', icon: 'fas fa-th' },
+                    'Slot Type': { value: modelData.slot_type || 'N/A', icon: 'fas fa-plug' }
+                };
+            } else if (subtype === 'NVMe Adaptor') {
+                // NVMe Adaptor specific fields
+                details = {
+                    'Model': { value: modelData.model || 'N/A', icon: 'fas fa-credit-card' },
+                    'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
+                    'M.2 Slots': { value: modelData.m2_slots || 'N/A', icon: 'fas fa-th' },
+                    'Form Factors': { value: modelData.m2_form_factors?.join(', ') || 'N/A', icon: 'fas fa-ruler' },
+                    'Max Capacity': { value: modelData.total_max_capacity || 'N/A', icon: 'fas fa-database' },
+                    'Power': { value: modelData.power_consumption?.typical_W ? `${modelData.power_consumption.typical_W}W` : 'N/A', icon: 'fas fa-bolt' }
+                };
+            } else if (subtype === 'GPU' || subtype === 'Graphics Card') {
+                // GPU specific fields
+                details = {
+                    'Model': { value: modelData.model || 'N/A', icon: 'fas fa-credit-card' },
+                    'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
+                    'Memory': { value: modelData.memory || modelData.vram || 'N/A', icon: 'fas fa-memory' },
+                    'TDP': { value: modelData.tdp || modelData.power_consumption?.typical_W ? `${modelData.power_consumption?.typical_W}W` : 'N/A', icon: 'fas fa-bolt' },
+                    'Form Factor': { value: modelData.form_factor || 'N/A', icon: 'fas fa-ruler' }
+                };
+            } else {
+                // Default/Fallback for other PCIe subtypes
+                details = {
+                    'Model': { value: modelData.model || 'N/A', icon: 'fas fa-credit-card' },
+                    'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
+                    'Form Factor': { value: modelData.form_factor || 'N/A', icon: 'fas fa-ruler' },
+                    'PCIe Slots': { value: modelData.pcie_slots || 'N/A', icon: 'fas fa-th' },
+                    'Slot Type': { value: modelData.slot_type || 'N/A', icon: 'fas fa-plug' }
+                };
+            }
         } else if (this.currentComponentType === 'chassis') {
             details = {
                 'Model': { value: modelData.model || 'N/A', icon: 'fas fa-server' },
@@ -1468,7 +1501,7 @@ class AddComponentForm {
         // Show all relevant sections
         const sections = [
             'specificationSection',
-            'identificationSection', 
+            'identificationSection',
             'statusSection',
             'locationSection',
             'datesSection',
@@ -1499,7 +1532,7 @@ class AddComponentForm {
 
         // Show other sections
         const sections = [
-            'identificationSection', 
+            'identificationSection',
             'statusSection',
             'locationSection',
             'datesSection',
@@ -1517,7 +1550,7 @@ class AddComponentForm {
 
     generateBasicUUID() {
         // Generate a simple UUID for components without JSON specifications
-        const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             const r = Math.random() * 16 | 0;
             const v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
@@ -1625,10 +1658,10 @@ class AddComponentForm {
         // Get all currently visible required fields
         const form = document.getElementById('addComponentForm');
         const visibleRequiredFields = [];
-        
+
         // Get all required fields that are currently visible
         const allRequiredFields = form.querySelectorAll('[required]');
-        
+
         allRequiredFields.forEach(field => {
             // Check if field is visible (not in a hidden section)
             const fieldSection = field.closest('.form-section, #customSpecForm');
@@ -1653,6 +1686,55 @@ class AddComponentForm {
             }
         }
 
+        // --- Date Validation Logic ---
+        const purchaseDateInput = document.getElementById('purchaseDate');
+        const installationDateInput = document.getElementById('installationDate');
+        const warrantyEndDateInput = document.getElementById('warrantyEndDate');
+
+        // Only validate if elements exist and are visible/part of the form submission
+        // (Assuming if they are required and visible, they should be validated)
+
+        let purchaseDate = null;
+        let installationDate = null;
+        let warrantyEndDate = null;
+
+        if (purchaseDateInput && purchaseDateInput.value) {
+            purchaseDate = new Date(purchaseDateInput.value);
+        }
+        if (installationDateInput && installationDateInput.value) {
+            installationDate = new Date(installationDateInput.value);
+        }
+        if (warrantyEndDateInput && warrantyEndDateInput.value) {
+            warrantyEndDate = new Date(warrantyEndDateInput.value);
+        }
+
+        // Rule 1: Installation Date cannot be before Purchase Date
+        if (purchaseDate && installationDate) {
+            if (installationDate < purchaseDate) {
+                installationDateInput.focus();
+                if (typeof toast !== 'undefined') {
+                    toast.warning('Installation Date cannot be before Purchase Date');
+                }
+                return false;
+            }
+        }
+
+        // Rule 2: Warranty End Date cannot be before Installation Date
+        if (installationDate && warrantyEndDate) {
+            if (warrantyEndDate < installationDate) {
+                warrantyEndDateInput.focus();
+                if (typeof toast !== 'undefined') {
+                    toast.warning('Warranty End Date cannot be before Installation Date');
+                }
+                return false;
+            }
+        }
+        // If installation date is missing but purchase date is present, check warranty against purchase date as a fallback specific rule?
+        // Requirement says: "warrenty date cant we before the installation date"
+        // If installation date is optional/missing (though we made it required), logical fallback would be Purchase Date.
+        // However, since we made them required, the standard required check above covers missing values.
+        // The logic here only needs to check order *if* values are present.
+
         return true;
     }
 
@@ -1674,7 +1756,7 @@ class AddComponentForm {
             'storageCapacity': 'Storage Capacity',
             'caddyType': 'Caddy Type'
         };
-        
+
         return labelMap[fieldId] || fieldId.replace(/([A-Z])/g, ' $1').toLowerCase();
     }
 
@@ -1777,7 +1859,7 @@ class AddComponentForm {
         const brandSelect = document.getElementById('brandSelect');
         const seriesSelect = document.getElementById('seriesSelect');
         const modelSelect = document.getElementById('modelSelect');
-        
+
         if (brandSelect) {
             brandSelect.removeAttribute('required');
             brandSelect.value = '';
