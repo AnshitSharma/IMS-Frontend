@@ -134,17 +134,77 @@ Once you confirm, I'll create a detailed plan in tasks/todo.md.
 
 ### File Structure - Lean, No Bloat
 ```
-pages/[feature]/          → HTML pages
-assets/css/[feature]/     → Styles  
-assets/js/[feature]/      → Scripts (colocated with feature)
+pages/
+├── dashboard/            → Component listing pages (cpu, ram, storage, servers, etc.)
+├── server/               → Server pages (builder, configuration, create-role)
+├── forms/                → Form pages (add-component, edit-component)
+└── index.html            → Login page
+
+assets/
+├── js/
+│   ├── server/           → Server-related modules
+│   │   ├── server-api.js       → Main API class (ServerAPI)
+│   │   ├── server-builder.js   → Server builder UI (ServerBuilder class)
+│   │   ├── template-manager.js → Template import logic (TemplateManager class)
+│   │   ├── configuration.js    → Server configuration page
+│   │   ├── server-list.js      → Server listing
+│   │   ├── acl.js              → Access control list
+│   │   ├── acl-manager.js      → ACL management
+│   │   └── create-role.js      → Role creation
+│   ├── forms/            → Form handlers
+│   │   ├── add-form.js         → Add component form logic
+│   │   └── edit-form.js        → Edit component form logic
+│   ├── dashboard/        → Dashboard modules
+│   │   ├── api.js              → Dashboard API
+│   │   ├── dashboard.js        → Dashboard functionality
+│   │   ├── utils.js            → Utility functions
+│   │   └── add-server-form.js  → Add server form
+│   ├── config.js         → Global configuration (BDC_CONFIG)
+│   ├── toast.js          → Toast notifications
+│   ├── tickets.js        → Ticketing system
+│   └── script.js         → General scripts
+└── css/
+    ├── globals.css       → Tailwind source (run build:css after changes)
+    └── tailwind.css      → Compiled CSS
+
 components/               → Shared components ONLY
-data/*.json              → Static data, permissions
+├── navbar.html           → Navbar template
+├── navbar.js             → Navbar loader
+├── sidebar.html          → Sidebar template
+├── sidebar-manager.js    → Sidebar logic
+└── global-loading.js     → Loading spinner
+
+data/                     → Static JSON data for components
+├── cpu-jsons/            → CPU hierarchy (level 1-3)
+├── motherboad-jsons/     → Motherboard hierarchy (level 1-3)
+├── Ram-jsons/            → RAM data
+├── storage-jsons/        → Storage data
+├── chasis-jsons/         → Chassis data
+├── caddy-jsons/          → Caddy data
+├── pci-jsons/            → PCI card hierarchy (level 1-3)
+├── nic-jsons/            → NIC data
+├── hbacard-jsons/        → HBA card data
+└── sfp-jsons/            → SFP module data
 ```
 
 **NO FILE EXPLOSION** - Don't create 10 files for one feature. Keep related code together.
 
+### Hardware Components
+The system manages these datacenter components:
+- **CPU** - Processors (base → family → details, 3-level hierarchy)
+- **Motherboard** - System boards (3-level hierarchy)
+- **RAM** - Memory modules
+- **Storage** - Hard drives, SSDs
+- **Chassis** - Server cases
+- **Caddy** - Drive mounting brackets
+- **PCIe Card** - Expansion cards (3-level hierarchy)
+- **NIC** - Network interface cards
+- **HBA Card** - Host bus adapters
+- **SFP** - Fiber transceivers
+
 ### API Configuration
 - **Base URL**: `https://shubham.staging.cloudmate.in/bdc_ims/api/api.php`
+- **Dev URL**: `https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php`
 - **Auth**: Bearer token (`bdc_token`, `bdc_refresh_token` in localStorage)
 - **Response**: `{ success, authenticated, code, message, timestamp, data }`
 
@@ -155,6 +215,24 @@ data/*.json              → Static data, permissions
 class FeatureAPI {
   constructor() { this.token = localStorage.getItem('bdc_token'); }
   async getData() { /* axios with Bearer auth */ }
+}
+```
+
+**Server Builder** - `assets/js/server/server-builder.js`:
+```javascript
+class ServerBuilder {
+  constructor() {
+    this.selectedComponents = { cpu: [], motherboard: [], ram: [], ... };
+  }
+  // Handles component selection, validation, and configuration saving
+}
+```
+
+**Template Manager** - `assets/js/server/template-manager.js`:
+```javascript
+class TemplateManager {
+  async getTemplates()  // Fetches virtual server templates
+  async importTemplate(targetUuid, templateUuid)  // Imports template to config
 }
 ```
 
@@ -174,8 +252,14 @@ toast.success('Done');  toast.error('Failed');  toast.warning('Warning');
 
 ## 📚 KEY REFERENCES
 - `TICKETS_API_REFERENCE.md` - Complete ticketing API docs
-- `components/README.md` - Navbar integration guide  
-- `data/permissions.json` - Role-based ACL lookup
+- `components/README.md` - Navbar integration guide
+- `data/[component]-jsons/` - Component hierarchy data (CPU, Motherboard, PCI use 3-level hierarchy)
+
+## Server Builder Flow
+1. Create new server config → Opens builder page
+2. Select components (CPU, Motherboard, RAM, etc.) → Components validated
+3. Optional: Import from template (virtual server)
+4. Save configuration → Creates server record
 
 ## Ticketing Flow
 `draft` → `pending` → `approved` → `in_progress` → `deployed` → `completed`
