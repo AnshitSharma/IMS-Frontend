@@ -29,7 +29,7 @@ class ServerAPI {
     }
 
     // Generic API request method
-    async makeRequest(data) {
+    async makeRequest(data, options = {}) {
         try {
             const formData = new FormData();
 
@@ -41,7 +41,8 @@ class ServerAPI {
             const response = await axios.post(this.baseURL, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
-                }
+                },
+                ...options
             });
 
             return response.data;
@@ -59,7 +60,7 @@ class ServerAPI {
     }
 
     // Server Configuration APIs
-    async createServerConfig(serverName, description, startWith, isVirtual) {
+    async createServerConfig(serverName, description, startWith, isVirtual, options = {}) {
         const requestData = {
             action: 'server-create-start',
             server_name: serverName,
@@ -72,51 +73,51 @@ class ServerAPI {
             requestData.start_with = startWith;
         }
 
-        return await this.makeRequest(requestData);
+        return await this.makeRequest(requestData, options);
     }
 
-    async getServerConfigs(limit = 20, offset = 0, status = 1) {
+    async getServerConfigs(limit = 20, offset = 0, status = 1, options = {}) {
         return await this.makeRequest({
             action: 'server-list-configs',
             limit: limit,
             offset: offset,
             status: status
-        });
+        }, options);
     }
 
-    async getServerConfig(configUuid) {
+    async getServerConfig(configUuid, options = {}) {
         return await this.makeRequest({
             action: 'server-get-config',
             config_uuid: configUuid
-        });
+        }, options);
     }
 
-    async deleteServerConfig(configUuid) {
+    async deleteServerConfig(configUuid, options = {}) {
         return await this.makeRequest({
             action: 'server-delete-config',
             config_uuid: configUuid
-        });
+        }, options);
     }
 
-    async finalizeServerConfig(configUuid, notes = '') {
+    async finalizeServerConfig(configUuid, notes = '', options = {}) {
         return await this.makeRequest({
             action: 'server-finalize-config',
             config_uuid: configUuid,
             notes: notes
-        });
+        }, options);
     }
 
     // Component Management APIs
-    async getCompatibleComponents(configUuid, componentType, availableOnly = true) {
+    async getCompatibleComponents(configUuid, componentType, availableOnly = true, options = {}) {
         return await this.makeRequest({
             action: 'server-get-compatible',
             config_uuid: configUuid,
             component_type: componentType,
             available_only: availableOnly.toString()
-        });
+        }, options);
     }
 
-    async addComponentToServer(configUuid, componentType, componentUuid, quantity = 1, slotPosition = '', override = false) {
+    async addComponentToServer(configUuid, componentType, componentUuid, quantity = 1, slotPosition = '', override = false, options = {}) {
         return await this.makeRequest({
             action: 'server-add-component',
             config_uuid: configUuid,
@@ -125,32 +126,32 @@ class ServerAPI {
             quantity: quantity.toString(),
             slot_position: slotPosition,
             override: override.toString()
-        });
+        }, options);
     }
 
-    async removeComponentFromServer(configUuid, componentType, componentUuid) {
+    async removeComponentFromServer(configUuid, componentType, componentUuid, options = {}) {
         return await this.makeRequest({
             action: 'server-remove-component',
             config_uuid: configUuid,
             component_type: componentType,
             component_uuid: componentUuid
-        });
+        }, options);
     }
 
-    async validateServerConfig(configUuid) {
+    async validateServerConfig(configUuid, options = {}) {
         return await this.makeRequest({
             action: 'server-validate-config',
             config_uuid: configUuid
-        });
+        }, options);
     }
 
-    async getAvailableComponents(componentType, includeInUse = false, limit = 50) {
+    async getAvailableComponents(componentType, includeInUse = false, limit = 50, options = {}) {
         return await this.makeRequest({
             action: 'server-get-available-components',
             component_type: componentType,
             include_in_use: includeInUse.toString(),
             limit: limit.toString()
-        });
+        }, options);
     }
 
     // Utility methods

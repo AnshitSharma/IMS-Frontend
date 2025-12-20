@@ -744,6 +744,359 @@ class ServerBuilder {
     }
 
     /**
+     * Render Import Template Button (Module Integration)
+     */
+    renderImportButton() {
+        return `
+            <div class="flex justify-end mb-4">
+                <button class="inline-flex items-center gap-2 px-4 py-2 bg-surface-card border border-primary/20 text-primary rounded-lg text-sm font-medium hover:bg-primary/5 transition-colors" onclick="window.serverBuilder.openImportModal()">
+                    <i class="fas fa-file-import"></i>
+                    Import Template
+                </button>
+            </div>
+        `;
+    }
+
+    /**
+     * Open Import Template Modal
+     */
+    async openImportModal() {
+        const modalContainer = document.getElementById('modalContainer');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const modalClose = document.getElementById('modalClose');
+
+        if (!modalContainer || !modalTitle || !modalBody) {
+            console.error('Modal container elements not found');
+            this.showAlert('Error: Modal template not found', 'danger');
+            return;
+        }
+
+        // Set Title
+        modalTitle.innerHTML = `<i class="fas fa-file-import text-primary me-2"></i> Import Server Template`;
+
+        // Set Content
+        modalBody.innerHTML = this.renderImportModalContent();
+
+        // Show Modal
+        modalContainer.classList.remove('hidden');
+        // Small delay to allow display:block to apply before adding opacity class for transition
+        requestAnimationFrame(() => {
+            modalContainer.classList.add('active');
+        });
+
+        // Attach Event Listeners
+        if (modalClose) {
+            // Remove old listeners to be safe (cloning)
+            const newClose = modalClose.cloneNode(true);
+            modalClose.parentNode.replaceChild(newClose, modalClose);
+            newClose.onclick = () => this.closeImportModal();
+        }
+
+        this.loadTemplates();
+    }
+
+    /**
+     * Load Templates via TemplateManager
+     */
+    async loadTemplates() {
+        const listContainer = document.getElementById('templateList');
+
+        if (typeof templateManager === 'undefined') {
+            listContainer.innerHTML = '<p class="text-danger text-center p-3">TemplateManager not loaded. Check console.</p>';
+            return;
+        }
+
+        try {
+            listContainer.innerHTML = `
+                <div class="text-center py-4 text-text-secondary">
+                    <i class="fas fa-spinner fa-spin mb-2"></i>
+                    <p class="text-sm">Loading templates...</p>
+                </div>
+            `;
+
+            const templates = await templateManager.getTemplates();
+            this.renderTemplateList(templates);
+
+        } catch (error) {
+            console.error('Builder: Error loading templates', error);
+            listContainer.innerHTML = '<p class="text-danger text-center p-3">Failed to load templates</p>';
+        }
+    }
+
+    /**
+     * Render Template List
+     */
+    renderTemplateList(templates) {
+        const container = document.getElementById('templateList');
+        if (templates.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-text-secondary">
+                    <i class="fas fa-box-open text-2xl mb-2 opacity-50"></i>
+                    <p class="text-sm">No templates found</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = templates.map(t => `
+            <div class="template-item p-3 rounded-lg cursor-pointer hover:bg-surface-hover transition-colors mb-2 border border-transparent hover:border-border-light group" 
+                 onclick="window.serverBuilder.selectTemplate('${t.config_uuid}')"
+                 data-id="${t.config_uuid}">
+                <div class="font-medium text-text-primary group-hover:text-primary transition-colors">${t.server_name}</div>
+                <div class="text-xs text-text-secondary truncate">${t.description || 'No description'}</div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Select Template and Show Preview
+     */
+    async selectTemplate(uuid) {
+        document.querySelectorAll('.template-item').forEach(el => el.classList.remove('bg-surface-selected', 'border-primary/20'));
+        const selectedEl = document.querySelector(`.template-item[data-id="${uuid}"]`);
+        if (selectedEl) selectedEl.classList.add('bg-surface-selected', 'border-primary/20');
+
+        const importBtn = document.getElementById('importTemplateBtn');
+        importBtn.disabled = true;
+        importBtn.dataset.uuid = uuid;
+
+        const previewContainer = document.getElementById('templatePreview');
+        previewContainer.innerHTML = `
+            <div class="h-full flex items-center justify-center text-primary">
+                <i class="fas fa-spinner fa-spin text-2xl"></i>
+            </div>
+        `;
+
+        try {
+            // Preview Fetch (Direct API call ok for View)
+            const result = await serverAPI.getServerConfig(uuid);
+            if (result.success && result.data) {
+                const config = result.data.configuration || result.data;
+                this.renderTemplatePreview(config);
+                importBtn.disabled = false;
+            } else {
+                previewContainer.innerHTML = '<p class="text-danger">Failed to load template details</p>';
+            }
+        } catch (error) {
+            console.error('Preview error:', error);
+            previewContainer.innerHTML = '<p class="text-danger">Error loading template</p>';
+        }
+    }
+
+    /**
+     * Render Template Preview
+     */
+    renderTemplatePreview(config) {
+        const container = document.getElementById('templatePreview');
+        const components = config.components || {};
+        let componentListHtml = '';
+
+        const renderItem = (icon, label, items) => {
+            if (!items || items.length === 0) return '';
+            return `
+                <div class="mb-4">
+                    <h6 class="text-xs font-bold text-text-secondary uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="${icon}"></i> ${label}
+                    </h6>
+                    <div class="space-y-1">
+                        ${items.map(item => `
+                            <div class="text-sm text-text-primary bg-surface-card p-2 rounded border border-border-light">
+                                ${item.product_name || item.name || item.model || 'Unknown Component'}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        };
+
+        const types = [
+            { key: 'cpu', icon: 'fas fa-microchip', label: 'CPU' },
+            { key: 'ram', icon: 'fas fa-memory', label: 'RAM' },
+            { key: 'storage', icon: 'fas fa-hdd', label: 'Storage' },
+            { key: 'motherboard', icon: 'fas fa-th-large', label: 'Motherboard' },
+            { key: 'chassis', icon: 'fas fa-server', label: 'Chassis' },
+            { key: 'nic', icon: 'fas fa-network-wired', label: 'Network' }
+        ];
+
+        types.forEach(t => {
+            if (components[t.key]) {
+                componentListHtml += renderItem(t.icon, t.label, components[t.key]);
+            }
+        });
+
+        if (componentListHtml === '') {
+            componentListHtml = '<p class="text-text-muted italic">No components in this template.</p>';
+        }
+
+        container.innerHTML = `
+            <div class="animate-fade-in">
+                <h4 class="text-lg font-bold text-text-primary mb-1">${config.server_name}</h4>
+                <p class="text-sm text-text-secondary mb-4">${config.description || 'No description provided'}</p>
+                
+                <div class="bg-primary/5 border border-primary/10 rounded-lg p-3 mb-4 text-xs text-primary">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Components defined in Template. Availability will be checked during import.
+                </div>
+
+                <div class="h-px bg-border-light w-full my-4"></div>
+                <div class="component-preview-list">
+                    ${componentListHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render Import Template Modal
+     */
+    /**
+     * Render Import Modal Content (Body + Footer)
+     */
+    renderImportModalContent() {
+        return `
+            <div class="flex flex-col h-full" style="min-height: 500px;">
+                <div class="flex flex-1 border border-border-light rounded-lg overflow-hidden bg-surface-card mb-4 min-h-0">
+                    <!-- Template List -->
+                    <div class="w-1/3 border-r border-border-light overflow-y-auto p-3 bg-surface-main/30" id="templateList"></div>
+                    <!-- Template Preview -->
+                    <div class="w-2/3 p-4 overflow-y-auto bg-surface-main/50" id="templatePreview">
+                        <div class="h-full flex flex-col items-center justify-center text-text-secondary opacity-60">
+                            <i class="fas fa-mouse-pointer text-3xl mb-3"></i>
+                            <p>Select a template to view details</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex justify-end gap-3 pt-2 border-t border-border-light flex-shrink-0">
+                    <button type="button" 
+                            class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors border border-transparent hover:bg-surface-hover rounded-lg" 
+                            id="cancelImportBtn"
+                            onclick="window.serverBuilder.closeImportModal()">
+                        Cancel
+                    </button>
+                    <button type="button" 
+                            class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" 
+                            id="importTemplateBtn" 
+                            disabled 
+                            onclick="window.serverBuilder.confirmImport()">
+                        <i class="fas fa-file-import"></i>
+                        <span>Import Template</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Close Import Modal
+     */
+    closeImportModal() {
+        const modalContainer = document.getElementById('modalContainer');
+        if (modalContainer) {
+            modalContainer.classList.remove('active');
+            setTimeout(() => {
+                modalContainer.classList.add('hidden');
+            }, 300); // Wait for transition
+        }
+        const modalBody = document.getElementById('modalBody');
+        // Clean content after hiding to prevent visual jumps
+        setTimeout(() => {
+            if (modalBody) modalBody.innerHTML = '';
+        }, 300);
+    }
+
+    /**
+     * Helper: Set Modal Busy State
+     */
+    setImportBusy(isBusy, text = 'Import Template') {
+        const btn = document.getElementById('importTemplateBtn');
+        const cancelBtn = document.getElementById('cancelImportBtn');
+        const closeBtn = document.getElementById('modalClose');
+
+        if (!btn) return;
+
+        if (isBusy) {
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>Importing...</span>`;
+            if (cancelBtn) cancelBtn.classList.add('opacity-50', 'pointer-events-none');
+            if (closeBtn) closeBtn.classList.add('pointer-events-none', 'opacity-50');
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fas fa-file-import"></i> <span>${text}</span>`;
+            if (cancelBtn) cancelBtn.classList.remove('opacity-50', 'pointer-events-none');
+            if (closeBtn) closeBtn.classList.remove('pointer-events-none', 'opacity-50');
+        }
+    }
+
+    /**
+     * Confirm Import (Delegates to TemplateManager)
+     */
+    async confirmImport() {
+        const btn = document.getElementById('importTemplateBtn');
+        const uuid = btn.dataset.uuid;
+        if (!uuid) return;
+
+        this.setImportBusy(true);
+
+        try {
+            // Call TemplateManager Logic
+            const result = await templateManager.importTemplate(this.currentConfig.config_uuid, uuid);
+
+            if (result.success) {
+                // Close modal
+                this.closeImportModal();
+                let modal = null;
+
+                if (modal) modal.hide();
+
+                // Refresh Data
+                await this.loadExistingConfig(this.currentConfig.config_uuid);
+
+                // Handle Result Feedback
+                this.handleImportResult(result);
+            } else {
+                this.showAlert('Import failed: ' + (result.error || 'Unknown error'), 'danger');
+            }
+
+        } catch (error) {
+            console.error('Import error:', error);
+            this.showAlert('An unexpected error occurred during import.', 'danger');
+        } finally {
+            this.setImportBusy(false, 'Import Template');
+        }
+    }
+
+    /**
+     * Handle Import Result (UX Strategy)
+     */
+    handleImportResult(result) {
+        const addedCount = result.added.length;
+        const skippedCount = result.skipped.length;
+
+        // 1. Success Toast
+        if (addedCount > 0) {
+            this.showAlert(`Import Complete: ${addedCount} components added based on availability.`, 'success');
+        }
+
+        // 2. Warning Toast (if partial)
+        if (skippedCount > 0) {
+            setTimeout(() => {
+                this.showAlert(`Partial Import: ${skippedCount} items skipped (Out of Stock or Mismatch). You can complete them manually.`, 'warning');
+            }, 500); // Slight delay so they stack nicely or appear sequentially
+
+            // 3. Auto-scroll to first skipped type
+            const firstSkipped = result.skipped[0];
+            if (firstSkipped && firstSkipped.type) {
+                this.scrollToComponent(firstSkipped.type);
+            }
+        } else if (addedCount === 0) {
+            this.showAlert('No matching components were found in inventory.', 'warning');
+        }
+    }
+
+    /**
      * Render the PC Part Picker style interface
      */
     renderServerBuilderInterface() {
@@ -764,6 +1117,9 @@ class ServerBuilder {
 
         const interfaceHtml = `
             <div class="w-full mx-auto">
+                <!-- Import Template Button (Server Templates V2) -->
+                ${this.renderImportButton()}
+
                <!-- Component Selection Table -->
                 <div class="bg-surface-card rounded-xl border border-border-light overflow-hidden mb-6">
                     <table class="w-full border-collapse">

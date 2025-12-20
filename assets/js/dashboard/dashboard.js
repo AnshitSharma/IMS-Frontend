@@ -447,8 +447,8 @@ class Dashboard {
         const search = document.getElementById('serverSearch')?.value?.trim().toLowerCase() || '';
         const status = document.getElementById('serverStatusFilter')?.value || '';
 
-        // Filter servers on frontend
-        let filteredServers = this.allServers;
+        // Filter servers on frontend (only show non-virtual servers)
+        let filteredServers = this.allServers.filter(server => !(server.is_virtual == 1 || server.is_virtual === true));
 
         // Apply search filter
         if (search) {
