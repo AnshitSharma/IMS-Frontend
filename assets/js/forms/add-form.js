@@ -1447,8 +1447,7 @@ class AddComponentForm {
                 'U Size': { value: modelData.u_size ? `${modelData.u_size}U` : 'N/A', icon: 'fas fa-arrows-alt-v' },
                 'Type': { value: modelData.chassis_type || 'N/A', icon: 'fas fa-tag' },
                 'Total Bays': { value: modelData.drive_bays?.total_bays || 'N/A', icon: 'fas fa-hdd' },
-                'Backplane': { value: modelData.backplane?.model || 'N/A', icon: 'fas fa-microchip' },
-                'PSU Wattage': { value: modelData.power_supply?.wattage ? `${modelData.power_supply.wattage}W` : 'N/A', icon: 'fas fa-bolt' }
+                'Backplane': { value: modelData.backplane?.model || 'N/A', icon: 'fas fa-microchip' }
             };
         } else if (this.currentComponentType === 'caddy') {
             details = {
