@@ -873,6 +873,10 @@ class ServerBuilder {
             const result = await serverAPI.getServerConfig(uuid);
             if (result.success && result.data) {
                 const config = result.data.configuration || result.data;
+
+                // Resolve component names from JSON files before rendering
+                await this.resolveTemplateComponentNames(config);
+
                 this.renderTemplatePreview(config);
                 importBtn.disabled = false;
             } else {
@@ -881,6 +885,120 @@ class ServerBuilder {
         } catch (error) {
             console.error('Preview error:', error);
             previewContainer.innerHTML = '<p class="text-danger">Error loading template</p>';
+        }
+    }
+
+    /**
+     * Resolve component names from local JSON files for template config
+     */
+    async resolveTemplateComponentNames(config) {
+        const components = config.components || {};
+        const types = Object.keys(components);
+
+        for (const type of types) {
+            const typeComponents = components[type];
+            if (Array.isArray(typeComponents)) {
+                for (const item of typeComponents) {
+                    // Only resolve if we don't have a name/model
+                    if (!item.product_name && !item.name && !item.model) {
+                        try {
+                            item.resolved_name = await this.lookupComponentNameByUuid(type, item.uuid);
+                        } catch (e) {
+                            console.warn(`Failed to resolve name for ${type} ${item.uuid}:`, e);
+                            item.resolved_name = 'Unknown Component';
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Lookup component name in local JSON files by UUID
+     */
+    async lookupComponentNameByUuid(type, uuid) {
+        if (!uuid) return 'Unknown Component';
+
+        // Map component types to their JSON resource files
+        const jsonMaps = {
+            'cpu': '../../data/cpu-jsons/Cpu-details-level-3.json',
+            'motherboard': '../../data/motherboad-jsons/motherboard-level-3.json',
+            'chassis': '../../data/chasis-jsons/chasis-level-3.json',
+            'ram': '../../data/Ram-jsons/ram_detail.json',
+            'storage': '../../data/storage-jsons/storage-level-3.json',
+            'nic': '../../data/nic-jsons/nic-level-3.json',
+            'pciecard': '../../data/pci-jsons/pci-level-3.json',
+            'hbacard': '../../data/hbacard-jsons/hbacard-level-3.json',
+            'sfp': '../../data/sfp-jsons/sfp-level-3.json',
+            'caddy': '../../data/caddy-jsons/caddy_details.json'
+        };
+
+        const jsonPath = jsonMaps[type.toLowerCase()];
+        if (!jsonPath) return 'Unknown Component';
+
+        try {
+            const response = await fetch(jsonPath);
+            if (!response.ok) return 'Unknown Component';
+
+            const data = await response.json();
+
+            // Generic search function for UUID across different JSON structures
+            const findComponent = (obj) => {
+                if (!obj || typeof obj !== 'object') return null;
+
+                if (obj.uuid === uuid || obj.UUID === uuid) {
+                    return obj;
+                }
+
+                if (Array.isArray(obj)) {
+                    for (const item of obj) {
+                        const found = findComponent(item);
+                        if (found) return found;
+                    }
+                } else {
+                    for (const key of Object.keys(obj)) {
+                        const found = findComponent(obj[key]);
+                        if (found) return found;
+                    }
+                }
+                return null;
+            };
+
+            const component = findComponent(data);
+            if (!component) return 'Unknown Component';
+
+            // Generate name based on component type and available fields
+            if (component.model) return component.model;
+            if (component.name) return component.name;
+
+            // Special handling for RAM if model/name is missing
+            if (type.toLowerCase() === 'ram') {
+                const parts = [];
+                if (component.brand) parts.push(component.brand);
+                if (component.memory_type) parts.push(component.memory_type);
+                if (component.capacity_GB) parts.push(`${component.capacity_GB}GB`);
+                if (component.module_type) parts.push(component.module_type);
+                return parts.length > 0 ? parts.join(' ') : 'Unknown RAM';
+            }
+
+            // Special handling for Storage
+            if (type.toLowerCase() === 'storage') {
+                const parts = [];
+                if (component.brand) parts.push(component.brand);
+                if (component.storage_type) parts.push(component.storage_type);
+                if (component.capacity_GB) {
+                    const cap = component.capacity_GB >= 1000
+                        ? `${(component.capacity_GB / 1000).toFixed(0)}TB`
+                        : `${component.capacity_GB}GB`;
+                    parts.push(cap);
+                }
+                return parts.length > 0 ? parts.join(' ') : 'Unknown Storage';
+            }
+
+            return 'Unknown Component';
+        } catch (error) {
+            console.error(`Error resolving component name for ${type}:`, error);
+            return 'Unknown Component';
         }
     }
 
@@ -902,7 +1020,7 @@ class ServerBuilder {
                     <div class="space-y-1">
                         ${items.map(item => `
                             <div class="text-sm text-text-primary bg-surface-card p-2 rounded border border-border-light">
-                                ${item.product_name || item.name || item.model || 'Unknown Component'}
+                                ${item.resolved_name || item.product_name || item.name || item.model || 'Unknown Component'}
                             </div>
                         `).join('')}
                     </div>
