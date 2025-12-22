@@ -146,32 +146,32 @@
                     </div>
 
                     <!-- Pagination -->
-                    <div class="pagination-container mt-6 flex items-center justify-between">
-                        <div class="pagination-info text-sm text-text-muted">
+                    <div class="pagination-container mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="pagination-info text-sm text-text-muted text-center sm:text-left">
                             <span id="paginationInfo">Showing 0 of 0 items</span>
                         </div>
-                        <div class="pagination flex items-center gap-2" id="pagination">
+                        <div class="pagination flex items-center gap-1 sm:gap-2 flex-wrap justify-center" id="pagination">
                             <!-- Pagination buttons will be populated by JavaScript -->
                         </div>
                     </div>
 
                     <!-- Bulk Actions -->
-                    <div class="bulk-actions hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-border p-4 shadow-lg"
+                    <div class="bulk-actions hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-border p-3 sm:p-4 shadow-lg z-50"
                         id="bulkActions">
-                        <div class="max-w-screen-2xl mx-auto flex items-center justify-between">
-                            <div class="bulk-info text-sm text-text-primary">
+                        <div class="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                            <div class="bulk-info text-sm text-text-primary text-center sm:text-left">
                                 <span id="selectedCount">0</span> items selected
                             </div>
-                            <div class="bulk-buttons flex gap-3">
+                            <div class="bulk-buttons flex flex-col sm:flex-row gap-2 sm:gap-3">
                                 <button
-                                    class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                    class="btn btn-secondary btn-icon-mobile px-4 py-2 min-h-[44px] bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center justify-center gap-2"
                                     id="bulkUpdateStatus">
-                                    <i class="fas fa-edit"></i> Update Status
+                                    <i class="fas fa-edit"></i><span class="hidden sm:inline">Update Status</span>
                                 </button>
                                 <button
-                                    class="btn btn-danger px-4 py-2 bg-danger text-white rounded-lg hover:bg-danger-600 transition-colors flex items-center gap-2"
+                                    class="btn btn-danger btn-icon-mobile px-4 py-2 min-h-[44px] bg-danger text-white rounded-lg hover:bg-danger-600 transition-colors flex items-center justify-center gap-2"
                                     id="bulkDelete">
-                                    <i class="fas fa-trash"></i> Delete Selected
+                                    <i class="fas fa-trash"></i><span class="hidden sm:inline">Delete Selected</span>
                                 </button>
                             </div>
                         </div>
@@ -218,7 +218,8 @@
                 const html = await response.text();
                 document.getElementById('sidebar-placeholder').innerHTML = html;
                 if (window.sidebarManager) {
-                    await window.sidebarManager.init();
+                    // Use reinitMobileMenu to setup handlers after sidebar is loaded
+                    window.sidebarManager.reinitMobileMenu();
                     const counts = await window.sidebarManager.getComponentCounts();
                     window.sidebarManager.updateSidebarCounts(counts);
                 }

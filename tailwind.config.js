@@ -111,7 +111,7 @@ module.exports = {
         },
       },
       spacing: {
-        'sidebar': '280px',
+        'sidebar': '320px',
         'navbar': '70px',
       },
       zIndex: {
@@ -178,7 +178,7 @@ module.exports = {
       },
       gridTemplateColumns: {
         '10': 'repeat(10, minmax(0, 1fr))',
-        'sidebar': '280px 1fr',
+        'sidebar': '320px 1fr',
         'sidebar-collapsed': '70px 1fr',
       },
       gridAutoColumns: {

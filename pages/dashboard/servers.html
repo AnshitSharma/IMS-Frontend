@@ -189,7 +189,8 @@
                 document.getElementById('sidebar-placeholder').innerHTML = html;
                 // Reinitialize sidebar manager after HTML loads
                 if (window.sidebarManager) {
-                    await window.sidebarManager.init();
+                    // Use reinitMobileMenu to setup handlers after sidebar is loaded
+                    window.sidebarManager.reinitMobileMenu();
                     const counts = await window.sidebarManager.getComponentCounts();
                     window.sidebarManager.updateSidebarCounts(counts);
                 }

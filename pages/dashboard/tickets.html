@@ -148,7 +148,7 @@
 
                     <!-- Tickets Table -->
                     <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full" id="ticketsTable">
+                        <table class="w-full table-responsive" id="ticketsTable">
                             <thead class="bg-surface-secondary/30 border-b border-border">
                                 <tr>
                                     <th
@@ -254,7 +254,8 @@
                 document.getElementById('sidebar-placeholder').innerHTML = html;
                 // Initialize sidebar manager and load counts
                 if (window.sidebarManager) {
-                    await window.sidebarManager.init();
+                    // Use reinitMobileMenu to setup handlers after sidebar is loaded
+                    window.sidebarManager.reinitMobileMenu();
                     // Load sidebar counts
                     const counts = await window.sidebarManager.getComponentCounts();
                     window.sidebarManager.updateSidebarCounts(counts);

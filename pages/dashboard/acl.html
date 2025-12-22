@@ -106,7 +106,7 @@
 
                     <!-- Roles Table -->
                     <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base" id="rolesTable">
+                        <table class="w-full table-base table-responsive" id="rolesTable">
                             <thead class="bg-surface-hover border-b border-border">
                                 <tr>
                                     <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Group Name
@@ -329,7 +329,8 @@
                 document.getElementById('sidebar-placeholder').innerHTML = html;
                 // Initialize sidebar manager and load counts
                 if (window.sidebarManager) {
-                    await window.sidebarManager.init();
+                    // Use reinitMobileMenu to setup handlers after sidebar is loaded
+                    window.sidebarManager.reinitMobileMenu();
                     // Load sidebar counts
                     const counts = await window.sidebarManager.getComponentCounts();
                     window.sidebarManager.updateSidebarCounts(counts);

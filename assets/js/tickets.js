@@ -217,12 +217,12 @@ class TicketsManager {
             const hasDescription = ticket.description && ticket.description.trim().length > 0;
             return `
                 <tr class="group hover:bg-surface-hover transition-all duration-200 border-b border-border/50 last:border-0">
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="ID">
                         <span class="font-mono text-xs font-medium text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20">
                             #${this.escapeHtml(ticket.ticket_number || 'N/A')}
                         </span>
                     </td>
-                    <td class="px-6 py-4">
+                    <td class="px-6 py-4" data-label="Subject">
                         <div class="flex flex-col max-w-[300px]">
                             <span class="text-sm font-semibold text-text-primary truncate" title="${this.escapeHtml(ticket.title)}">
                                 ${this.escapeHtml(ticket.title)}
@@ -234,27 +234,27 @@ class TicketsManager {
                 }
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Status">
                         ${this.getStatusBadge(ticket.status)}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Priority">
                         ${this.getPriorityBadge(ticket.priority)}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Assigned To">
                         ${this.getAssignedToDisplay(ticket)}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Date">
                         <div class="flex flex-col">
                             <span class="text-xs font-medium text-text-secondary">${this.formatDate(ticket.created_at)}</span>
                             <span class="text-[10px] text-text-muted uppercase tracking-wider mt-0.5">Created</span>
                         </div>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                        <div class="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                            <button class="p-2 text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-primary/20" onclick="ticketsManager.viewTicket(${ticket.id})" title="View Details">
+                    <td class="px-6 py-4 whitespace-nowrap text-right" data-label="Actions">
+                        <div class="action-buttons flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button class="btn-icon-mobile p-2 min-h-[44px] min-w-[44px] text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-primary/20" onclick="ticketsManager.viewTicket(${ticket.id})" title="View Details" aria-label="View ticket details">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="p-2 text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-blue-200" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit">
+                            <button class="btn-icon-mobile p-2 min-h-[44px] min-w-[44px] text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-blue-200" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit" aria-label="Edit ticket">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>

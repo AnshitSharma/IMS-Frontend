@@ -229,32 +229,32 @@ class ACLManager {
 
         return `
             <tr class="hover:bg-surface-hover transition-colors">
-                <td class="px-4 py-3">
+                <td class="px-4 py-3" data-label="Group Name">
                     <div class="flex items-center gap-2">
                         <i class="fas fa-shield-alt text-primary"></i>
                         <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
                         ${isDefault ? '<span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Default</span>' : ''}
                     </div>
                 </td>
-                <td class="px-4 py-3 text-text-secondary text-sm">
+                <td class="px-4 py-3 text-text-secondary text-sm" data-label="Description">
                     ${utils.escapeHtml(description)}
                 </td>
-                <td class="px-4 py-3">
+                <td class="px-4 py-3" data-label="Assigned Admin Users">
                     <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openRoleDetailsModal(${role.id})">
                         <i class="fas fa-users"></i> ${usersCount} user${usersCount !== 1 ? 's' : ''}
                     </button>
                 </td>
-                <td class="px-4 py-3">
+                <td class="px-4 py-3" data-label="Permissions">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
                         ${permissionsCount} permission${permissionsCount !== 1 ? 's' : ''}
                     </span>
                 </td>
-                <td class="px-4 py-3">
-                    <div class="flex items-center gap-2">
-                        <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openEditRoleModal(${role.id})" title="Edit">
+                <td class="px-4 py-3" data-label="Actions">
+                    <div class="action-buttons flex items-center gap-2">
+                        <button class="btn-icon-mobile min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openEditRoleModal(${role.id})" title="Edit" aria-label="Edit role">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleDeleteRole(${role.id})" title="Delete">
+                        <button class="btn-icon-mobile min-h-[44px] min-w-[44px] text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleDeleteRole(${role.id})" title="Delete" aria-label="Delete role">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>

@@ -468,10 +468,28 @@
   }
 
   .modal-content {
-    @apply bg-surface-card rounded-lg shadow-modal max-w-2xl w-full max-h-[90vh] overflow-auto;
+    @apply bg-surface-card rounded-lg shadow-modal w-full overflow-auto;
     transform: scale(0.95);
     opacity: 0;
     transition: all 0.2s ease-out;
+  }
+
+  /* Desktop: Centered modal with max-width */
+  @media (min-width: 640px) {
+    .modal-content {
+      @apply max-w-2xl max-h-[90vh];
+    }
+  }
+
+  /* Mobile: Full screen modal */
+  @media (max-width: 639px) {
+    .modal-content {
+      @apply fixed inset-0 max-h-screen rounded-none flex flex-col;
+    }
+
+    .modal-body {
+      @apply flex-1 overflow-y-auto;
+    }
   }
 
   .modal-header {
@@ -826,8 +844,28 @@
     @apply bg-surface-hover;
   }
 
-  /* Mobile Card View for Tables */
-  @media (max-width: 768px) {
+  /* ============================================================
+     RESPONSIVE TABLE SYSTEM - Mobile-First Hybrid Approach
+     ============================================================ */
+
+  /* TABLET: Horizontal scroll (640px - 1024px) */
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .table-container {
+      @apply overflow-x-auto -mx-4 px-4;
+    }
+
+    .table-responsive {
+      @apply min-w-[900px];
+    }
+
+    .table-responsive th,
+    .table-responsive td {
+      @apply px-3 py-2;
+    }
+  }
+
+  /* MOBILE: Card layout (<640px) */
+  @media (max-width: 639px) {
     .table-responsive thead {
       @apply sr-only;
     }
@@ -838,21 +876,50 @@
     }
 
     .table-responsive tr {
-      @apply mb-4 bg-white rounded-lg shadow-sm border border-slate-200 p-4;
+      @apply mb-4 rounded-lg shadow-sm border p-5;
+      @apply bg-surface-card border-border-light;
+      height: auto !important; /* Override desktop h-16 constraint */
+      min-height: auto;
     }
 
     .table-responsive td {
-      @apply flex justify-between items-start py-2 px-0 border-0 h-auto;
+      @apply flex flex-col py-3 px-0 border-0 text-sm;
+      height: auto !important; /* Override any height constraints */
+      min-height: auto;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     .table-responsive td::before {
       content: attr(data-label);
-      @apply font-semibold text-slate-700 mr-4 flex-shrink-0 min-w-[120px];
+      @apply font-semibold mb-1 text-text-secondary text-xs uppercase;
     }
 
-    /* Hide checkbox column on mobile - show select mode instead */
     .table-responsive td:first-child {
       @apply hidden;
+    }
+
+    .table-responsive td[data-label="Actions"] {
+      @apply pt-3 border-t border-border-light mt-2;
+    }
+
+    .table-responsive td[data-label="Actions"]::before {
+      @apply mb-2;
+    }
+
+    .table-responsive .action-buttons {
+      @apply flex flex-row flex-wrap w-full gap-2;
+    }
+
+    /* Ensure status badges display properly */
+    .table-responsive .status-badge {
+      @apply inline-flex;
+    }
+
+    /* Handle long text values (UUIDs, serial numbers) */
+    .table-responsive td code,
+    .table-responsive td small {
+      @apply block break-all;
     }
   }
 
@@ -1427,13 +1494,25 @@
     }
 
     .sidebar.active {
-      @apply block fixed inset-0 w-64 z-40;
+      @apply block fixed w-64 z-40;
+      top: 70px;
+      /* Start below navbar */
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: calc(100vh - 70px);
+      max-height: calc(100dvh - 70px);
+      /* Use dynamic viewport height for better mobile support */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      /* Smooth scrolling on iOS */
     }
   }
 
   /* Pagination */
   .pagination-btn {
-    @apply px-3 py-1.5 bg-surface-card border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:border-primary-lighter hover:text-primary transition-all duration-200 flex items-center gap-1.5 min-h-[36px] min-w-[36px] justify-center;
+    @apply px-4 py-2 bg-surface-card border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:border-primary-lighter hover:text-primary transition-all duration-200 flex items-center gap-1.5 min-h-[44px] min-w-[44px] justify-center;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
   }
 
   .pagination-btn.active {
@@ -1446,6 +1525,18 @@
 
   .pagination-ellipsis {
     @apply px-2 text-text-muted;
+  }
+
+  /* Mobile pagination improvements */
+  @media (max-width: 639px) {
+    .pagination {
+      @apply gap-2;
+    }
+
+    .pagination-btn {
+      @apply min-h-[48px] min-w-[48px];
+      /* Larger touch targets on mobile for better accessibility */
+    }
   }
 
   /* Layout adjustments for sidebar + main content */
@@ -1464,6 +1555,117 @@
     .main-content {
       @apply flex-1 min-w-0;
     }
+  }
+}
+
+/* ============================================================
+   MOBILE-OPTIMIZED ACTION BUTTONS
+   ============================================================ */
+
+/* Icon-only buttons on mobile */
+.btn-icon-mobile {
+  @apply flex items-center justify-center gap-2;
+}
+
+@media (max-width: 639px) {
+  .btn-icon-mobile span:not(.sr-only) {
+    @apply hidden;
+  }
+
+  .btn-icon-mobile {
+    @apply w-11 h-11 p-0;
+  }
+
+  .btn-icon-mobile i {
+    @apply text-base m-0;
+  }
+
+  .action-btn {
+    @apply min-w-[44px] min-h-[44px];
+  }
+}
+
+/* ============================================================
+   SERVER BUILDER RESPONSIVE DESIGN
+   ============================================================ */
+
+/* Mobile: Stack component table cells vertically (<640px) */
+@media (max-width: 639px) {
+  /* Server builder component selection table */
+  #app table tbody tr {
+    @apply block border border-border-light rounded-lg mb-4 p-0 overflow-hidden;
+  }
+
+  #app table thead {
+    @apply hidden;
+  }
+
+  #app table tbody td {
+    @apply block w-full px-4 py-3 border-0;
+  }
+
+  #app table tbody td:first-child {
+    @apply pb-2;
+  }
+
+  #app table tbody td:last-child {
+    @apply pt-2 border-t border-border-light;
+  }
+
+  /* Make buttons full width and larger for touch */
+  #app table tbody td button {
+    @apply w-full min-h-[48px] justify-center;
+  }
+
+  /* Component chips (selected components) */
+  #app table tbody td .inline-flex.items-center.gap-2.bg-surface-secondary {
+    @apply w-full justify-between;
+  }
+
+  /* Grid layouts: 2 columns → 1 column */
+  #app .grid-cols-2 {
+    @apply grid-cols-1;
+  }
+
+  /* Reduce padding on mobile */
+  #app .p-6 {
+    @apply p-4;
+  }
+
+  #app .px-6 {
+    @apply px-4;
+  }
+
+  /* Finish Setup button */
+  #app button:has(i.fa-check-circle) {
+    @apply w-full max-w-md;
+  }
+
+  /* Motherboard usage cards */
+  #app .rounded-xl.p-6 {
+    @apply p-4;
+  }
+}
+
+/* Tablet: Reduce columns and spacing (640px - 1024px) */
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* Grid layouts: 2 columns → 1 column on tablet for better readability */
+  #app .grid-cols-2 {
+    @apply grid-cols-1;
+  }
+
+  /* Reduce padding slightly */
+  #app .px-6 {
+    @apply px-5;
+  }
+
+  #app .p-6 {
+    @apply p-5;
+  }
+
+  /* Component table cells: allow some wrapping */
+  #app table tbody td {
+    @apply align-top;
   }
 }
 

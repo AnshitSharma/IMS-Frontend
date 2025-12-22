@@ -13,102 +13,11 @@
     <!-- Shared Navigation Header -->
     <div id="navbar-placeholder"></div>
 
-    <!-- Main Container -->
-    <div class="main-container flex">
-        <!-- Sidebar -->
-        <aside class="sidebar w-64 bg-surface-card border-r border-border-light min-h-screen">
-            <div class="sidebar-header px-4 py-4 border-b border-border-light">
-                <h3 class="font-semibold text-text-primary">Components</h3>
-            </div>
-
-            <ul class="sidebar-menu">
-                <li class="menu-item px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-surface-hover"
-                    data-component="dashboard" onclick="window.location.href='../../pages/dashboard/index.html'">
-                    <i class="fas fa-tachometer-alt text-text-muted"></i>
-                    <span class="text-sm text-text-secondary">Dashboard</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="cpu">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-microchip text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">CPUs</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="cpuCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="ram">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-memory text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">RAM</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="ramCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="storage">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-hdd text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">Storage</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="storageCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="motherboard">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-th-large text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">Motherboards</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="motherboardCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="nic">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-network-wired text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">Network Cards</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="nicCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="caddy">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-box text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">Caddies</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="caddyCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="chassis">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-server text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">Chassis</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="chassisCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="pciecard">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-credit-card text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">PCIe Cards</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="pciecardCount">0</span>
-                </li>
-                <li class="menu-item px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-surface-hover"
-                    data-component="sfp">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-plug text-text-muted"></i>
-                        <span class="text-sm text-text-secondary">SFP Modules</span>
-                    </div>
-                    <span class="count text-xs bg-surface-hover px-2 py-1 rounded" id="sfpCount">0</span>
-                </li>
-                <li class="menu-item active px-4 py-3 flex items-center justify-between cursor-pointer bg-primary-50 border-l-4 border-primary"
-                    data-component="servers">
-                    <div class="flex items-center gap-3">
-                        <i class="fas fa-cubes text-primary"></i>
-                        <span class="text-sm font-medium text-primary">Servers</span>
-                    </div>
-                    <span class="count text-xs bg-primary text-white px-2 py-1 rounded" id="serversCount">0</span>
-                </li>
-            </ul>
-        </aside>
+    <!-- Main Container with Layout Wrapper -->
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <!-- Sidebar Content Area (injected here via sidebar-placeholder) -->
+            <div id="sidebar-placeholder"></div>
 
         <!-- Main Content -->
         <main class="main-content flex-1 p-6">
@@ -166,6 +75,32 @@
     <script src="../../assets/js/toast.js"></script>
     <script src="../../assets/js/dashboard/utils.js"></script>
     <script src="../../assets/js/dashboard/api.js"></script>
+    <!-- Sidebar Component and Manager (must load before other scripts) -->
+    <script src="../../components/sidebar-manager.js"></script>
+    <script>
+        // Load sidebar HTML into placeholder
+        async function loadSidebarComponent() {
+            try {
+                const response = await fetch('../../components/sidebar.html');
+                const html = await response.text();
+                document.getElementById('sidebar-placeholder').innerHTML = html;
+                // Reinitialize sidebar manager after HTML loads
+                if (window.sidebarManager) {
+                    // Use reinitMobileMenu to setup handlers after sidebar is loaded
+                    window.sidebarManager.reinitMobileMenu();
+                    const counts = await window.sidebarManager.getComponentCounts();
+                    window.sidebarManager.updateSidebarCounts(counts);
+                }
+            } catch (error) {
+                console.error('Failed to load sidebar component:', error);
+            }
+        }
+        // Store promise globally
+        window.sidebarReady = loadSidebarComponent().catch(err => {
+            console.error('Sidebar loading error:', err);
+            return null;
+        });
+    </script>
     <script src="../../components/navbar.js"></script>
     <script src="../../assets/js/server/server-api.js?v=2"></script>
     <script src="../../assets/js/server/template-manager.js?v=2"></script>

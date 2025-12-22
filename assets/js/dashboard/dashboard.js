@@ -500,11 +500,11 @@ class Dashboard {
                 <td class="px-4 py-3 align-middle h-16" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Actions">
                     <div class="action-buttons flex gap-2">
-                        <button class="action-btn edit px-3 py-2 min-h-[44px] text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit">
-                            <i class="fas fa-edit mr-1"></i><span class="hidden sm:inline">Edit</span>
+                        <button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[44px] text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
+                            <i class="fas fa-edit"></i><span class="hidden sm:inline ml-1">Edit</span>
                         </button>
-                        <button class="action-btn delete px-3 py-2 min-h-[44px] text-sm rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete">
-                            <i class="fas fa-trash mr-1"></i><span class="hidden sm:inline">Delete</span>
+                        <button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[44px] text-sm rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
+                            <i class="fas fa-trash"></i><span class="hidden sm:inline ml-1">Delete</span>
                         </button>
                     </div>
                 </td>
