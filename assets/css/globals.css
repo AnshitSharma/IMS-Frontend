@@ -1475,7 +1475,8 @@
   /* Sidebar mobile improvements - hidden by default on mobile/tablet */
   @media (max-width: 1023px) {
     .sidebar {
-      @apply fixed w-[15vw] z-[1001] -translate-x-full;
+      @apply fixed z-[1001] -translate-x-full;
+      /* Width is controlled by w-sidebar class in HTML (320px from tailwind.config.js) */
       top: 70px;
       left: 0;
       bottom: 0;
