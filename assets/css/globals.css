@@ -923,25 +923,10 @@
     }
   }
 
-  /* Sidebar Responsive Improvements */
-  @media (max-width: 1024px) {
-    .sidebar {
-      @apply -translate-x-full;
-    }
-
-    .sidebar.active {
-      @apply translate-x-0;
-    }
-
-    /* Prevent body scroll when sidebar is open */
+  /* Sidebar Responsive - Prevent body scroll when sidebar is open on mobile */
+  @media (max-width: 1023px) {
     body.sidebar-open {
       @apply overflow-hidden;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .sidebar {
-      @apply translate-x-0 static;
     }
   }
 
@@ -1487,25 +1472,21 @@
     @apply grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
   }
 
-  /* Sidebar mobile improvements */
-  @media (max-width: 1024px) {
+  /* Sidebar mobile improvements - hidden by default on mobile/tablet */
+  @media (max-width: 1023px) {
     .sidebar {
-      @apply hidden lg:block;
-    }
-
-    .sidebar.active {
-      @apply block fixed w-64 z-40;
+      @apply fixed w-[15vw] z-[1001] -translate-x-full;
       top: 70px;
-      /* Start below navbar */
       left: 0;
-      right: 0;
       bottom: 0;
       max-height: calc(100vh - 70px);
       max-height: calc(100dvh - 70px);
-      /* Use dynamic viewport height for better mobile support */
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      /* Smooth scrolling on iOS */
+    }
+
+    .sidebar.active {
+      @apply translate-x-0;
     }
   }
 
@@ -1539,21 +1520,31 @@
     }
   }
 
-  /* Layout adjustments for sidebar + main content */
+  /* ============================================================
+     LAYOUT SYSTEM - Navbar + Sidebar + Main Content
+     ============================================================ */
+
+  /* Layout wrapper fills remaining viewport height below navbar */
+  .layout-wrapper {
+    @apply h-[calc(100vh-70px)] overflow-hidden;
+  }
+
+  /* Main container is a flex row that fills layout-wrapper */
   .main-container {
-    @apply flex;
+    @apply flex h-full;
+  }
+
+  /* Main content fills remaining width and scrolls independently */
+  .main-content {
+    @apply flex-1 min-w-0 overflow-y-auto;
   }
 
   @media (min-width: 1024px) {
-
-    /* On desktop, ensure sidebar is static and content flows properly */
+    /* On desktop, sidebar is relative positioned and takes space in flex layout */
     .sidebar {
-      @apply static translate-x-0 flex-shrink-0;
-    }
-
-    /* Main content should take remaining space */
-    .main-content {
-      @apply flex-1 min-w-0;
+      position: relative !important;
+      top: 0 !important;
+      @apply translate-x-0 flex-shrink-0 h-full;
     }
   }
 }

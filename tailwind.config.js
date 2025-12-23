@@ -3,7 +3,8 @@ module.exports = {
   content: [
     "./pages/**/*.html",
     "./assets/js/**/*.js",
-    "./components/**/*.js"
+    "./components/**/*.js",
+    "./components/**/*.html"
   ],
   darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
