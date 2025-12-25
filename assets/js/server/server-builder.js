@@ -1708,7 +1708,7 @@ class ServerBuilder {
     async loadChassisDetails(uuid) {
         try {
             // Fetch chassis JSON
-            const response = await fetch('../../data/chassis-jsons/chassis-level-3.json');
+            const response = await fetch('../../data/chasis-jsons/chasis-level-3.json');
             if (!response.ok) {
                 console.error('Failed to fetch chassis JSON');
                 return null;
