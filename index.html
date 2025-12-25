@@ -114,47 +114,46 @@
     </style>
 </head>
 
-<body class="bg-slate-50 text-slate-600 h-screen overflow-hidden selection:bg-primary/20 selection:text-primary">
+<body class="bg-slate-900 text-slate-600 h-screen overflow-hidden selection:bg-primary/20 selection:text-primary">
 
     <!-- Background Elements -->
     <div class="fixed inset-0 z-0">
-        <!-- Base Gradient -->
-        <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-slate-100/80 to-teal-50/60"></div>
+        <!-- Background Image with Glass Overlay -->
+        <img src="assets/images/login-bg.png" alt="Background" class="absolute inset-0 w-full h-full object-cover">
+        <div class="absolute inset-0 bg-slate-950/20"></div>
     </div>
 
     <!-- Main Content -->
     <div class="relative z-10 flex h-full">
 
         <!-- Left Panel: Branding (Visible on Desktop) -->
-        <div
-            class="hidden lg:flex flex-1 flex-col justify-between p-12 lg:p-16 border-r border-slate-200/60 bg-gradient-to-br from-white/60 via-white/40 to-teal-50/30 backdrop-blur-sm relative overflow-hidden">
+        <div class="hidden lg:flex flex-1 flex-col justify-between p-12 lg:p-16 relative overflow-hidden">
 
             <!-- Header Logo -->
-            <div class="flex items-center gap-3 relative z-10">
+            <div class="flex items-center gap-3 relative z-10 bg-white/5 backdrop-blur-sm rounded-2xl p-4 w-fit">
                 <div
-                    class="w-14 h-14 rounded-xl bg-white border border-teal-100 flex items-center justify-center shadow-lg shadow-teal-500/10">
-                    <i class="fas fa-server text-teal-600 text-2xl"></i>
+                    class="w-12 h-12 rounded-xl bg-white/80 flex items-center justify-center shadow-lg shadow-teal-500/10">
+                    <i class="fas fa-server text-teal-600 text-xl"></i>
                 </div>
                 <div>
-                    <span class="text-xl font-bold text-primary tracking-wide block">BDC IMS</span>
-                    <span class="text-[10px] text-slate-400 uppercase tracking-widest">Infrastructure Control</span>
+                    <span class="text-lg font-bold text-white tracking-wide block">BDC IMS</span>
+                    <span class="text-[10px] text-white uppercase tracking-widest">Infrastructure Control</span>
                 </div>
             </div>
 
             <!-- Hero Content -->
-            <div class="relative z-10 max-w-lg">
+            <div class="relative z-10 max-w-lg bg-slate-900/40 backdrop-blur-md rounded-[2rem] p-10">
                 <!-- Status Indicator -->
-                <div
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-success-light border border-success/60 mb-6">
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/20 mb-6">
                     <span class="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                    <span class="text-xs font-medium text-success-600">All Systems Operational</span>
+                    <span class="text-xs font-medium text-success-300">All Systems Operational</span>
                 </div>
 
-                <h1 class="text-4xl xl:text-5xl font-bold text-slate-900 mb-5 leading-tight">
+                <h1 class="text-4xl xl:text-5xl font-bold text-white mb-5 leading-tight">
                     Data Center
-                    <span class="text-primary block">Command Center</span>
+                    <span class="text-primary-lighter block">Command Center</span>
                 </h1>
-                <p class="text-base text-slate-500 mb-10 leading-relaxed">
+                <p class="text-base text-white mb-10 leading-relaxed font-medium">
                     Unified control panel for server management, hardware inventory, and infrastructure deployment.
                     Monitor, configure, and scale with precision.
                 </p>
@@ -162,37 +161,37 @@
                 <!-- Feature Pills -->
                 <div class="flex flex-wrap gap-2">
                     <span
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/80 text-xs text-slate-600 border border-slate-200/60">
-                        <i class="fas fa-hdd text-primary text-[10px]"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">
+                        <i class="fas fa-hdd text-primary-lightest text-[10px]"></i>
                         Server Management
                     </span>
                     <span
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/80 text-xs text-slate-600 border border-slate-200/60">
-                        <i class="fas fa-network-wired text-primary text-[10px]"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">
+                        <i class="fas fa-network-wired text-primary-lightest text-[10px]"></i>
                         Network Config
                     </span>
                     <span
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/80 text-xs text-slate-600 border border-slate-200/60">
-                        <i class="fas fa-boxes text-primary text-[10px]"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">
+                        <i class="fas fa-boxes text-primary-lightest text-[10px]"></i>
                         Inventory
                     </span>
                     <span
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100/80 text-xs text-slate-600 border border-slate-200/60">
-                        <i class="fas fa-ticket-alt text-primary text-[10px]"></i>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 text-xs text-white">
+                        <i class="fas fa-ticket-alt text-primary-lightest text-[10px]"></i>
                         Ticketing
                     </span>
                 </div>
             </div>
 
             <!-- Footer Info -->
-            <div class="relative z-10 flex items-center justify-between">
-                <div class="flex items-center gap-3 text-xs text-slate-400">
+            <div class="relative z-10 flex items-center justify-between bg-white/5 backdrop-blur-sm rounded-2xl p-4">
+                <div class="flex items-center gap-3 text-xs text-white">
                     <span class="font-medium">© 2025 Bharat Datacenter</span>
-                    <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                    <span class="w-1 h-1 rounded-full bg-white/40"></span>
                     <span>v2.0.0</span>
                 </div>
-                <div class="flex items-center gap-2 text-xs text-slate-400">
-                    <i class="fas fa-shield-alt text-primary/60"></i>
+                <div class="flex items-center gap-2 text-xs text-white">
+                    <i class="fas fa-shield-alt text-teal-400"></i>
                     <span>Enterprise Security</span>
                 </div>
             </div>
@@ -208,29 +207,24 @@
                         class="inline-flex w-12 h-12 rounded-xl bg-primary items-center justify-center mb-4 shadow-lg shadow-primary/20">
                         <i class="fas fa-server text-white text-xl"></i>
                     </div>
-                    <h2 class="text-2xl font-bold text-slate-900">BDC IMS</h2>
+                    <h2 class="text-2xl font-bold text-white">BDC IMS</h2>
                 </div>
 
                 <!-- Form Card -->
                 <div
-                    class="bg-white border border-slate-100 p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50 relative overflow-hidden">
-
-                    <!-- Top Highlight Line -->
-                    <div
-                        class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50">
-                    </div>
+                    class="bg-slate-900/60 backdrop-blur-xl p-8 sm:p-10 rounded-[2.5rem] shadow-2xl shadow-black/80 relative overflow-hidden border border-white/20">
 
                     <!-- Toggle Switch -->
-                    <div class="flex bg-slate-100 p-1.5 rounded-xl mb-8 relative">
+                    <div class="flex bg-slate-800/50 p-1.5 rounded-xl mb-8 relative border border-white/5">
                         <!-- Keep element for JS compatibility but hide it visually -->
                         <div class="toggle-indicator hidden" style="display: none;"></div>
 
                         <button id="loginToggle"
-                            class="active flex-1 py-2.5 text-sm font-semibold rounded-lg relative z-10 transition-colors duration-300 text-slate-500 hover:text-slate-700">
+                            class="active flex-1 py-2.5 text-sm font-semibold rounded-lg relative z-10 transition-colors duration-300 text-white hover:text-white data-[active=true]:bg-slate-700 data-[active=true]:text-white">
                             Sign In
                         </button>
                         <button id="registerToggle"
-                            class="flex-1 py-2.5 text-sm font-semibold rounded-lg relative z-10 transition-colors duration-300 text-slate-500 hover:text-slate-700">
+                            class="flex-1 py-2.5 text-sm font-semibold rounded-lg relative z-10 transition-colors duration-300 text-white hover:text-white">
                             Sign Up
                         </button>
                     </div>
@@ -238,35 +232,36 @@
                     <!-- Login Form -->
                     <div id="loginForm" class="form-container active">
                         <div class="mb-8">
-                            <h2 class="text-2xl font-bold text-slate-900 mb-2">Welcome Back</h2>
-                            <p class="text-slate-500 text-sm">Enter your credentials to access the control panel.</p>
+                            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back</h2>
+                            <p class="text-white text-sm font-medium">Enter your credentials to access the control
+                                panel.</p>
                         </div>
 
                         <form id="loginFormElement" class="space-y-5">
                             <div class="space-y-1.5">
                                 <label
-                                    class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Username</label>
+                                    class="text-xs font-bold text-white uppercase tracking-wider ml-1">Username</label>
                                 <!-- flex-wrap added + items-center -->
                                 <div
-                                    class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
+                                    class="input-group flex flex-wrap items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl px-4 py-3.5 transition-all relative hover:border-teal-500/50 focus-within:border-teal-500">
                                     <i class="fas fa-user text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="text" id="loginUsername" name="username" placeholder="admin_user"
                                         required
-                                        class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
+                                        class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-white placeholder-slate-500 ml-4 h-full">
                                 </div>
                             </div>
 
                             <div class="space-y-1.5">
                                 <label
-                                    class="text-xs font-bold text-slate-700 uppercase tracking-wider ml-1">Password</label>
+                                    class="text-xs font-bold text-white uppercase tracking-wider ml-1">Password</label>
                                 <div
-                                    class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
+                                    class="input-group flex flex-wrap items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl px-4 py-3.5 transition-all relative hover:border-teal-500/50 focus-within:border-teal-500">
                                     <i class="fas fa-lock text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="password" id="loginPassword" name="password" placeholder="••••••••"
                                         required
-                                        class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
+                                        class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-white placeholder-slate-500 ml-4 h-full">
                                     <button type="button" id="toggleLoginPassword"
-                                        class="text-slate-400 hover:text-primary transition-colors p-1">
+                                        class="text-slate-400 hover:text-teal-400 transition-colors p-1">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </div>
@@ -276,21 +271,21 @@
                                 <label class="custom-checkbox flex items-center gap-2 cursor-pointer group select-none">
                                     <input type="checkbox" id="rememberMe" class="sr-only">
                                     <div
-                                        class="checkbox-box w-4 h-4 border border-slate-300 rounded bg-white relative transition-colors shadow-sm flex-shrink-0 flex items-center justify-center">
+                                        class="checkbox-box w-4 h-4 border border-slate-600 rounded bg-slate-800/50 relative transition-colors shadow-sm flex-shrink-0 flex items-center justify-center group-hover:border-teal-500">
                                         <i
-                                            class="checkbox-icon fas fa-check text-[10px] text-teal-600 opacity-0 transition-opacity"></i>
+                                            class="checkbox-icon fas fa-check text-[10px] text-teal-400 opacity-0 transition-opacity"></i>
                                     </div>
-                                    <span class="text-slate-500 group-hover:text-slate-700 transition-colors">Remember
+                                    <span class="text-white group-hover:text-white transition-colors">Remember
                                         me</span>
                                 </label>
                                 <a href="#"
-                                    class="text-primary hover:text-primary-dark font-medium transition-colors">Forgot
+                                    class="text-teal-400 hover:text-teal-300 font-medium transition-colors">Forgot
                                     Password?</a>
                             </div>
 
                             <!-- Login Button using 'bg-primary' -->
                             <button type="submit" id="loginBtn"
-                                class="w-full bg-primary text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 relative overflow-hidden group mt-4">
+                                class="w-full bg-primary text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 relative overflow-hidden group mt-4">
                                 <span class="relative z-10 btn-text flex items-center justify-center gap-2">
                                     Access System <i
                                         class="fas fa-arrow-right text-xs opacity-70 group-hover:translate-x-1 transition-transform"></i>
