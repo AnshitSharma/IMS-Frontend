@@ -2728,7 +2728,7 @@ class ConfigurationPage {
         document.title = `Choose A ${displayName} - BDC IMS`;
 
         // Update header
-        const header = document.querySelector('.config-header h1');
+        const header = document.getElementById('pageTitle');
         if (header) {
             header.textContent = `Choose A ${displayName}`;
         }
@@ -2736,7 +2736,7 @@ class ConfigurationPage {
         // Update search placeholder
         const searchInput = document.getElementById('componentSearch');
         if (searchInput) {
-            searchInput.placeholder = displayName + 's';
+            searchInput.placeholder = `Search ${displayName}...`;
         }
     }
 
