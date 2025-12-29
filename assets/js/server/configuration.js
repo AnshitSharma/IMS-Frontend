@@ -335,26 +335,28 @@ class ConfigurationPage {
                 formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', '2.5"', '3.5"', 'M.2'] }
             },
             'nic': {
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Intel', 'Broadcom', 'Mellanox', 'Chelsio', 'Marvell'] },
                 speed: { type: 'radio', label: 'SPEED', options: ['All', '1 Gbps', '10 Gbps', '25 Gbps', '40 Gbps', '100 Gbps'] },
-                ports: { type: 'range', label: 'PORTS', min: 1, max: 4, step: 1, unit: '' },
-                interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe', 'USB', 'Thunderbolt'] }
+                ports: { type: 'range', label: 'PORTS', min: 1, max: 4, step: 1, unit: '' }
             },
             'chassis': {
-                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Dell', 'HPE', 'Supermicro', 'Lenovo'] },
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Supermicro', 'Dell', 'HPE', 'Lenovo', 'Intel'] },
                 formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', '1U', '2U', '4U', 'Tower'] },
                 maxDrives: { type: 'range', label: 'MAX DRIVES', min: 1, max: 24, step: 1, unit: '' }
             },
             'caddy': {
-                formFactor: { type: 'radio', label: 'SIZE', options: ['All', '2.5"', '3.5"'] }
+                formFactor: { type: 'radio', label: 'SIZE', options: ['All', '2.5"', '3.5"'] },
+                interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'SATA', 'SAS', 'NVMe'] }
             },
             'pciecard': {
-                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'NVIDIA', 'AMD', 'Intel'] },
+                subtype: { type: 'radio', label: 'TYPE', options: ['All', 'NVMe Adaptor', 'Riser Card'] },
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Supermicro', 'ASUS', 'Dell', 'HPE', 'Lenovo'] },
                 interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe 3.0', 'PCIe 4.0', 'PCIe 5.0'] },
-                formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', 'Single Slot', 'Dual Slot', 'Triple Slot', 'Quad Slot'] }
+                formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', 'HHHL', 'FHFL', '1U Low Profile', '2U Standard Height'] }
             },
             'hbacard': {
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Broadcom', 'Microchip', 'LSI'] },
                 protocol: { type: 'radio', label: 'PROTOCOL', options: ['All', 'SAS', 'SATA', 'NVMe'] },
-                maxDevice: { type: 'range', label: 'MAX DEVICE', min: 1, max: 256, step: 1, unit: '' },
                 interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe 3.0', 'PCIe 4.0'] },
                 dataRate: { type: 'radio', label: 'DATA RATE', options: ['All', '6 Gb/s', '12 Gb/s', '24 Gb/s'] }
             },
@@ -600,6 +602,7 @@ class ConfigurationPage {
 
     /**
      * Extract all components from JSON data structure
+     * Inherits parent properties (component_subtype, brand, series) to each model
      */
     extractComponentsFromJSON(jsonData) {
         const components = [];
@@ -607,19 +610,38 @@ class ConfigurationPage {
         if (Array.isArray(jsonData)) {
             // Handle array of component groups
             jsonData.forEach(group => {
+                // Extract parent properties to inherit
+                const parentProps = {
+                    component_subtype: group.component_subtype,
+                    brand: group.brand,
+                    series_name: group.series,
+                    generation: group.generation,
+                    family: group.family
+                };
+
                 if (group.models && Array.isArray(group.models)) {
-                    // Direct models array
-                    components.push(...group.models);
+                    // Direct models array - inherit parent properties
+                    group.models.forEach(model => {
+                        components.push({ ...parentProps, ...model });
+                    });
                 } else if (group.series && Array.isArray(group.series)) {
                     // Nested series -> models structure
                     group.series.forEach(series => {
+                        const seriesProps = {
+                            ...parentProps,
+                            series_name: series.name || parentProps.series_name
+                        };
                         if (series.models && Array.isArray(series.models)) {
-                            components.push(...series.models);
+                            series.models.forEach(model => {
+                                components.push({ ...seriesProps, ...model });
+                            });
                         } else if (series.tiers && Array.isArray(series.tiers)) {
                             // CPU structure: series -> tiers -> models
                             series.tiers.forEach(tier => {
                                 if (tier.models && Array.isArray(tier.models)) {
-                                    components.push(...tier.models);
+                                    tier.models.forEach(model => {
+                                        components.push({ ...seriesProps, ...model });
+                                    });
                                 }
                             });
                         }
@@ -902,13 +924,46 @@ class ConfigurationPage {
                 component.hotSwap = jsonComponent.hot_swap ? 'Yes' : 'No';
                 break;
             case 'pciecard':
-                console.log('JSON Component for PCIe Card:', jsonComponent.max_capacity_per_slot);
+                console.log('JSON Component for PCIe Card:', jsonComponent);
                 component.model = jsonComponent.model || 'N/A';
                 component.interface = jsonComponent.interface || 'PCIe';
-                component.max_capacity = jsonComponent.total_max_capacity || 'N/A';
+                component.formFactor = jsonComponent.form_factor || 'N/A';
                 component.busWidth = jsonComponent.bus_width || 'N/A';
                 component.powerConsumption = jsonComponent.power_consumption_W || 'N/A';
                 component.features = jsonComponent.features || 'N/A';
+
+                // Handle max_capacity differently based on component_subtype
+                // PCIe cards can be: NVMe Adaptor, Riser Card (HBA Card is a separate component type)
+                const pcieSubtype = jsonComponent.component_subtype || '';
+                console.log('PCIe Card Subtype:', pcieSubtype);
+
+                if (pcieSubtype === 'NVMe Adaptor') {
+                    // NVMe Adaptors have total_max_capacity (e.g., "32TB", "16TB")
+                    component.max_capacity = jsonComponent.total_max_capacity || 'N/A';
+                    component.total_max_capacity = jsonComponent.total_max_capacity || 'N/A';
+                } else if (pcieSubtype === 'Riser Card') {
+                    // Riser Cards have pcie_slots and slot_type (e.g., "1x x8", "2x x16")
+                    const slots = jsonComponent.pcie_slots;
+                    const slotType = jsonComponent.slot_type || '';
+                    if (slots !== undefined && slots !== null) {
+                        component.max_capacity = `${slots}x ${slotType}`.trim();
+                    } else {
+                        component.max_capacity = 'N/A';
+                    }
+                    component.total_max_capacity = component.max_capacity;
+                } else {
+                    // Default fallback - try total_max_capacity first, then pcie_slots
+                    if (jsonComponent.total_max_capacity) {
+                        component.max_capacity = jsonComponent.total_max_capacity;
+                    } else if (jsonComponent.pcie_slots !== undefined) {
+                        const slots = jsonComponent.pcie_slots;
+                        const slotType = jsonComponent.slot_type || '';
+                        component.max_capacity = `${slots}x ${slotType}`.trim();
+                    } else {
+                        component.max_capacity = 'N/A';
+                    }
+                    component.total_max_capacity = component.max_capacity;
+                }
                 break;
 
             case 'hbacard':
@@ -1906,7 +1961,7 @@ class ConfigurationPage {
             'nic': ['Speed', 'Interface', 'Ports', 'Connector', 'Protocol', 'Action'],
             'chassis': ['Brand', 'Form Factor', 'Action'],
             'caddy': ['Form Factor', 'Interface', 'Size', 'Action'],
-            'pciecard': ['Interface', 'max_capacity', 'Form Factor', 'Action'],
+            'pciecard': ['Interface', 'Max Capacity', 'Form Factor', 'Action'],
             'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action'],
             'sfp': ['Type', 'Speed', 'Wavelength', 'Reach', 'Connector', 'Action']
         };
@@ -2050,7 +2105,7 @@ class ConfigurationPage {
             type = 'storage';
         }
 
-        const cellClass = 'px-4 py-3 text-sm text-text-secondary text-center whitespace-nowrap';
+        const cellClass = 'px-4 py-3 text-sm text-text-secondary text-left whitespace-nowrap';
 
         // Desktop table layout with proper <td> elements
         switch (type) {
