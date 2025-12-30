@@ -974,6 +974,14 @@ class ConfigurationPage {
                 component.internal_ports = jsonComponent.internal_ports ?? 'N/A';
                 break;
 
+            case 'sfp':
+                component.model = jsonComponent.model || 'N/A';
+                component.type = jsonComponent.type || 'SFP';
+                component.speed = jsonComponent.speed || 'N/A';
+                component.connector = jsonComponent.connector || 'LC';
+                component.fiberType = jsonComponent.fiber_type || 'N/A';
+                break;
+
             default:
                 // Generic specs
                 component.spec1 = 'N/A';
@@ -1961,7 +1969,7 @@ class ConfigurationPage {
             'caddy': ['Form Factor', 'Interface', 'Size', 'Action'],
             'pciecard': ['Interface', 'Max Capacity', 'Form Factor', 'Action'],
             'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action'],
-            'sfp': ['Type', 'Speed', 'Wavelength', 'Reach', 'Connector', 'Action']
+            'sfp': ['Type', 'Speed', 'Connector', 'Action']
         };
 
         const headers = headerMap[componentType] || ['Spec 1', 'Spec 2', 'Spec 3', 'Spec 4', 'Spec 5'];
@@ -2183,9 +2191,9 @@ class ConfigurationPage {
                 return `
                 <td class="${cellClass}">${this.formatValue(component.type)}</td>
                 <td class="${cellClass}">${this.formatValue(component.speed)}</td>
-                <td class="${cellClass}">${this.formatValue(component.wavelength)}</td>
-                <td class="${cellClass}">${this.formatValue(component.reach)}</td>
                 <td class="${cellClass}">${this.formatValue(component.connector)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
             `;
             default:
                 return `
@@ -2305,8 +2313,6 @@ class ConfigurationPage {
                 specs.push(
                     { label: 'Type', value: component.type || 'N/A', icon: 'fas fa-tag' },
                     { label: 'Speed', value: component.speed || 'N/A', icon: 'fas fa-tachometer-alt' },
-                    { label: 'Wavelength', value: component.wavelength || 'N/A', icon: 'fas fa-wave-square' },
-                    { label: 'Reach', value: component.reach || 'N/A', icon: 'fas fa-arrows-alt-h' },
                     { label: 'Connector', value: component.connector || 'N/A', icon: 'fas fa-plug' },
                     { label: 'Fiber Type', value: component.fiberType || 'N/A', icon: 'fas fa-ethernet' }
                 );
