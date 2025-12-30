@@ -967,13 +967,11 @@ class ConfigurationPage {
                 break;
 
             case 'hbacard':
-                console.log('JSON Component for HBA Card:', jsonComponent.internal_ports);
                 component.model = jsonComponent.model || 'N/A';
                 component.interface = jsonComponent.interface || 'PCIe';
+                component.protocol = jsonComponent.protocol || 'N/A';
                 component.ports = jsonComponent.ports?.toString() || 'N/A';
-                component.internal_ports = jsonComponent.internal_ports || 'N/A';
-                // component.dataRate = jsonComponent.data_rate || jsonComponent.speed || 'N/A';
-                // component.features = jsonComponent.features || 'N/A';
+                component.internal_ports = jsonComponent.internal_ports ?? 'N/A';
                 break;
 
             default:
