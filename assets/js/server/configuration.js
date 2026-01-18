@@ -976,7 +976,7 @@ class ConfigurationPage {
 
             case 'sfp':
                 component.model = jsonComponent.model || 'N/A';
-                component.type = jsonComponent.type || 'SFP';
+                component.sfpType = jsonComponent.type || 'SFP';
                 component.speed = jsonComponent.speed || 'N/A';
                 component.connector = jsonComponent.connector || 'LC';
                 component.fiberType = jsonComponent.fiber_type || 'N/A';
@@ -1228,10 +1228,8 @@ class ConfigurationPage {
                     const series = jsonItem.series[0];
                     const model = series.models?.[0];
                     if (model) {
-                        component.type = model.type || 'SFP';
+                        component.sfpType = model.type || 'SFP';
                         component.speed = model.speed || '1Gbps';
-                        component.wavelength = model.wavelength || 'N/A';
-                        component.reach = model.reach || 'N/A';
                         component.connector = model.connector || 'LC';
                         component.fiberType = model.fiber_type || 'N/A';
                     }
@@ -2189,11 +2187,9 @@ class ConfigurationPage {
             `;
             case 'sfp':
                 return `
-                <td class="${cellClass}">${this.formatValue(component.type)}</td>
+                <td class="${cellClass}">${this.formatValue(component.sfpType)}</td>
                 <td class="${cellClass}">${this.formatValue(component.speed)}</td>
                 <td class="${cellClass}">${this.formatValue(component.connector)}</td>
-                <td class="${cellClass}"></td>
-                <td class="${cellClass}"></td>
             `;
             default:
                 return `
@@ -2311,7 +2307,7 @@ class ConfigurationPage {
                 break;
             case 'sfp':
                 specs.push(
-                    { label: 'Type', value: component.type || 'N/A', icon: 'fas fa-tag' },
+                    { label: 'Type', value: component.sfpType || 'N/A', icon: 'fas fa-tag' },
                     { label: 'Speed', value: component.speed || 'N/A', icon: 'fas fa-tachometer-alt' },
                     { label: 'Connector', value: component.connector || 'N/A', icon: 'fas fa-plug' },
                     { label: 'Fiber Type', value: component.fiberType || 'N/A', icon: 'fas fa-ethernet' }
