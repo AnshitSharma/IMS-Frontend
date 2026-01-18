@@ -16,6 +16,23 @@ const loginFormElement = document.getElementById('loginFormElement');
 const registerFormElement = document.getElementById('registerFormElement');
 const alertMessage = document.getElementById('alertMessage');
 
+// Security & Rate Limiting Config
+const SECURITY_CONFIG = {
+    MAX_ATTEMPTS: 5,
+    LOCKOUT_TIME: 30 * 1000, // 30 seconds
+    USERNAME_REGEX: /^[a-zA-Z0-9_.-]+$/, // Allow only alphanumeric, dot, underscore, dash
+    SQL_INJECTION_PATTERNS: [
+        /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
+        /((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/i,
+        /\w*((\%27)|(\'))(\s)*((\%6F)|o|(\%4F))((\%72)|r|(\%52))/i,
+        /((\%27)|(\'))union/i,
+        /exec(\s|\+)+(s|x)p\w+/i
+    ]
+};
+
+let failedAttempts = parseInt(localStorage.getItem('bdc_failed_attempts') || '0');
+let lockoutUntil = parseInt(localStorage.getItem('bdc_lockout_until') || '0');
+
 // Password Toggle Elements
 const toggleLoginPassword = document.getElementById('toggleLoginPassword');
 const toggleRegisterPassword = document.getElementById('toggleRegisterPassword');
@@ -32,6 +49,7 @@ function initializeApp() {
     setupFormValidation();
     setupFormSubmissions();
     checkExistingToken();
+    checkLockoutStatus(); // Check if user is currently locked out
 }
 
 // Form Toggle Functionality
@@ -175,6 +193,63 @@ function validateField(input) {
     return true;
 }
 
+// Security Helper Functions
+function sanitizeInput(str) {
+    if (!str) return '';
+    return str.replace(/[^\w. -]/gi, ''); // Remove any non-safe characters
+}
+
+function checkLockoutStatus() {
+    const now = Date.now();
+    if (lockoutUntil > now) {
+        const remaining = Math.ceil((lockoutUntil - now) / 1000);
+        setLoginLockout(true, remaining);
+
+        // Auto-unlock when time expires
+        setTimeout(() => {
+            setLoginLockout(false);
+            failedAttempts = 0;
+            localStorage.setItem('bdc_failed_attempts', '0');
+        }, remaining * 1000);
+        return true;
+    }
+    return false;
+}
+
+function setLoginLockout(locked, remainingSeconds = 0) {
+    const btn = document.getElementById('loginBtn');
+    if (!btn) return;
+
+    if (locked) {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        const originalText = btn.querySelector('.btn-text').innerHTML;
+        if (!btn.getAttribute('data-original-text')) {
+            btn.setAttribute('data-original-text', originalText);
+        }
+        btn.querySelector('.btn-text').textContent = `Try again in ${remainingSeconds}s`;
+    } else {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        const originalText = btn.getAttribute('data-original-text');
+        if (originalText) {
+            btn.querySelector('.btn-text').innerHTML = originalText;
+        }
+    }
+}
+
+function handleFailedLogin() {
+    failedAttempts++;
+    localStorage.setItem('bdc_failed_attempts', failedAttempts.toString());
+
+    if (failedAttempts >= SECURITY_CONFIG.MAX_ATTEMPTS) {
+        lockoutUntil = Date.now() + SECURITY_CONFIG.LOCKOUT_TIME;
+        localStorage.setItem('bdc_lockout_until', lockoutUntil.toString());
+        showAlert('error', 'Too many failed attempts. Login disabled for 30s.', 'fas fa-shield-alt');
+        checkLockoutStatus();
+    }
+}
+
 function validatePasswordMatch(passwordInput, confirmInput) {
     if (passwordInput.value !== confirmInput.value) {
         setFieldError(confirmInput, 'Passwords do not match');
@@ -227,9 +302,28 @@ function setupFormSubmissions() {
 async function handleLogin(e) {
     e.preventDefault();
 
+    // Check for lockout
+    if (checkLockoutStatus()) {
+        showAlert('error', 'Too many failed login attempts. Please wait.', 'fas fa-lock');
+        return;
+    }
+
     const formData = new FormData(loginFormElement);
-    const username = formData.get('username').trim();
-    const password = formData.get('password').trim();
+    let username = formData.get('username').trim();
+    let password = formData.get('password').trim();
+
+    // Sanitize Username to prevent simple injection
+    // Note: We don't sanitize password as it might contain special chars, but we length check it
+    if (!SECURITY_CONFIG.USERNAME_REGEX.test(username)) {
+        showAlert('error', 'Invalid characters in username.', 'fas fa-exclamation-circle');
+        return;
+    }
+
+    // Double check for SQL injection patterns
+    if (SECURITY_CONFIG.SQL_INJECTION_PATTERNS.some(pattern => pattern.test(username))) {
+        showAlert('error', 'Security check failed: Suspicious input detected.', 'fas fa-shield-alt');
+        return;
+    }
 
     // Validate form
     if (!validateLoginForm(username, password)) {
@@ -248,6 +342,11 @@ async function handleLogin(e) {
             localStorage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
             localStorage.setItem('bdc_user', JSON.stringify(response.data.user));
 
+            // Reset failed attempts on success
+            failedAttempts = 0;
+            localStorage.setItem('bdc_failed_attempts', '0');
+            localStorage.removeItem('bdc_lockout_until');
+
             showAlert('success', 'Login successful! Redirecting...', 'fas fa-check-circle');
 
             // Clear auto-saved form data on successful login
@@ -258,6 +357,8 @@ async function handleLogin(e) {
                 window.location.href = 'pages/dashboard/index.html';
             }, 1500);
         } else {
+            // Handle failed login security
+            handleFailedLogin();
             showAlert('error', response.message || 'Login failed. Please try again.', 'fas fa-times-circle');
         }
     } catch (error) {

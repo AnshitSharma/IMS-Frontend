@@ -246,7 +246,7 @@
                                     class="input-group flex flex-wrap items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl px-4 py-3.5 transition-all relative hover:border-teal-500/50 focus-within:border-teal-500">
                                     <i class="fas fa-user text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="text" id="loginUsername" name="username" placeholder="admin_user"
-                                        required
+                                        required maxlength="50"
                                         class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-white placeholder-slate-500 ml-4 h-full">
                                 </div>
                             </div>
@@ -258,7 +258,7 @@
                                     class="input-group flex flex-wrap items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl px-4 py-3.5 transition-all relative hover:border-teal-500/50 focus-within:border-teal-500">
                                     <i class="fas fa-lock text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="password" id="loginPassword" name="password" placeholder="••••••••"
-                                        required
+                                        required maxlength="128"
                                         class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-white placeholder-slate-500 ml-4 h-full">
                                     <button type="button" id="toggleLoginPassword"
                                         class="text-slate-400 hover:text-teal-400 transition-colors p-1">
@@ -309,14 +309,14 @@
                             <div
                                 class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
                                 <i class="fas fa-user text-slate-400 text-lg min-w-[24px]"></i>
-                                <input type="text" id="registerUsername" name="username" placeholder="Username" required
+                                <input type="text" id="registerUsername" name="username" placeholder="Username" required maxlength="50"
                                     class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
                             </div>
 
                             <div
                                 class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
                                 <i class="fas fa-envelope text-slate-400 text-lg min-w-[24px]"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="Work Email" required
+                                <input type="email" id="registerEmail" name="email" placeholder="Work Email" required maxlength="100"
                                     class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
                             </div>
 
@@ -326,14 +326,14 @@
                                     class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
                                     <i class="fas fa-lock text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="password" id="registerPassword" name="password" placeholder="Password"
-                                        required
+                                        required maxlength="128"
                                         class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
                                 </div>
                                 <div
                                     class="input-group flex flex-wrap items-center bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 transition-all relative">
                                     <i class="fas fa-lock text-slate-400 text-lg min-w-[24px]"></i>
                                     <input type="password" id="confirmPassword" name="confirmPassword"
-                                        placeholder="Confirm Password" required
+                                        placeholder="Confirm Password" required maxlength="128"
                                         class="flex-1 bg-transparent border-none outline-none focus:ring-0 text-slate-900 placeholder-slate-400 ml-4 h-full">
                                     <button type="button" id="toggleConfirmPassword"
                                         class="text-slate-400 hover:text-primary transition-colors p-1">
