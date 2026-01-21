@@ -7,6 +7,9 @@ class ConfigurationPage {
     constructor() {
         this.currentComponentType = 'cpu';
         this.selectedComponents = [];
+        this.parentNicUuid = null; // Parent NIC UUID for SFP modules
+        this.parentNicDetails = null; // Parent NIC details (ports, model, etc.)
+        this.selectedSlotPosition = null; // Selected slot position for SFP
         this.compatibilityState = {
             hasWarnings: false,
             hasErrors: false,
@@ -467,9 +470,22 @@ class ConfigurationPage {
             const urlParams = new URLSearchParams(window.location.search);
             const configUuid = urlParams.get('config');
             const componentType = urlParams.get('type') || 'cpu';
+            const parentNicUuid = urlParams.get('parent_nic_uuid');
 
             // Update the current component type
             this.currentComponentType = componentType;
+
+            // Store parent NIC UUID for SFP modules and fetch NIC details
+            if (parentNicUuid) {
+                this.parentNicUuid = parentNicUuid;
+                // Fetch parent NIC details to know how many ports are available
+                this.parentNicDetails = await this.fetchParentNICDetails(parentNicUuid);
+
+                // Show NIC info banner
+                if (this.parentNicDetails) {
+                    this.showParentNICBanner(this.parentNicDetails);
+                }
+            }
 
             // Render filters for the current component type
             this.renderFilters(componentType);
@@ -502,6 +518,79 @@ class ConfigurationPage {
             this.showAlert(error.message || 'Failed to load components', 'error');
         } finally {
             this.showLoading(false);
+        }
+    }
+
+    /**
+     * Fetch parent NIC details from JSON
+     */
+    async fetchParentNICDetails(nicUuid) {
+        try {
+            const response = await fetch('../../data/nic-jsons/nic-level-3.json');
+            const nicData = await response.json();
+
+            // Search for NIC by UUID in the JSON structure
+            for (const brandObj of nicData) {
+                for (const series of brandObj.series) {
+                    for (const model of series.models) {
+                        if (model.uuid === nicUuid) {
+                            return {
+                                brand: brandObj.brand,
+                                series: series.name,
+                                model: model.model,
+                                ports: model.ports,
+                                port_type: model.port_type,
+                                speeds: model.speeds,
+                                interface: model.interface,
+                                uuid: nicUuid
+                            };
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error fetching parent NIC details:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Show parent NIC information banner
+     */
+    showParentNICBanner(nicDetails) {
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        const banner = document.createElement('div');
+        banner.className = 'bg-primary/10 border border-primary/30 rounded-lg p-4 mb-6';
+        banner.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                    <i class="fas fa-network-wired text-primary"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-text-primary mb-1">
+                        Installing SFP Module into: ${nicDetails.model}
+                    </h3>
+                    <p class="text-sm text-text-secondary">
+                        ${nicDetails.brand} ${nicDetails.series} • ${nicDetails.ports} ${nicDetails.port_type} ports • ${Array.isArray(nicDetails.speeds) ? nicDetails.speeds.join(', ') : nicDetails.speeds}
+                    </p>
+                    <p class="text-xs text-text-secondary mt-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        You'll be asked to select which port to install the SFP module into
+                    </p>
+                </div>
+            </div>
+        `;
+
+        // Insert after the page header
+        const header = container.querySelector('h1') || container.querySelector('.text-2xl');
+        if (header && header.parentNode) {
+            header.parentNode.insertBefore(banner, header.nextSibling);
+        } else {
+            container.insertBefore(banner, container.firstChild);
         }
     }
 
@@ -2365,6 +2454,20 @@ class ConfigurationPage {
             return;
         }
 
+        // For SFP modules, show port selection modal first
+        if (this.currentComponentType === 'sfp' && this.parentNicDetails) {
+            this.showPortSelectionModal(componentId, component);
+            return;
+        }
+
+        // Continue with normal add flow
+        await this.performAddComponent(componentId, component, '');
+    }
+
+    /**
+     * Perform the actual component addition
+     */
+    async performAddComponent(componentId, component, slotPosition = '') {
         try {
             this.showLoading(true, 'Adding component...');
 
@@ -2377,20 +2480,27 @@ class ConfigurationPage {
                 // For JSON-based components, we need to create a temporary component entry
                 // in the database first, then add it to the configuration
 
+                // Prepare options for SFP modules
+                const options = {};
+                if (this.currentComponentType === 'sfp' && this.parentNicUuid) {
+                    options.parent_nic_uuid = this.parentNicUuid;
+                }
+
                 // First, try to add as a regular component (in case it exists in DB)
                 let result = await serverAPI.addComponentToServer(
                     configUuid,
                     this.currentComponentType,
                     component.id,
                     1, // quantity
-                    '', // slot position
-                    false // override
+                    slotPosition, // slot position from port selection
+                    false, // override
+                    options // Pass options with parent_nic_uuid
                 );
 
                 // If that fails because component doesn't exist in DB, create it first
                 if (!result.success && result.message &&
                     (result.message.includes('not found') || result.message.includes('Component not found'))) {
-                    result = await this.createAndAddComponent(configUuid, component);
+                    result = await this.createAndAddComponent(configUuid, component, slotPosition);
                 }
 
                 if (result.success) {
@@ -2421,14 +2531,99 @@ class ConfigurationPage {
     }
 
     /**
+     * Show port selection modal for SFP modules
+     */
+    showPortSelectionModal(componentId, component) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+        modal.id = 'portSelectionModal';
+
+        const portCount = this.parentNicDetails.ports || 4;
+        const portOptions = Array.from({ length: portCount }, (_, i) => i + 1);
+
+        modal.innerHTML = `
+            <div class="bg-surface rounded-lg shadow-xl max-w-md w-full mx-4">
+                <div class="p-6 border-b border-border-light">
+                    <h3 class="text-xl font-semibold text-text-primary flex items-center gap-2">
+                        <i class="fas fa-network-wired text-primary"></i>
+                        Select Port for SFP Module
+                    </h3>
+                    <p class="text-sm text-text-secondary mt-2">
+                        ${this.parentNicDetails.model} has ${portCount} ports. Select which port to install this SFP module into.
+                    </p>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-text-primary mb-3">
+                            Available Ports:
+                        </label>
+                        <div class="grid grid-cols-4 gap-3">
+                            ${portOptions.map(port => `
+                                <button type="button"
+                                        class="port-option px-4 py-3 border-2 border-border-light rounded-lg text-center hover:border-primary hover:bg-primary/5 transition-all focus:outline-none focus:ring-2 focus:ring-primary"
+                                        data-port="${port}">
+                                    <div class="text-lg font-semibold text-text-primary">Port ${port}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="bg-info/10 border border-info/30 rounded-lg p-3 mb-4">
+                        <p class="text-xs text-text-secondary">
+                            <i class="fas fa-info-circle text-info mr-1"></i>
+                            The SFP module <strong>${component.name}</strong> will be installed into the selected port.
+                        </p>
+                    </div>
+                </div>
+                <div class="p-6 border-t border-border-light flex justify-end gap-3">
+                    <button type="button"
+                            class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors border border-transparent hover:bg-surface-hover rounded-lg"
+                            id="cancelPortSelection">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        const portButtons = modal.querySelectorAll('.port-option');
+        portButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const selectedPort = btn.getAttribute('data-port');
+                document.body.removeChild(modal);
+                // Call performAddComponent with the selected port
+                this.performAddComponent(componentId, component, selectedPort);
+            });
+        });
+
+        const cancelBtn = modal.querySelector('#cancelPortSelection');
+        cancelBtn.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+
+    /**
      * Create and add component (for JSON-based components not in database)
      */
 
-    async createAndAddComponent(configUuid, component) {
+    async createAndAddComponent(configUuid, component, slotPosition = '') {
         try {
             // Generate a unique UUID for the JSON component
             const componentUuid = this.generateComponentUUID(component);
 
+            // Prepare options for SFP modules
+            const options = {};
+            if (this.currentComponentType === 'sfp' && this.parentNicUuid) {
+                options.parent_nic_uuid = this.parentNicUuid;
+            }
 
             // Use the existing addComponentToServer method (it now handles JSON components)
             const result = await serverAPI.addComponentToServer(
@@ -2436,8 +2631,9 @@ class ConfigurationPage {
                 this.currentComponentType,
                 componentUuid,
                 1, // quantity
-                '', // slot position
-                false // override
+                slotPosition, // slot position from port selection
+                false, // override
+                options // Pass options with parent_nic_uuid
             );
 
             if (result.success) {

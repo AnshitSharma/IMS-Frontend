@@ -118,7 +118,7 @@ class ServerAPI {
     }
 
     async addComponentToServer(configUuid, componentType, componentUuid, quantity = 1, slotPosition = '', override = false, options = {}) {
-        return await this.makeRequest({
+        const requestData = {
             action: 'server-add-component',
             config_uuid: configUuid,
             component_type: componentType,
@@ -126,7 +126,14 @@ class ServerAPI {
             quantity: quantity.toString(),
             slot_position: slotPosition,
             override: override.toString()
-        }, options);
+        };
+
+        // Add parent_nic_uuid if provided in options (for SFP modules)
+        if (options.parent_nic_uuid) {
+            requestData.parent_nic_uuid = options.parent_nic_uuid;
+        }
+
+        return await this.makeRequest(requestData, options);
     }
 
     async removeComponentFromServer(configUuid, componentType, componentUuid, options = {}) {

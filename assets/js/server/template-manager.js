@@ -53,8 +53,12 @@ class TemplateManager {
                 throw new Error('Failed to load template details');
             }
 
-            const templateConfig = templateResult.data.configuration || templateResult.data;
-            const componentsToCheck = templateConfig.components;
+            // New format: components are in templateResult.data.components
+            // Handle both new and potentially legacy structures
+            const responseData = templateResult.data;
+            const componentsToCheck = responseData.components ||
+                (responseData.configuration && responseData.configuration.components) ||
+                responseData.components;
 
             if (!componentsToCheck) {
                 result.success = true; // Empty template is technically a success

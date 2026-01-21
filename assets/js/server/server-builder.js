@@ -177,10 +177,18 @@ class ServerBuilder {
             const result = await serverAPI.getServerConfig(configUuid);
 
             if (result.success && result.data) {
+                // Handle new format where configuration and components are siblings in data
+                // result.data = { configuration: {...}, components: {...}, ... }
                 const configData = result.data.configuration || result.data;
-
                 this.currentConfig = configData;
-                await this.parseExistingComponents(configData);
+
+                // Pass the object that contains the 'components' key
+                // In new format, it is result.data
+                // In old format, it might have been result.data or result.data.configuration
+                // We prefer result.data if it has components, otherwise fall back
+                const dataWithComponents = result.data.components ? result.data : configData;
+
+                await this.parseExistingComponents(dataWithComponents);
                 this.renderServerBuilderInterface();
             } else {
                 console.error('Failed to load configuration:', result);
@@ -1212,6 +1220,288 @@ class ServerBuilder {
         } else if (addedCount === 0) {
             this.showAlert('No matching components were found in inventory.', 'warning');
         }
+    }
+
+    /**
+     * Open NIC Selection Modal (for SFP module addition)
+     */
+    async openNICSelectionModal() {
+        const modalContainer = document.getElementById('modalContainer');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalBody = document.getElementById('modalBody');
+        const modalClose = document.getElementById('modalClose');
+
+        if (!modalContainer || !modalTitle || !modalBody) {
+            console.error('Modal container elements not found');
+            this.showAlert('Error: Modal template not found', 'error');
+            return;
+        }
+
+        // Set Title
+        modalTitle.innerHTML = `<i class="fas fa-network-wired text-primary me-2"></i> Select Parent NIC for SFP Module`;
+
+        // Set Content
+        modalBody.innerHTML = this.renderNICSelectionModalContent();
+
+        // Show Modal
+        modalContainer.classList.remove('hidden');
+        // Small delay to allow display:block to apply before adding opacity class for transition
+        requestAnimationFrame(() => {
+            modalContainer.classList.add('active');
+        });
+
+        // Attach Event Listeners
+        if (modalClose) {
+            // Remove old listeners to be safe (cloning)
+            const newClose = modalClose.cloneNode(true);
+            modalClose.parentNode.replaceChild(newClose, modalClose);
+            newClose.onclick = () => this.closeNICSelectionModal();
+        }
+
+        // Load and render NIC list
+        this.renderNICList();
+    }
+
+    /**
+     * Render NIC Selection Modal Content
+     */
+    renderNICSelectionModalContent() {
+        return `
+            <div class="flex flex-col" style="min-height: 400px; max-height: 600px;">
+                <!-- NIC List Container -->
+                <div id="nicList" class="flex-1 overflow-y-auto px-1">
+                    <!-- NIC cards will be rendered here -->
+                    <div class="text-center py-8 text-text-secondary">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading NICs...</p>
+                    </div>
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-border-light flex-shrink-0 mt-4">
+                    <button type="button"
+                            class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors border border-transparent hover:bg-surface-hover rounded-lg"
+                            onclick="window.serverBuilder.closeNICSelectionModal()">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Render NIC List in Modal
+     */
+    async renderNICList() {
+        const listContainer = document.getElementById('nicList');
+
+        if (!listContainer) {
+            console.error('NIC list container not found');
+            return;
+        }
+
+        try {
+            // Get NICs from current configuration
+            const nics = this.selectedComponents.nic || [];
+
+            if (nics.length === 0) {
+                // No NICs found - show empty state
+                listContainer.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-warning/10 mb-4">
+                            <i class="fas fa-network-wired text-warning text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-text-primary mb-2">No NIC Cards Found</h3>
+                        <p class="text-text-secondary mb-6">You need to add a NIC card before adding SFP modules.</p>
+                        <button type="button"
+                                class="px-6 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-600 transition-colors"
+                                onclick="window.serverBuilder.addNICFirst()">
+                            <i class="fas fa-plus me-2"></i>
+                            Add NIC Card First
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // Load NIC details and render cards
+            const nicCards = await Promise.all(
+                nics.map(async (nic) => {
+                    const details = await this.fetchNICDetails(nic.uuid);
+                    return this.renderNICCard({ ...nic, ...details });
+                })
+            );
+
+            listContainer.innerHTML = `
+                <div class="grid grid-cols-1 gap-4 p-2">
+                    ${nicCards.join('')}
+                </div>
+            `;
+
+        } catch (error) {
+            console.error('Error rendering NIC list:', error);
+            listContainer.innerHTML = `
+                <div class="text-center py-8 text-danger">
+                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                    <p>Error loading NICs: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Fetch NIC Details from JSON
+     */
+    async fetchNICDetails(uuid) {
+        try {
+            const response = await fetch('../../data/nic-jsons/nic-level-3.json');
+            const nicData = await response.json();
+
+            // Search for NIC by UUID in the JSON structure
+            for (const brandObj of nicData) {
+                for (const series of brandObj.series) {
+                    for (const model of series.models) {
+                        if (model.uuid === uuid) {
+                            return {
+                                brand: brandObj.brand,
+                                series: series.name,
+                                model: model.model,
+                                ports: model.ports,
+                                port_type: model.port_type,
+                                speeds: model.speeds,
+                                interface: model.interface,
+                                power: model.power,
+                                features: model.features
+                            };
+                        }
+                    }
+                }
+            }
+
+            // Fallback if not found
+            return {
+                brand: 'Unknown',
+                series: 'Unknown',
+                model: 'Unknown NIC',
+                ports: 0,
+                port_type: 'N/A',
+                speeds: [],
+                interface: 'N/A',
+                power: 'N/A'
+            };
+
+        } catch (error) {
+            console.error('Error fetching NIC details:', error);
+            return {
+                brand: 'Unknown',
+                series: 'Unknown',
+                model: 'Unknown NIC',
+                ports: 0,
+                port_type: 'N/A',
+                speeds: [],
+                interface: 'N/A',
+                power: 'N/A'
+            };
+        }
+    }
+
+    /**
+     * Render NIC Card
+     */
+    renderNICCard(nic) {
+        const speedsText = Array.isArray(nic.speeds) ? nic.speeds.join(', ') : 'N/A';
+
+        return `
+            <div class="group border border-border-light rounded-lg p-4 cursor-pointer transition-all hover:border-primary hover:bg-primary/5"
+                 onclick="window.serverBuilder.selectNIC('${nic.uuid}')">
+                <div class="flex items-start justify-between">
+                    <div class="flex items-start gap-3 flex-1">
+                        <div class="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-network-wired text-primary"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2 mb-1">
+                                <h4 class="font-semibold text-text-primary">${nic.model || 'Unknown Model'}</h4>
+                                <span class="text-xs text-text-secondary">${nic.brand || ''} ${nic.series || ''}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-2 mt-3 text-sm">
+                                <div>
+                                    <span class="text-text-secondary">Ports:</span>
+                                    <span class="text-text-primary font-medium ml-1">${nic.ports || 0} × ${nic.port_type || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span class="text-text-secondary">Speed:</span>
+                                    <span class="text-text-primary font-medium ml-1">${speedsText}</span>
+                                </div>
+                                <div>
+                                    <span class="text-text-secondary">Interface:</span>
+                                    <span class="text-text-primary font-medium ml-1">${nic.interface || 'N/A'}</span>
+                                </div>
+                                ${nic.serial_number ? `
+                                <div>
+                                    <span class="text-text-secondary">Serial:</span>
+                                    <span class="text-text-primary font-medium ml-1">${nic.serial_number}</span>
+                                </div>
+                                ` : ''}
+                                ${nic.slot_position ? `
+                                <div>
+                                    <span class="text-text-secondary">Slot:</span>
+                                    <span class="text-text-primary font-medium ml-1">${nic.slot_position}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-chevron-right text-primary"></i>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Select NIC and proceed to SFP configuration
+     */
+    selectNIC(nicUuid) {
+        const configUuid = this.currentConfig.config_uuid;
+
+        // Close modal
+        this.closeNICSelectionModal();
+
+        // Redirect to configuration page with parent_nic_uuid parameter
+        window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=sfp&parent_nic_uuid=${nicUuid}&return=builder`;
+    }
+
+    /**
+     * Add NIC First (from empty state)
+     */
+    addNICFirst() {
+        const configUuid = this.currentConfig.config_uuid;
+
+        // Close modal
+        this.closeNICSelectionModal();
+
+        // Redirect to NIC configuration page
+        window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=nic&return=builder`;
+    }
+
+    /**
+     * Close NIC Selection Modal
+     */
+    closeNICSelectionModal() {
+        const modalContainer = document.getElementById('modalContainer');
+        if (modalContainer) {
+            modalContainer.classList.remove('active');
+            setTimeout(() => {
+                modalContainer.classList.add('hidden');
+            }, 300); // Wait for transition
+        }
+        const modalBody = document.getElementById('modalBody');
+        // Clean content after hiding to prevent visual jumps
+        setTimeout(() => {
+            if (modalBody) modalBody.innerHTML = '';
+        }, 300);
     }
 
     /**
@@ -2457,6 +2747,12 @@ class ServerBuilder {
             }
 
             const configUuid = this.currentConfig.config_uuid;
+
+            // Special handling for SFP - show NIC selection modal first
+            if (type === 'sfp') {
+                await this.openNICSelectionModal();
+                return;
+            }
 
             // Always redirect to external configuration page (same as server index)
             window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
