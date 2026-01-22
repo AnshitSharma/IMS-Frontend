@@ -2542,7 +2542,7 @@ class ConfigurationPage {
         const portOptions = Array.from({ length: portCount }, (_, i) => i + 1);
 
         modal.innerHTML = `
-            <div class="bg-surface rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="bg-surface-card rounded-lg shadow-xl max-w-md w-full mx-4">
                 <div class="p-6 border-b border-border-light">
                     <h3 class="text-xl font-semibold text-text-primary flex items-center gap-2">
                         <i class="fas fa-network-wired text-primary"></i>
