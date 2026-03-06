@@ -48,6 +48,7 @@ function initializeApp() {
     setupPasswordToggles();
     setupFormValidation();
     setupFormSubmissions();
+    setupForgotPassword();
     checkExistingToken();
     checkLockoutStatus(); // Check if user is currently locked out
 }
@@ -411,6 +412,63 @@ async function handleRegister(e) {
     }
 }
 
+// Forgot Password Modal
+function setupForgotPassword() {
+    const link = document.getElementById('forgotPasswordLink');
+    const modal = document.getElementById('forgotPasswordModal');
+    const closeBtn = document.getElementById('closeForgotModal');
+    const backdrop = document.getElementById('forgotModalBackdrop');
+    const form = document.getElementById('forgotPasswordForm');
+
+    if (!link || !modal) return;
+
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        modal.classList.remove('hidden');
+    });
+
+    [closeBtn, backdrop].forEach(el => {
+        el?.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            form.reset();
+            clearFieldError(document.getElementById('forgotEmail'));
+        });
+    });
+
+    form.addEventListener('submit', handleForgotPassword);
+}
+
+async function handleForgotPassword(e) {
+    e.preventDefault();
+    const emailInput = document.getElementById('forgotEmail');
+    const email = emailInput.value.trim();
+
+    if (!email) {
+        setFieldError(emailInput, 'Email is required');
+        return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        setFieldError(emailInput, 'Please enter a valid email address');
+        return;
+    }
+
+    setButtonLoading('forgotSubmitBtn', true);
+
+    try {
+        const response = await forgotPasswordUser(email);
+        // API returns same message regardless of whether email exists (security best practice)
+        showAlert('success', response.message || 'If an account with that email exists, a reset link has been sent.', 'fas fa-check-circle');
+        document.getElementById('forgotPasswordModal').classList.add('hidden');
+        document.getElementById('forgotPasswordForm').reset();
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        showAlert('error', 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
+    } finally {
+        setButtonLoading('forgotSubmitBtn', false);
+    }
+}
+
 // Form Validation Functions
 function validateLoginForm(username, password) {
     let isValid = true;
@@ -481,26 +539,41 @@ async function loginUser(username, password) {
 }
 
 async function registerUser(username, email, password) {
-    // Create form data for request body
     const formData = new URLSearchParams();
-    formData.append('action', 'user-add');
+    formData.append('action', 'auth-register');
     formData.append('username', username);
     formData.append('email', email);
     formData.append('password', password);
-    formData.append('role', 'user'); // Default role
 
-    // Note: Since registration requires admin permissions in the current API,
-    // this would need a separate registration endpoint or public registration API
-    // For now, we'll simulate success for demo purposes
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve({
-                success: true,
-                message: 'Registration successful',
-                code: 201
-            });
-        }, 1000);
+    const response = await fetch(API_CONFIG.baseURL, {
+        method: 'POST',
+        headers: API_CONFIG.headers,
+        body: formData
     });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+}
+
+async function forgotPasswordUser(email) {
+    const formData = new URLSearchParams();
+    formData.append('action', 'auth-forgot_password');
+    formData.append('email', email);
+
+    const response = await fetch(API_CONFIG.baseURL, {
+        method: 'POST',
+        headers: API_CONFIG.headers,
+        body: formData
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
 }
 
 // Token verification function - Updated to use request body
