@@ -8,11 +8,11 @@
 
 window.BDC_CONFIG = {
     // API Configuration
-    // Switch between 'bdc_ims' (production) and 'bdc_ims_dev' (development)
-    API_BASE_URL: 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php',
+    API_BASE_URL: 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php',
+    FRONTEND_LOGIN_URL: 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/',
 
     // Alternative endpoints (uncomment to switch)
-    // API_BASE_URL: 'https://shubham.staging.cloudmate.in/bdc_ims/api/api.php',
+    // API_BASE_URL: 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php',
     // API_BASE_URL: 'http://localhost:8000/api/api.php', // Local development
 
     // LocalStorage Keys

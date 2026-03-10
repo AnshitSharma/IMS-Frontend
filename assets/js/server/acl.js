@@ -230,7 +230,6 @@ window.initACL = function () {
             let response;
             const paths = [
                 'permissions.json',                    // Standalone ACL page
-                '../../data/permissions.json',          // From dashboard
                 './permissions.json'                   // Alternative
             ];
 

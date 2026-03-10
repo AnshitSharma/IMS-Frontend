@@ -2,7 +2,8 @@
 class ServerAPI {
     constructor() {
         // Uses centralized config (see assets/js/config.js)
-        this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
+        this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         // Check both token keys for compatibility with dashboard
         this.token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
 
@@ -51,7 +52,7 @@ class ServerAPI {
 
             if (error.response?.status === 401) {
                 this.clearToken();
-                window.location.href = '/ims_frontend/';
+                window.location.href = this.loginURL;
                 return;
             }
 

@@ -13,7 +13,7 @@ class TicketsManager {
         this.searchTerm = '';
         this.statusFilter = '';
         this.priorityFilter = '';
-        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php';
+        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
 
         // Cache for users and roles to avoid duplicate API calls
         this.cachedUsers = null;
@@ -704,15 +704,15 @@ class TicketsManager {
         try {
             // Load all component JSON files
             const componentTypes = {
-                cpu: '../../data/cpu-jsons/Cpu-details-level-3.json',
-                ram: '../../data/Ram-jsons/ram_detail.json',
-                storage: '../../data/storage-jsons/storage-level-3.json',
-                motherboard: '../../data/motherboad-jsons/motherboard-level-3.json',
-                nic: '../../data/nic-jsons/nic-level-3.json',
-                caddy: '../../data/caddy-jsons/caddy_details.json',
-                chassis: '../../data/chasis-jsons/chasis-level-3.json',
-                pciecard: '../../data/pci-jsons/pci-level-3.json',
-                hbacard: '../../data/hbacard-jsons/hbacard-level-3.json'
+                cpu: '/IMS/ims-data/cpu/Cpu-details-level-3.json',
+                ram: '/IMS/ims-data/ram/ram_detail.json',
+                storage: '/IMS/ims-data/storage/storage-level-3.json',
+                motherboard: '/IMS/ims-data/motherboard/motherboard-level-3.json',
+                nic: '/IMS/ims-data/nic/nic-level-3.json',
+                caddy: '/IMS/ims-data/caddy/caddy_details.json',
+                chassis: '/IMS/ims-data/chassis/chasis-level-3.json',
+                pciecard: '/IMS/ims-data/pciecard/pci-level-3.json',
+                hbacard: '/IMS/ims-data/hbacard/hbacard-level-3.json'
             };
 
             for (const [type, path] of Object.entries(componentTypes)) {

@@ -1869,11 +1869,11 @@ class Dashboard {
             try {
                 utils.showLoading(true, 'Logging out...');
                 await api.auth.logout();
-                window.location.href = '/bdc_ims/ims_frontend/';
+                window.location.href = api.loginURL;
             } catch (error) {
                 console.error('Logout error:', error);
                 api.clearAuth();
-                window.location.href = '/bdc_ims/ims_frontend/';
+                window.location.href = api.loginURL;
             }
         }
     }

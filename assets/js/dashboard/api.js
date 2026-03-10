@@ -5,7 +5,8 @@
 
 window.api = {
     // Base configuration - Uses centralized config (see assets/js/config.js)
-    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php',
+    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php',
+    loginURL: window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/',
 
     // Get auth token from localStorage
     getToken() {
@@ -206,7 +207,7 @@ window.api = {
         utils.showAlert('Session expired. Please login again.', 'warning');
         // Redirect to login page after a short delay
         setTimeout(() => {
-            window.location.href = '/ims_frontend/';
+            window.location.href = this.loginURL;
         }, 2000);
     },
 
@@ -674,7 +675,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if user is authenticated
     if (!api.utils.isAuthenticated()) {
         // Redirect to login if not authenticated
-        window.location.href = '/ims_frontend/';
+        window.location.href = api.loginURL;
         return;
     }
 

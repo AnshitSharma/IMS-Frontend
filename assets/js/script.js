@@ -1,6 +1,6 @@
 // API Configuration - Uses centralized config (see assets/js/config.js)
 const API_CONFIG = {
-    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://shubham.staging.cloudmate.in/bdc_ims_dev/api/api.php',
+    baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php',
     headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
     }

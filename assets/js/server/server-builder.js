@@ -5,6 +5,7 @@
 
 class ServerBuilder {
     constructor() {
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         this.currentConfig = null;
         this.motherboardDetails = null; // Will store motherboard JSON data
         this.selectedComponents = {
@@ -131,7 +132,7 @@ class ServerBuilder {
             localStorage.removeItem('jwt_token');
             localStorage.removeItem('bdc_refresh_token');
             localStorage.removeItem('bdc_user');
-            window.location.href = '/ims_frontend/';
+            window.location.href = this.loginURL;
             return false;
         }
 
@@ -449,7 +450,7 @@ class ServerBuilder {
     // async loadMotherboardDetails(uuid) {
     //     try {
     //         // Fetch motherboard JSON
-    //         const response = await fetch('../data/motherboad-jsons/motherboard-level-3.json');
+    //         const response = await fetch('/IMS/ims-data/motherboard/motherboard-level-3.json');
     //         if (!response.ok) {
     //             console.error('Failed to fetch motherboard JSON');
     //             return;
@@ -487,7 +488,7 @@ class ServerBuilder {
     async loadMotherboardDetails(uuid) {
         try {
             // Fetch motherboard JSON
-            const response = await fetch('../../data/motherboad-jsons/motherboard-level-3.json');
+            const response = await fetch('/IMS/ims-data/motherboard/motherboard-level-3.json');
             if (!response.ok) {
                 console.error('Failed to fetch motherboard JSON');
                 return;
@@ -929,16 +930,16 @@ class ServerBuilder {
 
         // Map component types to their JSON resource files
         const jsonMaps = {
-            'cpu': '../../data/cpu-jsons/Cpu-details-level-3.json',
-            'motherboard': '../../data/motherboad-jsons/motherboard-level-3.json',
-            'chassis': '../../data/chasis-jsons/chasis-level-3.json',
-            'ram': '../../data/Ram-jsons/ram_detail.json',
-            'storage': '../../data/storage-jsons/storage-level-3.json',
-            'nic': '../../data/nic-jsons/nic-level-3.json',
-            'pciecard': '../../data/pci-jsons/pci-level-3.json',
-            'hbacard': '../../data/hbacard-jsons/hbacard-level-3.json',
-            'sfp': '../../data/sfp-jsons/sfp-level-3.json',
-            'caddy': '../../data/caddy-jsons/caddy_details.json'
+            'cpu': '/IMS/ims-data/cpu/Cpu-details-level-3.json',
+            'motherboard': '/IMS/ims-data/motherboard/motherboard-level-3.json',
+            'chassis': '/IMS/ims-data/chassis/chasis-level-3.json',
+            'ram': '/IMS/ims-data/ram/ram_detail.json',
+            'storage': '/IMS/ims-data/storage/storage-level-3.json',
+            'nic': '/IMS/ims-data/nic/nic-level-3.json',
+            'pciecard': '/IMS/ims-data/pciecard/pci-level-3.json',
+            'hbacard': '/IMS/ims-data/hbacard/hbacard-level-3.json',
+            'sfp': '/IMS/ims-data/sfp/sfp-level-3.json',
+            'caddy': '/IMS/ims-data/caddy/caddy_details.json'
         };
 
         const jsonPath = jsonMaps[type.toLowerCase()];
@@ -1354,7 +1355,7 @@ class ServerBuilder {
      */
     async fetchNICDetails(uuid) {
         try {
-            const response = await fetch('../../data/nic-jsons/nic-level-3.json');
+            const response = await fetch('/IMS/ims-data/nic/nic-level-3.json');
             const nicData = await response.json();
 
             // Search for NIC by UUID in the JSON structure
@@ -1998,7 +1999,7 @@ class ServerBuilder {
     async loadChassisDetails(uuid) {
         try {
             // Fetch chassis JSON
-            const response = await fetch('../../data/chasis-jsons/chasis-level-3.json');
+            const response = await fetch('/IMS/ims-data/chassis/chasis-level-3.json');
             if (!response.ok) {
                 console.error('Failed to fetch chassis JSON');
                 return null;

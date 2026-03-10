@@ -6,6 +6,7 @@
 class ServerListManager {
     constructor() {
         this.servers = [];
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         this.init();
     }
 
@@ -33,7 +34,7 @@ class ServerListManager {
             localStorage.removeItem('bdc_refresh_token');
             localStorage.removeItem('bdc_user');
             // Redirect to login page
-            window.location.href = '/ims_frontend/';
+            window.location.href = this.loginURL;
             return false;
         }
 
@@ -442,7 +443,7 @@ class ServerListManager {
             localStorage.removeItem('bdc_token');
             localStorage.removeItem('bdc_refresh_token');
             localStorage.removeItem('bdc_user');
-            window.location.href = '../index.html';
+            window.location.href = this.loginURL;
         }
     }
 }
