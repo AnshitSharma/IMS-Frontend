@@ -1721,7 +1721,7 @@ class Dashboard {
             'pciecard': '/IMS/ims-data/pciecard/pci-level-3.json',
             'chassis': '/IMS/ims-data/chassis/chasis-level-3.json',
             'caddy': '/IMS/ims-data/caddy/caddy_details.json',
-            'sfp': '/IMS/ims-data/sfp/sfp_details.json',
+            'sfp': '/IMS/ims-data/sfp/sfp-level-3.json',
         };
 
         const typeLower = componentType.toLowerCase();
