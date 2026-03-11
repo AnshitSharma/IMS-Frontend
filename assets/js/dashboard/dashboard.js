@@ -58,6 +58,9 @@ class Dashboard {
             if (typeof initTickets === 'function') {
                 initTickets();
             }
+        } else if (page === 'activity-log.html') {
+            this.currentComponent = 'activity-log';
+            // Activity log has its own init script, nothing to load here
         } else {
             // Assume it's a component page
             const component = page.replace('.html', '');
@@ -308,20 +311,42 @@ class Dashboard {
     }
 
     async loadRecentActivity() {
-        const mockActivity = [
-            { type: 'added', component: 'CPU', details: 'Intel Core i9-12900K added', user: 'Admin', time: new Date(Date.now() - 30 * 60 * 1000) },
-            { type: 'updated', component: 'RAM', details: 'DDR4-3200 32GB status changed', user: 'Admin', time: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-            { type: 'added', component: 'Storage', details: 'Samsung 980 PRO 1TB added', user: 'Admin', time: new Date(Date.now() - 4 * 60 * 60 * 1000) }
-        ];
-        const activityContainer = document.getElementById('recentActivity');
-        if (activityContainer) {
-            activityContainer.innerHTML = mockActivity.map(activity => `
-                <div class="activity-item">
-                    <div class="activity-icon ${activity.type}"><i class="fas fa-${activity.type === 'added' ? 'plus' : 'edit'}"></i></div>
-                    <div class="activity-content"><div class="title">${activity.details}</div><div class="details">by ${activity.user}</div></div>
-                    <div class="activity-time">${utils.formatRelativeTime(activity.time)}</div>
-                </div>
-            `).join('');
+        const tbody = document.getElementById('recentActivityBody');
+        if (!tbody) return;
+
+        try {
+            const result = await api.dashboard.getLogs({ limit: 10, offset: 0 });
+            if (!result.success) {
+                // Non-admin users won't have access - show a friendly message
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">Activity logs are available to administrators.</td></tr>`;
+                return;
+            }
+
+            const logs = result.data?.logs || [];
+            if (logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">No recent activity.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = logs.map(log => {
+                const action = log.action || '';
+                const lower = action.toLowerCase();
+                let badgeCls = 'bg-surface-hover text-text-secondary';
+                if (lower.includes('created') || lower.includes('login') || lower.includes('added')) badgeCls = 'bg-green-100 text-green-700';
+                else if (lower.includes('deleted') || lower.includes('removed')) badgeCls = 'bg-red-100 text-red-600';
+                else if (lower.includes('updated') || lower.includes('edited') || lower.includes('assigned')) badgeCls = 'bg-blue-100 text-blue-700';
+
+                return `
+                    <tr class="hover:bg-surface-hover transition-colors">
+                        <td class="px-4 py-3 text-sm text-text-muted whitespace-nowrap">${log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
+                        <td class="px-4 py-3 text-sm text-text-primary font-medium">${utils.escapeHtml(log.username || '-')}</td>
+                        <td class="px-4 py-3"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${badgeCls}">${utils.escapeHtml(action)}</span></td>
+                        <td class="px-4 py-3 text-sm text-text-secondary">${utils.escapeHtml(log.component_type ? log.component_type.toUpperCase() : '-')}</td>
+                        <td class="px-4 py-3 text-sm text-text-muted max-w-xs truncate">${utils.escapeHtml(log.notes || '-')}</td>
+                    </tr>`;
+            }).join('');
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">Could not load recent activity.</td></tr>`;
         }
     }
 
@@ -437,7 +462,7 @@ class Dashboard {
         }
     }
 
-    filterAndRenderServers() {
+    async filterAndRenderServers() {
         if (!this.allServers) {
             this.renderServerList([]);
             return;
@@ -452,17 +477,39 @@ class Dashboard {
 
         // Apply search filter
         if (search) {
-            filteredServers = filteredServers.filter(server => {
+            const localMatches = filteredServers.filter(server => {
                 const name = (server.server_name || '').toLowerCase();
                 const description = (server.description || '').toLowerCase();
                 const location = (server.location || '').toLowerCase();
                 const notes = (server.notes || '').toLowerCase();
+                const uuid = (server.config_uuid || '').toLowerCase();
 
                 return name.includes(search) ||
                     description.includes(search) ||
                     location.includes(search) ||
-                    notes.includes(search);
+                    notes.includes(search) ||
+                    uuid.includes(search);
             });
+
+            if (localMatches.length > 0) {
+                filteredServers = localMatches;
+            } else {
+                // No local matches - try searching by component serial number
+                try {
+                    const result = await api.servers.searchBySerial(search);
+                    if (result.success && result.data?.config_uuids?.length > 0) {
+                        const matchedUuids = new Set(result.data.config_uuids);
+                        filteredServers = this.allServers.filter(server =>
+                            matchedUuids.has(server.config_uuid) &&
+                            !(server.is_virtual == 1 || server.is_virtual === true)
+                        );
+                    } else {
+                        filteredServers = [];
+                    }
+                } catch (e) {
+                    filteredServers = [];
+                }
+            }
         }
 
         // Apply status filter
@@ -500,6 +547,9 @@ class Dashboard {
                 <td class="px-4 py-3 align-middle h-16" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Actions">
                     <div class="action-buttons flex gap-2">
+                        <button class="action-btn view p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors" onclick="dashboard.showComponentViewModal('${componentType}', ${component.ID})" title="View Details" aria-label="View component details">
+                            <i class="fas fa-eye"></i>
+                        </button>
                         <button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[44px] text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
                             <i class="fas fa-edit"></i><span class="hidden sm:inline ml-1">Edit</span>
                         </button>
@@ -555,6 +605,7 @@ class Dashboard {
                                     ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
                                 </h3>
                                 ${getStatusBadge(server.configuration_status)}
+                            ${server.location || server.rack_position ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted mt-1"><i class="fas fa-map-marker-alt text-xs"></i>${utils.escapeHtml([server.location, server.rack_position].filter(Boolean).join(' / '))}</span>` : ''}
                             </div>
                         </div>
                         ${server.description ? `<p class="text-sm text-text-secondary mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
@@ -1631,6 +1682,291 @@ class Dashboard {
         } finally {
             utils.showLoading(false);
         }
+    }
+
+    async showComponentViewModal(componentType, componentId) {
+        try {
+            utils.showLoading(true, 'Loading component details...');
+
+            // Fetch inventory data from API
+            const result = await api.components.get(componentType, componentId);
+            if (!result.success || !result.data) {
+                throw new Error(result.message || 'Failed to load component details');
+            }
+            const component = result.data.component || result.data;
+
+            // Fetch specs from JSON data by matching UUID
+            const specData = await this._fetchComponentSpecsByUUID(componentType, component.UUID);
+
+            const content = this._buildComponentViewContent(componentType, component, specData);
+            this.showModal(`${componentType.toUpperCase()} Details`, content);
+        } catch (error) {
+            console.error('Error loading component details:', error);
+            utils.showAlert(error.message || 'Failed to load component details', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async _fetchComponentSpecsByUUID(componentType, uuid) {
+        if (!uuid) return null;
+
+        const jsonPaths = {
+            'cpu': '/IMS/ims-data/cpu/Cpu-details-level-3.json',
+            'motherboard': '/IMS/ims-data/motherboard/motherboard-level-3.json',
+            'ram': '/IMS/ims-data/ram/ram_detail.json',
+            'storage': '/IMS/ims-data/storage/storage-level-3.json',
+            'nic': '/IMS/ims-data/nic/nic-level-3.json',
+            'hbacard': '/IMS/ims-data/hbacard/hbacard-level-3.json',
+            'pciecard': '/IMS/ims-data/pciecard/pci-level-3.json',
+            'chassis': '/IMS/ims-data/chassis/chasis-level-3.json',
+            'caddy': '/IMS/ims-data/caddy/caddy_details.json',
+            'sfp': '/IMS/ims-data/sfp/sfp_details.json',
+        };
+
+        const typeLower = componentType.toLowerCase();
+        const jsonPath = jsonPaths[typeLower];
+        if (!jsonPath) return null;
+
+        try {
+            const response = await fetch(jsonPath);
+            if (!response.ok) return null;
+            let jsonData = await response.json();
+
+            // Normalize JSON structures
+            if (typeLower === 'chassis') {
+                jsonData = jsonData.chassis_specifications?.manufacturers || [];
+            } else if (typeLower === 'caddy') {
+                jsonData = jsonData.caddies || [];
+            }
+
+            // Search for model matching UUID across all JSON structures
+            return this._findModelByUUID(typeLower, jsonData, uuid);
+        } catch (error) {
+            console.error('Error fetching component specs JSON:', error);
+            return null;
+        }
+    }
+
+    _findModelByUUID(componentType, jsonData, uuid) {
+        if (!Array.isArray(jsonData)) return null;
+
+        for (const item of jsonData) {
+            // Standard structure (CPU, Motherboard, HBA, Storage, PCIe): brand/series → models[]
+            if (item.models && Array.isArray(item.models)) {
+                for (const model of item.models) {
+                    const modelUUID = model.UUID || model.uuid;
+                    if (modelUUID === uuid) {
+                        return {
+                            ...model,
+                            _brand: item.brand || item.manufacturer || '',
+                            _series: item.series || '',
+                            _component_subtype: item.component_subtype || '',
+                        };
+                    }
+                }
+            }
+
+            // NIC structure: brand → series[] → models[]
+            if (item.series && Array.isArray(item.series)) {
+                for (const s of item.series) {
+                    if (s.models && Array.isArray(s.models)) {
+                        for (const model of s.models) {
+                            const modelUUID = model.UUID || model.uuid;
+                            if (modelUUID === uuid) {
+                                return {
+                                    ...model,
+                                    _brand: item.brand || '',
+                                    _series: s.name || '',
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Chassis structure: manufacturer → series[] → models[]
+            if (componentType === 'chassis' && item.series && Array.isArray(item.series)) {
+                for (const s of item.series) {
+                    if (s.models && Array.isArray(s.models)) {
+                        for (const model of s.models) {
+                            const modelUUID = model.UUID || model.uuid;
+                            if (modelUUID === uuid) {
+                                return {
+                                    ...model,
+                                    _brand: item.manufacturer || '',
+                                    _series: s.name || '',
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Caddy: flat items with uuid directly
+            if (componentType === 'caddy') {
+                const itemUUID = item.UUID || item.uuid;
+                if (itemUUID === uuid) {
+                    return { ...item };
+                }
+            }
+
+            // SFP/flat items: uuid directly on item
+            const itemUUID = item.UUID || item.uuid;
+            if (itemUUID === uuid) {
+                return { ...item };
+            }
+        }
+
+        return null;
+    }
+
+    _buildComponentViewContent(componentType, component, specData) {
+        // Map JSON field names to display labels per component type
+        // Uses actual field names from the JSON data files (see add-form.js displayComponentDetails)
+        const fieldSchemas = {
+            cpu: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['cores', 'Cores'], ['threads', 'Threads'],
+                ['base_frequency_GHz', 'Base Frequency (GHz)'], ['max_frequency_GHz', 'Max Frequency (GHz)'],
+                ['tdp_W', 'TDP (W)'], ['socket', 'Socket'], ['architecture', 'Architecture'],
+            ],
+            ram: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['memory_type', 'Memory Type'],
+                ['module_type', 'Module Type'], ['capacity_GB', 'Capacity (GB)'],
+                ['frequency_MHz', 'Frequency (MHz)'], ['features.ecc_support', 'ECC Support'],
+                ['voltage_V', 'Voltage (V)'],
+            ],
+            storage: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['storage_type', 'Storage Type'],
+                ['form_factor', 'Form Factor'], ['interface', 'Interface'],
+                ['capacity_GB', 'Capacity (GB)'], ['specifications.rpm', 'RPM'],
+                ['specifications.cache_MB', 'Cache (MB)'],
+            ],
+            motherboard: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['chipset', 'Chipset'], ['socket.type', 'Socket Type'], ['socket.count', 'Socket Count'],
+                ['memory.type', 'Memory Type'], ['memory.slots', 'Memory Slots'],
+            ],
+            nic: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['ports', 'Ports'], ['port_type', 'Port Type'],
+                ['speeds', 'Speeds'], ['interface', 'Interface'],
+            ],
+            caddy: [
+                ['model', 'Model'], ['type', 'Type'],
+                ['compatibility.size', 'Size'], ['compatibility.interface', 'Interface'],
+                ['material', 'Material'],
+            ],
+            chassis: [
+                ['_brand', 'Manufacturer'], ['_series', 'Series'], ['model', 'Model'],
+                ['u_size', 'U Size'], ['form_factor', 'Form Factor'], ['chassis_type', 'Type'],
+                ['drive_bays.total_bays', 'Total Bays'],
+            ],
+            pciecard: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['_component_subtype', 'Subtype'],
+                ['model', 'Model'], ['interface', 'Interface'], ['form_factor', 'Form Factor'],
+            ],
+            hbacard: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['protocol', 'Protocol'], ['data_rate', 'Data Rate'],
+                ['internal_ports', 'Internal Ports'], ['external_ports', 'External Ports'],
+            ],
+            sfp: [
+                ['brand', 'Brand'], ['model', 'Model'], ['type', 'Type'],
+                ['speed', 'Speed'], ['wavelength', 'Wavelength'],
+                ['reach', 'Reach'], ['fiber_type', 'Fiber Type'],
+            ],
+        };
+
+        const typeLower = componentType.toLowerCase();
+        const schemaFields = fieldSchemas[typeLower] || [];
+
+        // Helper to resolve nested field paths like "socket.type" or "drive_bays.total_bays"
+        const resolveField = (obj, path) => {
+            if (!obj) return undefined;
+            const parts = path.split('.');
+            let val = obj;
+            for (const part of parts) {
+                if (val == null || typeof val !== 'object') return undefined;
+                val = val[part];
+            }
+            return val;
+        };
+
+        let specRows = '';
+        if (specData) {
+            specRows = schemaFields.map(([key, label]) => {
+                let value = resolveField(specData, key);
+                // Handle array values (e.g., NIC speeds)
+                if (Array.isArray(value)) value = value.join(', ');
+                // Handle boolean values
+                if (typeof value === 'boolean') value = value ? 'Yes' : 'No';
+                const display = (value !== null && value !== undefined && value !== '')
+                    ? utils.escapeHtml(String(value))
+                    : '<span class="text-text-muted">—</span>';
+                return `<div class="flex flex-col gap-1">
+                    <span class="text-xs font-medium text-text-muted uppercase tracking-wide">${label}</span>
+                    <span class="text-sm text-text-primary font-medium">${display}</span>
+                </div>`;
+            }).join('');
+        }
+
+        const serialNumber = utils.escapeHtml(component.SerialNumber || '—');
+        const uuid = utils.escapeHtml(component.UUID || '—');
+        const status = utils.createStatusBadge(component.Status);
+        const location = utils.escapeHtml(component.Location || '—');
+        const purchaseDate = utils.formatDate(component.PurchaseDate);
+        const serverUUID = component.ServerUUID
+            ? `<code class="text-xs">${utils.escapeHtml(component.ServerUUID)}</code>`
+            : '<span class="text-text-muted">—</span>';
+
+        const notesText = component.Notes
+            ? utils.escapeHtml(component.Notes)
+            : '';
+
+        return `<div style="max-width: 640px;">
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3 pb-1 border-b border-border">Inventory</h4>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Serial Number</span>
+                        <span class="text-sm text-text-primary font-medium font-mono">${serialNumber}</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">UUID</span>
+                        <span class="text-sm text-text-primary font-medium font-mono break-all">${uuid}</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Status</span>
+                        <span>${status}</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Location</span>
+                        <span class="text-sm text-text-primary font-medium">${location}</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Purchase Date</span>
+                        <span class="text-sm text-text-primary font-medium">${purchaseDate}</span>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-xs font-medium text-text-muted uppercase tracking-wide">Server UUID</span>
+                        <span class="text-sm">${serverUUID}</span>
+                    </div>
+                </div>
+            </div>
+            ${specRows ? `<div class="mb-6">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3 pb-1 border-b border-border">Specifications</h4>
+                <div class="grid grid-cols-2 gap-4">${specRows}</div>
+            </div>` : '<div class="mb-6"><p class="text-sm text-text-muted italic">No specification data found for this component UUID in the catalog.</p></div>'}
+            ${notesText ? `<div class="mb-6">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-text-muted mb-3 pb-1 border-b border-border">Notes</h4>
+                <p class="text-sm text-text-primary whitespace-pre-wrap">${notesText}</p>
+            </div>` : ''}
+            <div class="flex justify-end mt-6">
+                <button class="btn btn-secondary" onclick="dashboard.closeModal()">Close</button>
+            </div>
+        </div>`;
     }
 
     async handleDeleteComponent(componentType, componentId) {

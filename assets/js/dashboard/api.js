@@ -271,6 +271,10 @@ window.api = {
 
         async getAdminData() {
             return await api.request('dashboard-get_admin_data');
+        },
+
+        async getLogs(params = {}) {
+            return await api.request('dashboard-get-logs', params);
         }
     },
 
@@ -338,6 +342,10 @@ window.api = {
 
         async listConfigs(params = {}) {
             return await api.request('server-list-configs', params);
+        },
+
+        async searchBySerial(serialNumber) {
+            return await api.request('server-search-by-serial', { serial_number: serialNumber });
         },
 
         async getConfig(configUuid) {

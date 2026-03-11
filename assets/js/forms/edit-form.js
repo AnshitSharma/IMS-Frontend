@@ -52,7 +52,7 @@ class EditFormComponent {
                 <div class="form-grid two-column">
                     ${this.renderSelectField('Status', 'Status', this.componentData.Status, [{ value: 1, text: 'Available' }, { value: 2, text: 'In Use' }, { value: 0, text: 'Failed' }])}
                     ${this.renderTextField('ServerUUID', 'Server UUID', this.componentData.ServerUUID)}
-                    ${this.renderTextField('Location', 'Location', this.componentData.Location)}
+                    ${this.renderSelectField('Location', 'Location', this.componentData.Location, [{ value: '', text: '-- Select Location --' }, { value: 'Noida', text: 'Noida' }, { value: 'Jaipur', text: 'Jaipur' }, { value: 'Delhi', text: 'Delhi' }, { value: 'Pune', text: 'Pune' }])}
                     ${this.renderTextField('RackPosition', 'Rack Position', this.componentData.RackPosition)}
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
                     ${this.renderDateField('InstallationDate', 'Installation Date', this.componentData.InstallationDate)}

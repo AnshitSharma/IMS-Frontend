@@ -310,6 +310,7 @@ class ServerBuilder {
                     this.selectedComponents[type] = typeComponents.map(comp => ({
                         uuid: comp.uuid,
                         serial_number: comp.serial_number || 'Not Found',
+                        component_name: comp.component_name || null,
                         quantity: comp.quantity || 1,
                         slot_position: comp.slot_position || '',
                         added_at: comp.added_at || ''
@@ -1905,7 +1906,8 @@ class ServerBuilder {
                         ${components.map((component, index) => `
                             <div class="component-item">
                                 <div class="component-info">
-                                    <span class="component-serial">${component.serial_number}</span>
+                                    <span class="component-serial">${component.component_name || component.serial_number}</span>
+                                    ${component.component_name ? `<span class="component-slot text-text-muted text-xs">${component.serial_number}</span>` : ''}
                                     ${component.slot_position ? `<span class="component-slot">(${component.slot_position})</span>` : ''}
                                 </div>
                                 ${componentType.multiple && components.length > 1 ? `<span class="component-index">#${index + 1}</span>` : ''}
@@ -2036,12 +2038,16 @@ class ServerBuilder {
             if (isMultiple) {
                 // Show all selected components separated by "/" with "Add More" at the end
                 const componentsDisplay = components.map((comp, index) => {
-                    const displayName = comp.serial_number || 'Unnamed Component';
+                    const displayName = comp.component_name || comp.serial_number || 'Unnamed Component';
+                    const subtitle = comp.component_name ? comp.serial_number : null;
                     const position = comp.slot_position ? ` (${comp.slot_position})` : '';
 
                     return `
                     <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
-                        <span class="text-sm font-medium">${displayName}${position}</span>
+                        <span class="flex flex-col">
+                            <span class="text-sm font-medium">${displayName}${position}</span>
+                            ${subtitle ? `<span class="text-xs text-text-muted">${subtitle}</span>` : ''}
+                        </span>
                         <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
                             <i class="fas fa-times text-xs"></i>
                         </button>
@@ -2052,7 +2058,7 @@ class ServerBuilder {
 
                 return `
                 <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                    <td class="px-6 py-4 align-middle">
+                    <td class="px-6 py-2 align-middle">
                         <div class="flex items-center gap-4">
                             <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="${componentType.icon} text-xl text-primary"></i>
@@ -2063,7 +2069,7 @@ class ServerBuilder {
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 align-middle">
+                    <td class="px-6 py-2 align-middle">
                         <div class="flex flex-wrap items-center gap-2">
                             ${componentsDisplay}
                             <span class="text-text-muted font-normal mx-1">/</span>
@@ -2078,12 +2084,13 @@ class ServerBuilder {
             } else {
                 // Single component - show only the component WITHOUT any replace button
                 const comp = components[0];
-                const displayName = comp.serial_number || 'Unnamed Component';
+                const displayName = comp.component_name || comp.serial_number || 'Unnamed Component';
+                const subtitle = comp.component_name ? comp.serial_number : null;
                 const position = comp.slot_position ? ` (${comp.slot_position})` : '';
 
                 return `
                 <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                    <td class="px-6 py-4 align-middle">
+                    <td class="px-6 py-2 align-middle">
                         <div class="flex items-center gap-4">
                             <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="${componentType.icon} text-xl text-primary"></i>
@@ -2094,10 +2101,13 @@ class ServerBuilder {
                             </div>
                         </div>
                     </td>
-                    <td class="px-6 py-4 align-middle">
+                    <td class="px-6 py-2 align-middle">
                         <div class="flex flex-wrap items-center gap-2">
                             <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
-                                <span class="text-sm font-medium">${displayName}${position}</span>
+                                <span class="flex flex-col">
+                                    <span class="text-sm font-medium">${displayName}${position}</span>
+                                    ${subtitle ? `<span class="text-xs text-text-muted">${subtitle}</span>` : ''}
+                                </span>
                                 <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
                                     <i class="fas fa-times text-xs"></i>
                                 </button>
@@ -2113,7 +2123,7 @@ class ServerBuilder {
 
             return `
             <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                <td class="px-6 py-4 align-middle">
+                <td class="px-6 py-2 align-middle">
                     <div class="flex items-center gap-4">
                         <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                             <i class="${componentType.icon} text-xl text-primary"></i>
@@ -2143,7 +2153,8 @@ class ServerBuilder {
             return cpuComponents.map((cpu, index) => `
             <div class="socket-item occupied">
                 <span class="slot-label">CPU Socket ${cpuComponents.length > 1 ? (index + 1) : ''}</span>
-                <span class="slot-component">${cpu.serial_number}</span>
+                <span class="slot-component">${cpu.component_name || cpu.serial_number}</span>
+                ${cpu.component_name ? `<span class="slot-serial">${cpu.serial_number}</span>` : ''}
             </div>
         `).join('') || `
             <div class="socket-item empty">
@@ -2163,8 +2174,9 @@ class ServerBuilder {
             <div class="socket-item ${cpu ? 'occupied' : 'empty'}">
                 <span class="slot-label">CPU Socket ${socketCount > 1 ? (i + 1) : ''} (${socketType})</span>
                 <span class="${cpu ? 'slot-component' : 'slot-empty'}">
-                    ${cpu ? cpu.serial_number : 'Empty'}
+                    ${cpu ? (cpu.component_name || cpu.serial_number) : 'Empty'}
                 </span>
+                ${cpu && cpu.component_name ? `<span class="slot-serial">${cpu.serial_number}</span>` : ''}
             </div>
         `;
         }
@@ -2252,8 +2264,9 @@ class ServerBuilder {
                 <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
                     <span class="${ram ? 'slot-component' : 'slot-empty'}">
-                        ${ram ? ram.serial_number : 'Empty'}
+                        ${ram ? (ram.component_name || ram.serial_number) : 'Empty'}
                     </span>
+                    ${ram && ram.component_name ? `<span class="slot-serial">${ram.serial_number}</span>` : ''}
                 </div>
             `;
             }
@@ -2270,8 +2283,9 @@ class ServerBuilder {
             <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
                 <span class="${ram ? 'slot-component' : 'slot-empty'}">
-                    ${ram ? ram.serial_number : 'Empty'}
+                    ${ram ? (ram.component_name || ram.serial_number) : 'Empty'}
                 </span>
+                ${ram && ram.component_name ? `<span class="slot-serial">${ram.serial_number}</span>` : ''}
             </div>
         `;
         }
@@ -2460,7 +2474,8 @@ class ServerBuilder {
                             <div class="component-with-type">
                                 <i class="${component.typeIcon}"></i>
                                 <span class="component-type">${component.type}:</span>
-                                <span class="component-name">${component.serial_number}</span>
+                                <span class="component-name">${component.component_name || component.serial_number}</span>
+                                ${component.component_name ? `<span class="component-serial">${component.serial_number}</span>` : ''}
                             </div>
                         ` : 'Empty'}
                     </span>
@@ -2489,7 +2504,8 @@ class ServerBuilder {
                                 <div class="component-with-type">
                                     <i class="${component.typeIcon}"></i>
                                     <span class="component-type">${component.type}:</span>
-                                    <span class="component-name">${component.serial_number}</span>
+                                    <span class="component-name">${component.component_name || component.serial_number}</span>
+                                    ${component.component_name ? `<span class="component-serial">${component.serial_number}</span>` : ''}
                                 </div>
                             ` : 'Empty'}
                         </span>
@@ -2633,7 +2649,8 @@ class ServerBuilder {
                         <div class="component-with-type">
                             <i class="fas fa-hdd"></i>
                             <span class="component-type">Storage:</span>
-                            <span class="component-name">${storage.serial_number}</span>
+                            <span class="component-name">${storage.component_name || storage.serial_number}</span>
+                            ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
                         </div>
                     </span>
                 </div>
@@ -2673,7 +2690,8 @@ class ServerBuilder {
                                 <div class="component-with-type">
                                     <i class="fas fa-hdd"></i>
                                     <span class="component-type">NVMe:</span>
-                                    <span class="component-name">${storage.serial_number}</span>
+                                    <span class="component-name">${storage.component_name || storage.serial_number}</span>
+                                    ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
                                 </div>
                             ` : 'Empty'}
                         </span>
@@ -2696,7 +2714,8 @@ class ServerBuilder {
                         <div class="component-with-type">
                             <i class="fas fa-hdd"></i>
                             <span class="component-type">Storage:</span>
-                            <span class="component-name">${storage.serial_number}</span>
+                            <span class="component-name">${storage.component_name || storage.serial_number}</span>
+                            ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
                         </div>
                     </span>
                 </div>

@@ -30,10 +30,10 @@
                     id="hamburgerBtn" aria-label="Toggle Menu">
                     <i class="fas fa-bars text-base"></i>
                 </button>
-                <div class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg">
+                <a href="./index.html" class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
                     <i class="fas fa-server"></i>
                     <span>BDC Inventory</span>
-                </div>
+                </a>
             </div>
 
             <div class="nav-menu flex items-center gap-4">
@@ -465,6 +465,39 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity Log -->
+                    <div class="mt-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
+                                <i class="fas fa-history text-primary"></i> Recent Activity
+                            </h3>
+                            <a href="activity-log.html"
+                                class="text-sm text-primary hover:text-primary-600 font-medium flex items-center gap-1">
+                                View All <i class="fas fa-arrow-right text-xs"></i>
+                            </a>
+                        </div>
+                        <div class="bg-surface-card rounded-xl shadow-sm border border-border-light overflow-hidden">
+                            <table class="w-full">
+                                <thead class="bg-surface-hover border-b border-border">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Time</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">User</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Action</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Component</th>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivityBody" class="divide-y divide-border">
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-8 text-center text-text-muted">
+                                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading recent activity...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

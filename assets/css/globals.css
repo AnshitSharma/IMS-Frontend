@@ -1133,6 +1133,10 @@
   @apply font-semibold text-text-primary;
 }
 
+.slot-serial, .component-serial {
+  @apply block text-xs text-text-muted;
+}
+
 /* ============================================================
    PILL BUTTON FILTER SYSTEM
    ============================================================ */
