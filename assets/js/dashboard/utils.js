@@ -87,7 +87,18 @@ window.utils = {
             window.globalLoading.showLoading(show, message);
         } else {
             // Fallback for backward compatibility
-            console.warn('Global loading manager not available');
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                if (show) {
+                    const textEl = overlay.querySelector('p');
+                    if (textEl) textEl.textContent = message;
+                    overlay.classList.remove('hidden');
+                } else {
+                    overlay.classList.add('hidden');
+                }
+            } else {
+                console.warn('Global loading manager and loadingOverlay not available');
+            }
         }
     },
 
@@ -97,6 +108,12 @@ window.utils = {
         if (window.globalLoading) {
             return window.globalLoading.isLoading();
         }
+        
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            return !overlay.classList.contains('hidden');
+        }
+        
         return false;
     },
 

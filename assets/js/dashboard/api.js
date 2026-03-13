@@ -406,7 +406,7 @@ window.api = {
     // Search endpoints
     search: {
         async global(query, params = {}) {
-            return await api.request('search-components', {
+            return await api.request('search-global', {
                 q: query,
                 ...params
             });

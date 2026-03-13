@@ -128,8 +128,6 @@ class Dashboard {
         if (componentSearch) {
             componentSearch.addEventListener('input', utils.debounce((e) => {
                 this.handleSearch(e.target.value);
-                // Also trigger filter if needed
-                this.filterAndRenderComponents(this.currentComponent);
             }, 300));
         }
 
@@ -718,7 +716,7 @@ class Dashboard {
 
     handleSearch(query) {
         this.currentPage = 1;
-        this.loadComponentList(this.currentComponent);
+        this.loadComponentList(this.currentComponent, true);
     }
 
     handleFilterChange(filterType, value) {
