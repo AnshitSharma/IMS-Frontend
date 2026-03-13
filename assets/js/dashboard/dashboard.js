@@ -632,6 +632,12 @@ class Dashboard {
                 <div class="flex flex-col gap-2 pt-3 border-t border-border">
                     <div class="flex justify-between items-center text-sm">
                         <span class="text-text-muted flex items-center gap-1.5">
+                            <i class="fas fa-server text-xs mr-1 text-text-muted"></i>Rack
+                        </span>
+                        <span class="text-text-secondary font-medium">${server.rack_position ? utils.escapeHtml(server.rack_position) : 'N/A'}</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-text-muted flex items-center gap-1.5">
                             <i class="fas fa-calendar text-xs mr-1 text-text-muted"></i>Created
                         </span>
                         <span class="text-text-secondary font-medium">${utils.formatDate(server.created_at)}</span>
@@ -887,6 +893,22 @@ class Dashboard {
                     <textarea class="form-textarea" id="description" rows="3"
                               placeholder="Enter server description and purpose"></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="serverLocation" class="form-label flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-teal-600 text-sm"></i>
+                        Location
+                    </label>
+                    <input type="text" class="form-input" id="serverLocation"
+                           placeholder="e.g., Data Center A, Rack Row 3">
+                </div>
+                <div class="form-group">
+                    <label for="rackPosition" class="form-label flex items-center gap-2">
+                        <i class="fas fa-th-large text-teal-600 text-sm"></i>
+                        Rack Position
+                    </label>
+                    <input type="text" class="form-input" id="rackPosition"
+                           placeholder="e.g., U12">
+                </div>
             </div>
             
             <!-- Advanced Form Fields -->
@@ -953,6 +975,8 @@ class Dashboard {
                 const isAdvancedView = toggle.checked;
                 const serverName = document.getElementById('serverName').value.trim();
                 const description = document.getElementById('description').value.trim();
+                const location = document.getElementById('serverLocation').value.trim();
+                const rackPosition = document.getElementById('rackPosition').value.trim();
 
                 // Determine is_virtual based on toggle state
                 const isVirtual = isAdvancedView;
@@ -970,7 +994,9 @@ class Dashboard {
                     isVirtual: isVirtual,
                     startWith: startWith,
                     serverName: serverName,
-                    description: description
+                    description: description,
+                    location: location,
+                    rackPosition: rackPosition
                 });
 
                 if (!serverName) {
@@ -980,7 +1006,7 @@ class Dashboard {
 
                 try {
                     utils.showLoading(true, 'Creating server...');
-                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual);
+                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location, rackPosition);
                     if (result.success) {
                         utils.showAlert('Server created successfully!', 'success');
                         this.closeModal();

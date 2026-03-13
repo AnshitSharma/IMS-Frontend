@@ -316,7 +316,7 @@ window.api = {
     },
 
     servers: {
-        async createConfig(serverName, description, startWith, isVirtual) {
+        async createConfig(serverName, description, startWith, isVirtual, location, rackPosition) {
             const requestData = {
                 server_name: serverName,
                 description: description,
@@ -328,12 +328,22 @@ window.api = {
                 requestData.start_with = startWith;
             }
 
+            // Only include location and rack_position if provided
+            if (location) {
+                requestData.location = location;
+            }
+            if (rackPosition) {
+                requestData.rack_position = rackPosition;
+            }
+
             // Debug logging
             console.log('API createConfig called with:', {
                 serverName,
                 description,
                 startWith,
                 isVirtual,
+                location,
+                rackPosition,
                 requestData
             });
 
