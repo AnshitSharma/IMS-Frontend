@@ -2485,6 +2485,7 @@ class ConfigurationPage {
                 const options = {};
                 if (this.currentComponentType === 'sfp' && this.parentNicUuid) {
                     options.parent_nic_uuid = this.parentNicUuid;
+                    options.port_index = slotPosition; // Port number selected from modal
                 }
 
                 // First, try to add as a regular component (in case it exists in DB)
@@ -2495,7 +2496,7 @@ class ConfigurationPage {
                     1, // quantity
                     slotPosition, // slot position from port selection
                     false, // override
-                    options // Pass options with parent_nic_uuid
+                    options // Pass options with parent_nic_uuid and port_index
                 );
 
                 // If that fails because component doesn't exist in DB, create it first
@@ -2624,6 +2625,7 @@ class ConfigurationPage {
             const options = {};
             if (this.currentComponentType === 'sfp' && this.parentNicUuid) {
                 options.parent_nic_uuid = this.parentNicUuid;
+                options.port_index = slotPosition; // Port number selected from modal
             }
 
             // Use the existing addComponentToServer method (it now handles JSON components)
@@ -2634,7 +2636,7 @@ class ConfigurationPage {
                 1, // quantity
                 slotPosition, // slot position from port selection
                 false, // override
-                options // Pass options with parent_nic_uuid
+                options // Pass options with parent_nic_uuid and port_index
             );
 
             if (result.success) {

@@ -134,6 +134,11 @@ class ServerAPI {
             requestData.parent_nic_uuid = options.parent_nic_uuid;
         }
 
+        // Add port_index if provided in options (for SFP modules)
+        if (options.port_index) {
+            requestData.port_index = options.port_index;
+        }
+
         return await this.makeRequest(requestData, options);
     }
 
