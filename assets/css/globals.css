@@ -535,6 +535,7 @@
 
   .finish-confirmation-modal .modal-overlay {
     @apply absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm;
+    pointer-events: none;
   }
 
   .finish-confirmation-modal .modal-content {
@@ -542,6 +543,7 @@
     transform: scale(0.95);
     opacity: 0;
     transition: all 0.2s ease-out;
+    z-index: 1;
   }
 
   .modal-title {
