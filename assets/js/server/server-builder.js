@@ -8,6 +8,7 @@ class ServerBuilder {
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         this.currentConfig = null;
         this.motherboardDetails = null; // Will store motherboard JSON data
+        this.networkConfig = null; // Will store network/NIC config from API
         this.selectedComponents = {
             cpu: [],
             motherboard: [],
@@ -188,6 +189,9 @@ class ServerBuilder {
                 // In old format, it might have been result.data or result.data.configuration
                 // We prefer result.data if it has components, otherwise fall back
                 const dataWithComponents = result.data.components ? result.data : configData;
+
+                // Store network config for onboard NIC details lookup
+                this.networkConfig = result.data.hardware?.network || null;
 
                 await this.parseExistingComponents(dataWithComponents);
                 this.renderServerBuilderInterface();
@@ -1352,14 +1356,19 @@ class ServerBuilder {
     }
 
     /**
-     * Fetch NIC Details from JSON
+     * Fetch NIC Details from JSON or network config (for onboard NICs)
      */
     async fetchNICDetails(uuid) {
         try {
+            // Check if this is an onboard NIC (synthetic UUID like "onboard-xxxxxxxx-N")
+            if (uuid && uuid.startsWith('onboard-')) {
+                return this.getOnboardNICDetails(uuid);
+            }
+
+            // Component NIC - search in the NIC JSON spec file
             const response = await fetch('/IMS/ims-data/nic/nic-level-3.json');
             const nicData = await response.json();
 
-            // Search for NIC by UUID in the JSON structure
             for (const brandObj of nicData) {
                 for (const series of brandObj.series) {
                     for (const model of series.models) {
@@ -1405,6 +1414,44 @@ class ServerBuilder {
                 power: 'N/A'
             };
         }
+    }
+
+    /**
+     * Get onboard NIC details from stored network config
+     */
+    getOnboardNICDetails(uuid) {
+        // Look up onboard NIC specs from the network config (populated from nic_config JSON)
+        if (this.networkConfig && Array.isArray(this.networkConfig.nics)) {
+            const nicEntry = this.networkConfig.nics.find(n => n.uuid === uuid);
+
+            if (nicEntry && nicEntry.specifications) {
+                const specs = nicEntry.specifications;
+                return {
+                    brand: 'Onboard',
+                    series: specs.controller || 'Onboard NIC',
+                    model: `${specs.controller || 'Onboard NIC'} ${specs.ports || ''}p ${specs.speed || ''}`.trim(),
+                    ports: specs.ports || 0,
+                    port_type: specs.connector || 'N/A',
+                    speeds: specs.speed ? [specs.speed] : [],
+                    interface: 'Onboard',
+                    power: 'N/A',
+                    source_type: 'onboard'
+                };
+            }
+        }
+
+        // Fallback for onboard NIC when network config isn't available
+        return {
+            brand: 'Onboard',
+            series: 'Onboard NIC',
+            model: 'Onboard NIC',
+            ports: 0,
+            port_type: 'N/A',
+            speeds: [],
+            interface: 'Onboard',
+            power: 'N/A',
+            source_type: 'onboard'
+        };
     }
 
     /**
