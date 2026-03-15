@@ -205,14 +205,12 @@ window.initACL = function () {
     const aclTableBody = document.getElementById('aclTableBody');
     if (!permissionsContainer && !roleSelect && aclTableBody) {
         // Initialize simple ACL list mode
-        console.log('Initializing simple ACL list mode');
         initializeSimpleACLList();
         return;
     }
 
     // Check if elements exist before proceeding with full ACL mode
     if (!permissionsContainer || !roleSelect) {
-        console.warn('ACL elements not found in DOM, skipping initialization');
         return;
     }
 
@@ -695,7 +693,6 @@ window.initACL = function () {
         toastNotification.show(`Role "${roleName}" created successfully!`, 'success');
         closeCreateRoleModal();
 
-        console.log('New Role Created:', roleKey, newRole);
     }
 
     // Open Delete Role Modal
@@ -838,7 +835,6 @@ window.initACL = function () {
         closeConfirmModal();
         renderDeleteRoleList();
 
-        console.log('Role Deleted:', roleToDelete);
     }
 
     // Save permissions (existing function)
@@ -862,7 +858,6 @@ window.initACL = function () {
 
         // Here you would typically send the updated rolePermissions to the server
         toastNotification.show(`Permissions for ${currentRole} saved successfully.`, 'success');
-        console.log('Updated Role Permissions:', rolePermissions);
     }
 
     // Initial fetch of permissions
@@ -981,11 +976,9 @@ window.initACL = function () {
     // Expose functions globally for onclick handlers
     window.editACLUser = function(userId) {
         toast.warning('Edit user functionality coming soon');
-        console.log('Edit user:', userId);
     };
 
     window.deleteACLUser = function(userId) {
         toast.warning('Delete user functionality coming soon');
-        console.log('Delete user:', userId);
     };
 };

@@ -388,9 +388,6 @@ class Dashboard {
 
                 this.updateBulkActions();
             }
-
-            // Update sidebar counts by fetching dashboard data
-            await this.loadSidebarCounts();
         } catch (error) {
             console.error(`Error loading ${componentType} components:`, error);
             utils.showAlert(error.message || `Failed to load ${componentType} components`, 'error');
@@ -446,9 +443,6 @@ class Dashboard {
 
             // Apply frontend filtering
             this.filterAndRenderServers();
-
-            // Update sidebar counts by fetching dashboard data
-            await this.loadSidebarCounts();
 
         } catch (error) {
             console.error(`Error loading servers:`, error);
@@ -764,7 +758,7 @@ class Dashboard {
         const selectAllCheckbox = document.getElementById('selectAllComponents');
         const checkboxes = document.querySelectorAll('.component-checkbox');
         if (selectAllCheckbox && checkboxes.length > 0) {
-            const checkedCount = document.querySelectorAll('.component-checkbox:checked').length;
+            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
             selectAllCheckbox.checked = checkedCount === checkboxes.length;
             selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
         }
@@ -986,18 +980,6 @@ class Dashboard {
                 if (isAdvancedView) {
                     startWith = document.getElementById('startWith').value;
                 }
-
-                // Debug logging
-                console.log('Form Submission Debug:', {
-                    toggleChecked: toggle.checked,
-                    isAdvancedView: isAdvancedView,
-                    isVirtual: isVirtual,
-                    startWith: startWith,
-                    serverName: serverName,
-                    description: description,
-                    location: location,
-                    rackPosition: rackPosition
-                });
 
                 if (!serverName) {
                     utils.showAlert('Please enter a server name', 'warning');
@@ -1312,8 +1294,6 @@ class Dashboard {
                         }));
                     }
                 });
-            } else {
-                console.warn('No components found in config data or invalid structure');
             }
 
         } catch (error) {
@@ -2266,12 +2246,10 @@ class Dashboard {
             if (window.serverBuilder) {
                 // Check if it's already loading or has this config to avoid flicker
                 if (window.serverBuilder.loading) {
-                    console.log('Server builder is already loading, skipping redundant call');
                     return;
                 }
 
                 if (window.serverBuilder.currentConfig && window.serverBuilder.currentConfig.config_uuid === configUuid) {
-                    console.log('Server builder already has this config loaded');
                     return;
                 }
 
@@ -2511,7 +2489,6 @@ class Dashboard {
             if (view) {
                 view.classList.add('active');
             } else {
-                console.warn(`View ${viewName} not found, defaulting to dashboard`);
                 const dashboardView = document.getElementById('dashboardView');
                 if (dashboardView) dashboardView.classList.add('active');
                 await this.loadDashboard();
@@ -2555,7 +2532,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('popstate', () => { if (dashboard) dashboard.handleInitialView(); });
-// document.addEventListener('visibilitychange', () => { if (!document.hidden && dashboard) setTimeout(() => dashboard.refresh(), 1000); });
-setInterval(() => { if (dashboard && dashboard.currentComponent === 'dashboard' && !document.hidden) dashboard.loadDashboard(); }, 5 * 60 * 1000);
+// Auto-refresh only on dashboard page, store interval for cleanup
+if (dashboard && dashboard.currentComponent === 'dashboard') {
+    dashboard._refreshInterval = setInterval(() => {
+        if (!document.hidden) dashboard.loadDashboard();
+    }, 5 * 60 * 1000);
+    window.addEventListener('beforeunload', () => clearInterval(dashboard._refreshInterval));
+}
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Dashboard;

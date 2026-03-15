@@ -137,15 +137,14 @@ class ServerListManager {
 
         container.innerHTML = this.servers.map(server => this.renderServerCard(server)).join('');
 
-        // Attach event listeners to server cards
-        document.querySelectorAll('.server-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                if (!e.target.closest('.btn')) {
-                    const uuid = card.getAttribute('data-uuid');
-                    this.openServerBuilder(uuid);
-                }
-            });
-        });
+        // Use event delegation on container instead of per-card listeners
+        container.onclick = (e) => {
+            const card = e.target.closest('.server-card');
+            if (card && !e.target.closest('.btn')) {
+                const uuid = card.getAttribute('data-uuid');
+                this.openServerBuilder(uuid);
+            }
+        };
     }
 
     /**

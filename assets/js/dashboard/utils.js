@@ -97,7 +97,6 @@ window.utils = {
                     overlay.classList.add('hidden');
                 }
             } else {
-                console.warn('Global loading manager and loadingOverlay not available');
             }
         }
     },
@@ -259,22 +258,8 @@ window.utils = {
             this.showAlert('Copied to clipboard', 'success', '', 2000);
             return true;
         } catch (err) {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                this.showAlert('Copied to clipboard', 'success', '', 2000);
-                return true;
-            } catch (err) {
-                this.showAlert('Failed to copy to clipboard', 'error');
-                return false;
-            } finally {
-                document.body.removeChild(textArea);
-            }
+            this.showAlert('Failed to copy to clipboard', 'error');
+            return false;
         }
     },
 

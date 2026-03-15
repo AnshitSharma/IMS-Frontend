@@ -37,9 +37,29 @@ class SidebarManager {
      * This should be called after sidebar HTML is injected into the DOM
      */
     reinitMobileMenu() {
-        this.mobileMenuInitialized = false;
+        // Don't reset mobileMenuInitialized — button listeners on persistent elements
+        // (hamburger, overlay, close) should not be re-added. Only re-attach menu link
+        // listeners since sidebar HTML was replaced with new DOM elements.
+        this.attachMenuLinkListeners();
+        // Also run setupMobileMenu in case it hasn't been called yet
         this.setupMobileMenu();
         this.setActiveComponent();
+    }
+
+    /**
+     * Attach click listeners to sidebar menu links (safe to call after sidebar HTML reload)
+     */
+    attachMenuLinkListeners() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+        const menuLinks = sidebar.querySelectorAll('.menu-item a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 1024) {
+                    setTimeout(() => this.closeSidebar(), 100);
+                }
+            });
+        });
     }
 
     /**
@@ -53,17 +73,13 @@ class SidebarManager {
         const closeSidebarBtn = document.getElementById('closeSidebarBtn');
 
         if (!hamburgerBtn || !mobileOverlay || !sidebar) {
-            console.warn('[SidebarManager] Sidebar elements not found for mobile menu setup');
             return;
         }
 
         // Prevent duplicate event listeners
         if (this.mobileMenuInitialized) {
-            console.log('[SidebarManager] Mobile menu already initialized');
             return;
         }
-
-        console.log('[SidebarManager] Setting up mobile menu handlers');
 
         // Toggle sidebar on hamburger click
         hamburgerBtn.addEventListener('click', (e) => {
@@ -94,16 +110,8 @@ class SidebarManager {
             this.escKeyListenerAdded = true;
         }
 
-        // Close sidebar when clicking menu items on mobile
-        const menuLinks = sidebar.querySelectorAll('.menu-item a');
-        menuLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                // Only auto-close on mobile
-                if (window.innerWidth <= 1024) {
-                    setTimeout(() => this.closeSidebar(), 100);
-                }
-            });
-        });
+        // Attach menu link listeners (new DOM elements after sidebar load)
+        this.attachMenuLinkListeners();
 
         // Handle window resize (only add once)
         if (!this.resizeListenerAdded) {
@@ -122,7 +130,6 @@ class SidebarManager {
         }
 
         this.mobileMenuInitialized = true;
-        console.log('[SidebarManager] Mobile menu setup complete');
     }
 
     /**
@@ -187,31 +194,26 @@ class SidebarManager {
     async getComponentCounts(forceRefresh = false) {
         // Return cached data if valid and not forcing refresh
         if (!forceRefresh && this.isCacheValid()) {
-            console.log('[SidebarManager] Using memory cache for counts');
             return this.cache;
         }
 
         // Check if request is already pending (debounce)
         if (this.pendingRequests.has('counts') && !forceRefresh) {
-            console.log('[SidebarManager] Request already pending, waiting...');
             return this.pendingRequests.get('counts');
         }
 
         // Create the fetch promise
         const fetchPromise = (async () => {
             try {
-                console.log('[SidebarManager] Fetching counts from API...');
                 const result = await api.dashboard.getData();
 
                 if (result.success && result.data.component_counts) {
                     this.cache = result.data.component_counts;
                     this.cacheTimestamp = Date.now();
                     this.saveToLocalStorage();
-                    console.log('[SidebarManager] Counts cached for 5 minutes');
                     return this.cache;
                 }
 
-                console.warn('[SidebarManager] API returned no component counts');
                 return this.cache;
             } catch (error) {
                 console.error('[SidebarManager] Error fetching counts:', error);
@@ -233,10 +235,8 @@ class SidebarManager {
      */
     invalidateCache(componentType = null) {
         if (componentType && this.cache[componentType]) {
-            console.log(`[SidebarManager] Invalidating cache for ${componentType}`);
             delete this.cache[componentType];
         } else {
-            console.log('[SidebarManager] Invalidating entire cache');
             this.cache = {};
         }
         this.cacheTimestamp = null;
@@ -324,10 +324,6 @@ class SidebarManager {
         const age = Date.now() - this.cacheTimestamp;
         const isValid = age < this.cacheExpiry;
 
-        if (isValid) {
-            console.log(`[SidebarManager] Cache age: ${Math.round(age / 1000)}s, expires in ${Math.round((this.cacheExpiry - age) / 1000)}s`);
-        }
-
         return isValid;
     }
 
@@ -341,9 +337,8 @@ class SidebarManager {
                 timestamp: this.cacheTimestamp
             };
             localStorage.setItem(this.localStorageKey, JSON.stringify(data));
-            console.log('[SidebarManager] Counts saved to localStorage');
         } catch (error) {
-            console.warn('[SidebarManager] Failed to save to localStorage:', error);
+            // localStorage save failed silently
         }
     }
 
@@ -354,7 +349,6 @@ class SidebarManager {
         try {
             const stored = localStorage.getItem(this.localStorageKey);
             if (!stored) {
-                console.log('[SidebarManager] No cached data in localStorage');
                 return;
             }
 
@@ -365,13 +359,10 @@ class SidebarManager {
             if (age < thirtyMinutes) {
                 this.cache = counts;
                 this.cacheTimestamp = timestamp;
-                console.log(`[SidebarManager] Loaded from localStorage (age: ${Math.round(age / 1000)}s)`);
             } else {
-                console.log('[SidebarManager] localStorage cache expired');
                 localStorage.removeItem(this.localStorageKey);
             }
         } catch (error) {
-            console.warn('[SidebarManager] Failed to load from localStorage:', error);
             localStorage.removeItem(this.localStorageKey);
         }
     }
@@ -384,7 +375,6 @@ class SidebarManager {
         this.cacheTimestamp = null;
         this.pendingRequests.clear();
         localStorage.removeItem(this.localStorageKey);
-        console.log('[SidebarManager] All caches cleared');
     }
 
     /**

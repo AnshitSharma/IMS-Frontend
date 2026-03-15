@@ -122,10 +122,14 @@ class GlobalLoadingManager {
     }
 
     setupAxiosInterceptors() {
-        // Wait for axios to be available
+        // Wait for axios to be available (max 5 retries)
+        let retries = 0;
+        const maxRetries = 5;
         const setupInterceptors = () => {
             if (typeof axios === 'undefined') {
-                setTimeout(setupInterceptors, 100);
+                if (retries++ < maxRetries) {
+                    setTimeout(setupInterceptors, 100);
+                }
                 return;
             }
 

@@ -24,24 +24,19 @@ class TicketsManager {
      * Initialize tickets manager
      */
     init() {
-        console.log('TicketsManager.init() called');
         this.setupEventListeners();
         this.setupModalClickHandlers();
         this.loadTickets();
-        console.log('TicketsManager initialized successfully');
     }
 
     /**
      * Setup event listeners for tickets page
      */
     setupEventListeners() {
-        console.log('Setting up event listeners...');
-
         // Refresh button
         const refreshBtn = document.getElementById('refreshTicketsBtn');
         if (refreshBtn) {
             refreshBtn.addEventListener('click', () => this.loadTickets());
-            console.log('Refresh button listener attached');
         }
 
         // Create ticket buttons
@@ -50,20 +45,14 @@ class TicketsManager {
 
         if (createBtn) {
             createBtn.addEventListener('click', () => {
-                console.log('Create button clicked');
                 this.showCreateTicketForm();
             });
-            console.log('Create ticket button listener attached');
-        } else {
-            console.warn('Create ticket button not found');
         }
 
         if (createFirstBtn) {
             createFirstBtn.addEventListener('click', () => {
-                console.log('Create first button clicked');
                 this.showCreateTicketForm();
             });
-            console.log('Create first ticket button listener attached');
         }
 
         // Search input
@@ -534,12 +523,9 @@ class TicketsManager {
      */
     async editTicket(ticketId) {
         try {
-            console.log('editTicket called with ID:', ticketId);
-
             // Check permission - skip if api not loaded yet
             if (window.api && window.api.utils) {
                 const hasPermission = window.api.utils.hasPermission('ticket.edit_own');
-                console.log('Has edit permission:', hasPermission);
                 if (!hasPermission) {
                     if (window.toastNotification) {
                         toastNotification.show('You do not have permission to edit tickets', 'error');
@@ -548,8 +534,6 @@ class TicketsManager {
                     }
                     return;
                 }
-            } else {
-                console.warn('API utils not loaded, skipping permission check');
             }
 
             // Fetch ticket details
@@ -601,12 +585,9 @@ class TicketsManager {
      */
     async showCreateTicketForm() {
         try {
-            console.log('showCreateTicketForm called');
-
             // Check permission - skip if api not loaded yet
             if (window.api && window.api.utils) {
                 const hasPermission = window.api.utils.hasPermission('ticket.create');
-                console.log('Has create permission:', hasPermission);
                 if (!hasPermission) {
                     if (window.toastNotification) {
                         toastNotification.show('You do not have permission to create tickets', 'error');
@@ -615,20 +596,15 @@ class TicketsManager {
                     }
                     return;
                 }
-            } else {
-                console.warn('API utils not loaded, skipping permission check');
             }
 
             // Load component data
-            console.log('Loading component data...');
             await this.loadComponentData();
 
             // Show modal
             const modal = document.getElementById('modalContainer');
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
-
-            console.log('Modal elements:', { modal, modalTitle, modalBody });
 
             if (!modal || !modalTitle || !modalBody) {
                 console.error('Modal elements not found');
@@ -641,7 +617,6 @@ class TicketsManager {
             // Setup event listeners
             this.setupTicketFormListeners(false);
 
-            console.log('Removing hidden class from modal');
             modal.classList.remove('hidden');
         } catch (error) {
             console.error('Error showing create form:', error);
@@ -723,7 +698,7 @@ class TicketsManager {
                         this.componentData[type] = this.flattenComponentData(data);
                     }
                 } catch (error) {
-                    console.warn(`Failed to load ${type} data:`, error);
+                    // Failed to load component data - continue with other types
                 }
             }
         } catch (error) {
@@ -1008,8 +983,6 @@ class TicketsManager {
         try {
             // Use cached data if available, otherwise fetch from API
             if (!this.cachedUsers || !this.cachedRoles) {
-                console.log('Fetching users and roles from API...');
-
                 const [usersResponse, rolesResponse] = await Promise.all([
                     fetch(`${this.apiBaseUrl}?action=users-list`, {
                         headers: { 'Authorization': `Bearer ${token}` }
@@ -1030,9 +1003,6 @@ class TicketsManager {
                     this.cachedRoles = rolesResult.data.roles;
                 }
 
-                console.log('Users and roles cached successfully');
-            } else {
-                console.log('Using cached users and roles data');
             }
 
             // Populate users dropdown from cache
@@ -1497,9 +1467,7 @@ let ticketsManager = null;
 
 // Function to initialize tickets (called from dashboard.js)
 function initTickets() {
-    console.log('initTickets() function called');
     if (!ticketsManager) {
-        console.log('Creating new TicketsManager instance');
         ticketsManager = new TicketsManager();
         // Make it globally accessible
         window.ticketsManager = ticketsManager;

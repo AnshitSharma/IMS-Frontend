@@ -25,7 +25,6 @@ class SharedNavbar {
             // Find the navbar placeholder
             const placeholder = document.getElementById('navbar-placeholder');
             if (!placeholder) {
-                console.warn('Navbar placeholder not found');
                 return;
             }
 
@@ -62,7 +61,6 @@ class SharedNavbar {
     initializeUserInfo() {
         // Check if api object exists (from api.js)
         if (typeof api === 'undefined') {
-            console.warn('API not loaded, using fallback user info');
             return;
         }
 
@@ -187,7 +185,6 @@ class SharedNavbar {
     handleGlobalSearch(query) {
         // This can be overridden by specific pages
         // For now, just log it
-        console.log('Global search:', query);
     }
 
     /**
@@ -231,7 +228,6 @@ class SharedNavbar {
      */
     handleThemeToggle() {
         if (typeof utils === 'undefined' || !utils.theme) {
-            console.warn('Theme utilities not loaded');
             return;
         }
 

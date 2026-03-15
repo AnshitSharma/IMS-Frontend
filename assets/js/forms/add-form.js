@@ -197,7 +197,6 @@ class AddComponentForm {
                         this.jsonData = this.jsonData.caddies || [];
                     }
                 } else {
-                    console.warn(`Failed to load JSON data for ${componentType}`);
                     this.jsonData = [];
                 }
             } else {
@@ -284,12 +283,14 @@ class AddComponentForm {
             }
         });
 
+        const fragment1 = document.createDocumentFragment();
         [...memoryTypes].sort().forEach(type => {
             const option = document.createElement('option');
             option.value = type;
             option.textContent = type;
-            dropdown1.appendChild(option);
+            fragment1.appendChild(option);
         });
+        dropdown1.appendChild(fragment1);
 
         dropdown1.disabled = false;
     }
@@ -312,12 +313,14 @@ class AddComponentForm {
             }
         });
 
+        const fragment2 = document.createDocumentFragment();
         [...capacities].sort((a, b) => a - b).forEach(capacity => {
             const option = document.createElement('option');
             option.value = capacity;
             option.textContent = `${capacity}GB`;
-            dropdown2.appendChild(option);
+            fragment2.appendChild(option);
         });
+        dropdown2.appendChild(fragment2);
 
         dropdown2.disabled = false;
     }
@@ -342,12 +345,14 @@ class AddComponentForm {
             }
         });
 
+        const fragment3 = document.createDocumentFragment();
         [...formFactors].sort().forEach(formFactor => {
             const option = document.createElement('option');
             option.value = formFactor;
             option.textContent = formFactor;
-            dropdown3.appendChild(option);
+            fragment3.appendChild(option);
         });
+        dropdown3.appendChild(fragment3);
 
         dropdown3.disabled = false;
     }
@@ -359,6 +364,7 @@ class AddComponentForm {
         dropdown4.innerHTML = '<option value="">Select Model</option>';
 
         // Get models matching all criteria
+        const fragment4 = document.createDocumentFragment();
         this.jsonData.forEach(item => {
             if (item.models && Array.isArray(item.models)) {
                 item.models.forEach(model => {
@@ -380,11 +386,12 @@ class AddComponentForm {
                             _series: item.series
                         });
 
-                        dropdown4.appendChild(option);
+                        fragment4.appendChild(option);
                     }
                 });
             }
         });
+        dropdown4.appendChild(fragment4);
 
         dropdown4.disabled = false;
     }
@@ -415,12 +422,14 @@ class AddComponentForm {
             }
         });
 
+        const fragStorageType = document.createDocumentFragment();
         [...storageTypes].sort().forEach(type => {
             const option = document.createElement('option');
             option.value = type;
             option.textContent = type;
-            dropdown1.appendChild(option);
+            fragStorageType.appendChild(option);
         });
+        dropdown1.appendChild(fragStorageType);
 
         dropdown1.disabled = false;
     }
@@ -442,12 +451,14 @@ class AddComponentForm {
             }
         });
 
+        const fragStorageFF = document.createDocumentFragment();
         [...formFactors].sort().forEach(formFactor => {
             const option = document.createElement('option');
             option.value = formFactor;
             option.textContent = formFactor;
-            dropdown2.appendChild(option);
+            fragStorageFF.appendChild(option);
         });
+        dropdown2.appendChild(fragStorageFF);
 
         dropdown2.disabled = false;
     }
@@ -471,12 +482,14 @@ class AddComponentForm {
             }
         });
 
+        const fragStorageCap = document.createDocumentFragment();
         [...capacities].sort((a, b) => a - b).forEach(capacity => {
             const option = document.createElement('option');
             option.value = capacity;
             option.textContent = `${capacity}GB`;
-            dropdown3.appendChild(option);
+            fragStorageCap.appendChild(option);
         });
+        dropdown3.appendChild(fragStorageCap);
 
         dropdown3.disabled = false;
     }
@@ -487,6 +500,7 @@ class AddComponentForm {
 
         dropdown4.innerHTML = '<option value="">Select Model</option>';
 
+        const fragStorageModel = document.createDocumentFragment();
         this.jsonData.forEach(item => {
             if (item.models && Array.isArray(item.models)) {
                 item.models.forEach(model => {
@@ -506,11 +520,12 @@ class AddComponentForm {
                             _series: item.series
                         });
 
-                        dropdown4.appendChild(option);
+                        fragStorageModel.appendChild(option);
                     }
                 });
             }
         });
+        dropdown4.appendChild(fragStorageModel);
 
         dropdown4.disabled = false;
     }
@@ -537,12 +552,14 @@ class AddComponentForm {
             }
         });
 
+        const fragCaddySize = document.createDocumentFragment();
         [...sizes].sort().forEach(size => {
             const option = document.createElement('option');
             option.value = size;
             option.textContent = size;
-            dropdown1.appendChild(option);
+            fragCaddySize.appendChild(option);
         });
+        dropdown1.appendChild(fragCaddySize);
 
         dropdown1.disabled = false;
     }
@@ -568,12 +585,14 @@ class AddComponentForm {
             }
         });
 
+        const fragCaddyDrive = document.createDocumentFragment();
         [...driveTypes].sort().forEach(type => {
             const option = document.createElement('option');
             option.value = type;
             option.textContent = type;
-            dropdown2.appendChild(option);
+            fragCaddyDrive.appendChild(option);
         });
+        dropdown2.appendChild(fragCaddyDrive);
 
         dropdown2.disabled = false;
     }
@@ -584,6 +603,7 @@ class AddComponentForm {
 
         dropdown3.innerHTML = '<option value="">Select Model</option>';
 
+        const fragCaddyModel = document.createDocumentFragment();
         this.jsonData.forEach(caddy => {
             if (caddy.compatibility &&
                 caddy.compatibility.size === size) {
@@ -598,10 +618,11 @@ class AddComponentForm {
                     option.value = caddy.uuid;
                     option.textContent = caddy.model || caddy.type;
                     option.dataset.modelData = JSON.stringify(caddy);
-                    dropdown3.appendChild(option);
+                    fragCaddyModel.appendChild(option);
                 }
             }
         });
+        dropdown3.appendChild(fragCaddyModel);
 
         dropdown3.disabled = false;
     }
@@ -624,12 +645,14 @@ class AddComponentForm {
 
         const manufacturers = [...new Set(this.jsonData.map(item => item.manufacturer))].filter(Boolean);
 
+        const fragChassisMfr = document.createDocumentFragment();
         manufacturers.sort().forEach(manufacturer => {
             const option = document.createElement('option');
             option.value = manufacturer;
             option.textContent = manufacturer;
-            dropdown1.appendChild(option);
+            fragChassisMfr.appendChild(option);
         });
+        dropdown1.appendChild(fragChassisMfr);
 
         dropdown1.disabled = false;
     }
@@ -643,14 +666,16 @@ class AddComponentForm {
         const manufacturerData = this.jsonData.find(item => item.manufacturer === manufacturer);
         if (!manufacturerData || !manufacturerData.series) return;
 
+        const fragChassisSeries = document.createDocumentFragment();
         manufacturerData.series.forEach(s => {
             if (s.series_name) {
                 const option = document.createElement('option');
                 option.value = s.series_name;
                 option.textContent = s.series_name;
-                dropdown2.appendChild(option);
+                fragChassisSeries.appendChild(option);
             }
         });
+        dropdown2.appendChild(fragChassisSeries);
 
         dropdown2.disabled = false;
     }
@@ -672,12 +697,14 @@ class AddComponentForm {
             if (model.form_factor) formFactors.add(model.form_factor);
         });
 
+        const fragChassisFF = document.createDocumentFragment();
         [...formFactors].sort().forEach(formFactor => {
             const option = document.createElement('option');
             option.value = formFactor;
             option.textContent = formFactor;
-            dropdown3.appendChild(option);
+            fragChassisFF.appendChild(option);
         });
+        dropdown3.appendChild(fragChassisFF);
 
         dropdown3.disabled = false;
     }
@@ -694,6 +721,7 @@ class AddComponentForm {
         const seriesData = manufacturerData.series.find(s => s.series_name === seriesName);
         if (!seriesData || !seriesData.models) return;
 
+        const fragChassisModel = document.createDocumentFragment();
         seriesData.models.forEach(model => {
             if (model.form_factor === formFactor) {
                 const option = document.createElement('option');
@@ -706,9 +734,10 @@ class AddComponentForm {
                     _series: seriesName
                 });
 
-                dropdown4.appendChild(option);
+                fragChassisModel.appendChild(option);
             }
         });
+        dropdown4.appendChild(fragChassisModel);
 
         dropdown4.disabled = false;
     }
@@ -731,12 +760,14 @@ class AddComponentForm {
 
         const subtypes = [...new Set(this.jsonData.map(item => item.component_subtype))].filter(Boolean);
 
+        const fragPCISubtype = document.createDocumentFragment();
         subtypes.sort().forEach(subtype => {
             const option = document.createElement('option');
             option.value = subtype;
             option.textContent = subtype;
-            dropdown1.appendChild(option);
+            fragPCISubtype.appendChild(option);
         });
+        dropdown1.appendChild(fragPCISubtype);
 
         dropdown1.disabled = false;
     }
@@ -754,12 +785,14 @@ class AddComponentForm {
             }
         });
 
+        const fragPCIBrand = document.createDocumentFragment();
         [...brands].sort().forEach(brand => {
             const option = document.createElement('option');
             option.value = brand;
             option.textContent = brand;
-            dropdown2.appendChild(option);
+            fragPCIBrand.appendChild(option);
         });
+        dropdown2.appendChild(fragPCIBrand);
 
         dropdown2.disabled = false;
     }
@@ -779,12 +812,14 @@ class AddComponentForm {
             }
         });
 
+        const fragPCISeries = document.createDocumentFragment();
         [...series].sort().forEach(s => {
             const option = document.createElement('option');
             option.value = s;
             option.textContent = s;
-            dropdown3.appendChild(option);
+            fragPCISeries.appendChild(option);
         });
+        dropdown3.appendChild(fragPCISeries);
 
         dropdown3.disabled = false;
     }
@@ -795,6 +830,7 @@ class AddComponentForm {
 
         dropdown4.innerHTML = '<option value="">Select Model</option>';
 
+        const fragPCIModel = document.createDocumentFragment();
         this.jsonData.forEach(item => {
             if (item.component_subtype === subtype &&
                 item.brand === brand &&
@@ -813,10 +849,11 @@ class AddComponentForm {
                         _series: series
                     });
 
-                    dropdown4.appendChild(option);
+                    fragPCIModel.appendChild(option);
                 });
             }
         });
+        dropdown4.appendChild(fragPCIModel);
 
         dropdown4.disabled = false;
     }
@@ -839,12 +876,14 @@ class AddComponentForm {
         const brandField = this.currentComponentType === 'chassis' ? 'manufacturer' : 'brand';
         const brands = [...new Set(this.jsonData.map(item => item[brandField]))].filter(Boolean);
 
+        const fragStdBrand = document.createDocumentFragment();
         brands.sort().forEach(brand => {
             const option = document.createElement('option');
             option.value = brand;
             option.textContent = brand;
-            dropdown1.appendChild(option);
+            fragStdBrand.appendChild(option);
         });
+        dropdown1.appendChild(fragStdBrand);
 
         dropdown1.disabled = false;
     }
@@ -987,12 +1026,14 @@ class AddComponentForm {
             series = [...new Set(this.jsonData.filter(item => item.brand === brand).map(item => item.series))].filter(Boolean);
         }
 
+        const fragStdSeries = document.createDocumentFragment();
         series.sort().forEach(s => {
             const option = document.createElement('option');
             option.value = s;
             option.textContent = s;
-            dropdown2.appendChild(option);
+            fragStdSeries.appendChild(option);
         });
+        dropdown2.appendChild(fragStdSeries);
 
         dropdown2.disabled = false;
     }
@@ -1037,6 +1078,7 @@ class AddComponentForm {
             });
         }
 
+        const fragStdModel = document.createDocumentFragment();
         models.forEach(model => {
             const option = document.createElement('option');
             const uuid = model.UUID || model.uuid || model.inventory?.UUID;
@@ -1046,9 +1088,10 @@ class AddComponentForm {
                 option.value = uuid;
                 option.textContent = modelName;
                 option.dataset.modelData = JSON.stringify(model);
-                dropdown3.appendChild(option);
+                fragStdModel.appendChild(option);
             }
         });
+        dropdown3.appendChild(fragStdModel);
 
         dropdown3.disabled = false;
     }
@@ -1074,12 +1117,14 @@ class AddComponentForm {
         const brands = [...new Set(this.jsonData.map(item => item[brandField]))].filter(Boolean);
 
         // Populate brand options
+        const fragBrand = document.createDocumentFragment();
         brands.forEach(brand => {
             const option = document.createElement('option');
             option.value = brand;
             option.textContent = brand;
-            brandSelect.appendChild(option);
+            fragBrand.appendChild(option);
         });
+        brandSelect.appendChild(fragBrand);
 
         brandSelect.disabled = false;
     }
@@ -1136,12 +1181,14 @@ class AddComponentForm {
             series = [...new Set(brandItems.map(item => item.series).filter(Boolean))];
         }
 
+        const fragSeries = document.createDocumentFragment();
         series.forEach(seriesName => {
             const option = document.createElement('option');
             option.value = seriesName;
             option.textContent = seriesName;
-            seriesSelect.appendChild(option);
+            fragSeries.appendChild(option);
         });
+        seriesSelect.appendChild(fragSeries);
 
         seriesSelect.disabled = false;
         this.clearModelDropdown();
@@ -1225,6 +1272,7 @@ class AddComponentForm {
         }
 
         // Populate models
+        const fragModel = document.createDocumentFragment();
         models.forEach((model, index) => {
             const option = document.createElement('option');
             const modelName = model.model || model.name || model.series;
@@ -1240,9 +1288,10 @@ class AddComponentForm {
                 option.value = uuid;
                 option.textContent = modelName;
                 option.dataset.modelData = JSON.stringify(model);
-                modelSelect.appendChild(option);
+                fragModel.appendChild(option);
             }
         });
+        modelSelect.appendChild(fragModel);
 
         modelSelect.disabled = false;
     }
@@ -1891,7 +1940,6 @@ class AddComponentForm {
         if (window.globalLoading) {
             window.globalLoading.showLoading(show, message);
         } else {
-            console.warn('Global loading manager not available');
         }
     }
 }

@@ -111,7 +111,6 @@ class ConfigurationPage {
                 }
             }
         } else {
-            console.warn('No user data available for initialization');
         }
     }
 
@@ -527,8 +526,10 @@ class ConfigurationPage {
      */
     async fetchParentNICDetails(nicUuid) {
         try {
-            const response = await fetch('/IMS/ims-data/nic/nic-level-3.json');
-            const nicData = await response.json();
+            // Use ServerBuilder's JSON cache if available, otherwise fetch directly
+            const nicData = typeof ServerBuilder !== 'undefined'
+                ? await ServerBuilder.fetchJSON('/IMS/ims-data/nic/nic-level-3.json')
+                : await fetch('/IMS/ims-data/nic/nic-level-3.json').then(r => r.json());
 
             // Search for NIC by UUID in the JSON structure
             for (const brandObj of nicData) {
@@ -624,7 +625,6 @@ class ConfigurationPage {
                 this.filteredComponents = [...this.components];
             } else {
                 // Fallback to JSON data if API fails or returns no data
-                console.warn('API returned no compatible components data, falling back to JSON');
                 await this.loadComponentsFromJSON();
             }
         } catch (error) {
@@ -911,10 +911,8 @@ class ConfigurationPage {
 
                 component.formFactor = jsonComponent.form_factor || 'ATX';
                 component.chipset = jsonComponent.chipset || 'N/A';
-                console.log('JSON Component for Motherboard:', jsonComponent.memory);
                 // Handle memory specifications - check multiple possible property names
                 if (jsonComponent.memory) {
-                    console.log('Memory Specifications:', jsonComponent.memory);
                     component.ramSlots = jsonComponent.memory.slots?.toString() || 'N/A';
                     component.memoryType = jsonComponent.memory.type || 'N/A';
                     component.maxMemory = jsonComponent.memory.max_capacity_TB || 'N/A';
@@ -1014,7 +1012,6 @@ class ConfigurationPage {
                 component.hotSwap = jsonComponent.hot_swap ? 'Yes' : 'No';
                 break;
             case 'pciecard':
-                console.log('JSON Component for PCIe Card:', jsonComponent);
                 component.model = jsonComponent.model || 'N/A';
                 component.interface = jsonComponent.interface || 'PCIe';
                 component.formFactor = jsonComponent.form_factor || 'N/A';
@@ -1025,7 +1022,6 @@ class ConfigurationPage {
                 // Handle max_capacity differently based on component_subtype
                 // PCIe cards can be: NVMe Adaptor, Riser Card (HBA Card is a separate component type)
                 const pcieSubtype = jsonComponent.component_subtype || '';
-                console.log('PCIe Card Subtype:', pcieSubtype);
 
                 if (pcieSubtype === 'NVMe Adaptor') {
                     // NVMe Adaptors have total_max_capacity (e.g., "32TB", "16TB")
@@ -1149,10 +1145,8 @@ class ConfigurationPage {
                     const data = await response.json();
                     allData.push(data);
                 } else {
-                    console.warn(`✗ Failed to load JSON from ${path}: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
-                console.warn(`✗ Error loading JSON from ${path}:`, error);
             }
         }
         return allData;
@@ -2385,7 +2379,6 @@ class ConfigurationPage {
                 );
                 break;
             case 'pciecard':
-                console.log('Getting PCIe card specs for component:', component.total_max_capacity);
                 specs.push(
                     { label: 'Interface', value: component.interface || 'N/A', icon: 'fas fa-expand-arrows-alt' },
                     { label: 'Memory', value: component.total_max_capacity || 'N/A', icon: 'fas fa-memory' },
@@ -2956,7 +2949,6 @@ class ConfigurationPage {
         if (window.globalLoading) {
             window.globalLoading.showLoading(show, message);
         } else {
-            console.warn('Global loading manager not available');
         }
     }
 

@@ -32,7 +32,6 @@ class ACLManager {
 
             // Load roles
             const rolesResult = await window.api.acl.getAllRoles();
-            console.log('Roles result:', rolesResult);
             if (rolesResult && rolesResult.success) {
                 this.roles = rolesResult.data?.roles || rolesResult.data || [];
             } else {
@@ -41,7 +40,6 @@ class ACLManager {
 
             // Load permissions
             const permissionsResult = await window.api.acl.getAllPermissions(true);
-            console.log('Permissions result:', permissionsResult);
             if (permissionsResult && permissionsResult.success) {
                 const permissionsData = permissionsResult.data?.permissions || permissionsResult.data || {};
 
@@ -65,14 +63,12 @@ class ACLManager {
             // Load users
             try {
                 const usersResult = await window.api.users.list();
-                console.log('Users result:', usersResult);
                 if (usersResult && usersResult.success) {
                     this.users = usersResult.data?.users || usersResult.data || [];
                 } else {
                     this.users = [];
                 }
             } catch (error) {
-                console.warn('Failed to load users:', error);
                 this.users = [];
             }
 
@@ -103,35 +99,21 @@ class ACLManager {
             role.permissions = result.data.permissions || [];
             role.users = result.data.users || [];
 
-            console.log(`Role ${role.name} (ID: ${roleId}):`, {
-                permissions: role.permissions.length,
-                grantedPermissions: role.permissions.filter(p => p.granted === 1 || p.granted === true).length,
-                users: role.users.length
-            });
-
             return role;
         }
-        console.error(`Failed to fetch role ${roleId}:`, result);
         return null;
     }
 
     async createRole(roleData) {
-        console.log('Creating role with data:', roleData);
-        console.log('Selected permissions:', Array.from(this.selectedPermissions));
-
         const result = await window.api.acl.createRole(roleData);
-        console.log('Create role result:', result);
 
         if (result && result.success) {
             // Update permissions for the newly created role
             const roleId = result.data?.role_id || result.data?.id;
             const permissionIds = Array.from(this.selectedPermissions);
 
-            console.log('Role ID:', roleId, 'Permission IDs:', permissionIds);
-
             if (roleId && permissionIds.length > 0) {
-                const permResult = await window.api.acl.updateRolePermissions(roleId, permissionIds);
-                console.log('Update permissions result:', permResult);
+                await window.api.acl.updateRolePermissions(roleId, permissionIds);
             }
 
             return result;
@@ -188,7 +170,6 @@ class ACLManager {
                         const fullRole = await this.getRoleById(role.id);
                         return fullRole || role;
                     } catch (error) {
-                        console.warn('Failed to fetch full data for role:', role.id, error);
                         return role;
                     }
                 })
@@ -199,8 +180,6 @@ class ACLManager {
     }
 
     createRoleRow(role) {
-        console.log('Creating row for role:', role);
-
         // Get users count - try multiple possible fields from API
         let usersCount = 0;
         if (role.users && Array.isArray(role.users)) {
@@ -219,8 +198,6 @@ class ACLManager {
         } else if (role.permission_count !== undefined) {
             permissionsCount = role.permission_count;
         }
-
-        console.log(`Row for ${role.name}: users=${usersCount}, permissions=${permissionsCount}`);
 
         // Get display name - try multiple possible fields (API returns role_name)
         const displayName = role.display_name || role.displayName || role.role_name || role.name || 'Unnamed Role';
@@ -272,7 +249,6 @@ class ACLManager {
         // Ensure permissions is an array before iterating
         if (!Array.isArray(this.permissions)) {
             grid.innerHTML = '<p class="text-center text-slate-500 py-4">No permissions available. Please refresh the page.</p>';
-            console.error('Permissions must be an array but got:', typeof this.permissions, this.permissions);
             return;
         }
 
@@ -357,7 +333,6 @@ class ACLManager {
     // ======================
 
     openCreateRoleModal() {
-        console.log('openCreateRoleModal called');
         try {
             this.editMode = false;
             this.currentRole = null;
@@ -365,9 +340,6 @@ class ACLManager {
 
             const modal = document.getElementById('roleModal');
             const title = document.getElementById('roleModalTitle');
-
-            console.log('Modal element:', modal);
-            console.log('Title element:', title);
 
             if (title) title.textContent = 'Create New Role';
 
@@ -377,19 +349,15 @@ class ACLManager {
             const descriptionInput = document.getElementById('roleDescription');
             const isDefaultCheckbox = document.getElementById('roleIsDefault');
 
-            console.log('Form elements:', { roleNameInput, displayNameInput, descriptionInput, isDefaultCheckbox });
-
             if (roleNameInput) roleNameInput.value = '';
             if (displayNameInput) displayNameInput.value = '';
             if (descriptionInput) descriptionInput.value = '';
             if (isDefaultCheckbox) isDefaultCheckbox.checked = false;
 
-            console.log('About to render permissions grid, permissions:', this.permissions);
             this.renderPermissionsGrid([]);
             this.updatePermissionCount();
 
             if (modal) {
-                console.log('Opening modal...');
                 modal.classList.remove('hidden');
                 // Add opacity to make modal visible (CSS has opacity: 0 by default)
                 setTimeout(() => {
@@ -400,8 +368,6 @@ class ACLManager {
                         modalContent.style.transform = 'scale(1)';
                     }
                 }, 10);
-            } else {
-                console.error('Modal element not found!');
             }
         } catch (error) {
             console.error('Error in openCreateRoleModal:', error);
@@ -484,7 +450,6 @@ class ACLManager {
 
             // If API didn't return users array, filter from loaded users based on their roles
             if (roleUsers.length === 0 && this.users.length > 0) {
-                console.log('API did not return users for role, filtering from loaded users');
                 roleUsers = this.users.filter(user => {
                     // Check if user has this role assigned
                     return user.roles && Array.isArray(user.roles) && user.roles.some(r => r.id === roleId);
@@ -567,15 +532,11 @@ class ACLManager {
     setupEventListeners() {
         // Create Role button
         const createBtn = document.getElementById('createRoleBtn');
-        console.log('Setting up event listeners, createRoleBtn:', createBtn);
 
         if (createBtn) {
             createBtn.addEventListener('click', () => {
-                console.log('Create Role button clicked!');
                 this.openCreateRoleModal();
             });
-        } else {
-            console.warn('createRoleBtn not found when setting up event listeners');
         }
 
         // Refresh button
@@ -690,11 +651,8 @@ class ACLManager {
     }
 
     async handleSaveRole() {
-        console.log('handleSaveRole called, editMode:', this.editMode);
-
         // Validate form
         if (!this.validateRoleForm()) {
-            console.log('Form validation failed');
             return;
         }
 
@@ -704,8 +662,6 @@ class ACLManager {
             description: document.getElementById('roleDescription').value.trim(),
             is_default: document.getElementById('roleIsDefault').checked
         };
-
-        console.log('Role data to save:', roleData);
 
         try {
             utils.showLoading(true, this.editMode ? 'Updating role...' : 'Creating role...');
@@ -717,8 +673,6 @@ class ACLManager {
                 result = await this.createRole(roleData);
             }
 
-            console.log('Save role result:', result);
-
             if (result && result.success) {
                 toast.success(this.editMode ? 'Role updated successfully' : 'Role created successfully');
                 await this.fetchAllRoles();
@@ -726,7 +680,6 @@ class ACLManager {
                 this.closeAllModals();
             } else {
                 const errorMsg = result?.message || 'Failed to save role';
-                console.error('Save role failed:', errorMsg);
                 toast.error(errorMsg);
             }
         } catch (error) {
@@ -912,10 +865,8 @@ class ACLManager {
 // Initialize ACLManager when DOM is ready
 // Wait for sidebar to be injected first
 function initializeACLManager() {
-    console.log('Initializing ACLManager');
     try {
         window.aclManager = new ACLManager();
-        console.log('ACLManager initialized:', window.aclManager);
     } catch (error) {
         console.error('Failed to initialize ACLManager:', error);
     }
@@ -924,12 +875,10 @@ function initializeACLManager() {
 // If we're on the ACL page, initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOMContentLoaded - Will initialize ACLManager');
         // Give sidebar time to load
         setTimeout(initializeACLManager, 500);
     });
 } else {
     // DOM already loaded
-    console.log('DOM already loaded - Will initialize ACLManager');
     setTimeout(initializeACLManager, 500);
 }

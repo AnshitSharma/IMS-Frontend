@@ -4,6 +4,20 @@
  */
 
 class ServerBuilder {
+    // Shared JSON cache across instances - avoids re-fetching static reference data
+    static jsonCache = new Map();
+
+    static async fetchJSON(url) {
+        if (ServerBuilder.jsonCache.has(url)) {
+            return ServerBuilder.jsonCache.get(url);
+        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch ${url}`);
+        const data = await response.json();
+        ServerBuilder.jsonCache.set(url, data);
+        return data;
+    }
+
     constructor() {
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         this.currentConfig = null;
@@ -492,14 +506,8 @@ class ServerBuilder {
      */
     async loadMotherboardDetails(uuid) {
         try {
-            // Fetch motherboard JSON
-            const response = await fetch('/IMS/ims-data/motherboard/motherboard-level-3.json');
-            if (!response.ok) {
-                console.error('Failed to fetch motherboard JSON');
-                return;
-            }
-
-            const motherboardData = await response.json();
+            // Fetch motherboard JSON (cached)
+            const motherboardData = await ServerBuilder.fetchJSON('/IMS/ims-data/motherboard/motherboard-level-3.json');
 
             // Search for the motherboard by UUID
             for (const brand of motherboardData) {
@@ -514,14 +522,12 @@ class ServerBuilder {
                                 caddySockets: model.caddy_sockets || [], // Add caddy sockets
                                 ...model
                             };
-                            console.log('Loaded motherboard details:', this.motherboardDetails);
                             return;
                         }
                     }
                 }
             }
 
-            console.warn('Motherboard UUID not found in JSON:', uuid);
         } catch (error) {
             console.error('Error loading motherboard details:', error);
         }
@@ -918,7 +924,6 @@ class ServerBuilder {
                         try {
                             item.resolved_name = await this.lookupComponentNameByUuid(type, item.uuid);
                         } catch (e) {
-                            console.warn(`Failed to resolve name for ${type} ${item.uuid}:`, e);
                             item.resolved_name = 'Unknown Component';
                         }
                     }
@@ -1365,9 +1370,8 @@ class ServerBuilder {
                 return this.getOnboardNICDetails(uuid);
             }
 
-            // Component NIC - search in the NIC JSON spec file
-            const response = await fetch('/IMS/ims-data/nic/nic-level-3.json');
-            const nicData = await response.json();
+            // Component NIC - search in the NIC JSON spec file (cached)
+            const nicData = await ServerBuilder.fetchJSON('/IMS/ims-data/nic/nic-level-3.json');
 
             for (const brandObj of nicData) {
                 for (const series of brandObj.series) {
@@ -2047,28 +2051,20 @@ class ServerBuilder {
      */
     async loadChassisDetails(uuid) {
         try {
-            // Fetch chassis JSON
-            const response = await fetch('/IMS/ims-data/chassis/chasis-level-3.json');
-            if (!response.ok) {
-                console.error('Failed to fetch chassis JSON');
-                return null;
-            }
-
-            const chassisData = await response.json();
+            // Fetch chassis JSON (cached)
+            const chassisData = await ServerBuilder.fetchJSON('/IMS/ims-data/chassis/chasis-level-3.json');
 
             // Search for the chassis by UUID
             for (const manufacturer of chassisData.manufacturers) {
                 for (const series of manufacturer.series) {
                     for (const model of series.models) {
                         if (model.uuid === uuid) {
-                            console.log('Loaded chassis details:', model);
                             return model;
                         }
                     }
                 }
             }
 
-            console.warn('Chassis UUID not found in JSON:', uuid);
             return null;
         } catch (error) {
             console.error('Error loading chassis details:', error);
@@ -3078,7 +3074,6 @@ class ServerBuilder {
      */
     showAdvancedFeatures() {
         // Add any advanced features you want to show
-        console.log('Advanced view enabled');
 
         // Example: Show additional technical details
         const motherboardSection = document.querySelector('.motherboard-section');
@@ -3091,7 +3086,6 @@ class ServerBuilder {
      */
     hideAdvancedFeatures() {
         // Hide any advanced features
-        console.log('Advanced view disabled');
 
         // Example: You might want to keep motherboard section always visible
         // or conditionally hide it based on your requirements
@@ -3104,7 +3098,6 @@ class ServerBuilder {
         if (window.globalLoading) {
             window.globalLoading.showLoading(true, fullMessage);
         } else {
-            console.warn('Global loading manager not available');
         }
     }
 
