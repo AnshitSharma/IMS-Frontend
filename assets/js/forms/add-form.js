@@ -1828,7 +1828,7 @@ class AddComponentForm {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Bearer ${localStorage.getItem('bdc_token')}`
+                'Authorization': `Bearer ${sessionStorage.getItem('bdc_token')}`
             },
             body: new URLSearchParams(formData)
         });

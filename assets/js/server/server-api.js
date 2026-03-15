@@ -5,7 +5,7 @@ class ServerAPI {
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         // Check both token keys for compatibility with dashboard
-        this.token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
+        this.token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
 
         // Setup axios defaults
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
@@ -14,18 +14,18 @@ class ServerAPI {
     // Update token
     setToken(token) {
         this.token = token;
-        localStorage.setItem('bdc_token', token);
-        localStorage.setItem('jwt_token', token); // Keep both for compatibility
+        sessionStorage.setItem('bdc_token', token);
+        sessionStorage.setItem('jwt_token', token); // Keep both for compatibility
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
     // Clear token
     clearToken() {
         this.token = null;
-        localStorage.removeItem('bdc_token');
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('bdc_refresh_token');
-        localStorage.removeItem('bdc_user');
+        sessionStorage.removeItem('bdc_token');
+        sessionStorage.removeItem('jwt_token');
+        sessionStorage.removeItem('bdc_refresh_token');
+        sessionStorage.removeItem('bdc_user');
         delete axios.defaults.headers.common['Authorization'];
     }
 

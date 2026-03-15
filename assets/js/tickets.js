@@ -69,10 +69,10 @@ class TicketsManager {
         // Search input
         const searchInput = document.getElementById('ticketSearch');
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => {
+            searchInput.addEventListener('input', utils.debounce((e) => {
                 this.searchTerm = e.target.value.toLowerCase();
                 this.filterAndRenderTickets();
-            });
+            }, 300));
         }
 
         // Status filter
@@ -1149,8 +1149,8 @@ class TicketsManager {
      * Get authentication token
      */
     getAuthToken() {
-        // Try to get token from localStorage (check both possible keys)
-        const token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
+        // Try to get token from sessionStorage (check both possible keys)
+        const token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
         return token;
     }
 

@@ -25,11 +25,14 @@ window.BDC_CONFIG = {
 
     // Application Settings
     APP_NAME: 'BDC Inventory Management System',
-    VERSION: '1.0.0'
+    VERSION: '1.0.0',
+
+    // Set to true ONLY during local development to enable debug logging.
+    // SECURITY: Never deploy with DEBUG_MODE: true — debug logs expose internal
+    // state (user objects, permission names, API request details) in the console.
+    DEBUG_MODE: false
 };
 
 // Make config immutable to prevent accidental modification
 Object.freeze(window.BDC_CONFIG);
 Object.freeze(window.BDC_CONFIG.STORAGE_KEYS);
-
-console.log('BDC Config loaded:', window.BDC_CONFIG.API_BASE_URL);

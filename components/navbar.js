@@ -148,9 +148,9 @@ class SharedNavbar {
         // Global search (if needed in specific pages)
         const globalSearch = document.getElementById('globalSearch');
         if (globalSearch) {
-            globalSearch.addEventListener('input', (e) => {
+            globalSearch.addEventListener('input', utils.debounce((e) => {
                 this.handleGlobalSearch(e.target.value);
-            });
+            }, 300));
         }
     }
 
@@ -172,10 +172,10 @@ class SharedNavbar {
      */
     handleLogout() {
         // Clear authentication data
-        localStorage.removeItem('bdc_token');
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('bdc_refresh_token');
-        localStorage.removeItem('bdc_user');
+        sessionStorage.removeItem('bdc_token');
+        sessionStorage.removeItem('jwt_token');
+        sessionStorage.removeItem('bdc_refresh_token');
+        sessionStorage.removeItem('bdc_user');
 
         // Redirect to login
         window.location.href = '/ims_frontend/';

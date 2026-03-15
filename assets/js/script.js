@@ -21,6 +21,10 @@ const SECURITY_CONFIG = {
     MAX_ATTEMPTS: 5,
     LOCKOUT_TIME: 30 * 1000, // 30 seconds
     USERNAME_REGEX: /^[a-zA-Z0-9_.-]+$/, // Allow only alphanumeric, dot, underscore, dash
+    // UX-ONLY: These client-side SQL injection pattern checks prevent visibly malformed
+    // input from being submitted and provide user feedback. They are NOT a security control.
+    // The backend must use parameterized/prepared statements to prevent actual SQL injection —
+    // no client-side check can substitute for this.
     SQL_INJECTION_PATTERNS: [
         /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
         /((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/i,
@@ -30,6 +34,11 @@ const SECURITY_CONFIG = {
     ]
 };
 
+// UX-ONLY: These localStorage-based rate limiting counters provide user feedback
+// (countdown timer, disabled button) and slow down casual manual attempts.
+// They are NOT a security control — any user can clear localStorage to bypass them.
+// Real rate limiting must be enforced server-side. The login handler also handles
+// HTTP 429 responses from the backend when they occur.
 let failedAttempts = parseInt(localStorage.getItem('bdc_failed_attempts') || '0');
 let lockoutUntil = parseInt(localStorage.getItem('bdc_lockout_until') || '0');
 
@@ -338,10 +347,10 @@ async function handleLogin(e) {
         const response = await loginUser(username, password);
 
         if (response.success) {
-            // Store JWT token and user data
-            localStorage.setItem('bdc_token', response.data.tokens.access_token);
-            localStorage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
-            localStorage.setItem('bdc_user', JSON.stringify(response.data.user));
+            // Store JWT token and user data in sessionStorage (expires on tab close)
+            sessionStorage.setItem('bdc_token', response.data.tokens.access_token);
+            sessionStorage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
+            sessionStorage.setItem('bdc_user', JSON.stringify(response.data.user));
 
             // Reset failed attempts on success
             failedAttempts = 0;
@@ -531,6 +540,16 @@ async function loginUser(username, password) {
         body: formData
     });
 
+    // Handle server-side rate limiting — surface the server's message to the user
+    if (response.status === 429) {
+        let serverMsg = 'Too many login attempts. Please wait and try again.';
+        try {
+            const errBody = await response.json();
+            if (errBody.message) serverMsg = errBody.message;
+        } catch (_) {}
+        throw new Error(serverMsg);
+    }
+
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -695,7 +714,7 @@ function hideLoading() {
 }
 
 function checkExistingToken() {
-    const token = localStorage.getItem('bdc_token');
+    const token = sessionStorage.getItem('bdc_token');
     if (token) {
         // Verify token validity
         verifyToken(token).then(isValid => {
@@ -704,9 +723,9 @@ function checkExistingToken() {
                 window.location.href = 'pages/dashboard/index.html';
             } else {
                 // Token is invalid, remove it
-                localStorage.removeItem('bdc_token');
-                localStorage.removeItem('bdc_refresh_token');
-                localStorage.removeItem('bdc_user');
+                sessionStorage.removeItem('bdc_token');
+                sessionStorage.removeItem('bdc_refresh_token');
+                sessionStorage.removeItem('bdc_user');
             }
         });
     }
@@ -800,7 +819,7 @@ function clearAutoSavedData() {
 
 // Token refresh functionality
 async function refreshAccessToken() {
-    const refreshToken = localStorage.getItem('bdc_refresh_token');
+    const refreshToken = sessionStorage.getItem('bdc_refresh_token');
     if (!refreshToken) {
         return false;
     }
@@ -819,8 +838,8 @@ async function refreshAccessToken() {
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                localStorage.setItem('bdc_token', result.data.tokens.access_token);
-                localStorage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
+                sessionStorage.setItem('bdc_token', result.data.tokens.access_token);
+                sessionStorage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
                 return true;
             }
         }
@@ -829,9 +848,9 @@ async function refreshAccessToken() {
     }
 
     // Refresh failed, clear tokens
-    localStorage.removeItem('bdc_token');
-    localStorage.removeItem('bdc_refresh_token');
-    localStorage.removeItem('bdc_user');
+    sessionStorage.removeItem('bdc_token');
+    sessionStorage.removeItem('bdc_refresh_token');
+    sessionStorage.removeItem('bdc_user');
     return false;
 }
 

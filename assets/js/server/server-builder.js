@@ -126,13 +126,13 @@ class ServerBuilder {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || localStorage.getItem('jwt_token');
+        const token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
 
         if (!token) {
-            localStorage.removeItem('bdc_token');
-            localStorage.removeItem('jwt_token');
-            localStorage.removeItem('bdc_refresh_token');
-            localStorage.removeItem('bdc_user');
+            sessionStorage.removeItem('bdc_token');
+            sessionStorage.removeItem('jwt_token');
+            sessionStorage.removeItem('bdc_refresh_token');
+            sessionStorage.removeItem('bdc_user');
             window.location.href = this.loginURL;
             return false;
         }

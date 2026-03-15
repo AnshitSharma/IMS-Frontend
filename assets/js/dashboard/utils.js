@@ -552,6 +552,26 @@ window.utils = {
             
             requestAnimationFrame(animate);
         }
+    },
+
+    // Logger utility — gates debug output on BDC_CONFIG.DEBUG_MODE.
+    // SECURITY: Use utils.logger.log() instead of bare console.log() for any output
+    // that could expose internal state (user objects, tokens, permission names).
+    // console.error is always active as errors signal genuine failures, not debug traces.
+    logger: {
+        log(...args) {
+            if (window.BDC_CONFIG && window.BDC_CONFIG.DEBUG_MODE) {
+                console.log(...args);
+            }
+        },
+        warn(...args) {
+            if (window.BDC_CONFIG && window.BDC_CONFIG.DEBUG_MODE) {
+                console.warn(...args);
+            }
+        },
+        error(...args) {
+            console.error(...args);
+        }
     }
 };
 

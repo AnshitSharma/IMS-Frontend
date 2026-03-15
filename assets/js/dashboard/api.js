@@ -8,54 +8,60 @@ window.api = {
     baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php',
     loginURL: window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/',
 
-    // Get auth token from localStorage
+    // SECURITY NOTE: Auth tokens are stored in sessionStorage rather than localStorage.
+    // sessionStorage tokens expire when the tab is closed, limiting the exposure window
+    // for stolen tokens. This does NOT eliminate XSS risk — any script running in this
+    // origin can still read sessionStorage. Proper mitigation requires HttpOnly cookies
+    // managed server-side, which requires backend changes outside this frontend's scope.
+
+    // Get auth token from sessionStorage
     getToken() {
-        return localStorage.getItem('bdc_token');
+        return sessionStorage.getItem('bdc_token');
     },
 
     // Set auth token
     setToken(token) {
         if (token) {
-            localStorage.setItem('bdc_token', token);
+            sessionStorage.setItem('bdc_token', token);
         } else {
-            localStorage.removeItem('bdc_token');
+            sessionStorage.removeItem('bdc_token');
         }
     },
 
     // Get refresh token
     getRefreshToken() {
-        return localStorage.getItem('bdc_refresh_token');
+        return sessionStorage.getItem('bdc_refresh_token');
     },
 
     // Set refresh token
     setRefreshToken(token) {
         if (token) {
-            localStorage.setItem('bdc_refresh_token', token);
+            sessionStorage.setItem('bdc_refresh_token', token);
         } else {
-            localStorage.removeItem('bdc_refresh_token');
+            sessionStorage.removeItem('bdc_refresh_token');
         }
     },
 
     // Get user data
     getUser() {
-        const userData = localStorage.getItem('bdc_user');
+        const userData = sessionStorage.getItem('bdc_user');
         return userData ? JSON.parse(userData) : null;
     },
 
     // Set user data
     setUser(user) {
         if (user) {
-            localStorage.setItem('bdc_user', JSON.stringify(user));
+            sessionStorage.setItem('bdc_user', JSON.stringify(user));
         } else {
-            localStorage.removeItem('bdc_user');
+            sessionStorage.removeItem('bdc_user');
         }
     },
 
     // Clear all auth data
     clearAuth() {
-        localStorage.removeItem('bdc_token');
-        localStorage.removeItem('bdc_refresh_token');
-        localStorage.removeItem('bdc_user');
+        sessionStorage.removeItem('bdc_token');
+        sessionStorage.removeItem('bdc_refresh_token');
+        sessionStorage.removeItem('bdc_user');
     },
 
     // Make API request with automatic token refresh
@@ -103,6 +109,12 @@ window.api = {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 throw parseError;
+            }
+
+            // Handle server-side rate limiting — surface the server's message to the user
+            if (response.status === 429) {
+                const rateLimitMsg = result?.message || 'Too many requests. Please wait before trying again.';
+                throw new Error(rateLimitMsg);
             }
 
             // For non-ok responses, if we have an API message, throw it
@@ -336,8 +348,7 @@ window.api = {
                 requestData.rack_position = rackPosition;
             }
 
-            // Debug logging
-            console.log('API createConfig called with:', {
+            utils.logger.log('API createConfig called with:', {
                 serverName,
                 description,
                 startWith,
@@ -556,20 +567,18 @@ window.api = {
             return !!api.getToken();
         },
 
-        // Check if user has specific permission
+        // UI-ONLY: hasPermission() controls what UI elements are shown or hidden.
+        // It is NOT a security control. Users can manipulate sessionStorage to bypass
+        // these checks. All permission enforcement must happen server-side.
         hasPermission(permission) {
             const user = api.getUser();
-            console.log('[DEBUG] hasPermission called for:', permission);
-            console.log('[DEBUG] User object:', user);
 
             if (!user) {
-                console.log('[DEBUG] No user found, returning false');
                 return false;
             }
 
             // Superadmin bypasses all permission checks
             const isSuperadmin = this.hasRole('superadmin');
-            console.log('[DEBUG] Is superadmin:', isSuperadmin);
 
             if (isSuperadmin) {
                 return true;
@@ -577,15 +586,13 @@ window.api = {
 
             // Check permissions array
             if (!user.permissions) {
-                console.log('[DEBUG] No permissions array, returning false');
                 return false;
             }
-            const hasIt = user.permissions.includes(permission);
-            console.log('[DEBUG] Has permission in array:', hasIt);
-            return hasIt;
+            return user.permissions.includes(permission);
         },
 
-        // Check if user has any of the specified roles
+        // UI-ONLY: hasRole() controls UI visibility only, not server-side access.
+        // Server-side role enforcement must be implemented in the backend API.
         hasRole(roles) {
             const user = api.getUser();
             if (!user) {
