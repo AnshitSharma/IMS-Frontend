@@ -23,6 +23,8 @@ class ServerBuilder {
         this.currentConfig = null;
         this.motherboardDetails = null; // Will store motherboard JSON data
         this.networkConfig = null; // Will store network/NIC config from API
+        this.storageConnectivity = null; // Will store storage_connectivity from API
+        this.slotAssignments = null; // Will store hardware.slots from API (pcie, riser, m2)
         this.selectedComponents = {
             cpu: [],
             motherboard: [],
@@ -206,6 +208,10 @@ class ServerBuilder {
 
                 // Store network config for onboard NIC details lookup
                 this.networkConfig = result.data.hardware?.network || null;
+                // Store storage connectivity for drive bay display
+                this.storageConnectivity = result.data.hardware?.storage_connectivity || null;
+                // Store slot assignments for correct PCIe/riser/M.2 mapping
+                this.slotAssignments = result.data.hardware?.slots || null;
 
                 await this.parseExistingComponents(dataWithComponents);
                 this.renderServerBuilderInterface();
@@ -1640,41 +1646,70 @@ class ServerBuilder {
                     </div>
                 ` : ''}
 
-                <!-- Motherboard Usage -->
+                <!-- Server Usage -->
                 ${this.selectedComponents.motherboard.length > 0 ? `
                     <div class="bg-surface-card border border-border-light rounded-xl p-6 mb-6">
-                        <h4 class="text-lg font-semibold text-text-primary m-0 mb-6">Motherboard Usage</h4>
-                        <div class="grid gap-6">
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">CPU Sockets</div>
-                                ${this.renderSocketSlots()}
+                        <h4 class="text-lg font-semibold text-text-primary m-0 mb-6">Server Usage</h4>
+
+                        <!-- Chassis outer wrapper -->
+                        <div class="border-2 border-border-light rounded-xl p-4 pt-6 relative mb-4">
+                            <div class="absolute -top-3 left-4 bg-surface-card px-3 flex items-center gap-2">
+                                <i class="fas fa-server text-text-muted text-xs"></i>
+                                <span class="text-xs font-semibold text-text-secondary uppercase tracking-widest">
+                                    Chassis: ${this.chassisDetails?.model || this.selectedComponents.chassis[0]?.component_name || 'Server Chassis'}
+                                </span>
                             </div>
-                            <div class="text-center p-8 bg-gradient-to-br from-surface-secondary to-surface-hover rounded-lg">
-                                <div class="text-xl font-bold text-text-primary mb-2">${this.selectedComponents.motherboard[0]?.serial_number || 'Motherboard'}</div>
-                                <div class="text-sm text-text-secondary">Server Motherboard</div>
+
+                            <!-- Chassis info strip -->
+                            ${this.renderChassisDetails()}
+
+                            <!-- Motherboard inner box -->
+                            <div class="border border-dashed border-border rounded-xl p-4 pt-6 mt-4 relative">
+                                <div class="absolute -top-3 left-4 bg-surface-card px-3 flex items-center gap-2">
+                                    <i class="fas fa-microchip text-text-muted text-xs"></i>
+                                    <span class="text-xs font-semibold text-text-muted uppercase tracking-widest">
+                                        Motherboard: ${this.motherboardDetails?.model || this.selectedComponents.motherboard[0]?.component_name || this.selectedComponents.motherboard[0]?.serial_number || 'Motherboard'}
+                                    </span>
+                                </div>
+                                <div class="grid gap-4">
+                                    <div class="bg-surface-secondary rounded-lg p-4">
+                                        <div class="schematic-section-header">CPU Sockets</div>
+                                        ${this.renderSocketSlots()}
+                                    </div>
+                                    <div class="bg-surface-secondary rounded-lg p-4">
+                                        <div class="schematic-section-header">Memory Slots</div>
+                                        ${this.renderMemorySlots()}
+                                    </div>
+                                    ${this.renderOnboardNICs() ? `
+                                    <div class="bg-surface-secondary rounded-lg p-4">
+                                        <div class="schematic-section-header">Onboard NICs</div>
+                                        ${this.renderOnboardNICs()}
+                                    </div>
+                                    ` : ''}
+                                    <div class="bg-surface-secondary rounded-lg p-4">
+                                        <div class="schematic-section-header">Expansion Slots</div>
+                                        ${this.renderExpansionSlots()}
+                                    </div>
+                                    ${this.renderM2Slots() ? `
+                                    <div class="bg-surface-secondary rounded-lg p-4">
+                                        <div class="schematic-section-header">M.2 Slots</div>
+                                        ${this.renderM2Slots()}
+                                    </div>
+                                    ` : ''}
+                                </div>
                             </div>
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Memory Slots</div>
-                                ${this.renderMemorySlots()}
-                            </div>
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Chassis</div>
-                                ${this.renderChassisDetails()}
-                            </div>
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Caddy Sockets</div>
-                                ${this.renderCaddySockets()}
+
+                            <!-- Drive Bays (inside chassis, outside motherboard) -->
+                            <div class="bg-surface-secondary rounded-lg p-4 mt-4">
+                                <div class="schematic-section-header">Drive Bays</div>
+                                ${this.renderStorageConnectivity()}
                             </div>
                         </div>
-                        <div class="mt-4 grid grid-cols-2 gap-4">
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Expansion Slots</div>
-                                ${this.renderExpansionSlots()}
-                            </div>
-                            <div class="bg-surface-secondary rounded-lg p-4">
-                                <div class="text-sm font-semibold text-text-primary uppercase tracking-wide mb-3">Storage</div>
-                                ${this.renderStorageAndUSB()}
-                            </div>
+
+                        <!-- Caddy Sockets (below chassis box, still in card) -->
+                        <div class="bg-surface-secondary rounded-lg p-4">
+                            <div class="schematic-section-header">Caddy Sockets</div>
+                            ${this.renderCaddySockets()}
                         </div>
                     </div>
                 ` : ''}
@@ -2475,38 +2510,141 @@ class ServerBuilder {
     //     return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
     // }
     /**
-     * Render expansion slots - Dynamic based on motherboard JSON with component types
+     * Render expansion slots using hardware.slots API data for correct slot mapping.
+     * Falls back to sequential assignment when slot data is unavailable.
      */
     renderExpansionSlots() {
         const pcieComponents = this.selectedComponents.pciecard || [];
         const hbaComponents = this.selectedComponents.hbacard || [];
-        const nicComponents = this.selectedComponents.nic || [];
-        const motherboardData = this.motherboardDetails;
+        // Filter out onboard NICs - they render in renderOnboardNICs()
+        const nicComponents = (this.selectedComponents.nic || []).filter(n => !n.uuid?.startsWith('onboard-'));
 
-        // Combine all expansion components with their types
+        // Build UUID → component lookup map with type metadata
+        const componentMap = new Map();
+        pcieComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card' }));
+        hbaComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd' }));
+        nicComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired' }));
+
+        const slotData = this.slotAssignments?.pcie;
+
+        // If we have API slot data, use it for correct placement
+        if (slotData && slotData.total_slots) {
+            let html = '';
+            const usedSlots = slotData.used_slots || {};
+            const slotTypes = ['x16', 'x8', 'x4'];
+
+            // Utilization bar
+            if (slotData.total_count > 0) {
+                const pct = Math.round((slotData.used_count / slotData.total_count) * 100);
+                html += `
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="slot-utilization-bar flex-1">
+                        <div class="slot-utilization-fill" style="width: ${pct}%"></div>
+                    </div>
+                    <span class="text-[11px] text-text-muted">${slotData.used_count}/${slotData.total_count} used</span>
+                </div>`;
+            }
+
+            slotTypes.forEach(type => {
+                const slots = slotData.total_slots[type];
+                if (!slots || slots.length === 0) return;
+
+                html += `<div class="slot-group-header">PCIe ${type.toUpperCase()} Slots</div>`;
+
+                slots.forEach((slotName, idx) => {
+                    const assignedUuid = usedSlots[slotName];
+                    const component = assignedUuid ? componentMap.get(assignedUuid) : null;
+                    const slotLabel = `${type.toUpperCase()} Slot ${idx + 1}`;
+
+                    html += `
+                    <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
+                        <div class="flex justify-between items-center w-full gap-2">
+                            <div class="flex items-center gap-2">
+                                <span class="slot-label">${slotLabel}</span>
+                                <span class="slot-type-badge">${slotName.replace(/_/g, ' ')}</span>
+                            </div>
+                            <span class="${component ? 'slot-component' : 'slot-empty'}">
+                                ${component ? `
+                                    <div class="component-with-type">
+                                        <i class="${component.typeIcon}"></i>
+                                        <span class="component-type">${component.type}:</span>
+                                        <span class="component-name">${component.component_name || component.serial_number}</span>
+                                    </div>
+                                ` : 'Empty'}
+                            </span>
+                        </div>
+                        ${component ? `<div class="text-xs text-text-muted mt-0.5 pl-1">${component.serial_number}</div>` : ''}
+                        ${component && component.type === 'Network Card' ? this.renderSFPPorts(component.uuid) : ''}
+                    </div>`;
+                });
+            });
+
+            // Render riser slots if available
+            const riserData = this.slotAssignments?.riser;
+            if (riserData && riserData.total_slots) {
+                const riserUsed = riserData.used_slots || {};
+                const hasRiserSlots = Object.values(riserData.total_slots).some(arr => arr && arr.length > 0);
+
+                if (hasRiserSlots) {
+                    html += `<div class="slot-group-header mt-4">Riser Slots</div>`;
+                    if (riserData.total_count > 0) {
+                        const pct = Math.round((riserData.used_count / riserData.total_count) * 100);
+                        html += `
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="slot-utilization-bar flex-1">
+                                <div class="slot-utilization-fill" style="width: ${pct}%"></div>
+                            </div>
+                            <span class="text-[11px] text-text-muted">${riserData.used_count}/${riserData.total_count} used</span>
+                        </div>`;
+                    }
+
+                    slotTypes.forEach(type => {
+                        const slots = riserData.total_slots[type];
+                        if (!slots || slots.length === 0) return;
+
+                        slots.forEach((slotName, idx) => {
+                            const assignedUuid = riserUsed[slotName];
+                            const component = assignedUuid ? componentMap.get(assignedUuid) : null;
+
+                            html += `
+                            <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
+                                <div class="flex justify-between items-center w-full gap-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="slot-label">Riser ${type.toUpperCase()} ${idx + 1}</span>
+                                        <span class="slot-type-badge">${slotName.replace(/_/g, ' ')}</span>
+                                    </div>
+                                    <span class="${component ? 'slot-component' : 'slot-empty'}">
+                                        ${component ? `
+                                            <div class="component-with-type">
+                                                <i class="${component.typeIcon}"></i>
+                                                <span class="component-type">${component.type}:</span>
+                                                <span class="component-name">${component.component_name || component.serial_number}</span>
+                                            </div>
+                                        ` : 'Empty'}
+                                    </span>
+                                </div>
+                                ${component ? `<div class="text-xs text-text-muted mt-0.5 pl-1">${component.serial_number}</div>` : ''}
+                            </div>`;
+                        });
+                    });
+                }
+            }
+
+            return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+        }
+
+        // Fallback: no slot assignment data — sequential placement
         const allExpansionComponents = [
-            ...pcieComponents.map(comp => ({
-                ...comp,
-                type: 'PCIe Card',
-                typeIcon: 'fas fa-credit-card'
-            })),
-            ...hbaComponents.map(comp => ({
-                ...comp,
-                type: 'HBA Card',
-                typeIcon: 'fas fa-hdd'
-            })),
-            ...nicComponents.map(comp => ({
-                ...comp,
-                type: 'Network Card',
-                typeIcon: 'fas fa-network-wired'
-            }))
+            ...pcieComponents.map(c => ({ ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card' })),
+            ...hbaComponents.map(c => ({ ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd' })),
+            ...nicComponents.map(c => ({ ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired' }))
         ];
 
-        if (!motherboardData || !motherboardData.expansion_slots) {
-            // Fallback to basic PCIe slots with component types
-            let html = '';
-            const totalSlots = Math.max(4, allExpansionComponents.length);
+        const motherboardData = this.motherboardDetails;
+        let html = '';
 
+        if (!motherboardData || !motherboardData.expansion_slots) {
+            const totalSlots = Math.max(4, allExpansionComponents.length);
             for (let i = 0; i < totalSlots; i++) {
                 const component = allExpansionComponents[i];
                 html += `
@@ -2522,18 +2660,14 @@ class ServerBuilder {
                             </div>
                         ` : 'Empty'}
                     </span>
-                </div>
-            `;
+                </div>`;
             }
             return html;
         }
 
-        let html = '';
         let componentIndex = 0;
-
-        // Handle regular PCIe slots
         if (motherboardData.expansion_slots.pcie_slots) {
-            motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
+            motherboardData.expansion_slots.pcie_slots.forEach(slotGroup => {
                 const slotCount = slotGroup.count || 1;
                 const slotType = slotGroup.type || 'PCIe';
 
@@ -2552,14 +2686,94 @@ class ServerBuilder {
                                 </div>
                             ` : 'Empty'}
                         </span>
-                    </div>
-                `;
+                    </div>`;
                     componentIndex++;
                 }
             });
         }
 
         return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+    }
+
+    /**
+     * Render onboard NICs from hardware.network data with SFP port indicators.
+     */
+    renderOnboardNICs() {
+        const nics = this.networkConfig?.nics?.filter(n => n.source_type === 'onboard') || [];
+        if (nics.length === 0) return '';
+
+        let html = '';
+        nics.forEach(nic => {
+            const specs = nic.specifications || {};
+            const portCount = specs.ports || 0;
+            const isSfpConnector = /sfp/i.test(specs.connector || '');
+
+            html += `
+            <div class="expansion-slot occupied">
+                <div class="flex justify-between items-center w-full gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="slot-label">Onboard NIC</span>
+                        <span class="slot-type-badge">onboard</span>
+                    </div>
+                    <span class="slot-component">
+                        <div class="component-with-type">
+                            <i class="fas fa-network-wired"></i>
+                            <span class="component-name">${specs.controller || nic.uuid}</span>
+                        </div>
+                    </span>
+                </div>
+                <div class="flex items-center gap-3 mt-1 pl-1">
+                    <span class="text-xs text-text-muted">${portCount}× ${specs.speed || ''} ${specs.connector || ''}</span>
+                </div>
+                ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
+            </div>`;
+        });
+
+        return html;
+    }
+
+    /**
+     * Render SFP port indicators for a given NIC.
+     * Shows populated/empty port cages based on matched SFP modules.
+     */
+    renderSFPPorts(nicUuid, portCountOverride) {
+        // Determine port count from networkConfig or override
+        let portCount = portCountOverride || 0;
+        if (!portCount && this.networkConfig?.nics) {
+            const nic = this.networkConfig.nics.find(n => n.uuid === nicUuid);
+            portCount = nic?.specifications?.ports || 0;
+        }
+        if (portCount === 0) return '';
+
+        // Match SFP modules to this NIC
+        // SFP modules may reference parent via slot_position containing NIC UUID
+        const sfpModules = (this.selectedComponents.sfp || []).filter(sfp => {
+            return sfp.slot_position?.includes(nicUuid) || sfp.parent_nic_uuid === nicUuid;
+        });
+
+        // If no explicit linkage, distribute SFPs to first onboard NIC as best guess
+        let effectiveSfps = sfpModules;
+        if (effectiveSfps.length === 0 && nicUuid?.startsWith('onboard-')) {
+            effectiveSfps = this.selectedComponents.sfp || [];
+        }
+
+        let html = `
+        <div class="nic-port-row">
+            <span class="text-[10px] text-text-muted mr-1">SFP:</span>`;
+
+        for (let i = 0; i < portCount; i++) {
+            const sfp = effectiveSfps[i];
+            html += `
+            <div class="sfp-port ${sfp ? 'populated' : 'empty-port'}" title="${sfp ? (sfp.component_name || sfp.serial_number || 'SFP Module') : `Port ${i + 1} - Empty`}">
+            </div>`;
+        }
+
+        // Show SFP count summary
+        const populatedCount = Math.min(effectiveSfps.length, portCount);
+        html += `<span class="text-[10px] text-text-muted ml-1">${populatedCount}/${portCount}</span>`;
+        html += `</div>`;
+
+        return html;
     }
 
 
@@ -2672,6 +2886,214 @@ class ServerBuilder {
 
     //     return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
     // }
+    /**
+     * Render drive bay connectivity using storage_connectivity API data.
+     * Shows a grid of drive bay cells with interface color coding.
+     * Falls back to M.2 slot display if no API data is available.
+     */
+    renderStorageConnectivity() {
+        const conn = this.storageConnectivity;
+
+        if (!conn) return this.renderStorageAndUSB();
+
+        const { drive_bays, connections } = conn;
+        const backplaneInterface = connections[0]?.backplane_interface || null;
+
+        // Find the HBA card that acts as controller
+        const controllerUuid = connections[0]?.controller_uuid;
+        const hbaCard = controllerUuid
+            ? (this.selectedComponents.hbacard || []).find(h => h.uuid === controllerUuid)
+            : null;
+
+        // Summary badges
+        let html = `
+            <div class="flex gap-2 mb-3 flex-wrap items-center">
+                <span class="text-xs px-2 py-1 bg-surface-card rounded border border-border-light font-medium">
+                    ${drive_bays.total} bays
+                </span>
+                <span class="text-xs px-2 py-1 bg-primary/10 text-primary rounded border border-primary/30 font-medium">
+                    ${drive_bays.used} used
+                </span>
+                <span class="text-xs px-2 py-1 bg-surface-secondary rounded border border-border-light">
+                    ${drive_bays.available} free
+                </span>
+                ${backplaneInterface ? `
+                <span class="interface-badge ${this._getInterfaceClass(backplaneInterface)}">
+                    ${backplaneInterface}
+                </span>` : ''}
+            </div>`;
+
+        // Connection path: HBA → Backplane
+        if (hbaCard) {
+            html += `
+            <div class="connection-path">
+                <i class="fas fa-hdd"></i>
+                <span>${hbaCard.component_name || 'HBA Card'}</span>
+                <i class="fas fa-long-arrow-alt-right"></i>
+                <span>Backplane${backplaneInterface ? ` (${backplaneInterface})` : ''}</span>
+                <i class="fas fa-long-arrow-alt-right"></i>
+                <span>Drive Bays</span>
+            </div>`;
+        }
+
+        // Utilization bar
+        if (drive_bays.total > 0) {
+            const pct = Math.round((drive_bays.used / drive_bays.total) * 100);
+            html += `
+            <div class="flex items-center gap-3 mb-3">
+                <div class="slot-utilization-bar flex-1">
+                    <div class="slot-utilization-fill" style="width: ${pct}%"></div>
+                </div>
+                <span class="text-[11px] text-text-muted">${pct}%</span>
+            </div>`;
+        }
+
+        // Build bay map: bay_number → connection data
+        const bayMap = new Map();
+        connections.forEach(c => {
+            bayMap.set(c.bay_number, c);
+        });
+
+        // Drive bay grid
+        const displayBays = Math.min(drive_bays.total, 48); // Cap at 48 for display
+        html += `<div class="drive-bay-grid">`;
+
+        for (let bay = 1; bay <= displayBays; bay++) {
+            const conn = bayMap.get(bay);
+            if (conn) {
+                const interfaceClass = this._getInterfaceClass(conn.storage_interface);
+                const compatIcon = conn.compatibility === 'native' ? 'fas fa-check-circle text-green-400'
+                    : conn.compatibility === 'backward_compatible' ? 'fas fa-exchange-alt text-yellow-400'
+                    : 'fas fa-exclamation-triangle text-red-400';
+
+                html += `
+                <div class="drive-bay-cell occupied" title="${conn.description || ''}">
+                    <span class="bay-number">${bay}</span>
+                    <div class="bay-drive-name">${conn.storage_name}</div>
+                    <div class="bay-interface">
+                        <span class="interface-badge ${interfaceClass}" style="font-size: 8px; padding: 1px 4px;">${this._shortInterface(conn.storage_interface)}</span>
+                    </div>
+                    <div class="mt-1"><i class="${compatIcon}" style="font-size: 9px;" title="${conn.compatibility}"></i></div>
+                </div>`;
+            } else {
+                html += `
+                <div class="drive-bay-cell empty" title="Bay ${bay} - Empty">
+                    <span class="bay-number">${bay}</span>
+                </div>`;
+            }
+        }
+
+        html += `</div>`;
+
+        return html;
+    }
+
+    /**
+     * Get CSS class for a storage interface type.
+     */
+    _getInterfaceClass(iface) {
+        if (!iface) return '';
+        const lower = iface.toLowerCase();
+        if (lower.includes('nvme')) return 'interface-nvme';
+        if (lower.includes('sata')) return 'interface-sata';
+        if (lower.includes('sas')) return 'interface-sas';
+        if (lower.includes('pcie')) return 'interface-pcie';
+        return '';
+    }
+
+    /**
+     * Get short label for storage interface.
+     */
+    _shortInterface(iface) {
+        if (!iface) return '';
+        if (/nvme/i.test(iface)) return 'NVMe';
+        if (/sata/i.test(iface)) return 'SATA';
+        if (/sas/i.test(iface)) return 'SAS';
+        return iface;
+    }
+
+    /**
+     * Render M.2 slots from hardware.slots.m2 or motherboard JSON data.
+     * Returns empty string if no M.2 slots exist.
+     */
+    renderM2Slots() {
+        const m2Data = this.slotAssignments?.m2;
+        const motherboardData = this.motherboardDetails;
+
+        // Try API slot data first
+        if (m2Data && m2Data.total_count > 0) {
+            let html = '';
+
+            // Utilization bar
+            const pct = m2Data.total_count > 0 ? Math.round((m2Data.used_count / m2Data.total_count) * 100) : 0;
+            html += `
+            <div class="flex items-center gap-3 mb-3">
+                <div class="slot-utilization-bar flex-1">
+                    <div class="slot-utilization-fill" style="width: ${pct}%"></div>
+                </div>
+                <span class="text-[11px] text-text-muted">${m2Data.used_count}/${m2Data.total_count} used</span>
+            </div>`;
+
+            // Motherboard M.2 slots
+            if (m2Data.motherboard_slots && m2Data.motherboard_slots.total > 0) {
+                const assignments = m2Data.motherboard_slots.assignments || [];
+                const total = m2Data.motherboard_slots.total;
+
+                for (let i = 0; i < total; i++) {
+                    const assignment = assignments[i];
+                    html += `
+                    <div class="expansion-slot ${assignment ? 'occupied' : 'empty'}">
+                        <span class="slot-label">M.2 Slot ${i + 1}</span>
+                        <span class="${assignment ? 'slot-component' : 'slot-empty'}">
+                            ${assignment ? `
+                                <div class="component-with-type">
+                                    <i class="fas fa-hdd"></i>
+                                    <span class="component-type">NVMe:</span>
+                                    <span class="component-name">${assignment.component_name || assignment.serial_number || 'Storage'}</span>
+                                </div>
+                            ` : 'Empty'}
+                        </span>
+                    </div>`;
+                }
+            }
+
+            // Expansion card M.2 slots
+            if (m2Data.expansion_card_slots && m2Data.expansion_card_slots.total > 0) {
+                html += `<div class="slot-group-header mt-3">Expansion Card M.2</div>`;
+                const providers = m2Data.expansion_card_slots.providers || [];
+                providers.forEach(provider => {
+                    html += `
+                    <div class="expansion-slot empty">
+                        <span class="slot-label">${provider.card_name || 'Expansion'} M.2</span>
+                        <span class="slot-empty">${provider.available || 0} available</span>
+                    </div>`;
+                });
+            }
+
+            return html;
+        }
+
+        // Fallback: try motherboard JSON data
+        if (motherboardData?.storage?.nvme?.m2_slots) {
+            let html = '';
+            motherboardData.storage.nvme.m2_slots.forEach((m2Group, groupIndex) => {
+                const m2Count = m2Group.count || 0;
+                const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
+
+                for (let i = 0; i < m2Count; i++) {
+                    html += `
+                    <div class="expansion-slot empty">
+                        <span class="slot-label">M.2 Slot ${groupIndex * m2Count + i + 1} (${formFactors})</span>
+                        <span class="slot-empty">Empty</span>
+                    </div>`;
+                }
+            });
+            return html;
+        }
+
+        return '';
+    }
+
     /**
      * Render storage - Only show M.2 slots from motherboard JSON
      */

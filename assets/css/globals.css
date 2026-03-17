@@ -1140,6 +1140,140 @@
 }
 
 /* ============================================================
+   SERVER USAGE - SCHEMATIC STYLING
+   ============================================================ */
+
+/* Schematic section headers with left accent */
+.schematic-section-header {
+  @apply text-sm font-semibold text-text-primary uppercase tracking-wide mb-3 pl-3 border-l-2 border-primary;
+}
+
+/* Interface color-coded badges */
+.interface-badge {
+  @apply text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap;
+}
+
+.interface-nvme {
+  @apply bg-blue-500/15 text-blue-400 border border-blue-500/30;
+}
+
+.interface-sata {
+  @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30;
+}
+
+.interface-sas {
+  @apply bg-orange-500/15 text-orange-400 border border-orange-500/30;
+}
+
+.interface-pcie {
+  @apply bg-purple-500/15 text-purple-400 border border-purple-500/30;
+}
+
+/* Slot utilization bar */
+.slot-utilization-bar {
+  @apply w-full h-1.5 rounded-full bg-surface-secondary overflow-hidden;
+}
+
+.slot-utilization-fill {
+  @apply h-full rounded-full transition-all duration-500;
+  background: linear-gradient(90deg, #0D9488, #14B8A6);
+}
+
+/* Drive bay grid */
+.drive-bay-grid {
+  @apply grid gap-2;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (min-width: 640px) {
+  .drive-bay-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .drive-bay-grid {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+/* Drive bay cell */
+.drive-bay-cell {
+  @apply rounded-lg border-2 p-2 text-center transition-all duration-200 relative;
+  min-height: 64px;
+}
+
+.drive-bay-cell.occupied {
+  @apply border-primary bg-primary/5;
+}
+
+.drive-bay-cell.empty {
+  @apply border-border bg-surface-secondary opacity-40;
+}
+
+.drive-bay-cell .bay-number {
+  @apply text-[10px] font-bold text-text-muted absolute top-1 left-1.5;
+}
+
+.drive-bay-cell .bay-drive-name {
+  @apply text-[11px] font-semibold text-text-primary mt-3 leading-tight;
+}
+
+.drive-bay-cell .bay-interface {
+  @apply mt-1;
+}
+
+/* NIC port row */
+.nic-port-row {
+  @apply flex items-center gap-1.5 mt-2;
+}
+
+/* SFP port indicators */
+.sfp-port {
+  @apply w-6 h-4 rounded-sm border transition-all duration-200 flex items-center justify-center;
+}
+
+.sfp-port.populated {
+  @apply bg-teal-500/20 border-teal-500/60;
+}
+
+.sfp-port.populated::after {
+  content: '';
+  @apply w-2 h-1.5 rounded-sm bg-teal-400;
+}
+
+.sfp-port.empty-port {
+  @apply bg-surface-secondary border-border opacity-50;
+}
+
+.sfp-port.empty-port::after {
+  content: '';
+  @apply w-2 h-1.5 rounded-sm bg-text-muted;
+  opacity: 0.3;
+}
+
+/* Connection path indicator */
+.connection-path {
+  @apply flex items-center gap-2 text-xs text-text-muted py-1.5 px-3 my-2 rounded;
+  @apply bg-surface-secondary border-l-2 border-primary;
+}
+
+.connection-path i {
+  @apply text-primary text-[10px];
+  opacity: 0.6;
+}
+
+/* Slot type group header */
+.slot-group-header {
+  @apply text-[11px] font-bold text-text-muted uppercase tracking-widest mt-3 mb-2 first:mt-0;
+}
+
+/* Expansion slot with type badge */
+.expansion-slot .slot-type-badge {
+  @apply text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-secondary text-text-muted uppercase;
+}
+
+/* ============================================================
    PILL BUTTON FILTER SYSTEM
    ============================================================ */
 
