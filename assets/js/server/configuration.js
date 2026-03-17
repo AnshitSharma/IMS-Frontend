@@ -1789,38 +1789,7 @@ class ConfigurationPage {
      * Get mock Caddy data
      */
     getMockCaddies() {
-        return [
-            {
-                id: 'caddy-1',
-                name: 'Dell 2.5" Hot-Swap Caddy',
-                type: 'caddy',
-                formFactor: '2.5"',
-                interface: 'SATA',
-                capacity: '1TB',
-                speed: '6Gbps',
-                rating: 4,
-                reviewCount: 89,
-                price: 49.99,
-                manufacturer: 'dell',
-                compatible: true,
-                compatibilityScore: 0.88
-            },
-            {
-                id: 'caddy-2',
-                name: 'HP 3.5" Hot-Swap Caddy',
-                type: 'caddy',
-                formFactor: '3.5"',
-                interface: 'SATA',
-                capacity: '2TB',
-                speed: '6Gbps',
-                rating: 5,
-                reviewCount: 123,
-                price: 59.99,
-                manufacturer: 'hp',
-                compatible: true,
-                compatibilityScore: 0.91
-            }
-        ];
+        return [];
     }
 
     /**
