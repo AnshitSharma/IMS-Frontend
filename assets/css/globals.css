@@ -1252,6 +1252,19 @@
   opacity: 0.3;
 }
 
+/* RJ45 port indicators */
+.rj45-port {
+  @apply w-5 h-5 rounded border transition-all duration-200 flex items-center justify-center text-[8px] font-bold;
+}
+
+.rj45-port.active {
+  @apply bg-blue-500/20 border-blue-500/60 text-blue-400;
+}
+
+.rj45-port.empty-port {
+  @apply bg-surface-secondary border-border opacity-50 text-text-muted;
+}
+
 /* Connection path indicator */
 .connection-path {
   @apply flex items-center gap-2 text-xs text-text-muted py-1.5 px-3 my-2 rounded;

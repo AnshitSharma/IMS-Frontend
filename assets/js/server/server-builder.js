@@ -2740,9 +2740,33 @@ class ServerBuilder {
                     <span class="text-xs text-text-muted">${speedInfo}</span>
                 </div>
                 ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
+                ${!isSfpConnector && portCount > 0 ? this.renderRJ45Ports(portCount, connectorType) : ''}
             </div>`;
         });
 
+        return html;
+    }
+
+    /**
+     * Render RJ45 port indicators for copper NICs.
+     * Shows port count with visual indicators.
+     */
+    renderRJ45Ports(portCount, connectorType) {
+        if (portCount === 0) return '';
+
+        let html = `
+        <div class="nic-port-row">
+            <span class="text-[10px] text-text-muted mr-1">${connectorType || 'RJ45'}:</span>`;
+
+        for (let i = 0; i < portCount; i++) {
+            html += `
+            <div class="rj45-port active" title="Port ${i + 1} - ${connectorType || 'RJ45'}">
+                ${i + 1}
+            </div>`;
+        }
+
+        html += `<span class="text-[10px] text-text-muted ml-1">${portCount} ports</span>`;
+        html += `</div>`;
         return html;
     }
 
