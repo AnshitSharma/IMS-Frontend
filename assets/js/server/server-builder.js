@@ -1680,10 +1680,10 @@ class ServerBuilder {
                                         <div class="schematic-section-header">Memory Slots</div>
                                         ${this.renderMemorySlots()}
                                     </div>
-                                    ${this.renderOnboardNICs() ? `
+                                    ${this.renderAllNICs() ? `
                                     <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">Onboard NICs</div>
-                                        ${this.renderOnboardNICs()}
+                                        <div class="schematic-section-header">Network Interfaces</div>
+                                        ${this.renderAllNICs()}
                                     </div>
                                     ` : ''}
                                     <div class="bg-surface-secondary rounded-lg p-4">
@@ -2698,38 +2698,57 @@ class ServerBuilder {
     /**
      * Render onboard NICs from hardware.network data with SFP port indicators.
      */
-    renderOnboardNICs() {
-        const nics = this.networkConfig?.nics?.filter(n => n.source_type === 'onboard') || [];
-        if (nics.length === 0) return '';
+    renderAllNICs() {
+        const allNics = this.networkConfig?.nics || [];
+        if (allNics.length === 0) return '';
 
         let html = '';
-        nics.forEach(nic => {
+        allNics.forEach(nic => {
             const specs = nic.specifications || {};
+            const isOnboard = nic.source_type === 'onboard';
             const portCount = specs.ports || 0;
-            const isSfpConnector = /sfp/i.test(specs.connector || '');
+            const connectorType = specs.connector || specs.port_type || '';
+            const isSfpConnector = /sfp/i.test(connectorType);
+
+            // Display name: onboard uses controller, component uses model
+            const displayName = isOnboard
+                ? (specs.controller || nic.uuid)
+                : (specs.model || specs.controller || nic.uuid);
+
+            // Port speed summary
+            const speedInfo = isOnboard
+                ? `${portCount}× ${specs.speed || ''} ${specs.connector || ''}`
+                : `${portCount}× ${(specs.speeds || [])[0] || ''} ${specs.port_type || ''}`;
+
+            const badgeLabel = isOnboard ? 'onboard' : 'add-in';
 
             html += `
             <div class="expansion-slot occupied">
                 <div class="flex justify-between items-center w-full gap-2">
                     <div class="flex items-center gap-2">
-                        <span class="slot-label">Onboard NIC</span>
-                        <span class="slot-type-badge">onboard</span>
+                        <span class="slot-label">${isOnboard ? 'Onboard NIC' : 'NIC Card'}</span>
+                        <span class="slot-type-badge">${badgeLabel}</span>
                     </div>
                     <span class="slot-component">
                         <div class="component-with-type">
                             <i class="fas fa-network-wired"></i>
-                            <span class="component-name">${specs.controller || nic.uuid}</span>
+                            <span class="component-name">${displayName}</span>
                         </div>
                     </span>
                 </div>
                 <div class="flex items-center gap-3 mt-1 pl-1">
-                    <span class="text-xs text-text-muted">${portCount}× ${specs.speed || ''} ${specs.connector || ''}</span>
+                    <span class="text-xs text-text-muted">${speedInfo}</span>
                 </div>
                 ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
             </div>`;
         });
 
         return html;
+    }
+
+    /** @deprecated Use renderAllNICs() instead */
+    renderOnboardNICs() {
+        return this.renderAllNICs();
     }
 
     /**
