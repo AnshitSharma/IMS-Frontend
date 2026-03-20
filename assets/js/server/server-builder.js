@@ -222,7 +222,7 @@ class ServerBuilder {
             }
         } catch (error) {
             console.error('Error loading configuration:', error);
-            this.showAlert('Failed to load server configuration', 'danger');
+            this.showAlert(error.message || 'Failed to load server configuration', 'danger');
             this.renderErrorState('Failed to load server configuration. Please try again.');
         } finally {
             this.hideLoading();
@@ -337,7 +337,9 @@ class ServerBuilder {
                         component_name: comp.component_name || null,
                         quantity: comp.quantity || 1,
                         slot_position: comp.slot_position || '',
-                        added_at: comp.added_at || ''
+                        added_at: comp.added_at || '',
+                        parent_nic_uuid: comp.parent_nic_uuid || null,
+                        port_index: comp.port_index ?? null
                     }));
                 }
             });
@@ -846,7 +848,7 @@ class ServerBuilder {
 
         } catch (error) {
             console.error('Builder: Error loading templates', error);
-            listContainer.innerHTML = '<p class="text-danger text-center p-3">Failed to load templates</p>';
+            listContainer.innerHTML = `<p class="text-danger text-center p-3">${error.message || 'Failed to load templates'}</p>`;
         }
     }
 
@@ -910,7 +912,7 @@ class ServerBuilder {
             }
         } catch (error) {
             console.error('Preview error:', error);
-            previewContainer.innerHTML = '<p class="text-danger">Error loading template</p>';
+            previewContainer.innerHTML = `<p class="text-danger">${error.message || 'Error loading template'}</p>`;
         }
     }
 
@@ -1205,7 +1207,7 @@ class ServerBuilder {
 
         } catch (error) {
             console.error('Import error:', error);
-            this.showAlert('An unexpected error occurred during import.', 'danger');
+            this.showAlert(error.message || 'An unexpected error occurred during import.', 'danger');
         } finally {
             this.setImportBusy(false, 'Import Template');
         }
@@ -3315,7 +3317,7 @@ class ServerBuilder {
             }
         } catch (error) {
             console.error('Error removing component:', error);
-            this.showAlert('Failed to remove component', 'danger');
+            this.showAlert(error.message || 'Failed to remove component', 'danger');
         } finally {
             this.hideLoading();
         }

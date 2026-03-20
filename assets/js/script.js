@@ -373,7 +373,13 @@ async function handleLogin(e) {
         }
     } catch (error) {
         console.error('Login error:', error);
-        showAlert('error', 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
+        const isNetworkError = !error.message || error.message.startsWith('HTTP error!') || error.message === 'Failed to fetch';
+        if (!isNetworkError) {
+            handleFailedLogin();
+            showAlert('error', error.message, 'fas fa-times-circle');
+        } else {
+            showAlert('error', 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
+        }
     } finally {
         setButtonLoading('loginBtn', false);
     }
@@ -415,7 +421,7 @@ async function handleRegister(e) {
         }
     } catch (error) {
         console.error('Registration error:', error);
-        showAlert('error', 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
+        showAlert('error', error.message || 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
     } finally {
         setButtonLoading('registerBtn', false);
     }
@@ -472,7 +478,7 @@ async function handleForgotPassword(e) {
         document.getElementById('forgotPasswordForm').reset();
     } catch (error) {
         console.error('Forgot password error:', error);
-        showAlert('error', 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
+        showAlert('error', error.message || 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
     } finally {
         setButtonLoading('forgotSubmitBtn', false);
     }
@@ -526,6 +532,15 @@ function validateRegisterForm(username, email, password, confirmPassword) {
     return isValid;
 }
 
+// Helper: extract API message from a non-ok fetch response
+async function parseAPIError(response) {
+    try {
+        const body = await response.json();
+        if (body.message) return new Error(body.message);
+    } catch (_) {}
+    return new Error(`HTTP error! status: ${response.status}`);
+}
+
 // API Functions - Updated to use request body instead of URL parameters
 async function loginUser(username, password) {
     // Create form data for request body
@@ -551,7 +566,7 @@ async function loginUser(username, password) {
     }
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw await parseAPIError(response);
     }
 
     return await response.json();
@@ -571,7 +586,7 @@ async function registerUser(username, email, password) {
     });
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw await parseAPIError(response);
     }
 
     return await response.json();
@@ -589,7 +604,7 @@ async function forgotPasswordUser(email) {
     });
 
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw await parseAPIError(response);
     }
 
     return await response.json();
