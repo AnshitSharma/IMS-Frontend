@@ -211,7 +211,7 @@ class Dashboard {
         thead.innerHTML = `
             <tr>
                 <th><input type="checkbox" id="selectAllComponents"></th>
-                <th>Serial Number</th><th>Status</th><th>Server UUID</th><th>Location</th><th>Purchase Date</th><th>Actions</th>
+                <th>Model</th><th>Status</th><th>Server UUID</th><th>Location</th><th>Purchase Date</th><th>Actions</th>
             </tr>
         `;
     }
@@ -525,14 +525,16 @@ class Dashboard {
             return;
         }
         tbody.innerHTML = components.map(component => {
-            // Handle null SerialNumber - fallback to UUID or "N/A"
+            const modelName = component.ModelName || null;
             const serialNumber = component.SerialNumber || component.UUID || 'N/A';
             const location = component.Location || '-';
+            const primaryDisplay = modelName ? utils.escapeHtml(modelName) : utils.escapeHtml(serialNumber);
+            const secondaryDisplay = modelName ? `<br><small style="color: var(--text-muted); font-family: monospace;">${utils.escapeHtml(serialNumber)}</small>` : '';
 
             return `
             <tr class="h-16">
                 <td class="px-4 py-3 align-middle h-16" data-label="Select"><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Serial Number"><strong>${utils.escapeHtml(serialNumber)}</strong>${component.UUID && component.SerialNumber ? `<br><small style="color: var(--text-muted); font-family: monospace;">${component.UUID}</small>` : ''}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Model"><strong>${primaryDisplay}</strong>${secondaryDisplay}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Status">${utils.createStatusBadge(component.Status)}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code>${utils.truncateText(component.ServerUUID, 20)}</code>` : '-'}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Location">${utils.escapeHtml(location)}</td>
