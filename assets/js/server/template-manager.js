@@ -16,13 +16,10 @@ class TemplateManager {
         try {
             // Fetch active server configs (status=1)
             // We fetch a larger batch to find templates
-            const result = await serverAPI.getServerConfigs(100, 0, 1, { silent: true });
+            const result = await serverAPI.listTemplates(100, 0, { silent: true });
 
             if (result.success && result.data && result.data.configurations) {
-                // Filter for virtual servers (templates)
-                return result.data.configurations.filter(
-                    server => server.is_virtual == 1 || server.is_virtual === true
-                );
+                return result.data.configurations;
             }
             return [];
         } catch (error) {

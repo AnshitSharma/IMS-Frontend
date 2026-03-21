@@ -86,6 +86,15 @@ class ServerAPI {
         }, options);
     }
 
+    async listTemplates(limit = 100, offset = 0, options = {}) {
+        return await this.makeRequest({
+            action: 'server-list-configs',
+            limit: limit,
+            offset: offset,
+            include_virtual: 'true'
+        }, options);
+    }
+
     async getServerConfig(configUuid, options = {}) {
         return await this.makeRequest({
             action: 'server-get-config',
