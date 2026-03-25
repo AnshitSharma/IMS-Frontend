@@ -252,7 +252,7 @@ window.initACL = function () {
             initializeAcl();
         } catch (error) {
             console.error('Error fetching permissions:', error);
-            permissionsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load permissions. Error: ${error.message}</p></div>`;
+            permissionsContainer.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load permissions. Error: ${escapeHtml(error.message)}</p></div>`;
         }
     }
 

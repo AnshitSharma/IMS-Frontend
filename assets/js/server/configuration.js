@@ -2078,9 +2078,9 @@ class ConfigurationPage {
                     </div>
                 </td>
                 <td class="px-4 py-3">
-                    <div class="font-semibold text-sm text-text-primary">${component.name}</div>
+                    <div class="font-semibold text-sm text-text-primary">${this.escapeHtml(component.name)}</div>
                     ${component.serial_number && component.serial_number !== 'N/A' ? `
-                        <div class="text-xs text-text-muted mt-1">S/N: ${component.serial_number}</div>
+                        <div class="text-xs text-text-muted mt-1">S/N: ${this.escapeHtml(component.serial_number)}</div>
                     ` : ''}
                 </td>
                 ${this.renderComponentSpecsCells(component)}
@@ -2126,26 +2126,32 @@ class ConfigurationPage {
             return defaultValue;
         }
 
+        let result;
+
         // Handle arrays - join with comma or return first element
         if (Array.isArray(value)) {
-            return value.length > 0 ? value.join(', ') : defaultValue;
+            result = value.length > 0 ? value.join(', ') : defaultValue;
         }
-
         // Handle objects - extract first property or stringify
-        if (typeof value === 'object') {
+        else if (typeof value === 'object') {
             // Check if it's a plain object with properties
             const keys = Object.keys(value);
             if (keys.length > 0) {
                 // Return first property value if it's a simple value
                 const firstValue = value[keys[0]];
                 if (typeof firstValue !== 'object') {
-                    return firstValue;
+                    result = firstValue;
+                } else {
+                    result = defaultValue;
                 }
+            } else {
+                result = defaultValue;
             }
-            return defaultValue;
+        } else {
+            result = value;
         }
 
-        return value;
+        return this.escapeHtml(String(result));
     }
 
     /**
@@ -2995,6 +3001,16 @@ class ConfigurationPage {
             // Fallback to alert
             alert(message);
         }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 }
 

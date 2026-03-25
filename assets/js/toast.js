@@ -51,7 +51,7 @@ class ToastNotification {
                 </div>
                 <div class="toast-content">
                     <div class="toast-title">${titleMap[type]}</div>
-                    <div class="toast-message">${message}</div>
+                    <div class="toast-message">${this.escapeHtml(message)}</div>
                 </div>
                 <button class="toast-close" onclick="toastNotification.close('${toastId}')">
                     <i class="fas fa-times"></i>
@@ -82,6 +82,16 @@ class ToastNotification {
         }, duration);
 
         return toastId;
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     /**

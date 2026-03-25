@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>Server Motherboard Explorer - BDC IMS</title>
+
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" crossorigin="anonymous">
+
+    <style>
+        /* ========== 3D Scene Setup ========== */
+        :root {
+            --scene-accent: #57d2c6;
+            --scene-accent-soft: rgba(87, 210, 198, 0.16);
+            --scene-border: rgba(126, 171, 191, 0.16);
+            --scene-text-bright: rgba(219, 232, 242, 0.82);
+            --scene-text-soft: rgba(165, 183, 200, 0.6);
+        }
+
+        .mb-scene {
+            width: 100%;
+            min-height: calc(100vh - 180px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 2200px;
+            perspective-origin: 50% 32%;
+            isolation: isolate;
+            background:
+                radial-gradient(circle at 50% 20%, rgba(28, 58, 76, 0.78) 0%, rgba(28, 58, 76, 0) 32%),
+                radial-gradient(circle at 18% 22%, rgba(40, 122, 148, 0.16) 0%, rgba(40, 122, 148, 0) 26%),
+                radial-gradient(circle at 82% 72%, rgba(39, 171, 151, 0.14) 0%, rgba(39, 171, 151, 0) 28%),
+                linear-gradient(180deg, #111a25 0%, #09101b 52%, #05080f 100%);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            padding: 40px 20px;
+        }
+
+        .mb-scene::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.045), transparent 28%, transparent 72%, rgba(11, 21, 34, 0.34)),
+                repeating-linear-gradient(90deg, rgba(130, 151, 171, 0.035) 0 1px, transparent 1px 76px),
+                repeating-linear-gradient(0deg, rgba(130, 151, 171, 0.03) 0 1px, transparent 1px 64px);
+            mix-blend-mode: screen;
+            opacity: 0.5;
+        }
+
+        .mb-scene::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 56px;
+            width: min(82%, 860px);
+            height: 170px;
+            transform: translateX(-50%);
+            z-index: 0;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.24) 42%, rgba(0, 0, 0, 0) 78%);
+            filter: blur(16px);
+            opacity: 0.92;
+        }
+
+        .mb-scene-rotator {
+            width: 880px;
+            max-width: 95vw;
+            aspect-ratio: 1000 / 700;
+            position: relative;
+            z-index: 1;
+            transform-style: preserve-3d;
+            transform-origin: 50% 48%;
+            transform: rotateX(50deg) rotateY(-8deg) rotateZ(-27deg);
+            transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), filter 0.28s ease;
+            will-change: transform;
+            filter: drop-shadow(0 30px 55px rgba(0, 0, 0, 0.36));
+        }
+
+        .mb-scene-rotator::before {
+            content: '';
+            position: absolute;
+            inset: 46px 68px 68px;
+            border-radius: 18px;
+            pointer-events: none;
+            transform: translateZ(14px);
+            background:
+                radial-gradient(circle at 22% 20%, rgba(113, 238, 222, 0.18) 0%, rgba(113, 238, 222, 0) 34%),
+                linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 32%, rgba(10, 18, 28, 0.2) 68%);
+            filter: blur(28px);
+            opacity: 0.45;
+        }
+
+        .mb-scene-rotator::after {
+            content: '';
+            position: absolute;
+            inset: 38px 46px 80px 42px;
+            border-radius: 10px;
+            pointer-events: none;
+            transform: translateZ(30px);
+            border: 1px solid rgba(96, 182, 195, 0.12);
+            box-shadow: 0 0 32px rgba(76, 178, 188, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            opacity: 0.78;
+        }
+
+        /* ========== Layers ========== */
+        .mb-layer {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+        }
+        .mb-layer svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            overflow: visible;
+        }
+
+        .layer-chassis {
+            transform: translateZ(-24px);
+        }
+        .layer-board {
+            transform: translateZ(36px);
+        }
+        .layer-components {
+            transform: translateZ(84px);
+        }
+
+        /* Chassis dim effect */
+        .layer-chassis svg {
+            opacity: 0.82;
+            filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.2));
+        }
+        .layer-board svg {
+            filter: drop-shadow(0 22px 34px rgba(2, 12, 18, 0.24)) drop-shadow(0 0 26px rgba(42, 140, 160, 0.1));
+        }
+        .layer-components svg {
+            filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.24));
+        }
+
+        /* ========== Component Interaction ========== */
+        .mb-component {
+            cursor: pointer;
+            transition: filter 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
+            transform-box: fill-box;
+            transform-origin: center;
+        }
+        .mb-component:hover {
+            filter: drop-shadow(0 0 18px rgba(87, 210, 198, 0.42)) drop-shadow(0 12px 16px rgba(0, 0, 0, 0.28));
+            transform: translateY(-4px) scale(1.012);
+        }
+        .mb-component .comp-highlight {
+            opacity: 0;
+            transition: opacity 0.22s ease, filter 0.22s ease, transform 0.22s ease;
+            filter: blur(1px) drop-shadow(0 0 12px rgba(87, 210, 198, 0.26));
+        }
+        .mb-component:hover .comp-highlight {
+            opacity: 0.22;
+            transform: scale(1.015);
+        }
+
+        /* ========== Labels & Leader Lines ========== */
+        .component-label {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 7.5px;
+            fill: var(--scene-text-bright);
+            pointer-events: none;
+            letter-spacing: 0.4px;
+            font-weight: 600;
+        }
+        .component-label-sub {
+            font-size: 5.5px;
+            fill: var(--scene-text-soft);
+            font-weight: 400;
+        }
+        .leader-line {
+            stroke: rgba(186, 205, 224, 0.32);
+            stroke-width: 0.6;
+            fill: none;
+        }
+        .leader-dot {
+            fill: rgba(186, 205, 224, 0.42);
+        }
+        .leader-text {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 9px;
+            fill: rgba(219, 232, 242, 0.78);
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .leader-text-sub {
+            font-size: 6.5px;
+            fill: rgba(165, 183, 200, 0.56);
+            font-weight: 400;
+        }
+        .labels-hidden .component-label,
+        .labels-hidden .component-label-sub,
+        .labels-hidden .leader-line,
+        .labels-hidden .leader-dot,
+        .labels-hidden .leader-text,
+        .labels-hidden .leader-text-sub,
+        .labels-hidden .label-group {
+            display: none;
+        }
+
+        /* ========== Trace Animations ========== */
+        @keyframes traceFlowBlue {
+            0% { stroke-dashoffset: 30; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes traceFlowGreen {
+            0% { stroke-dashoffset: 28; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes traceFlowOrange {
+            0% { stroke-dashoffset: 32; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.16; }
+            50% { opacity: 0.4; }
+        }
+
+        .trace-group {
+            mix-blend-mode: screen;
+        }
+        .trace-memory {
+            fill: none;
+            stroke: #59a8ff;
+            stroke-width: 2.1;
+            stroke-dasharray: 8 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 7px rgba(89, 168, 255, 0.32));
+            animation: traceFlowBlue 1.8s linear infinite;
+        }
+        .trace-memory-glow {
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 11;
+            stroke-linecap: round;
+            filter: blur(8px);
+            animation: glowPulse 2.5s ease-in-out infinite;
+        }
+        .trace-pcie {
+            fill: none;
+            stroke: #34d080;
+            stroke-width: 2.1;
+            stroke-dasharray: 8 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 7px rgba(52, 208, 128, 0.28));
+            animation: traceFlowGreen 2.2s linear infinite;
+        }
+        .trace-pcie-glow {
+            fill: none;
+            stroke: #22c55e;
+            stroke-width: 11;
+            stroke-linecap: round;
+            filter: blur(8px);
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+        .trace-storage {
+            fill: none;
+            stroke: #ffb740;
+            stroke-width: 2.1;
+            stroke-dasharray: 8 4;
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 7px rgba(255, 183, 64, 0.28));
+            animation: traceFlowOrange 2.8s linear infinite;
+        }
+        .trace-storage-glow {
+            fill: none;
+            stroke: #f59e0b;
+            stroke-width: 11;
+            stroke-linecap: round;
+            filter: blur(8px);
+            animation: glowPulse 3.5s ease-in-out infinite;
+        }
+        .traces-hidden .trace-group {
+            display: none;
+        }
+        .memory-hidden .trace-memory-group { display: none; }
+        .pcie-hidden .trace-pcie-group { display: none; }
+        .storage-hidden .trace-storage-group { display: none; }
+
+        /* ========== Tooltip ========== */
+        .mv-tooltip {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            background: rgba(10, 15, 25, 0.94);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(13, 148, 136, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            min-width: 200px;
+            max-width: 300px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 30px rgba(13,148,136,0.08);
+            opacity: 0;
+            transform: translateY(10px) scale(0.96);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .mv-tooltip.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .mv-tooltip-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .mv-tooltip-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #0d9488;
+            box-shadow: 0 0 8px #0d9488;
+            flex-shrink: 0;
+        }
+        .mv-tooltip-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .mv-tooltip-role {
+            font-size: 11px;
+            color: #94a3b8;
+            line-height: 1.5;
+            margin-top: 4px;
+        }
+
+        /* ========== Detail Panel ========== */
+        .mv-detail-panel {
+            position: fixed;
+            top: 70px;
+            right: 0;
+            width: 360px;
+            height: calc(100vh - 70px);
+            z-index: 1500;
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            background: rgba(15, 20, 30, 0.97);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255,255,255,0.08);
+        }
+        .mv-detail-panel.open {
+            transform: translateX(0);
+        }
+        .mv-detail-header {
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .mv-detail-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .mv-detail-type {
+            font-size: 11px;
+            color: #0d9488;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-top: 4px;
+        }
+        .mv-detail-close {
+            position: absolute;
+            top: 20px;
+            right: 16px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 6px;
+            border: none;
+            background: none;
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+        .mv-detail-close:hover {
+            color: #f1f5f9;
+        }
+        .mv-detail-body {
+            padding: 20px;
+        }
+        .mv-detail-desc {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        .mv-detail-section-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+        }
+        .mv-spec-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 13px;
+        }
+        .mv-spec-label { color: #64748b; }
+        .mv-spec-value { color: #e2e8f0; font-weight: 600; }
+        .mv-conn-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .mv-conn-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #0d9488;
+            flex-shrink: 0;
+        }
+
+        /* ========== Controls Panel ========== */
+        .mv-controls {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            background: rgba(7, 12, 20, 0.8);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--scene-border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            z-index: 100;
+            min-width: 185px;
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+        }
+        .mv-controls-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #e2e8f0;
+            margin-bottom: 14px;
+            letter-spacing: 0.3px;
+        }
+        .mv-control-group {
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .mv-control-group:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        .mv-control-subtitle {
+            font-size: 9px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 8px;
+        }
+        .mv-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 5px 0;
+            user-select: none;
+        }
+        .mv-toggle input { display: none; }
+        .mv-toggle-slider {
+            width: 34px;
+            height: 18px;
+            background: #1e2838;
+            border-radius: 9px;
+            position: relative;
+            transition: background 0.25s;
+            flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        .mv-toggle-slider::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4a5568;
+            transition: transform 0.25s, background 0.25s;
+        }
+        .mv-toggle input:checked + .mv-toggle-slider {
+            background: rgba(13,148,136,0.3);
+            border-color: rgba(13,148,136,0.4);
+        }
+        .mv-toggle input:checked + .mv-toggle-slider::after {
+            transform: translateX(16px);
+            background: #0d9488;
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.blue {
+            background: rgba(59,130,246,0.25);
+            border-color: rgba(59,130,246,0.35);
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.blue::after {
+            background: #3b82f6;
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.green {
+            background: rgba(34,197,94,0.25);
+            border-color: rgba(34,197,94,0.35);
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.green::after {
+            background: #22c55e;
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.orange {
+            background: rgba(245,158,11,0.25);
+            border-color: rgba(245,158,11,0.35);
+        }
+        .mv-toggle input:checked + .mv-toggle-slider.orange::after {
+            background: #f59e0b;
+        }
+        .mv-toggle-label {
+            font-size: 12px;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+
+        /* ========== Title Bar ========== */
+        .mv-title-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .mv-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--color-text-primary, #f1f5f9);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mv-title i {
+            color: #0d9488;
+        }
+        .mv-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid var(--color-border, #334155);
+            background: var(--color-surface-card, #1e293b);
+            color: var(--color-text-secondary, #94a3b8);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .mv-btn:hover {
+            border-color: #0d9488;
+            color: #0d9488;
+        }
+
+        /* ========== PCB visual details ========== */
+        .pcb-texture { opacity: 0.12; }
+        .chassis-detail { opacity: 0.56; }
+
+        @media (max-width: 1024px) {
+            .mb-scene {
+                min-height: calc(100vh - 150px);
+                padding: 108px 16px 28px;
+            }
+
+            .mb-scene-rotator {
+                max-width: 100%;
+            }
+
+            .mv-controls {
+                top: 12px;
+                left: 12px;
+                padding: 14px 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .mb-scene {
+                padding: 150px 10px 18px;
+                border-radius: 16px;
+            }
+
+            .mv-controls {
+                left: 50%;
+                transform: translateX(-50%);
+                width: min(92vw, 340px);
+            }
+
+            .mv-title {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-surface-main">
+    <!-- Navigation Header -->
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                    id="hamburgerBtn" aria-label="Toggle Menu">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <a href="./index.html" class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
+                    <i class="fas fa-server"></i>
+                    <span>BDC Inventory</span>
+                </a>
+            </div>
+            <div class="nav-menu flex items-center gap-4">
+                <div class="nav-user flex items-center gap-3">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+                    <div class="user-info text-right hidden md:block">
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
+                    </div>
+                    <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown relative">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                            <a href="#" id="changePassword" class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-key"></i> Change Password
+                            </a>
+                            <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <div id="sidebar-placeholder"></div>
+
+            <main class="main-content flex-1 p-6">
+                <!-- Title Bar -->
+                <div class="mv-title-bar">
+                    <span class="mv-title">
+                        <i class="fas fa-microchip"></i>
+                        Enterprise Datacenter Motherboard: Interactive Visualization Explorer
+                    </span>
+                    <button class="mv-btn" id="btnToggleLabels">
+                        <i class="fas fa-tag"></i> Toggle Labels
+                    </button>
+                </div>
+
+                <!-- 3D Scene -->
+                <div class="mb-scene" id="mb-scene">
+                    <!-- Controls Panel (overlay) -->
+                    <div class="mv-controls">
+                        <div class="mv-controls-title">Controls</div>
+                        <div class="mv-control-group">
+                            <label class="mv-toggle">
+                                <input type="checkbox" checked id="ctrlLabels">
+                                <span class="mv-toggle-slider"></span>
+                                <span class="mv-toggle-label">Label View</span>
+                            </label>
+                            <label class="mv-toggle">
+                                <input type="checkbox" checked id="ctrlTraces">
+                                <span class="mv-toggle-slider"></span>
+                                <span class="mv-toggle-label">Data Flow Animation</span>
+                            </label>
+                        </div>
+                        <div class="mv-control-group">
+                            <div class="mv-control-subtitle">Connection Layers</div>
+                            <label class="mv-toggle">
+                                <input type="checkbox" checked id="ctrlMemory">
+                                <span class="mv-toggle-slider blue"></span>
+                                <span class="mv-toggle-label">CPU / Memory</span>
+                            </label>
+                            <label class="mv-toggle">
+                                <input type="checkbox" checked id="ctrlPCIe">
+                                <span class="mv-toggle-slider green"></span>
+                                <span class="mv-toggle-label">PCIe / Expansion</span>
+                            </label>
+                            <label class="mv-toggle">
+                                <input type="checkbox" checked id="ctrlStorage">
+                                <span class="mv-toggle-slider orange"></span>
+                                <span class="mv-toggle-label">Storage</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3D Rotator -->
+                    <div class="mb-scene-rotator" id="mb-scene-rotator">
+
+                        <!-- ==================== LAYER 1: CHASSIS ==================== -->
+                        <div class="mb-layer layer-chassis">
+                            <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+                                <defs>
+                                    <linearGradient id="chassisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#2a2f38"/>
+                                        <stop offset="50%" stop-color="#1c2028"/>
+                                        <stop offset="100%" stop-color="#14171e"/>
+                                    </linearGradient>
+                                    <linearGradient id="chassisSideGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#1a1e26"/>
+                                        <stop offset="100%" stop-color="#22272f"/>
+                                    </linearGradient>
+                                    <linearGradient id="driveFaceGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#1a1e28"/>
+                                        <stop offset="100%" stop-color="#0e1118"/>
+                                    </linearGradient>
+                                    <filter id="chassisShadow" x="-10%" y="-10%" width="125%" height="130%">
+                                        <feDropShadow dx="8" dy="12" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/>
+                                    </filter>
+                                </defs>
+
+                                <!-- Chassis shadow on floor -->
+                                <rect x="30" y="30" width="960" height="670" rx="6" fill="#000" opacity="0.3" filter="url(#chassisShadow)"/>
+
+                                <!-- Chassis body -->
+                                <rect x="0" y="0" width="1000" height="700" rx="6" fill="url(#chassisGrad)" stroke="#3a4050" stroke-width="1.5"/>
+
+                                <!-- Chassis inner cavity (where board sits) -->
+                                <rect x="18" y="15" width="964" height="590" rx="3" fill="#0c0f14" stroke="#1a1f28" stroke-width="0.8"/>
+
+                                <!-- Side rails -->
+                                <rect x="0" y="0" width="18" height="700" rx="3 0 0 3" fill="url(#chassisSideGrad)" stroke="#2a3040" stroke-width="0.5"/>
+                                <rect x="982" y="0" width="18" height="700" rx="0 3 3 0" fill="url(#chassisSideGrad)" stroke="#2a3040" stroke-width="0.5"/>
+
+                                <!-- Rail mounting holes -->
+                                <circle cx="9" cy="80" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="9" cy="200" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="9" cy="400" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="9" cy="600" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="991" cy="80" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="991" cy="200" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="991" cy="400" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+                                <circle cx="991" cy="600" r="3" fill="#0a0c10" stroke="#333" stroke-width="0.5"/>
+
+                                <!-- Standoffs (motherboard mounting points) -->
+                                <g fill="#2a3040" stroke="#3a4a5a" stroke-width="0.8">
+                                    <circle cx="80" cy="70" r="5"/>
+                                    <circle cx="500" cy="70" r="5"/>
+                                    <circle cx="920" cy="70" r="5"/>
+                                    <circle cx="80" cy="300" r="5"/>
+                                    <circle cx="500" cy="300" r="5"/>
+                                    <circle cx="920" cy="300" r="5"/>
+                                    <circle cx="80" cy="560" r="5"/>
+                                    <circle cx="500" cy="560" r="5"/>
+                                    <circle cx="920" cy="560" r="5"/>
+                                </g>
+
+                                <!-- Fan zone (mid-section) -->
+                                <g class="chassis-detail" stroke="#1a2030" fill="none" stroke-width="0.6">
+                                    <circle cx="150" cy="630" r="18"/>
+                                    <circle cx="150" cy="630" r="12"/>
+                                    <circle cx="150" cy="630" r="5"/>
+                                    <circle cx="250" cy="630" r="18"/>
+                                    <circle cx="250" cy="630" r="12"/>
+                                    <circle cx="250" cy="630" r="5"/>
+                                    <circle cx="350" cy="630" r="18"/>
+                                    <circle cx="350" cy="630" r="12"/>
+                                    <circle cx="350" cy="630" r="5"/>
+                                </g>
+
+                                <!-- Front panel (drive bays area) -->
+                                <rect x="430" y="612" width="550" height="82" rx="3" fill="#0a0d12" stroke="#1a2030" stroke-width="1"/>
+
+                                <!-- 8x Drive bays -->
+                                <g id="chassis-drive-bays">
+                                    <rect x="445" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="450" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="498" cy="624" r="2" fill="#22c55e" opacity="0.5"/>
+                                    <circle cx="498" cy="630" r="1.5" fill="#3b82f6" opacity="0.4"/>
+
+                                    <rect x="512" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="517" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="565" cy="624" r="2" fill="#22c55e" opacity="0.5"/>
+                                    <circle cx="565" cy="630" r="1.5" fill="#3b82f6" opacity="0.4"/>
+
+                                    <rect x="579" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="584" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="632" cy="624" r="2" fill="#22c55e" opacity="0.5"/>
+                                    <circle cx="632" cy="630" r="1.5" fill="#3b82f6" opacity="0.4"/>
+
+                                    <rect x="646" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="651" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="699" cy="624" r="2" fill="#f59e0b" opacity="0.4"/>
+
+                                    <rect x="713" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="718" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="766" cy="624" r="2" fill="#f59e0b" opacity="0.4"/>
+
+                                    <rect x="780" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="785" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="833" cy="624" r="1.5" fill="#64748b" opacity="0.25"/>
+
+                                    <rect x="847" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="852" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="900" cy="624" r="1.5" fill="#64748b" opacity="0.25"/>
+
+                                    <rect x="914" y="618" width="60" height="70" rx="2" fill="url(#driveFaceGrad)" stroke="#222a38" stroke-width="0.7"/>
+                                    <rect x="919" y="622" width="30" height="3" rx="1" fill="#2a3545"/>
+                                    <circle cx="967" cy="624" r="1.5" fill="#64748b" opacity="0.25"/>
+                                </g>
+
+                                <!-- Chassis label -->
+                                <text x="650" y="698" font-size="5" fill="#2a3545" font-family="monospace" text-anchor="middle">BDC-SRV-2U-RACK | 8-BAY SFF HOT-SWAP</text>
+
+                                <!-- Rear I/O cutout -->
+                                <rect x="60" y="2" width="450" height="12" rx="2" fill="#080a0f" stroke="#1a2030" stroke-width="0.5"/>
+                            </svg>
+                        </div>
+
+                        <!-- ==================== LAYER 2: MOTHERBOARD PCB ==================== -->
+                        <div class="mb-layer layer-board">
+                            <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" id="board-svg">
+                                <defs>
+                                    <linearGradient id="pcbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#10202b"/>
+                                        <stop offset="20%" stop-color="#0d1a25"/>
+                                        <stop offset="58%" stop-color="#0a1620"/>
+                                        <stop offset="100%" stop-color="#08111a"/>
+                                    </linearGradient>
+                                    <radialGradient id="pcbAmbient" cx="28%" cy="18%" r="86%">
+                                        <stop offset="0%" stop-color="#1d4352" stop-opacity="0.74"/>
+                                        <stop offset="36%" stop-color="#163543" stop-opacity="0.28"/>
+                                        <stop offset="100%" stop-color="#08111a" stop-opacity="0"/>
+                                    </radialGradient>
+                                    <radialGradient id="pcbVignette" cx="50%" cy="45%" r="76%">
+                                        <stop offset="58%" stop-color="#02060b" stop-opacity="0"/>
+                                        <stop offset="100%" stop-color="#02060b" stop-opacity="0.46"/>
+                                    </radialGradient>
+                                    <linearGradient id="pcbTopLight" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#edf8ff" stop-opacity="0.15"/>
+                                        <stop offset="8%" stop-color="#d2f6ff" stop-opacity="0.08"/>
+                                        <stop offset="28%" stop-color="#83d1d7" stop-opacity="0.025"/>
+                                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                                    </linearGradient>
+                                    <linearGradient id="boardEdgeStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#6abecb" stop-opacity="0.48"/>
+                                        <stop offset="55%" stop-color="#285766" stop-opacity="0.9"/>
+                                        <stop offset="100%" stop-color="#0c1f2a" stop-opacity="0.82"/>
+                                    </linearGradient>
+                                    <pattern id="pcbTraces" x="0" y="0" width="84" height="84" patternUnits="userSpaceOnUse">
+                                        <path d="M 0 18 H 34 V 34 H 84" stroke="#2f6d78" stroke-width="0.45" fill="none" opacity="0.32"/>
+                                        <path d="M 18 0 V 28 H 48 V 84" stroke="#245563" stroke-width="0.35" fill="none" opacity="0.24"/>
+                                        <path d="M 84 58 H 58 V 76 H 22" stroke="#398493" stroke-width="0.4" fill="none" opacity="0.22"/>
+                                        <path d="M 62 0 V 20 H 74 V 50 H 84" stroke="#2a6473" stroke-width="0.28" fill="none" opacity="0.18"/>
+                                        <circle cx="34" cy="34" r="1.1" fill="#66d2df" opacity="0.22"/>
+                                        <circle cx="48" cy="28" r="0.9" fill="#5dbbc9" opacity="0.18"/>
+                                        <circle cx="58" cy="76" r="1" fill="#8be3ea" opacity="0.16"/>
+                                    </pattern>
+                                    <pattern id="pcbGrid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+                                        <path d="M 28 0 H 0 V 28" stroke="#1a3240" stroke-width="0.45" fill="none" opacity="0.42"/>
+                                    </pattern>
+                                    <pattern id="microVias" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+                                        <circle cx="6" cy="6" r="0.85" fill="#83d9e0" opacity="0.16"/>
+                                        <circle cx="24" cy="14" r="0.75" fill="#59aeb8" opacity="0.14"/>
+                                        <circle cx="16" cy="26" r="0.65" fill="#9fe3e7" opacity="0.12"/>
+                                    </pattern>
+                                    <filter id="boardShadow" x="-10%" y="-10%" width="130%" height="140%">
+                                        <feDropShadow dx="10" dy="18" stdDeviation="20" flood-color="#020406" flood-opacity="0.45"/>
+                                        <feDropShadow dx="0" dy="0" stdDeviation="12" flood-color="#1ec5b7" flood-opacity="0.08"/>
+                                    </filter>
+                                </defs>
+
+                                <!-- Board shadow on chassis -->
+                                <rect x="48" y="36" width="912" height="574" rx="5" fill="#041019" opacity="0.68" filter="url(#boardShadow)"/>
+                                <rect x="54" y="42" width="912" height="574" rx="5" fill="#061018" opacity="0.96"/>
+
+                                <!-- PCB Base -->
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbGrad)" stroke="url(#boardEdgeStroke)" stroke-width="1.3"/>
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbAmbient)"/>
+
+                                <!-- PCB tech textures -->
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbGrid)" class="pcb-texture"/>
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbTraces)" class="pcb-texture"/>
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#microVias)" opacity="0.5"/>
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbTopLight)"/>
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="url(#pcbVignette)"/>
+                                <rect x="43" y="31" width="914" height="572" rx="4" fill="none" stroke="#d7fbff" stroke-opacity="0.06" stroke-width="1"/>
+                                <path d="M 54 42 H 946" stroke="#d8fbff" stroke-opacity="0.08" stroke-width="1"/>
+                                <path d="M 54 42 V 590" stroke="#d8fbff" stroke-opacity="0.04" stroke-width="1"/>
+
+                                <!-- Board edge marking -->
+                                <rect x="40" y="28" width="920" height="578" rx="5" fill="none" stroke="url(#boardEdgeStroke)" stroke-width="0.55" stroke-dasharray="6 3"/>
+
+                                <!-- Mounting holes -->
+                                <g fill="#0a0c10" stroke="#22414f" stroke-width="0.6">
+                                    <circle cx="60" cy="48" r="4.5"/>
+                                    <circle cx="500" cy="48" r="4.5"/>
+                                    <circle cx="940" cy="48" r="4.5"/>
+                                    <circle cx="60" cy="300" r="4.5"/>
+                                    <circle cx="500" cy="300" r="4.5"/>
+                                    <circle cx="940" cy="300" r="4.5"/>
+                                    <circle cx="60" cy="586" r="4.5"/>
+                                    <circle cx="500" cy="586" r="4.5"/>
+                                    <circle cx="940" cy="586" r="4.5"/>
+                                </g>
+
+                                <!-- Static copper traces (subtle) -->
+                                <g stroke="#3a7a88" stroke-width="0.5" fill="none" opacity="0.22">
+                                    <!-- CPU0 to DIMM area -->
+                                    <path d="M 230 210 L 180 210 L 180 150"/>
+                                    <path d="M 230 220 L 175 220 L 175 280"/>
+                                    <path d="M 370 210 L 420 210 L 420 150"/>
+                                    <path d="M 370 220 L 425 220 L 425 280"/>
+                                    <!-- CPU1 to DIMM area -->
+                                    <path d="M 570 210 L 545 210 L 545 150"/>
+                                    <path d="M 570 220 L 540 220 L 540 280"/>
+                                    <path d="M 710 210 L 760 210 L 760 150"/>
+                                    <path d="M 710 220 L 765 220 L 765 280"/>
+                                    <!-- CPU to PCIe -->
+                                    <path d="M 300 290 L 300 400 L 200 400 L 200 430"/>
+                                    <path d="M 310 290 L 310 410 L 210 410 L 210 455"/>
+                                    <!-- CPU to chipset -->
+                                    <path d="M 370 240 L 430 240 L 430 350"/>
+                                    <path d="M 570 240 L 490 240 L 490 350"/>
+                                    <!-- Backplane to drives -->
+                                    <path d="M 550 570 L 550 615"/>
+                                    <path d="M 600 570 L 600 615"/>
+                                </g>
+
+                                <!-- Silkscreen text -->
+                                <text x="480" y="600" font-size="5.5" fill="#7cb6bf" font-family="monospace" opacity="0.42" text-anchor="middle">BDC-SRV-MB-2U | DUAL XEON SP | LGA4189 | REV 2.1</text>
+                                <text x="55" y="600" font-size="4" fill="#79aab5" font-family="monospace" opacity="0.28">PWR</text>
+                                <text x="55" y="55" font-size="4" fill="#79aab5" font-family="monospace" opacity="0.28">I/O</text>
+
+                                <!-- ===== ANIMATED DATA FLOW TRACES ===== -->
+                                <g id="data-flow-traces">
+                                    <!-- Blue: CPU ↔ Memory -->
+                                    <g class="trace-group trace-memory-group">
+                                        <path class="trace-memory-glow" d="M 230 200 L 175 200 L 175 160"/>
+                                        <path class="trace-memory" d="M 230 200 L 175 200 L 175 160"/>
+                                        <path class="trace-memory-glow" d="M 230 230 L 175 230 L 175 270"/>
+                                        <path class="trace-memory" d="M 230 230 L 175 230 L 175 270"/>
+                                        <path class="trace-memory-glow" d="M 370 200 L 420 200 L 420 160"/>
+                                        <path class="trace-memory" d="M 370 200 L 420 200 L 420 160"/>
+                                        <path class="trace-memory-glow" d="M 370 230 L 420 230 L 420 270"/>
+                                        <path class="trace-memory" d="M 370 230 L 420 230 L 420 270"/>
+                                        <path class="trace-memory-glow" d="M 570 200 L 540 200 L 540 160"/>
+                                        <path class="trace-memory" d="M 570 200 L 540 200 L 540 160"/>
+                                        <path class="trace-memory-glow" d="M 570 230 L 540 230 L 540 270"/>
+                                        <path class="trace-memory" d="M 570 230 L 540 230 L 540 270"/>
+                                        <path class="trace-memory-glow" d="M 710 200 L 760 200 L 760 160"/>
+                                        <path class="trace-memory" d="M 710 200 L 760 200 L 760 160"/>
+                                        <path class="trace-memory-glow" d="M 710 230 L 760 230 L 760 270"/>
+                                        <path class="trace-memory" d="M 710 230 L 760 230 L 760 270"/>
+                                    </g>
+
+                                    <!-- Green: PCIe / Expansion -->
+                                    <g class="trace-group trace-pcie-group">
+                                        <path class="trace-pcie-glow" d="M 300 290 L 300 380 L 200 380 L 200 430"/>
+                                        <path class="trace-pcie" d="M 300 290 L 300 380 L 200 380 L 200 430"/>
+                                        <path class="trace-pcie-glow" d="M 310 290 L 310 395 L 210 395 L 210 455"/>
+                                        <path class="trace-pcie" d="M 310 290 L 310 395 L 210 395 L 210 455"/>
+                                        <path class="trace-pcie-glow" d="M 660 290 L 660 400 L 220 400 L 220 480"/>
+                                        <path class="trace-pcie" d="M 660 290 L 660 400 L 220 400 L 220 480"/>
+                                        <!-- NIC/HBA cards -->
+                                        <path class="trace-pcie-glow" d="M 370 430 L 400 430"/>
+                                        <path class="trace-pcie" d="M 370 430 L 400 430"/>
+                                        <path class="trace-pcie-glow" d="M 370 455 L 400 455"/>
+                                        <path class="trace-pcie" d="M 370 455 L 400 455"/>
+                                    </g>
+
+                                    <!-- Orange: Storage -->
+                                    <g class="trace-group trace-storage-group">
+                                        <path class="trace-storage-glow" d="M 580 460 L 850 460 L 850 540 L 550 540 L 550 570"/>
+                                        <path class="trace-storage" d="M 580 460 L 850 460 L 850 540 L 550 540 L 550 570"/>
+                                        <path class="trace-storage-glow" d="M 500 575 L 500 615"/>
+                                        <path class="trace-storage" d="M 500 575 L 500 615"/>
+                                        <path class="trace-storage-glow" d="M 600 575 L 600 615"/>
+                                        <path class="trace-storage" d="M 600 575 L 600 615"/>
+                                        <path class="trace-storage-glow" d="M 700 575 L 700 615"/>
+                                        <path class="trace-storage" d="M 700 575 L 700 615"/>
+                                    </g>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- ==================== LAYER 3: COMPONENTS ==================== -->
+                        <div class="mb-layer layer-components">
+                            <svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg" id="components-svg">
+                                <defs>
+                                    <linearGradient id="hsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#8899aa"/>
+                                        <stop offset="20%" stop-color="#6b7d8e"/>
+                                        <stop offset="55%" stop-color="#4a5a6a"/>
+                                        <stop offset="100%" stop-color="#2d3a48"/>
+                                    </linearGradient>
+                                    <linearGradient id="hsFinGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#8a9aaa"/>
+                                        <stop offset="50%" stop-color="#5a6a7a"/>
+                                        <stop offset="100%" stop-color="#3a4a5a"/>
+                                    </linearGradient>
+                                    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#e0c878"/>
+                                        <stop offset="50%" stop-color="#c9a84c"/>
+                                        <stop offset="100%" stop-color="#a08030"/>
+                                    </linearGradient>
+                                    <linearGradient id="vrmGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#2a2a40"/>
+                                        <stop offset="50%" stop-color="#1a1a2e"/>
+                                        <stop offset="100%" stop-color="#0f0f1a"/>
+                                    </linearGradient>
+                                    <linearGradient id="chipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#1e1e30"/>
+                                        <stop offset="100%" stop-color="#0c0c18"/>
+                                    </linearGradient>
+                                    <linearGradient id="slotGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#2a2a3a"/>
+                                        <stop offset="100%" stop-color="#16162a"/>
+                                    </linearGradient>
+                                    <linearGradient id="dimmBlue" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#1a3860"/>
+                                        <stop offset="100%" stop-color="#0c1e3a"/>
+                                    </linearGradient>
+                                    <linearGradient id="dimmBlack" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#262626"/>
+                                        <stop offset="100%" stop-color="#161616"/>
+                                    </linearGradient>
+                                    <linearGradient id="pwrGrad" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stop-color="#e8e8e8"/>
+                                        <stop offset="100%" stop-color="#b8b8b8"/>
+                                    </linearGradient>
+                                    <linearGradient id="topLight" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#fff" stop-opacity="0.08"/>
+                                        <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+                                    </linearGradient>
+                                    <pattern id="lgaPins" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+                                        <circle cx="2" cy="2" r="0.55" fill="#c9a84c" opacity="0.35"/>
+                                    </pattern>
+                                    <filter id="compShadow" x="-8%" y="-8%" width="120%" height="130%">
+                                        <feDropShadow dx="3" dy="5" stdDeviation="4" flood-color="#000" flood-opacity="0.45"/>
+                                    </filter>
+                                    <filter id="compShadowSm" x="-10%" y="-10%" width="125%" height="130%">
+                                        <feDropShadow dx="2" dy="3" stdDeviation="2.5" flood-color="#000" flood-opacity="0.4"/>
+                                    </filter>
+                                    <filter id="glowFilter" x="-25%" y="-25%" width="150%" height="150%">
+                                        <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur"/>
+                                        <feColorMatrix in="blur" type="matrix"
+                                            values="0 0 0 0 0.05
+                                                    0 0 0 0 0.58
+                                                    0 0 0 0 0.53
+                                                    0 0 0 0.55 0" result="glow"/>
+                                        <feMerge>
+                                            <feMergeNode in="glow"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+
+                                <!-- ===== CPU 0 ===== -->
+                                <g class="mb-component" data-component-id="cpu-0">
+                                    <rect class="comp-highlight" x="228" y="153" width="144" height="144" rx="4" fill="#0d9488"/>
+                                    <rect x="230" y="155" width="140" height="140" rx="3" fill="#1a1a2e" stroke="#333" stroke-width="1" filter="url(#compShadow)"/>
+                                    <rect x="238" y="163" width="124" height="124" rx="2" fill="url(#lgaPins)" stroke="#2a2a3e" stroke-width="0.5"/>
+                                    <rect x="232" y="157" width="136" height="136" rx="2" fill="none" stroke="#4a4a5a" stroke-width="0.8"/>
+                                    <circle cx="232" cy="157" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="368" cy="157" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="232" cy="293" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="368" cy="293" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <rect x="226" y="210" width="3.5" height="30" rx="1" fill="#555" stroke="#777" stroke-width="0.3"/>
+                                    <!-- Heatsink -->
+                                    <rect x="236" y="161" width="128" height="128" rx="2" fill="url(#hsGrad)" filter="url(#compShadowSm)"/>
+                                    <rect x="236" y="161" width="128" height="35" rx="2 2 0 0" fill="url(#topLight)"/>
+                                    <!-- Heatsink fins -->
+                                    <g stroke="#6a7a8a" stroke-width="0.7" opacity="0.45">
+                                        <line x1="244" y1="161" x2="244" y2="289"/>
+                                        <line x1="256" y1="161" x2="256" y2="289"/>
+                                        <line x1="268" y1="161" x2="268" y2="289"/>
+                                        <line x1="280" y1="161" x2="280" y2="289"/>
+                                        <line x1="292" y1="161" x2="292" y2="289"/>
+                                        <line x1="304" y1="161" x2="304" y2="289"/>
+                                        <line x1="316" y1="161" x2="316" y2="289"/>
+                                        <line x1="328" y1="161" x2="328" y2="289"/>
+                                        <line x1="340" y1="161" x2="340" y2="289"/>
+                                        <line x1="352" y1="161" x2="352" y2="289"/>
+                                    </g>
+                                    <text x="300" y="230" class="component-label" text-anchor="middle" font-size="8">CPU 0</text>
+                                    <text x="300" y="242" class="component-label-sub" text-anchor="middle">Xeon SP LGA4189</text>
+                                </g>
+
+                                <!-- ===== CPU 1 ===== -->
+                                <g class="mb-component" data-component-id="cpu-1">
+                                    <rect class="comp-highlight" x="568" y="153" width="144" height="144" rx="4" fill="#0d9488"/>
+                                    <rect x="570" y="155" width="140" height="140" rx="3" fill="#1a1a2e" stroke="#333" stroke-width="1" filter="url(#compShadow)"/>
+                                    <rect x="578" y="163" width="124" height="124" rx="2" fill="url(#lgaPins)" stroke="#2a2a3e" stroke-width="0.5"/>
+                                    <rect x="572" y="157" width="136" height="136" rx="2" fill="none" stroke="#4a4a5a" stroke-width="0.8"/>
+                                    <circle cx="572" cy="157" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="708" cy="157" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="572" cy="293" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <circle cx="708" cy="293" r="3.5" fill="#111" stroke="#444" stroke-width="0.6"/>
+                                    <rect x="566" y="210" width="3.5" height="30" rx="1" fill="#555" stroke="#777" stroke-width="0.3"/>
+                                    <rect x="576" y="161" width="128" height="128" rx="2" fill="url(#hsGrad)" filter="url(#compShadowSm)"/>
+                                    <rect x="576" y="161" width="128" height="35" rx="2 2 0 0" fill="url(#topLight)"/>
+                                    <g stroke="#6a7a8a" stroke-width="0.7" opacity="0.45">
+                                        <line x1="584" y1="161" x2="584" y2="289"/>
+                                        <line x1="596" y1="161" x2="596" y2="289"/>
+                                        <line x1="608" y1="161" x2="608" y2="289"/>
+                                        <line x1="620" y1="161" x2="620" y2="289"/>
+                                        <line x1="632" y1="161" x2="632" y2="289"/>
+                                        <line x1="644" y1="161" x2="644" y2="289"/>
+                                        <line x1="656" y1="161" x2="656" y2="289"/>
+                                        <line x1="668" y1="161" x2="668" y2="289"/>
+                                        <line x1="680" y1="161" x2="680" y2="289"/>
+                                        <line x1="692" y1="161" x2="692" y2="289"/>
+                                    </g>
+                                    <text x="640" y="230" class="component-label" text-anchor="middle" font-size="8">CPU 1</text>
+                                    <text x="640" y="242" class="component-label-sub" text-anchor="middle">Xeon SP LGA4189</text>
+                                </g>
+
+                                <!-- ===== DIMM Bank CPU0-L (6 slots) ===== -->
+                                <g class="mb-component" data-component-id="dimm-cpu0-l">
+                                    <rect class="comp-highlight" x="108" y="130" width="66" height="175" rx="2" fill="#0d9488"/>
+                                    <rect x="112" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="122" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="132" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <rect x="142" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="152" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="162" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <!-- Gold contacts -->
+                                    <g fill="url(#goldGrad)" opacity="0.4">
+                                        <rect x="113" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="123" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="133" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="143" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="153" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="163" y="293" width="5" height="2" rx="0.3"/>
+                                    </g>
+                                    <!-- Clip tabs -->
+                                    <rect x="110" y="132" width="14" height="3" rx="0.5" fill="#d0d0d0" opacity="0.2"/>
+                                    <rect x="110" y="295" width="14" height="3" rx="0.5" fill="#d0d0d0" opacity="0.2"/>
+                                </g>
+
+                                <!-- ===== DIMM Bank CPU0-R (6 slots) ===== -->
+                                <g class="mb-component" data-component-id="dimm-cpu0-r">
+                                    <rect class="comp-highlight" x="383" y="130" width="66" height="175" rx="2" fill="#0d9488"/>
+                                    <rect x="387" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="397" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="407" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <rect x="417" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="427" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="437" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <g fill="url(#goldGrad)" opacity="0.4">
+                                        <rect x="388" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="398" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="408" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="418" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="428" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="438" y="293" width="5" height="2" rx="0.3"/>
+                                    </g>
+                                    <rect x="385" y="132" width="14" height="3" rx="0.5" fill="#d0d0d0" opacity="0.2"/>
+                                    <rect x="385" y="295" width="14" height="3" rx="0.5" fill="#d0d0d0" opacity="0.2"/>
+                                </g>
+
+                                <!-- ===== DIMM Bank CPU1-L (6 slots) ===== -->
+                                <g class="mb-component" data-component-id="dimm-cpu1-l">
+                                    <rect class="comp-highlight" x="483" y="130" width="66" height="175" rx="2" fill="#0d9488"/>
+                                    <rect x="487" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="497" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="507" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <rect x="517" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="527" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="537" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <g fill="url(#goldGrad)" opacity="0.4">
+                                        <rect x="488" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="498" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="508" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="518" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="528" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="538" y="293" width="5" height="2" rx="0.3"/>
+                                    </g>
+                                </g>
+
+                                <!-- ===== DIMM Bank CPU1-R (6 slots) ===== -->
+                                <g class="mb-component" data-component-id="dimm-cpu1-r">
+                                    <rect class="comp-highlight" x="723" y="130" width="66" height="175" rx="2" fill="#0d9488"/>
+                                    <rect x="727" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="737" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="747" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <rect x="757" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="767" y="135" width="7" height="160" rx="1" fill="url(#dimmBlue)" stroke="#2a4a6a" stroke-width="0.5"/>
+                                    <rect x="777" y="135" width="7" height="160" rx="1" fill="url(#dimmBlack)" stroke="#333" stroke-width="0.5"/>
+                                    <g fill="url(#goldGrad)" opacity="0.4">
+                                        <rect x="728" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="738" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="748" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="758" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="768" y="293" width="5" height="2" rx="0.3"/>
+                                        <rect x="778" y="293" width="5" height="2" rx="0.3"/>
+                                    </g>
+                                </g>
+
+                                <!-- ===== VRM CPU0 ===== -->
+                                <g class="mb-component" data-component-id="vrm-cpu0">
+                                    <rect class="comp-highlight" x="218" y="105" width="164" height="35" rx="2" fill="#0d9488"/>
+                                    <g filter="url(#compShadowSm)">
+                                        <rect x="222" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="234" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="246" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="258" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="270" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="282" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="294" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="306" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="318" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="330" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="342" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="354" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="366" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                    </g>
+                                    <rect x="222" y="126" width="152" height="10" rx="1" fill="url(#hsFinGrad)" opacity="0.65"/>
+                                </g>
+
+                                <!-- ===== VRM CPU1 ===== -->
+                                <g class="mb-component" data-component-id="vrm-cpu1">
+                                    <rect class="comp-highlight" x="558" y="105" width="164" height="35" rx="2" fill="#0d9488"/>
+                                    <g filter="url(#compShadowSm)">
+                                        <rect x="562" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="574" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="586" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="598" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="610" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="622" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="634" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="646" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="658" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="670" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="682" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="694" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                        <rect x="706" y="110" width="8" height="14" rx="1" fill="url(#vrmGrad)" stroke="#3a3a4a" stroke-width="0.4"/>
+                                    </g>
+                                    <rect x="562" y="126" width="152" height="10" rx="1" fill="url(#hsFinGrad)" opacity="0.65"/>
+                                </g>
+
+                                <!-- ===== Chipset / PCH ===== -->
+                                <g class="mb-component" data-component-id="pch">
+                                    <rect class="comp-highlight" x="420" y="340" width="60" height="60" rx="3" fill="#0d9488"/>
+                                    <rect x="422" y="342" width="56" height="56" rx="2" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.7" filter="url(#compShadow)"/>
+                                    <rect x="426" y="346" width="48" height="48" rx="2" fill="url(#hsGrad)" opacity="0.75"/>
+                                    <g stroke="#6a7a8a" stroke-width="0.6" opacity="0.35">
+                                        <line x1="432" y1="346" x2="432" y2="394"/>
+                                        <line x1="440" y1="346" x2="440" y2="394"/>
+                                        <line x1="448" y1="346" x2="448" y2="394"/>
+                                        <line x1="456" y1="346" x2="456" y2="394"/>
+                                        <line x1="464" y1="346" x2="464" y2="394"/>
+                                    </g>
+                                    <text x="450" y="375" class="component-label" font-size="5.5" text-anchor="middle" fill="#8898a8">PCH</text>
+                                </g>
+
+                                <!-- ===== NVMe M.2 Slot 0 ===== -->
+                                <g class="mb-component" data-component-id="nvme-0">
+                                    <rect class="comp-highlight" x="288" y="348" width="100" height="20" rx="2" fill="#0d9488"/>
+                                    <rect x="290" y="350" width="96" height="16" rx="1.5" fill="#161626" stroke="#2a3a4a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="293" y="353" width="22" height="10" rx="1" fill="url(#goldGrad)" opacity="0.4"/>
+                                    <rect x="320" y="354" width="16" height="8" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <rect x="342" y="354" width="16" height="8" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <circle cx="382" cy="358" r="2.5" fill="#2a2a3a" stroke="#444" stroke-width="0.3"/>
+                                </g>
+
+                                <!-- ===== NVMe M.2 Slot 1 ===== -->
+                                <g class="mb-component" data-component-id="nvme-1">
+                                    <rect class="comp-highlight" x="288" y="374" width="100" height="20" rx="2" fill="#0d9488"/>
+                                    <rect x="290" y="376" width="96" height="16" rx="1.5" fill="#161626" stroke="#2a3a4a" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <rect x="293" y="379" width="22" height="10" rx="1" fill="url(#goldGrad)" opacity="0.4"/>
+                                    <rect x="320" y="380" width="16" height="8" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <rect x="342" y="380" width="16" height="8" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <circle cx="382" cy="384" r="2.5" fill="#2a2a3a" stroke="#444" stroke-width="0.3"/>
+                                </g>
+
+                                <!-- ===== BMC / IPMI ===== -->
+                                <g class="mb-component" data-component-id="bmc">
+                                    <rect class="comp-highlight" x="718" y="345" width="55" height="45" rx="2" fill="#0d9488"/>
+                                    <rect x="720" y="347" width="51" height="41" rx="2" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.6" filter="url(#compShadow)"/>
+                                    <text x="746" y="372" font-size="4" fill="#4a5568" text-anchor="middle" font-family="monospace">ASPEED</text>
+                                    <text x="746" y="380" font-size="3.5" fill="#3a4558" text-anchor="middle" font-family="monospace">AST2600</text>
+                                </g>
+
+                                <!-- ===== PCIe x16 Slot 1 ===== -->
+                                <g class="mb-component" data-component-id="pcie-1">
+                                    <rect class="comp-highlight" x="118" y="418" width="248" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="120" y="420" width="244" height="18" rx="2" fill="url(#slotGrad)" stroke="#3a3a4a" stroke-width="0.6" filter="url(#compShadowSm)"/>
+                                    <rect x="126" y="424" width="230" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.35"/>
+                                    <rect x="126" y="430" width="230" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.25"/>
+                                    <rect x="188" y="420" width="3" height="18" fill="#083216"/>
+                                    <rect x="362" y="423" width="5" height="12" rx="1" fill="#4a4a5a" stroke="#5a5a6a" stroke-width="0.3"/>
+                                </g>
+
+                                <!-- ===== PCIe x16 Slot 2 ===== -->
+                                <g class="mb-component" data-component-id="pcie-2">
+                                    <rect class="comp-highlight" x="118" y="444" width="248" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="120" y="446" width="244" height="18" rx="2" fill="url(#slotGrad)" stroke="#3a3a4a" stroke-width="0.6" filter="url(#compShadowSm)"/>
+                                    <rect x="126" y="450" width="230" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.35"/>
+                                    <rect x="126" y="456" width="230" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.25"/>
+                                    <rect x="188" y="446" width="3" height="18" fill="#083216"/>
+                                    <rect x="362" y="449" width="5" height="12" rx="1" fill="#4a4a5a"/>
+                                </g>
+
+                                <!-- ===== PCIe x8 Slot 3 ===== -->
+                                <g class="mb-component" data-component-id="pcie-3">
+                                    <rect class="comp-highlight" x="118" y="470" width="175" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="120" y="472" width="171" height="18" rx="2" fill="url(#slotGrad)" stroke="#3a3a4a" stroke-width="0.6" filter="url(#compShadowSm)"/>
+                                    <rect x="126" y="476" width="157" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.35"/>
+                                    <rect x="126" y="482" width="157" height="4" rx="0.5" fill="url(#goldGrad)" opacity="0.25"/>
+                                    <rect x="188" y="472" width="3" height="18" fill="#083216"/>
+                                    <rect x="289" y="475" width="5" height="12" rx="1" fill="#4a4a5a"/>
+                                </g>
+
+                                <!-- ===== NIC Card (installed) ===== -->
+                                <g class="mb-component" data-component-id="nic">
+                                    <rect class="comp-highlight" x="388" y="414" width="200" height="28" rx="3" fill="#0d9488"/>
+                                    <rect x="390" y="416" width="196" height="24" rx="2" fill="#0a2818" stroke="#1a4a2a" stroke-width="0.5" filter="url(#compShadow)"/>
+                                    <rect x="578" y="414" width="4" height="28" fill="#999" opacity="0.5"/>
+                                    <!-- RJ45 ports -->
+                                    <rect x="546" y="420" width="12" height="10" rx="1" fill="#2a2a2a" stroke="#444" stroke-width="0.4"/>
+                                    <rect x="546" y="422" width="8" height="6" rx="0.5" fill="#111"/>
+                                    <rect x="562" y="420" width="12" height="10" rx="1" fill="#2a2a2a" stroke="#444" stroke-width="0.4"/>
+                                    <rect x="562" y="422" width="8" height="6" rx="0.5" fill="#111"/>
+                                    <!-- Controller chip -->
+                                    <rect x="430" y="422" width="18" height="12" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <!-- LEDs -->
+                                    <circle cx="550" cy="432" r="1.3" fill="#22c55e" opacity="0.65"/>
+                                    <circle cx="566" cy="432" r="1.3" fill="#f59e0b" opacity="0.65"/>
+                                </g>
+
+                                <!-- ===== HBA Card (installed) ===== -->
+                                <g class="mb-component" data-component-id="hba">
+                                    <rect class="comp-highlight" x="388" y="444" width="200" height="28" rx="3" fill="#0d9488"/>
+                                    <rect x="390" y="446" width="196" height="24" rx="2" fill="#1a0a0a" stroke="#4a2a2a" stroke-width="0.5" filter="url(#compShadow)"/>
+                                    <rect x="578" y="444" width="4" height="28" fill="#999" opacity="0.5"/>
+                                    <!-- SAS connectors -->
+                                    <rect x="540" y="452" width="16" height="9" rx="1" fill="#222238" stroke="#3a3a5a" stroke-width="0.3"/>
+                                    <rect x="560" y="452" width="16" height="9" rx="1" fill="#222238" stroke="#3a3a5a" stroke-width="0.3"/>
+                                    <!-- Controller -->
+                                    <rect x="440" y="451" width="22" height="14" rx="1" fill="url(#chipGrad)" stroke="#2a2a3a" stroke-width="0.3"/>
+                                    <text x="451" y="461" font-size="3.2" fill="#3a4558" text-anchor="middle" font-family="monospace">LSI</text>
+                                </g>
+
+                                <!-- ===== Riser Slot 1 ===== -->
+                                <g class="mb-component" data-component-id="riser-1">
+                                    <rect class="comp-highlight" x="118" y="498" width="210" height="35" rx="3" fill="#0d9488"/>
+                                    <rect x="120" y="500" width="206" height="31" rx="2" fill="#161626" stroke="#2a3a4a" stroke-width="0.6" filter="url(#compShadow)"/>
+                                    <rect x="128" y="506" width="190" height="5" rx="1" fill="url(#goldGrad)" opacity="0.4"/>
+                                    <rect x="130" y="514" width="186" height="14" rx="1" fill="#1a2535" stroke="#2a3a4a" stroke-width="0.4"/>
+                                    <text x="223" y="525" font-size="4.5" fill="#4a5a6a" text-anchor="middle" font-family="monospace">RISER CARD 1</text>
+                                </g>
+
+                                <!-- ===== Riser Slot 2 ===== -->
+                                <g class="mb-component" data-component-id="riser-2">
+                                    <rect class="comp-highlight" x="348" y="498" width="210" height="35" rx="3" fill="#0d9488"/>
+                                    <rect x="350" y="500" width="206" height="31" rx="2" fill="#161626" stroke="#2a3a4a" stroke-width="0.6" filter="url(#compShadow)"/>
+                                    <rect x="358" y="506" width="190" height="5" rx="1" fill="url(#goldGrad)" opacity="0.4"/>
+                                    <rect x="360" y="514" width="186" height="14" rx="1" fill="#1a2535" stroke="#2a3a4a" stroke-width="0.4"/>
+                                    <text x="453" y="525" font-size="4.5" fill="#4a5a6a" text-anchor="middle" font-family="monospace">RISER CARD 2</text>
+                                </g>
+
+                                <!-- ===== 24-Pin ATX Power ===== -->
+                                <g class="mb-component" data-component-id="power-atx">
+                                    <rect class="comp-highlight" x="848" y="108" width="48" height="95" rx="3" fill="#0d9488"/>
+                                    <rect x="850" y="110" width="44" height="91" rx="3" fill="url(#pwrGrad)" stroke="#aaa" stroke-width="0.6" filter="url(#compShadow)"/>
+                                    <g fill="#333" opacity="0.6">
+                                        <circle cx="860" cy="120" r="2"/><circle cx="868" cy="120" r="2"/><circle cx="876" cy="120" r="2"/><circle cx="884" cy="120" r="2"/>
+                                        <circle cx="860" cy="132" r="2"/><circle cx="868" cy="132" r="2"/><circle cx="876" cy="132" r="2"/><circle cx="884" cy="132" r="2"/>
+                                        <circle cx="860" cy="144" r="2"/><circle cx="868" cy="144" r="2"/><circle cx="876" cy="144" r="2"/><circle cx="884" cy="144" r="2"/>
+                                        <circle cx="860" cy="156" r="2"/><circle cx="868" cy="156" r="2"/><circle cx="876" cy="156" r="2"/><circle cx="884" cy="156" r="2"/>
+                                        <circle cx="860" cy="168" r="2"/><circle cx="868" cy="168" r="2"/><circle cx="876" cy="168" r="2"/><circle cx="884" cy="168" r="2"/>
+                                        <circle cx="860" cy="180" r="2"/><circle cx="868" cy="180" r="2"/><circle cx="876" cy="180" r="2"/><circle cx="884" cy="180" r="2"/>
+                                    </g>
+                                    <rect x="853" y="192" width="9" height="6" rx="1.5" fill="#bbb" stroke="#999" stroke-width="0.4"/>
+                                </g>
+
+                                <!-- ===== 8-Pin EPS (CPU0) ===== -->
+                                <g class="mb-component" data-component-id="eps-0">
+                                    <rect class="comp-highlight" x="218" y="78" width="38" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="220" y="80" width="34" height="18" rx="2" fill="url(#pwrGrad)" stroke="#aaa" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <g fill="#333" opacity="0.6">
+                                        <circle cx="228" cy="86" r="1.6"/><circle cx="236" cy="86" r="1.6"/><circle cx="244" cy="86" r="1.6"/><circle cx="252" cy="86" r="1.6"/>
+                                        <circle cx="228" cy="94" r="1.6"/><circle cx="236" cy="94" r="1.6"/><circle cx="244" cy="94" r="1.6"/><circle cx="252" cy="94" r="1.6"/>
+                                    </g>
+                                </g>
+
+                                <!-- ===== 8-Pin EPS (CPU1) ===== -->
+                                <g class="mb-component" data-component-id="eps-1">
+                                    <rect class="comp-highlight" x="558" y="78" width="38" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="560" y="80" width="34" height="18" rx="2" fill="url(#pwrGrad)" stroke="#aaa" stroke-width="0.5" filter="url(#compShadowSm)"/>
+                                    <g fill="#333" opacity="0.6">
+                                        <circle cx="568" cy="86" r="1.6"/><circle cx="576" cy="86" r="1.6"/><circle cx="584" cy="86" r="1.6"/><circle cx="592" cy="86" r="1.6"/>
+                                        <circle cx="568" cy="94" r="1.6"/><circle cx="576" cy="94" r="1.6"/><circle cx="584" cy="94" r="1.6"/><circle cx="592" cy="94" r="1.6"/>
+                                    </g>
+                                </g>
+
+                                <!-- ===== Backplane Connector ===== -->
+                                <g class="mb-component" data-component-id="backplane">
+                                    <rect class="comp-highlight" x="238" y="553" width="360" height="22" rx="2" fill="#0d9488"/>
+                                    <rect x="240" y="555" width="356" height="18" rx="2" fill="#161626" stroke="#2a3a4a" stroke-width="0.6" filter="url(#compShadowSm)"/>
+                                    <g fill="url(#goldGrad)" opacity="0.35">
+                                        <rect x="250" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="296" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="342" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="388" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="434" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="480" y="559" width="40" height="10" rx="1"/>
+                                        <rect x="526" y="559" width="40" height="10" rx="1"/>
+                                    </g>
+                                </g>
+
+                                <!-- ===== CMOS Battery ===== -->
+                                <g class="mb-component" data-component-id="cmos">
+                                    <rect class="comp-highlight" x="815" y="350" width="30" height="30" rx="15" fill="#0d9488"/>
+                                    <circle cx="830" cy="365" r="12" fill="#c0c0c0" stroke="#999" stroke-width="0.7" filter="url(#compShadowSm)"/>
+                                    <circle cx="830" cy="365" r="8.5" fill="#d4d4d4"/>
+                                    <text x="830" y="368" font-size="3.5" fill="#666" text-anchor="middle" font-family="monospace">CR2032</text>
+                                </g>
+
+                                <!-- ===== IPMI LAN Port ===== -->
+                                <g class="mb-component" data-component-id="ipmi-port">
+                                    <rect class="comp-highlight" x="778" y="347" width="22" height="18" rx="2" fill="#0d9488"/>
+                                    <rect x="780" y="349" width="18" height="14" rx="1" fill="#2a2a2a" stroke="#444" stroke-width="0.4" filter="url(#compShadowSm)"/>
+                                    <rect x="782" y="351" width="12" height="10" rx="0.5" fill="#111"/>
+                                    <circle cx="784" cy="364" r="1.2" fill="#22c55e" opacity="0.55"/>
+                                    <circle cx="790" cy="364" r="1.2" fill="#f59e0b" opacity="0.55"/>
+                                </g>
+
+                                <!-- ===== USB Header ===== -->
+                                <g class="mb-component" data-component-id="usb-header">
+                                    <rect class="comp-highlight" x="818" y="420" width="32" height="16" rx="2" fill="#0d9488"/>
+                                    <rect x="820" y="422" width="28" height="12" rx="1" fill="#161626" stroke="#2a3a4a" stroke-width="0.4" filter="url(#compShadowSm)"/>
+                                    <g fill="url(#goldGrad)" opacity="0.35">
+                                        <rect x="823" y="425" width="3.5" height="6" rx="0.3"/>
+                                        <rect x="828" y="425" width="3.5" height="6" rx="0.3"/>
+                                        <rect x="833" y="425" width="3.5" height="6" rx="0.3"/>
+                                        <rect x="838" y="425" width="3.5" height="6" rx="0.3"/>
+                                    </g>
+                                </g>
+
+                                <!-- ================ LEADER LINE LABELS ================ -->
+                                <g class="label-group">
+                                    <!-- CPU 0 label -->
+                                    <line class="leader-line" x1="300" y1="155" x2="300" y2="68"/>
+                                    <line class="leader-line" x1="300" y1="68" x2="195" y2="68"/>
+                                    <circle class="leader-dot" cx="300" cy="155" r="2"/>
+                                    <text x="192" y="65" class="leader-text" text-anchor="end">CPU 0</text>
+                                    <text x="192" y="76" class="leader-text-sub" text-anchor="end">Intel Xeon Scalable (1 of 2)</text>
+
+                                    <!-- CPU 1 label -->
+                                    <line class="leader-line" x1="640" y1="155" x2="640" y2="68"/>
+                                    <line class="leader-line" x1="640" y1="68" x2="780" y2="68"/>
+                                    <circle class="leader-dot" cx="640" cy="155" r="2"/>
+                                    <text x="783" y="65" class="leader-text">CPU 1</text>
+                                    <text x="783" y="76" class="leader-text-sub">Intel Xeon Scalable (2 of 2)</text>
+
+                                    <!-- DDR5 ECC DIMMs label (right side) -->
+                                    <line class="leader-line" x1="790" y1="215" x2="870" y2="215"/>
+                                    <line class="leader-line" x1="870" y1="215" x2="910" y2="250"/>
+                                    <circle class="leader-dot" cx="790" cy="215" r="2"/>
+                                    <text x="913" y="247" class="leader-text">DDR5 ECC DIMMs</text>
+                                    <text x="913" y="258" class="leader-text-sub">24x Slots (6-Channel per CPU)</text>
+
+                                    <!-- PCIe Slots label -->
+                                    <line class="leader-line" x1="120" y1="455" x2="75" y2="455"/>
+                                    <line class="leader-line" x1="75" y1="455" x2="55" y2="430"/>
+                                    <circle class="leader-dot" cx="120" cy="455" r="2"/>
+                                    <text x="52" y="427" class="leader-text" text-anchor="end">PCIe Gen 5 Slots</text>
+                                    <text x="52" y="438" class="leader-text-sub" text-anchor="end">3x (2x x16, 1x x8)</text>
+
+                                    <!-- NIC label -->
+                                    <line class="leader-line" x1="390" y1="416" x2="370" y2="360"/>
+                                    <line class="leader-line" x1="370" y1="360" x2="85" y2="360"/>
+                                    <circle class="leader-dot" cx="390" cy="416" r="2"/>
+                                    <text x="82" y="357" class="leader-text" text-anchor="end">Dual-Port 25GbE NIC</text>
+                                    <text x="82" y="368" class="leader-text-sub" text-anchor="end">Intel XXV710</text>
+
+                                    <!-- HBA label -->
+                                    <line class="leader-line" x1="390" y1="458" x2="370" y2="400"/>
+                                    <line class="leader-line" x1="370" y1="400" x2="85" y2="400"/>
+                                    <circle class="leader-dot" cx="390" cy="458" r="2"/>
+                                    <text x="82" y="397" class="leader-text" text-anchor="end">NVMe HBA</text>
+                                    <text x="82" y="408" class="leader-text-sub" text-anchor="end">Broadcom 9500-16i</text>
+
+                                    <!-- BMC label -->
+                                    <line class="leader-line" x1="771" y1="367" x2="830" y2="310"/>
+                                    <line class="leader-line" x1="830" y1="310" x2="910" y2="310"/>
+                                    <circle class="leader-dot" cx="771" cy="367" r="2"/>
+                                    <text x="913" y="307" class="leader-text">BMC Chip</text>
+                                    <text x="913" y="318" class="leader-text-sub">ASPEED AST2600</text>
+
+                                    <!-- Backplane label -->
+                                    <line class="leader-line" x1="596" y1="564" x2="700" y2="564"/>
+                                    <line class="leader-line" x1="700" y1="564" x2="910" y2="564"/>
+                                    <circle class="leader-dot" cx="596" cy="564" r="2"/>
+                                    <text x="913" y="561" class="leader-text">Backplane Interface</text>
+                                    <text x="913" y="572" class="leader-text-sub">7x SFF-8643 Mini-SAS HD</text>
+
+                                    <!-- Riser label -->
+                                    <line class="leader-line" x1="120" y1="516" x2="75" y2="516"/>
+                                    <line class="leader-line" x1="75" y1="516" x2="55" y2="500"/>
+                                    <circle class="leader-dot" cx="120" cy="516" r="2"/>
+                                    <text x="52" y="497" class="leader-text" text-anchor="end">Riser Card Slots</text>
+                                    <text x="52" y="508" class="leader-text-sub" text-anchor="end">2x Active Riser (Vertical PCIe)</text>
+
+                                    <!-- ATX Power label -->
+                                    <line class="leader-line" x1="894" y1="155" x2="930" y2="155"/>
+                                    <circle class="leader-dot" cx="894" cy="155" r="2"/>
+                                    <text x="933" y="152" class="leader-text">24-Pin ATX</text>
+                                    <text x="933" y="163" class="leader-text-sub">Main Power</text>
+
+                                    <!-- Drive bays context label (points down toward chassis) -->
+                                    <line class="leader-line" x1="650" y1="575" x2="650" y2="608"/>
+                                    <circle class="leader-dot" cx="650" cy="608" r="2"/>
+                                    <text x="650" y="620" class="leader-text-sub" text-anchor="middle" fill="rgba(160,175,190,0.4)">↓ Chassis Drive Bays (8x 2.5" SFF)</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                    </div><!-- end scene-rotator -->
+                </div><!-- end mb-scene -->
+            </main>
+        </div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="mv-tooltip" id="mv-tooltip">
+        <div class="mv-tooltip-header">
+            <span class="mv-tooltip-dot"></span>
+            <span class="mv-tooltip-name" id="tip-name"></span>
+        </div>
+        <div class="mv-tooltip-role" id="tip-role"></div>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="mv-detail-panel" id="mv-detail-panel">
+        <div class="mv-detail-header" style="position:relative;">
+            <div>
+                <div class="mv-detail-name" id="detail-name"></div>
+                <div class="mv-detail-type" id="detail-type"></div>
+            </div>
+            <button class="mv-detail-close" id="detail-close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mv-detail-body">
+            <p class="mv-detail-desc" id="detail-desc"></p>
+            <div class="mv-detail-section-title">Specifications</div>
+            <div id="detail-specs"></div>
+            <div class="mv-detail-section-title" style="margin-top:20px;">Connections</div>
+            <div id="detail-conns"></div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+
+    <!-- Scripts -->
+    <script src="../../components/global-loading.js"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../components/sidebar-manager.js"></script>
+    <script>
+        async function loadSidebarComponent() {
+            try {
+                const response = await fetch('../../components/sidebar.html');
+                const html = await response.text();
+                document.getElementById('sidebar-placeholder').innerHTML = html;
+                if (window.sidebarManager) {
+                    window.sidebarManager.reinitMobileMenu();
+                    const counts = await window.sidebarManager.getComponentCounts();
+                    window.sidebarManager.updateSidebarCounts(counts);
+                }
+            } catch (error) {
+                console.error('Failed to load sidebar component:', error);
+            }
+        }
+        window.sidebarReady = loadSidebarComponent().catch(err => {
+            console.error('Sidebar loading error:', err);
+            return null;
+        });
+    </script>
+    <script>
+        (function () {
+            function initTheme() {
+                if (typeof utils !== 'undefined' && utils.theme) {
+                    utils.theme.init();
+                    updateThemeIcon(utils.theme.get());
+                }
+            }
+            function updateThemeIcon(theme) {
+                const icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            function handleThemeToggle() {
+                if (typeof utils === 'undefined' || !utils.theme) return;
+                const toggleBtn = document.getElementById('themeToggleBtn');
+                if (toggleBtn) {
+                    toggleBtn.classList.add('toggling');
+                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
+                }
+                const newTheme = utils.theme.toggle();
+                updateThemeIcon(newTheme);
+                if (typeof toast !== 'undefined') {
+                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTheme);
+            } else {
+                initTheme();
+            }
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', handleThemeToggle);
+            }
+        })();
+    </script>
+
+    <!-- Motherboard Visualizer -->
+    <script>
+        class MotherboardVisualizer {
+            constructor() {
+                this.scene = document.getElementById('mb-scene');
+                this.rotator = document.getElementById('mb-scene-rotator');
+                this.boardSvg = document.getElementById('board-svg');
+                this.compSvg = document.getElementById('components-svg');
+                this.tooltip = document.getElementById('mv-tooltip');
+                this.detailPanel = document.getElementById('mv-detail-panel');
+
+                this.baseRotateX = 50;
+                this.baseRotateY = -8;
+                this.baseRotateZ = -27;
+                this.tiltRangeX = 7;
+                this.tiltRangeY = 4.2;
+                this.tiltRangeZ = 4.5;
+                this.rafId = null;
+
+                this.labelsVisible = true;
+                this.tracesVisible = true;
+
+                this.componentData = this.buildComponentData();
+                this.init();
+            }
+
+            init() {
+                this.syncSceneProfile();
+                this.bindComponentEvents();
+                this.bindControlEvents();
+                this.bindParallax();
+                window.addEventListener('resize', () => this.syncSceneProfile());
+            }
+
+            getTransform(rotateX = this.baseRotateX, rotateY = this.baseRotateY, rotateZ = this.baseRotateZ) {
+                return `rotateX(${rotateX}deg) rotateY(${rotateY}deg) rotateZ(${rotateZ}deg)`;
+            }
+
+            syncSceneProfile() {
+                if (window.innerWidth < 768) {
+                    this.baseRotateX = 44;
+                    this.baseRotateY = -4;
+                    this.baseRotateZ = -17;
+                    this.tiltRangeX = 4.5;
+                    this.tiltRangeY = 2.6;
+                    this.tiltRangeZ = 2.8;
+                } else if (window.innerWidth < 1180) {
+                    this.baseRotateX = 47;
+                    this.baseRotateY = -6;
+                    this.baseRotateZ = -22;
+                    this.tiltRangeX = 5.4;
+                    this.tiltRangeY = 3.2;
+                    this.tiltRangeZ = 3.3;
+                } else {
+                    this.baseRotateX = 50;
+                    this.baseRotateY = -8;
+                    this.baseRotateZ = -27;
+                    this.tiltRangeX = 7;
+                    this.tiltRangeY = 4.2;
+                    this.tiltRangeZ = 4.5;
+                }
+
+                this.rotator.style.transform = this.getTransform();
+            }
+
+            bindComponentEvents() {
+                const comps = this.compSvg.querySelectorAll('.mb-component');
+                comps.forEach(comp => {
+                    comp.addEventListener('mouseenter', e => this.onHover(e));
+                    comp.addEventListener('mouseleave', e => this.onLeave(e));
+                    comp.addEventListener('mousemove', e => this.moveTooltip(e));
+                    comp.addEventListener('click', e => this.onClick(e));
+                });
+            }
+
+            bindControlEvents() {
+                document.getElementById('ctrlLabels').addEventListener('change', e => {
+                    this.labelsVisible = e.target.checked;
+                    this.compSvg.classList.toggle('labels-hidden', !this.labelsVisible);
+                });
+                document.getElementById('ctrlTraces').addEventListener('change', e => {
+                    this.tracesVisible = e.target.checked;
+                    this.boardSvg.classList.toggle('traces-hidden', !this.tracesVisible);
+                });
+                document.getElementById('ctrlMemory').addEventListener('change', e => {
+                    this.boardSvg.classList.toggle('memory-hidden', !e.target.checked);
+                });
+                document.getElementById('ctrlPCIe').addEventListener('change', e => {
+                    this.boardSvg.classList.toggle('pcie-hidden', !e.target.checked);
+                });
+                document.getElementById('ctrlStorage').addEventListener('change', e => {
+                    this.boardSvg.classList.toggle('storage-hidden', !e.target.checked);
+                });
+
+                document.getElementById('btnToggleLabels').addEventListener('click', () => {
+                    const cb = document.getElementById('ctrlLabels');
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change'));
+                });
+
+                document.getElementById('detail-close').addEventListener('click', () => this.closeDetail());
+                document.addEventListener('keydown', e => { if (e.key === 'Escape') this.closeDetail(); });
+            }
+
+            bindParallax() {
+                this.scene.addEventListener('mousemove', e => {
+                    if (this.rafId) return;
+                    this.rafId = requestAnimationFrame(() => {
+                        const rect = this.scene.getBoundingClientRect();
+                        const x = (e.clientX - rect.left) / rect.width - 0.5;
+                        const y = (e.clientY - rect.top) / rect.height - 0.5;
+                        const rX = this.baseRotateX + y * this.tiltRangeX;
+                        const rY = this.baseRotateY + x * this.tiltRangeY;
+                        const rZ = this.baseRotateZ + x * this.tiltRangeZ;
+                        this.rotator.style.transform = this.getTransform(rX, rY, rZ);
+                        this.rafId = null;
+                    });
+                });
+                this.scene.addEventListener('mouseleave', () => {
+                    this.rotator.style.transform = this.getTransform();
+                });
+            }
+
+            onHover(e) {
+                const id = e.currentTarget.dataset.componentId;
+                const data = this.componentData[id];
+                if (!data) return;
+                document.getElementById('tip-name').textContent = data.name;
+                document.getElementById('tip-role').textContent = data.role;
+                this.tooltip.classList.add('visible');
+                this.moveTooltip(e);
+            }
+
+            onLeave() {
+                this.tooltip.classList.remove('visible');
+            }
+
+            moveTooltip(e) {
+                let x = e.clientX + 18;
+                let y = e.clientY + 18;
+                const tr = this.tooltip.getBoundingClientRect();
+                if (x + tr.width > window.innerWidth - 16) x = e.clientX - tr.width - 18;
+                if (y + tr.height > window.innerHeight - 16) y = e.clientY - tr.height - 18;
+                this.tooltip.style.left = x + 'px';
+                this.tooltip.style.top = y + 'px';
+            }
+
+            onClick(e) {
+                const id = e.currentTarget.dataset.componentId;
+                const data = this.componentData[id];
+                if (!data) return;
+
+                document.getElementById('detail-name').textContent = data.name;
+                document.getElementById('detail-type').textContent = data.type;
+                document.getElementById('detail-desc').textContent = data.description;
+
+                const specsEl = document.getElementById('detail-specs');
+                specsEl.innerHTML = '';
+                if (data.specs) {
+                    Object.entries(data.specs).forEach(([k, v]) => {
+                        specsEl.innerHTML += `<div class="mv-spec-row"><span class="mv-spec-label">${k}</span><span class="mv-spec-value">${v}</span></div>`;
+                    });
+                }
+
+                const connsEl = document.getElementById('detail-conns');
+                connsEl.innerHTML = '';
+                if (data.connections) {
+                    data.connections.forEach(c => {
+                        connsEl.innerHTML += `<div class="mv-conn-item"><span class="mv-conn-dot"></span>${c}</div>`;
+                    });
+                }
+
+                this.detailPanel.classList.add('open');
+            }
+
+            closeDetail() {
+                this.detailPanel.classList.remove('open');
+            }
+
+            buildComponentData() {
+                return {
+                    'cpu-0': {
+                        name: 'CPU Socket 0', type: 'Processor Socket',
+                        role: 'Primary processor managing compute tasks, memory access, and PCIe lanes.',
+                        description: 'Primary Intel Xeon Scalable processor socket (Ice Lake / Sapphire Rapids). Supports up to 40 cores, 80 threads with 6-channel DDR4/DDR5 memory controller and 64 PCIe 4.0 lanes.',
+                        specs: { 'Socket': 'LGA 4189', 'TDP': 'Up to 350W', 'Memory Channels': '6', 'PCIe Lanes': '64x PCIe 4.0', 'UPI Links': '3x 11.2 GT/s' },
+                        connections: ['DIMM Banks A-D (6-channel DDR)', 'PCIe Slot 1, 2, 3', 'UPI to CPU 1', 'Chipset (DMI 3.0)']
+                    },
+                    'cpu-1': {
+                        name: 'CPU Socket 1', type: 'Processor Socket',
+                        role: 'Secondary processor for dual-CPU configurations via UPI interconnect.',
+                        description: 'Secondary processor socket connected to CPU 0 via UPI for NUMA-aware memory access and additional PCIe lanes.',
+                        specs: { 'Socket': 'LGA 4189', 'TDP': 'Up to 350W', 'Memory Channels': '6', 'PCIe Lanes': '64x PCIe 4.0', 'UPI Links': '3x 11.2 GT/s' },
+                        connections: ['DIMM Banks E-H (6-channel DDR)', 'PCIe Slot 4 (via CPU1)', 'UPI to CPU 0']
+                    },
+                    'dimm-cpu0-l': {
+                        name: 'DIMM Slots A1-B3', type: 'Memory Slots (CPU0 Left)',
+                        role: 'DDR ECC Registered memory — CPU0 channels A and B.',
+                        description: '6x DDR4/DDR5 ECC RDIMM slots connected to CPU 0 memory channels A and B.',
+                        specs: { 'Type': 'DDR4/DDR5 ECC RDIMM', 'Slots': '6 (2 ch × 3 DPC)', 'Max Speed': '4800 MT/s', 'Max per Slot': '256GB' },
+                        connections: ['CPU 0 - Channel A', 'CPU 0 - Channel B']
+                    },
+                    'dimm-cpu0-r': {
+                        name: 'DIMM Slots C1-D3', type: 'Memory Slots (CPU0 Right)',
+                        role: 'DDR ECC Registered memory — CPU0 channels C and D.',
+                        description: '6x DDR4/DDR5 ECC RDIMM slots connected to CPU 0 memory channels C and D.',
+                        specs: { 'Type': 'DDR4/DDR5 ECC RDIMM', 'Slots': '6 (2 ch × 3 DPC)', 'Max Speed': '4800 MT/s', 'Max per Slot': '256GB' },
+                        connections: ['CPU 0 - Channel C', 'CPU 0 - Channel D']
+                    },
+                    'dimm-cpu1-l': {
+                        name: 'DIMM Slots E1-F3', type: 'Memory Slots (CPU1 Left)',
+                        role: 'DDR ECC Registered memory — CPU1 channels E and F.',
+                        description: '6x DDR4/DDR5 ECC RDIMM slots for CPU 1. Requires CPU 1 installed.',
+                        specs: { 'Type': 'DDR4/DDR5 ECC RDIMM', 'Slots': '6', 'Max Speed': '4800 MT/s', 'Max per Slot': '256GB' },
+                        connections: ['CPU 1 - Channel E', 'CPU 1 - Channel F']
+                    },
+                    'dimm-cpu1-r': {
+                        name: 'DIMM Slots G1-H3', type: 'Memory Slots (CPU1 Right)',
+                        role: 'DDR ECC Registered memory — CPU1 channels G and H.',
+                        description: '6x DDR4/DDR5 ECC RDIMM slots for CPU 1. Requires CPU 1 installed.',
+                        specs: { 'Type': 'DDR4/DDR5 ECC RDIMM', 'Slots': '6', 'Max Speed': '4800 MT/s', 'Max per Slot': '256GB' },
+                        connections: ['CPU 1 - Channel G', 'CPU 1 - Channel H']
+                    },
+                    'vrm-cpu0': {
+                        name: 'VRM - CPU 0', type: 'Voltage Regulator Module',
+                        role: 'Multi-phase power delivery for CPU 0 (Vcore, VCCIO, VCCSA).',
+                        description: '16+2 phase VRM converting 12V input to precise voltages for the processor.',
+                        specs: { 'Phases': '16+2', 'Input': '12V DC', 'Output': '0.6V-1.8V', 'Efficiency': '> 95%' },
+                        connections: ['8-Pin EPS (CPU0)', 'CPU Socket 0']
+                    },
+                    'vrm-cpu1': {
+                        name: 'VRM - CPU 1', type: 'Voltage Regulator Module',
+                        role: 'Multi-phase power delivery for CPU 1.',
+                        description: '16+2 phase VRM for CPU 1, identical design to CPU 0 VRM.',
+                        specs: { 'Phases': '16+2', 'Input': '12V DC', 'Output': '0.6V-1.8V', 'Efficiency': '> 95%' },
+                        connections: ['8-Pin EPS (CPU1)', 'CPU Socket 1']
+                    },
+                    'pch': {
+                        name: 'Platform Controller Hub', type: 'Chipset',
+                        role: 'Intel C621A chipset providing SATA, USB, and management I/O.',
+                        description: 'Intel C621A PCH providing I/O connectivity including SATA, USB, and management interfaces.',
+                        specs: { 'Chipset': 'Intel C621A', 'SATA': '14x 6Gb/s', 'USB': '10x 3.0', 'DMI': '3.0 x4', 'TDP': '17W' },
+                        connections: ['CPU 0 (DMI 3.0)', 'NVMe Slots', 'SATA Ports', 'USB Headers']
+                    },
+                    'nvme-0': {
+                        name: 'M.2 NVMe Slot 1', type: 'NVMe Storage',
+                        role: 'PCIe 3.0 x4 M.2 slot for NVMe SSD (boot or cache).',
+                        description: 'M.2 22110/2280 slot supporting NVMe SSDs via PCIe 3.0 x4.',
+                        specs: { 'Interface': 'PCIe 3.0 x4', 'Form Factor': 'M.2 2280/22110', 'Max Speed': '32 Gb/s' },
+                        connections: ['Chipset (PCH)', 'PCIe 3.0 x4']
+                    },
+                    'nvme-1': {
+                        name: 'M.2 NVMe Slot 2', type: 'NVMe Storage',
+                        role: 'Secondary M.2 slot for NVMe storage or OS mirror.',
+                        description: 'Second M.2 slot for NVMe storage, ideal for OS mirror or fast cache.',
+                        specs: { 'Interface': 'PCIe 3.0 x4', 'Form Factor': 'M.2 2280/22110', 'Max Speed': '32 Gb/s' },
+                        connections: ['Chipset (PCH)', 'PCIe 3.0 x4']
+                    },
+                    'bmc': {
+                        name: 'BMC / IPMI Controller', type: 'Baseboard Management',
+                        role: 'Out-of-band server management — remote KVM, hardware monitoring, power control.',
+                        description: 'ASPEED AST2600 BMC providing IPMI 2.0 management even when the server is off.',
+                        specs: { 'Controller': 'AST2600', 'Interface': 'IPMI 2.0', 'Network': '1GbE Dedicated', 'Features': 'KVM, SOL, Virtual Media' },
+                        connections: ['IPMI LAN Port', 'System bus', 'All sensors']
+                    },
+                    'pcie-1': {
+                        name: 'PCIe 4.0 x16 - Slot 1', type: 'PCIe Expansion',
+                        role: 'Full-length PCIe 4.0 x16 slot connected to CPU 0.',
+                        description: 'Maximum bandwidth slot for GPU or high-speed networking cards.',
+                        specs: { 'Interface': 'PCIe 4.0 x16', 'Bandwidth': '32 GB/s', 'Source': 'CPU 0' },
+                        connections: ['CPU 0 (16 lanes)', 'Riser Slot 1']
+                    },
+                    'pcie-2': {
+                        name: 'PCIe 4.0 x16 - Slot 2', type: 'PCIe Expansion',
+                        role: 'Second full-length PCIe x16 slot from CPU 0.',
+                        description: 'Second PCIe 4.0 x16 slot for additional high-bandwidth expansion.',
+                        specs: { 'Interface': 'PCIe 4.0 x16', 'Bandwidth': '32 GB/s', 'Source': 'CPU 0' },
+                        connections: ['CPU 0 (16 lanes)']
+                    },
+                    'pcie-3': {
+                        name: 'PCIe 4.0 x8 - Slot 3', type: 'PCIe Expansion',
+                        role: 'PCIe x8 slot for NICs, HBAs, or other add-in cards.',
+                        description: 'PCIe 4.0 x8 slot for moderate bandwidth cards.',
+                        specs: { 'Interface': 'PCIe 4.0 x8', 'Bandwidth': '16 GB/s', 'Source': 'CPU 0' },
+                        connections: ['CPU 0 (8 lanes)']
+                    },
+                    'nic': {
+                        name: 'Dual-Port 25GbE NIC', type: 'Network Interface',
+                        role: 'High-bandwidth datacenter networking with SR-IOV and RDMA support.',
+                        description: 'Intel XXV710 dual-port 25GbE NIC installed in PCIe Slot 1.',
+                        specs: { 'Controller': 'Intel XXV710', 'Ports': '2x SFP28', 'Speed': '25 GbE', 'Features': 'SR-IOV, RDMA, DPDK' },
+                        connections: ['PCIe Slot 1 (CPU 0)', 'Top-of-Rack Switch']
+                    },
+                    'hba': {
+                        name: 'SAS HBA Controller', type: 'Host Bus Adapter',
+                        role: 'Storage controller providing 16 internal SAS/SATA ports to drive backplane.',
+                        description: 'Broadcom 9500-16i SAS/SATA HBA for connecting to the drive backplane.',
+                        specs: { 'Controller': 'Broadcom SAS3816', 'Ports': '16x SAS/SATA', 'Speed': '12 Gb/s SAS3', 'PCIe': 'x8 Gen 4' },
+                        connections: ['PCIe Slot 2 (CPU 0)', 'Backplane (Mini-SAS HD)']
+                    },
+                    'riser-1': {
+                        name: 'Riser Slot 1', type: 'Riser Card Connector',
+                        role: 'Converts horizontal PCIe to vertical orientation for 2U rack chassis.',
+                        description: 'Active riser card providing 2x PCIe x16 slots in vertical orientation.',
+                        specs: { 'Slots': '2x PCIe x16', 'Type': 'Active Riser', 'Compatible': '2U Chassis' },
+                        connections: ['PCIe Slot 1 (CPU 0)', 'Expansion cards']
+                    },
+                    'riser-2': {
+                        name: 'Riser Slot 2', type: 'Riser Card Connector',
+                        role: 'Secondary riser for additional vertical PCIe expansion.',
+                        description: 'Second riser card connector with mixed PCIe slot configuration.',
+                        specs: { 'Slots': '1x PCIe x16 + 1x x8', 'Type': 'Active Riser', 'Compatible': '2U Chassis' },
+                        connections: ['CPU 1 PCIe lanes', 'Expansion cards']
+                    },
+                    'power-atx': {
+                        name: '24-Pin ATX Power', type: 'Main Power',
+                        role: 'Primary power input from redundant hot-swap PSU.',
+                        description: 'Main power connector providing +3.3V, +5V, +12V to the motherboard.',
+                        specs: { 'Connector': '24-pin ATX', 'Voltages': '+3.3V, +5V, +12V', 'Standard': 'ATX12V 2.4' },
+                        connections: ['PSU (redundant)', 'All subsystems']
+                    },
+                    'eps-0': {
+                        name: '8-Pin EPS (CPU 0)', type: 'CPU Power',
+                        role: 'Dedicated 12V power feed for CPU 0 voltage regulators.',
+                        description: 'EPS12V connector delivering high-current 12V to CPU 0 VRM.',
+                        specs: { 'Connector': '8-pin EPS12V', 'Voltage': '+12V', 'Standard': 'EPS12V' },
+                        connections: ['PSU 12V rail', 'VRM CPU 0']
+                    },
+                    'eps-1': {
+                        name: '8-Pin EPS (CPU 1)', type: 'CPU Power',
+                        role: 'Dedicated 12V power feed for CPU 1 voltage regulators.',
+                        description: 'EPS12V connector for CPU 1 VRM. Required when second CPU is installed.',
+                        specs: { 'Connector': '8-pin EPS12V', 'Voltage': '+12V', 'Standard': 'EPS12V' },
+                        connections: ['PSU 12V rail', 'VRM CPU 1']
+                    },
+                    'backplane': {
+                        name: 'Backplane Connectors', type: 'Backplane Interface',
+                        role: 'SFF-8643 Mini-SAS HD connectors linking HBA to chassis drive bays.',
+                        description: '7x Mini-SAS HD connectors interfacing between HBA and the front drive backplane.',
+                        specs: { 'Connectors': '7x SFF-8643', 'Interface': 'Mini-SAS HD', 'Speed': '12 Gb/s/lane', 'Drives': 'Up to 24x' },
+                        connections: ['HBA Controller', 'Front Drive Bays', 'NVMe U.2']
+                    },
+                    'cmos': {
+                        name: 'CMOS Battery', type: 'Backup Battery',
+                        role: 'Maintains BIOS/UEFI settings and real-time clock when powered off.',
+                        description: 'CR2032 lithium coin cell for BIOS settings and RTC.',
+                        specs: { 'Type': 'CR2032 3V', 'Life': '3-5 years' },
+                        connections: ['CMOS memory', 'RTC']
+                    },
+                    'ipmi-port': {
+                        name: 'IPMI LAN Port', type: 'Management Network',
+                        role: 'Dedicated 1GbE port for out-of-band IPMI/Redfish management.',
+                        description: 'Dedicated management Ethernet port connected to the BMC.',
+                        specs: { 'Speed': '1 GbE', 'Purpose': 'Out-of-band management' },
+                        connections: ['BMC (AST2600)', 'Management network']
+                    },
+                    'usb-header': {
+                        name: 'USB 3.0 Header', type: 'USB Connector',
+                        role: 'Internal USB 3.0 header for front panel or boot media.',
+                        description: 'Internal USB 3.0 header for connecting front panel USB ports.',
+                        specs: { 'Interface': 'USB 3.0', 'Speed': '5 Gbps', 'Ports': '2x via header' },
+                        connections: ['Chipset (PCH)', 'Front panel USB']
+                    }
+                };
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            window.motherboardVisualizer = new MotherboardVisualizer();
+        });
+    </script>
+</body>
+
+</html>

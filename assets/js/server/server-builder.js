@@ -243,7 +243,7 @@ class ServerBuilder {
                             <i class="fas fa-exclamation-triangle text-3xl text-danger"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-text-primary mb-2">Failed to Load Configuration</h3>
-                        <p class="text-text-secondary mb-6">${errorMessage}</p>
+                        <p class="text-text-secondary mb-6">${this.escapeHtml(errorMessage)}</p>
                         <div class="flex flex-col gap-3">
                             <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2" onclick="window.location.reload()">
                                 <i class="fas fa-redo"></i>
@@ -871,8 +871,8 @@ class ServerBuilder {
             <div class="template-item p-3 rounded-lg cursor-pointer hover:bg-surface-hover transition-colors mb-2 border border-transparent hover:border-border-light group" 
                  onclick="window.serverBuilder.selectTemplate('${t.config_uuid}')"
                  data-id="${t.config_uuid}">
-                <div class="font-medium text-text-primary group-hover:text-primary transition-colors">${t.server_name}</div>
-                <div class="text-xs text-text-secondary truncate">${t.description || 'No description'}</div>
+                <div class="font-medium text-text-primary group-hover:text-primary transition-colors">${this.escapeHtml(t.server_name)}</div>
+                <div class="text-xs text-text-secondary truncate">${this.escapeHtml(t.description || 'No description')}</div>
             </div>
         `).join('');
     }
@@ -1047,7 +1047,7 @@ class ServerBuilder {
                     <div class="space-y-1">
                         ${items.map(item => `
                             <div class="text-sm text-text-primary bg-surface-card p-2 rounded border border-border-light">
-                                ${item.resolved_name || item.product_name || item.name || item.model || 'Unknown Component'}
+                                ${this.escapeHtml(item.resolved_name || item.product_name || item.name || item.model || 'Unknown Component')}
                             </div>
                         `).join('')}
                     </div>
@@ -1076,8 +1076,8 @@ class ServerBuilder {
 
         container.innerHTML = `
             <div class="animate-fade-in">
-                <h4 class="text-lg font-bold text-text-primary mb-1">${config.server_name}</h4>
-                <p class="text-sm text-text-secondary mb-4">${config.description || 'No description provided'}</p>
+                <h4 class="text-lg font-bold text-text-primary mb-1">${this.escapeHtml(config.server_name)}</h4>
+                <p class="text-sm text-text-secondary mb-4">${this.escapeHtml(config.description || 'No description provided')}</p>
                 
                 <div class="bg-primary/5 border border-primary/10 rounded-lg p-3 mb-4 text-xs text-primary">
                     <i class="fas fa-info-circle me-1"></i>
@@ -1856,7 +1856,7 @@ class ServerBuilder {
                                     <div class="configuration-summary">
                                         <div class="summary-item">
                                             <span class="summary-label">Server Name:</span>
-                                            <span class="summary-value">${this.currentConfig.server_name || 'Unnamed Server'}</span>
+                                            <span class="summary-value">${this.escapeHtml(this.currentConfig.server_name || 'Unnamed Server')}</span>
                                         </div>
                                         <div class="summary-item">
                                             <span class="summary-label">Total Components:</span>
@@ -3594,6 +3594,16 @@ class ServerBuilder {
             toastNotification.show(message, mappedType);
         } else {
         }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 }
 

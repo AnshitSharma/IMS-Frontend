@@ -156,11 +156,11 @@ class ServerListManager {
 
         return `
             <div class="col-md-6 col-lg-4 mb-4">
-                <div class="server-card" data-uuid="${server.config_uuid}" style="cursor: pointer; transition: transform 0.2s; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+                <div class="server-card" data-uuid="${this.escapeHtml(server.config_uuid)}" style="cursor: pointer; transition: transform 0.2s; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
                     <div class="card-header" style="background: linear-gradient(135deg, #2b2685d3 0%, #000000f3 100%); color: white; padding: 1rem;">
                         <div class="d-flex justify-content-between align-items-center gap-2">
                             <h5 class="mb-0" style="font-size: 1.125rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;">
-                                <i class="fas fa-server me-2" style="flex-shrink: 0;"></i><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; max-width: 100%;">${server.server_name}</span>
+                                <i class="fas fa-server me-2" style="flex-shrink: 0;"></i><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; max-width: 100%;">${this.escapeHtml(server.server_name)}</span>
                             </h5>
                             <div class="d-flex align-items-center gap-2" style="flex-shrink: 0;">
                                 <span style="padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: rgba(255, 255, 255, 0.2); white-space: nowrap;">
@@ -173,7 +173,7 @@ class ServerListManager {
                         </div>
                     </div>
                     <div class="card-body" style="padding: 1.5rem; background: white;">
-                        ${server.description ? `<p class="text-muted mb-3" style="font-size: 0.875rem;">${server.description}</p>` : ''}
+                        ${server.description ? `<p class="text-muted mb-3" style="font-size: 0.875rem;">${this.escapeHtml(server.description)}</p>` : ''}
 
                         <div class="d-flex justify-content-between align-items-center mb-3" style="padding: 0.75rem; background: #f9fafb; border-radius: 8px;">
                             <span style="font-size: 0.875rem; color: #6b7280;">
@@ -188,10 +188,10 @@ class ServerListManager {
                         </div>
 
                         <div class="d-flex gap-2">
-                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); window.serverListManager.openServerBuilder('${server.config_uuid}')">
+                            <button class="btn btn-primary btn-sm flex-grow-1" onclick="event.stopPropagation(); window.serverListManager.openServerBuilder('${this.escapeHtml(server.config_uuid)}')">
                                 <i class="fas fa-edit me-1"></i>Configure
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); window.serverListManager.deleteServer('${server.config_uuid}')">
+                            <button class="btn btn-outline-danger btn-sm" onclick="event.stopPropagation(); window.serverListManager.deleteServer('${this.escapeHtml(server.config_uuid)}')">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -199,6 +199,16 @@ class ServerListManager {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 
     /**
@@ -409,7 +419,7 @@ class ServerListManager {
                 </div>
                 <div class="toast-content">
                     <div class="toast-title">${title}</div>
-                    <div class="toast-message">${message}</div>
+                    <div class="toast-message">${this.escapeHtml(message)}</div>
                 </div>
                 <button class="toast-close" onclick="this.closest('.toast').remove()">
                     <i class="fas fa-times"></i>

@@ -629,11 +629,6 @@ window.api = {
                 }
             }
 
-            // Check username for 'superadmin' (fallback when API doesn't return roles)
-            if (user.username === 'superadmin' && !userRoles.includes('superadmin')) {
-                userRoles.push('superadmin');
-            }
-
             if (userRoles.length === 0) {
                 return false;
             }

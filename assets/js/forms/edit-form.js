@@ -45,6 +45,13 @@ class EditFormComponent {
         this.formContainer.innerHTML = fieldsHtml;
     }
 
+    escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     renderCommonFields() {
         return `
             <div class="form-section">
@@ -60,7 +67,7 @@ class EditFormComponent {
                     ${this.renderTextField('Flag', 'Flag', this.componentData.Flag)}
                     <div class="form-group form-column-span-2">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea id="notes" name="Notes" class="form-textarea" rows="3">${this.componentData.Notes || ''}</textarea>
+                        <textarea id="notes" name="Notes" class="form-textarea" rows="3">${this.escapeHtml(this.componentData.Notes || '')}</textarea>
                     </div>
                 </div>
             </div>
@@ -75,7 +82,7 @@ class EditFormComponent {
         return `
             <div class="form-group">
                 <label for="${name}" class="form-label">${label}</label>
-                <input type="text" id="${name}" name="${name}" class="form-input" value="${value || ''}">
+                <input type="text" id="${name}" name="${name}" class="form-input" value="${this.escapeHtml(value || '')}">
             </div>
         `;
     }

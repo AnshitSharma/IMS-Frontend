@@ -49,7 +49,7 @@ window.utils = {
             </div>
             <div class="alert-content">
                 <div class="alert-title">${titles[type]}</div>
-                <div class="alert-message">${message}</div>
+                <div class="alert-message">${this.escapeHtml(message)}</div>
             </div>
             <button class="alert-close" onclick="utils.closeAlert('${alertId}')">
                 <i class="fas fa-times"></i>
