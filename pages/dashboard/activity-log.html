@@ -146,31 +146,6 @@
     <script src="../../assets/js/config.js"></script>
     <script src="../../components/sidebar-manager.js"></script>
     <script>
-        async function loadSidebarComponent() {
-            try {
-                const response = await fetch('../../components/sidebar.html');
-                const html = await response.text();
-                document.getElementById('sidebar-placeholder').innerHTML = html;
-                if (window.sidebarManager) {
-                    window.sidebarManager.reinitMobileMenu();
-                    const counts = await window.sidebarManager.getComponentCounts();
-                    window.sidebarManager.updateSidebarCounts(counts);
-                }
-                // Set active state after sidebar loads
-                const sidebarItems = document.querySelectorAll('.menu-item');
-                sidebarItems.forEach(item => item.classList.remove('active'));
-                const activityItem = document.querySelector('[data-component="activity-log"]');
-                if (activityItem) activityItem.classList.add('active');
-            } catch (error) {
-                console.error('Failed to load sidebar component:', error);
-            }
-        }
-        window.sidebarReady = loadSidebarComponent().catch(err => {
-            console.error('Sidebar loading error:', err);
-            return null;
-        });
-    </script>
-    <script>
         // Activity Log Page
         (function () {
             const LIMIT = 50;

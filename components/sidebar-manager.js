@@ -15,13 +15,16 @@ class SidebarManager {
     }
 
     /**
-     * Initialize sidebar manager
+     * Initialize sidebar manager - loads HTML and sets up handlers
      */
     async init() {
         if (this.isInitialized) return;
 
         // Load from localStorage first
         this.loadFromLocalStorage();
+
+        // Load sidebar HTML into placeholder if present
+        await this.loadSidebarHTML();
 
         // Setup mobile menu handlers (may need to be called again after sidebar HTML loads)
         this.setupMobileMenu();
@@ -30,6 +33,55 @@ class SidebarManager {
         this.setActiveComponent();
 
         this.isInitialized = true;
+    }
+
+    /**
+     * Load sidebar HTML from component file into placeholder
+     * Determines correct relative path based on current page location
+     */
+    async loadSidebarHTML() {
+        const placeholder = document.getElementById('sidebar-placeholder');
+        if (!placeholder) return;
+
+        // All dashboard/server pages are 2 levels deep from project root
+        // pages/dashboard/*.html or pages/server/*.html → ../../components/sidebar.html
+        const currentPath = window.location.pathname;
+        let sidebarPath = '../../components/sidebar.html';
+
+        // Adjust for pages directly under /pages/ (1 level deep)
+        if (currentPath.match(/\/pages\/[^/]+\.html$/)) {
+            sidebarPath = '../components/sidebar.html';
+        }
+
+        try {
+            const response = await fetch(sidebarPath);
+            if (!response.ok) {
+                console.error(`[SidebarManager] Failed to fetch sidebar.html: ${response.status}`);
+                return;
+            }
+            const html = await response.text();
+
+            // Verify we got actual sidebar HTML, not an error page
+            if (!html.includes('sidebar') || html.length < 50) {
+                console.error('[SidebarManager] Sidebar HTML response appears invalid');
+                return;
+            }
+
+            placeholder.innerHTML = html;
+
+            // Reinitialize handlers after injecting new DOM
+            this.reinitMobileMenu();
+
+            // Load and display component counts
+            try {
+                const counts = await this.getComponentCounts();
+                this.updateSidebarCounts(counts);
+            } catch (e) {
+                // Sidebar counts are not critical - fail silently
+            }
+        } catch (error) {
+            console.error('[SidebarManager] Error loading sidebar:', error);
+        }
     }
 
     /**
@@ -394,9 +446,16 @@ class SidebarManager {
 // Create global instance
 window.sidebarManager = new SidebarManager();
 
-// Auto-initialize when DOM is ready
+// Auto-initialize when DOM is ready and expose promise for other scripts
+function _initSidebar() {
+    window.sidebarReady = window.sidebarManager.init().catch(err => {
+        console.error('[SidebarManager] Init error:', err);
+        return null;
+    });
+}
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => window.sidebarManager.init());
+    document.addEventListener('DOMContentLoaded', _initSidebar);
 } else {
-    window.sidebarManager.init();
+    _initSidebar();
 }

@@ -900,7 +900,10 @@ class ServerBuilder {
             // Preview Fetch (Direct API call ok for View)
             const result = await serverAPI.getServerConfig(uuid);
             if (result.success && result.data) {
-                const config = result.data.configuration || result.data;
+                const config = {
+                    ...(result.data.configuration || {}),
+                    components: result.data.components || {}
+                };
 
                 // Resolve component names from JSON files before rendering
                 await this.resolveTemplateComponentNames(config);
@@ -928,7 +931,7 @@ class ServerBuilder {
             if (Array.isArray(typeComponents)) {
                 for (const item of typeComponents) {
                     // Only resolve if we don't have a name/model
-                    if (!item.product_name && !item.name && !item.model) {
+                    if (!item.component_name && !item.product_name && !item.name && !item.model) {
                         try {
                             item.resolved_name = await this.lookupComponentNameByUuid(type, item.uuid);
                         } catch (e) {
@@ -1047,7 +1050,7 @@ class ServerBuilder {
                     <div class="space-y-1">
                         ${items.map(item => `
                             <div class="text-sm text-text-primary bg-surface-card p-2 rounded border border-border-light">
-                                ${this.escapeHtml(item.resolved_name || item.product_name || item.name || item.model || 'Unknown Component')}
+                                ${this.escapeHtml(item.resolved_name || item.component_name || item.product_name || item.name || item.model || 'Unknown Component')}
                             </div>
                         `).join('')}
                     </div>
@@ -1061,7 +1064,11 @@ class ServerBuilder {
             { key: 'storage', icon: 'fas fa-hdd', label: 'Storage' },
             { key: 'motherboard', icon: 'fas fa-th-large', label: 'Motherboard' },
             { key: 'chassis', icon: 'fas fa-server', label: 'Chassis' },
-            { key: 'nic', icon: 'fas fa-network-wired', label: 'Network' }
+            { key: 'nic', icon: 'fas fa-network-wired', label: 'Network' },
+            { key: 'pciecard', icon: 'fas fa-plug', label: 'PCIe Card' },
+            { key: 'hbacard', icon: 'fas fa-plug', label: 'HBA Card' },
+            { key: 'sfp', icon: 'fas fa-ethernet', label: 'SFP' },
+            { key: 'caddy', icon: 'fas fa-box', label: 'Caddy' }
         ];
 
         types.forEach(t => {
