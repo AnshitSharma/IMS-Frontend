@@ -234,3 +234,4 @@ class ServerAPI {
 
 // Create global instance
 const serverAPI = new ServerAPI();
+window.serverAPI = serverAPI;
