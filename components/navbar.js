@@ -169,11 +169,15 @@ class SharedNavbar {
      * Handle logout action
      */
     handleLogout() {
-        // Clear authentication data
+        // Clear authentication data from both storages
         sessionStorage.removeItem('bdc_token');
         sessionStorage.removeItem('jwt_token');
         sessionStorage.removeItem('bdc_refresh_token');
         sessionStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_token');
+        localStorage.removeItem('bdc_refresh_token');
+        localStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_remember_me');
 
         // Redirect to login
         window.location.href = '/ims_frontend/';

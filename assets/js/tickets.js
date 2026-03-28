@@ -1120,7 +1120,7 @@ class TicketsManager {
      */
     getAuthToken() {
         // Try to get token from sessionStorage (check both possible keys)
-        const token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
         return token;
     }
 

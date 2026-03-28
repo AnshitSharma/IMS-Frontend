@@ -20,7 +20,8 @@ window.BDC_CONFIG = {
         TOKEN: 'bdc_token',
         REFRESH_TOKEN: 'bdc_refresh_token',
         USER: 'bdc_user',
-        THEME: 'theme'
+        THEME: 'theme',
+        REMEMBER_ME: 'bdc_remember_me'
     },
 
     // Application Settings

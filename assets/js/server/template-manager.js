@@ -71,27 +71,38 @@ class TemplateManager {
                 'ram',
                 'storage',
                 'nic',
-                'psu',
                 'hbacard',
                 'caddy',
-                'pciecard'
+                'pciecard',
+                'sfp'
             ];
 
-            // 3. Process each type sequentially
-            for (const type of processOrder) {
-                if (componentsToCheck[type] && Array.isArray(componentsToCheck[type])) {
-                    await this._processComponentType(
-                        targetConfigUuid,
-                        type,
-                        componentsToCheck[type],
-                        result
-                    );
-                }
+            // 3. Identify which types are actually in the template
+            const typesInTemplate = processOrder.filter(
+                type => componentsToCheck[type] && Array.isArray(componentsToCheck[type]) && componentsToCheck[type].length > 0
+            );
+
+            // 4. Fetch all inventories in parallel (single batch of API calls)
+            const inventoryMap = {};
+            const inventoryPromises = typesInTemplate.map(async (type) => {
+                const res = await serverAPI.getAvailableComponents(type, false, 100, { silent: true });
+                inventoryMap[type] = (res.success && res.data) ? (res.data.components || []) : [];
+            });
+            await Promise.all(inventoryPromises);
+
+            // 5. Process each type sequentially (add-component calls must be sequential for validation)
+            for (const type of typesInTemplate) {
+                await this._processComponentTypeWithInventory(
+                    targetConfigUuid,
+                    type,
+                    componentsToCheck[type],
+                    inventoryMap[type],
+                    result
+                );
             }
 
             result.success = true;
         } catch (error) {
-            console.error('TemplateManager: Import failed', error);
             result.error = error.message;
             result.success = false;
         }
@@ -101,54 +112,44 @@ class TemplateManager {
     }
 
     /**
-     * Process a specific component type
-     * Internal helper
+     * Process a specific component type with pre-fetched inventory
+     * @param {string} targetUuid - Target server config UUID
+     * @param {string} type - Component type
+     * @param {Array} templateItems - Components from template
+     * @param {Array} availableInventory - Pre-fetched available inventory for this type
+     * @param {Object} resultObj - Result accumulator
      */
-    async _processComponentType(targetUuid, type, templateItems, resultObj) {
+    async _processComponentTypeWithInventory(targetUuid, type, templateItems, availableInventory, resultObj) {
         if (templateItems.length === 0) return;
 
-        // Fetch available inventory for this type
-        // available_only=true (default in API but good to be explicit if param exists)
-        const inventoryResult = await serverAPI.getAvailableComponents(type, false, 100, { silent: true });
-
-        // Normalize inventory list
-        let availableInventory = [];
-        if (inventoryResult.success && inventoryResult.data) {
-            availableInventory = inventoryResult.data.components || [];
-        }
+        // Work with a copy so we can track claims without mutating the original
+        availableInventory = [...availableInventory];
 
         // Process each item in the template
         for (const item of templateItems) {
-            const targetModel = item.product_name || item.model || item.name;
+            const templateUuid = item.uuid;
+            const displayName = item.component_name || item.product_name || item.model || item.name || 'Unknown';
 
-            if (!targetModel) {
-                resultObj.skipped.push({
-                    type,
-                    model: 'Unknown',
-                    reason: 'Missing model info in template'
-                });
+            if (!templateUuid) {
+                resultObj.skipped.push({ type, model: displayName, reason: 'Missing UUID in template' });
                 continue;
             }
 
-            // Find a match
-            // Rules:
-            // 1. Exact Model Name / Product Name match
-            // 2. Must not be already "claimed" in this import session (though API would prevent double-add, we track locally for speed)
-
+            // Match by spec UUID — both template and inventory reference the same ims-data spec UUIDs
             const matchIndex = availableInventory.findIndex(invItem => {
-                const invModel = invItem.product_name || invItem.model || invItem.name;
-                return invModel === targetModel;
+                const invUuid = invItem.UUID || invItem.uuid;
+                return invUuid === templateUuid;
             });
 
             if (matchIndex !== -1) {
-                // Match Found!
                 const match = availableInventory[matchIndex];
+                const matchUuid = match.UUID || match.uuid;
 
                 try {
                     const addResponse = await serverAPI.addComponentToServer(
                         targetUuid,
                         type,
-                        match.uuid,
+                        matchUuid,
                         1,
                         item.slot_position || '',
                         false,
@@ -156,34 +157,23 @@ class TemplateManager {
                     );
 
                     if (addResponse.success) {
-                        resultObj.added.push({
-                            type,
-                            model: targetModel,
-                            uuid: match.uuid
-                        });
-                        // Remove from local inventory so we don't try to add it again for the next item
+                        resultObj.added.push({ type, model: displayName, uuid: matchUuid });
                         availableInventory.splice(matchIndex, 1);
                     } else {
                         resultObj.skipped.push({
                             type,
-                            model: targetModel,
-                            reason: 'API Error: ' + (addResponse.message || 'Unknown')
+                            model: displayName,
+                            reason: 'API rejected: ' + (addResponse.message || 'Unknown')
                         });
                     }
                 } catch (e) {
-                    resultObj.skipped.push({
-                        type,
-                        model: targetModel,
-                        reason: 'Network/Server Error'
-                    });
+                    resultObj.skipped.push({ type, model: displayName, reason: 'Network/Server Error' });
                 }
             } else {
-                // No Match
-                resultObj.skipped.push({
-                    type,
-                    model: targetModel,
-                    reason: 'Out of Stock / Not Available'
-                });
+                const reason = availableInventory.length === 0
+                    ? `No ${type} inventory available`
+                    : `No matching inventory (${availableInventory.length} other models in stock)`;
+                resultObj.skipped.push({ type, model: displayName, reason });
             }
         }
     }

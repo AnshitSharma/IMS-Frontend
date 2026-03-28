@@ -344,13 +344,24 @@ async function handleLogin(e) {
     setButtonLoading('loginBtn', true);
 
     try {
-        const response = await loginUser(username, password);
+        const rememberMe = document.getElementById('rememberMe')?.checked || false;
+        const response = await loginUser(username, password, rememberMe);
 
         if (response.success) {
-            // Store JWT token and user data in sessionStorage (expires on tab close)
-            sessionStorage.setItem('bdc_token', response.data.tokens.access_token);
-            sessionStorage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
-            sessionStorage.setItem('bdc_user', JSON.stringify(response.data.user));
+            // Choose storage based on remember-me preference
+            const storage = rememberMe ? localStorage : sessionStorage;
+
+            // Persist the remember-me preference for other pages
+            if (rememberMe) {
+                localStorage.setItem('bdc_remember_me', 'true');
+            } else {
+                localStorage.removeItem('bdc_remember_me');
+            }
+
+            // Store JWT token and user data
+            storage.setItem('bdc_token', response.data.tokens.access_token);
+            storage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
+            storage.setItem('bdc_user', JSON.stringify(response.data.user));
 
             // Reset failed attempts on success
             failedAttempts = 0;
@@ -542,12 +553,13 @@ async function parseAPIError(response) {
 }
 
 // API Functions - Updated to use request body instead of URL parameters
-async function loginUser(username, password) {
+async function loginUser(username, password, rememberMe = false) {
     // Create form data for request body
     const formData = new URLSearchParams();
     formData.append('action', 'auth-login');
     formData.append('username', username);
     formData.append('password', password);
+    formData.append('remember_me', rememberMe ? 'true' : 'false');
 
     const response = await fetch(API_CONFIG.baseURL, {
         method: 'POST',
@@ -729,7 +741,7 @@ function hideLoading() {
 }
 
 function checkExistingToken() {
-    const token = sessionStorage.getItem('bdc_token');
+    const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
     if (token) {
         // Verify token validity
         verifyToken(token).then(isValid => {
@@ -737,10 +749,14 @@ function checkExistingToken() {
                 // Token is valid, redirect to dashboard
                 window.location.href = 'pages/dashboard/index.html';
             } else {
-                // Token is invalid, remove it
+                // Token is invalid, clear from both storages
                 sessionStorage.removeItem('bdc_token');
                 sessionStorage.removeItem('bdc_refresh_token');
                 sessionStorage.removeItem('bdc_user');
+                localStorage.removeItem('bdc_token');
+                localStorage.removeItem('bdc_refresh_token');
+                localStorage.removeItem('bdc_user');
+                localStorage.removeItem('bdc_remember_me');
             }
         });
     }
@@ -834,7 +850,7 @@ function clearAutoSavedData() {
 
 // Token refresh functionality
 async function refreshAccessToken() {
-    const refreshToken = sessionStorage.getItem('bdc_refresh_token');
+    const refreshToken = localStorage.getItem('bdc_refresh_token') || sessionStorage.getItem('bdc_refresh_token');
     if (!refreshToken) {
         return false;
     }
@@ -853,8 +869,9 @@ async function refreshAccessToken() {
         if (response.ok) {
             const result = await response.json();
             if (result.success) {
-                sessionStorage.setItem('bdc_token', result.data.tokens.access_token);
-                sessionStorage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
+                const storage = localStorage.getItem('bdc_remember_me') === 'true' ? localStorage : sessionStorage;
+                storage.setItem('bdc_token', result.data.tokens.access_token);
+                storage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
                 return true;
             }
         }
@@ -862,10 +879,14 @@ async function refreshAccessToken() {
         console.error('Token refresh error:', error);
     }
 
-    // Refresh failed, clear tokens
+    // Refresh failed, clear tokens from both storages
     sessionStorage.removeItem('bdc_token');
     sessionStorage.removeItem('bdc_refresh_token');
     sessionStorage.removeItem('bdc_user');
+    localStorage.removeItem('bdc_token');
+    localStorage.removeItem('bdc_refresh_token');
+    localStorage.removeItem('bdc_user');
+    localStorage.removeItem('bdc_remember_me');
     return false;
 }
 

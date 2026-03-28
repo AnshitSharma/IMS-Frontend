@@ -894,8 +894,13 @@ class Dashboard {
                         <i class="fas fa-map-marker-alt text-teal-600 text-sm"></i>
                         Location
                     </label>
-                    <input type="text" class="form-input" id="serverLocation"
-                           placeholder="e.g., Data Center A, Rack Row 3">
+                    <select class="form-select" id="serverLocation">
+                        <option value="">-- Select Location --</option>
+                        <option value="Noida">Noida</option>
+                        <option value="Jaipur">Jaipur</option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Pune">Pune</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="rackPosition" class="form-label flex items-center gap-2">
@@ -2003,7 +2008,7 @@ class Dashboard {
         const modalContent = `
             <div style="max-width: 400px;">
                 <div class="form-group"><label class="form-label">Update Status</label><select id="bulkStatus" class="form-select"><option value="">Keep Current</option><option value="1">Available</option><option value="2">In Use</option><option value="0">Failed</option></select></div>
-                <div class="form-group"><label class="form-label">Update Location</label><input type="text" id="bulkLocation" class="form-input" placeholder="Leave empty to keep current"></div>
+                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Keep Current</option><option value="Noida">Noida</option><option value="Jaipur">Jaipur</option><option value="Delhi">Delhi</option><option value="Pune">Pune</option></select></div>
                 <div class="form-group"><label class="form-label">Update Flag</label><select id="bulkFlag" class="form-select"><option value="">Keep Current</option><option value="Backup">Backup</option><option value="Critical">Critical</option><option value="Maintenance">Maintenance</option><option value="Testing">Testing</option><option value="Production">Production</option></select></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button class="btn btn-primary" onclick="dashboard.executeBulkUpdate()">Update ${this.selectedItems.size} Items</button></div>
             </div>

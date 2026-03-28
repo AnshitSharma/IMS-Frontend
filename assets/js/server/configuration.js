@@ -52,12 +52,16 @@ class ConfigurationPage {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
         if (!token) {
             sessionStorage.removeItem('bdc_token');
             sessionStorage.removeItem('jwt_token');
             sessionStorage.removeItem('bdc_refresh_token');
             sessionStorage.removeItem('bdc_user');
+            localStorage.removeItem('bdc_token');
+            localStorage.removeItem('bdc_refresh_token');
+            localStorage.removeItem('bdc_user');
+            localStorage.removeItem('bdc_remember_me');
             window.location.href = this.loginURL;
             return false;
         }

@@ -14,54 +14,66 @@ window.api = {
     // origin can still read sessionStorage. Proper mitigation requires HttpOnly cookies
     // managed server-side, which requires backend changes outside this frontend's scope.
 
-    // Get auth token from sessionStorage
+    // Determine which storage to use based on remember-me preference
+    _getStorage() {
+        return localStorage.getItem('bdc_remember_me') === 'true' ? localStorage : sessionStorage;
+    },
+
+    // Get auth token (check localStorage first for remember-me, then sessionStorage)
     getToken() {
-        return sessionStorage.getItem('bdc_token');
+        return localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
     },
 
-    // Set auth token
+    // Set auth token in the active storage
     setToken(token) {
+        const storage = this._getStorage();
         if (token) {
-            sessionStorage.setItem('bdc_token', token);
+            storage.setItem('bdc_token', token);
         } else {
-            sessionStorage.removeItem('bdc_token');
+            storage.removeItem('bdc_token');
         }
     },
 
-    // Get refresh token
+    // Get refresh token (check both storages)
     getRefreshToken() {
-        return sessionStorage.getItem('bdc_refresh_token');
+        return localStorage.getItem('bdc_refresh_token') || sessionStorage.getItem('bdc_refresh_token');
     },
 
-    // Set refresh token
+    // Set refresh token in the active storage
     setRefreshToken(token) {
+        const storage = this._getStorage();
         if (token) {
-            sessionStorage.setItem('bdc_refresh_token', token);
+            storage.setItem('bdc_refresh_token', token);
         } else {
-            sessionStorage.removeItem('bdc_refresh_token');
+            storage.removeItem('bdc_refresh_token');
         }
     },
 
-    // Get user data
+    // Get user data (check both storages)
     getUser() {
-        const userData = sessionStorage.getItem('bdc_user');
+        const userData = localStorage.getItem('bdc_user') || sessionStorage.getItem('bdc_user');
         return userData ? JSON.parse(userData) : null;
     },
 
-    // Set user data
+    // Set user data in the active storage
     setUser(user) {
+        const storage = this._getStorage();
         if (user) {
-            sessionStorage.setItem('bdc_user', JSON.stringify(user));
+            storage.setItem('bdc_user', JSON.stringify(user));
         } else {
-            sessionStorage.removeItem('bdc_user');
+            storage.removeItem('bdc_user');
         }
     },
 
-    // Clear all auth data
+    // Clear all auth data from both storages
     clearAuth() {
         sessionStorage.removeItem('bdc_token');
         sessionStorage.removeItem('bdc_refresh_token');
         sessionStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_token');
+        localStorage.removeItem('bdc_refresh_token');
+        localStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_remember_me');
     },
 
     // Make API request with automatic token refresh

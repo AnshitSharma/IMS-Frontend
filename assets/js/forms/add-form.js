@@ -180,7 +180,8 @@ class AddComponentForm {
                 'hbacard': '/IMS/ims-data/hbacard/hbacard-level-3.json',
                 'pciecard': '/IMS/ims-data/pciecard/pci-level-3.json',
                 'chassis': '/IMS/ims-data/chassis/chasis-level-3.json',
-                'caddy': '/IMS/ims-data/caddy/caddy_details.json'
+                'caddy': '/IMS/ims-data/caddy/caddy_details.json',
+                'sfp': '/IMS/ims-data/sfp/sfp-level-3.json'
             };
 
             if (jsonPaths[componentType]) {
@@ -1009,8 +1010,8 @@ class AddComponentForm {
 
         let series = [];
 
-        if (this.currentComponentType === 'nic') {
-            // NIC has nested series array
+        if (this.currentComponentType === 'nic' || this.currentComponentType === 'sfp') {
+            // NIC and SFP have nested series array
             this.jsonData.forEach(item => {
                 if (item.brand === brand && item.series && Array.isArray(item.series)) {
                     item.series.forEach(s => {
@@ -1046,8 +1047,8 @@ class AddComponentForm {
 
         let models = [];
 
-        if (this.currentComponentType === 'nic') {
-            // NIC structure: brand → series[] → models[]
+        if (this.currentComponentType === 'nic' || this.currentComponentType === 'sfp') {
+            // NIC and SFP structure: brand → series[] → models[]
             this.jsonData.forEach(item => {
                 if (item.brand === brand && item.series && Array.isArray(item.series)) {
                     item.series.forEach(s => {
@@ -1155,8 +1156,8 @@ class AddComponentForm {
         let series = [];
 
         // Handle different JSON structures
-        if (this.currentComponentType === 'nic') {
-            // NIC has nested series array: brand → series[] → models[]
+        if (this.currentComponentType === 'nic' || this.currentComponentType === 'sfp') {
+            // NIC and SFP have nested series array: brand → series[] → models[]
             brandItems.forEach(item => {
                 if (item.series && Array.isArray(item.series)) {
                     item.series.forEach(s => {
@@ -1217,8 +1218,8 @@ class AddComponentForm {
         // Get models based on component type structure
         let models = [];
 
-        if (this.currentComponentType === 'nic') {
-            // NIC structure: brand → series[] → models[]
+        if (this.currentComponentType === 'nic' || this.currentComponentType === 'sfp') {
+            // NIC and SFP structure: brand → series[] → models[]
             this.jsonData.forEach(item => {
                 if (item[brandField] === selectedBrand && item.series && Array.isArray(item.series)) {
                     item.series.forEach(s => {
@@ -1437,6 +1438,17 @@ class AddComponentForm {
                 'Speeds': { value: modelData.speeds?.join(', ') || 'N/A', icon: 'fas fa-tachometer-alt' },
                 'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
                 'Power': { value: modelData.power || 'N/A', icon: 'fas fa-bolt' }
+            };
+        } else if (this.currentComponentType === 'sfp') {
+            details = {
+                'Model': { value: modelData.model || 'N/A', icon: 'fas fa-network-wired' },
+                'Type': { value: modelData.type || 'N/A', icon: 'fas fa-tag' },
+                'Speed': { value: modelData.speed || 'N/A', icon: 'fas fa-tachometer-alt' },
+                'Wavelength': { value: modelData.wavelength || 'N/A', icon: 'fas fa-wave-square' },
+                'Reach': { value: modelData.reach || 'N/A', icon: 'fas fa-arrows-alt-h' },
+                'Connector': { value: modelData.connector || 'N/A', icon: 'fas fa-plug' },
+                'Fiber Type': { value: modelData.fiber_type || 'N/A', icon: 'fas fa-project-diagram' },
+                'Power': { value: modelData.power_consumption || 'N/A', icon: 'fas fa-bolt' }
             };
         } else if (this.currentComponentType === 'hbacard') {
             details = {
@@ -1877,7 +1889,7 @@ class AddComponentForm {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Bearer ${sessionStorage.getItem('bdc_token')}`
+                'Authorization': `Bearer ${localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token')}`
             },
             body: new URLSearchParams(formData)
         });

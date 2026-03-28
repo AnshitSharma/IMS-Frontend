@@ -5,7 +5,7 @@ class ServerAPI {
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
         // Check both token keys for compatibility with dashboard
-        this.token = sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
 
         // Setup axios defaults
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
@@ -26,6 +26,10 @@ class ServerAPI {
         sessionStorage.removeItem('jwt_token');
         sessionStorage.removeItem('bdc_refresh_token');
         sessionStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_token');
+        localStorage.removeItem('bdc_refresh_token');
+        localStorage.removeItem('bdc_user');
+        localStorage.removeItem('bdc_remember_me');
         delete axios.defaults.headers.common['Authorization'];
     }
 
