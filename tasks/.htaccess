@@ -1,0 +1,10 @@
+# ============================================================
+# BDC IMS — Tasks/TODO: No Direct Web Access
+# IMS-Frontend/tasks/.htaccess
+# Internal planning files must not be publicly accessible.
+# ============================================================
+
+Options -Indexes -MultiViews
+
+Order Deny,Allow
+Deny from all

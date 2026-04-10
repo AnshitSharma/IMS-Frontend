@@ -666,7 +666,7 @@ class ConfigurationPage {
                     // Create enriched component with JSON specs and API compatibility data
                     const component = {
                         id: uuid,
-                        name: this.generateComponentNameFromJSON(jsonComponent),
+                        name: apiComp.component_name || this.generateComponentNameFromJSON(jsonComponent),
                         type: this.currentComponentType,
                         rating: 5, // Default rating
                         reviewCount: Math.floor(Math.random() * 100),
@@ -948,11 +948,18 @@ class ConfigurationPage {
 
 
             case 'ram':
-                component.capacity = jsonComponent.capacity || 'N/A';
-                component.speed = jsonComponent.speed_MHz?.toString() || 'N/A';
-                component.type = jsonComponent.type || 'DDR4';
-                component.cas = jsonComponent.cas_latency?.toString() || 'N/A';
-                component.voltage = jsonComponent.voltage?.toString() || 'N/A';
+                component.capacity = jsonComponent.capacity_GB ? `${jsonComponent.capacity_GB}GB` : (jsonComponent.capacity || 'N/A');
+                component.speed = jsonComponent.frequency_MHz?.toString() || jsonComponent.speed_MTs?.toString() || jsonComponent.speed_MHz?.toString() || 'N/A';
+                component.speed_MTs = jsonComponent.speed_MTs?.toString() || jsonComponent.frequency_MHz?.toString() || 'N/A';
+                component.type = jsonComponent.memory_type || jsonComponent.type || 'DDR4';
+                
+                let cas_latency = jsonComponent.cas_latency;
+                if (jsonComponent.timing && jsonComponent.timing.cas_latency) {
+                    cas_latency = jsonComponent.timing.cas_latency;
+                }
+                component.cas = cas_latency?.toString() || 'N/A';
+                
+                component.voltage = jsonComponent.voltage_V?.toString() || jsonComponent.voltage?.toString() || 'N/A';
                 component.formFactor = jsonComponent.form_factor || 'DIMM';
                 break;
 
@@ -2187,7 +2194,7 @@ class ConfigurationPage {
             case 'ram':
                 return `
                 <td class="${cellClass}">${this.formatValue(component.notes)}</td>
-                <td class="${cellClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed_MTs) + ' MT/s' : 'N/A'}</td>
+                <td class="${cellClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed) + ' MHz' : 'N/A'}</td>
                 <td class="${cellClass}">${this.formatValue(component.type)}</td>
                 <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
                 <td class="${cellClass}"></td>

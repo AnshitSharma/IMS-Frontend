@@ -1,0 +1,36 @@
+# ============================================================
+# BDC IMS — Static Assets Security
+# IMS-Frontend/assets/.htaccess
+# Allows serving CSS/JS/images; blocks everything sensitive.
+# ============================================================
+
+Options -Indexes -MultiViews
+
+# ── Block Tailwind source and config ──────────────────────────
+<FilesMatch "^(globals\.css|tailwind\.config\.js|postcss\.config\.js)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# ── Block source maps (leak source code paths) ────────────────
+<FilesMatch "\.map$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# ── Block archives and backups ────────────────────────────────
+<FilesMatch "\.(zip|tar|gz|bak|sql|log|md|txt)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# ── Cache headers for assets ─────────────────────────────────
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js)$">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+        Header always set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+    <FilesMatch "\.(png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>

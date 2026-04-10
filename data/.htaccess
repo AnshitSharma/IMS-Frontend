@@ -1,0 +1,10 @@
+# ============================================================
+# BDC IMS — Frontend Data: No Direct Web Access
+# IMS-Frontend/data/.htaccess
+# Component JSON placeholder directories — not served directly.
+# ============================================================
+
+Options -Indexes -MultiViews
+
+Order Deny,Allow
+Deny from all

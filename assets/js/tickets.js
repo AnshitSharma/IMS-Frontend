@@ -13,7 +13,7 @@ class TicketsManager {
         this.searchTerm = '';
         this.statusFilter = '';
         this.priorityFilter = '';
-        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
+        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
 
         // Cache for users and roles to avoid duplicate API calls
         this.cachedUsers = null;

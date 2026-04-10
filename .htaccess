@@ -1,0 +1,131 @@
+# ============================================================
+# BDC IMS — Frontend Security
+# IMS-Frontend/.htaccess
+# Serves HTML/CSS/JS SPA. Enforces headers, HTTPS, CSP, SRI.
+# ============================================================
+
+# ── Directory listing & options ───────────────────────────────
+Options -Indexes -MultiViews +FollowSymLinks
+AddDefaultCharset UTF-8
+
+# ── HTTPS redirect & extension-less URLs ─────────────────────
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 1. HTTPS redirect
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # 2. Strip .html extension from URLs
+    #    /pages/dashboard/cpu  →  serves cpu.html internally
+    #    Skips real files/directories and already-.html requests
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME}\.html -f
+    RewriteRule ^(.+)$ $1.html [L]
+
+    # 3. Block anyone who requests the .html extension directly
+    #    (forces clean URLs — /cpu not /cpu.html)
+    RewriteCond %{THE_REQUEST} \s.+\.html[\s?] [NC]
+    RewriteRule ^(.+)\.html$ /$1 [R=301,L]
+</IfModule>
+
+# ── Block dot-files and config ───────────────────────────────
+<FilesMatch "^(\.env|\.env\..+|\.git|\.gitignore|\.htaccess|\.htpasswd|package\.json|package-lock\.json|tailwind\.config\.js|postcss\.config\.js)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# ── Block non-web file types ──────────────────────────────────
+<FilesMatch "\.(log|sql|bak|swp|zip|tar|gz|md|txt|map)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# ── Security headers ─────────────────────────────────────────
+<IfModule mod_headers.c>
+    # CSP — allow only known, trusted sources
+    # Scripts: 'self' + cdn.jsdelivr.net (axios, bootstrap) + cdnjs (font-awesome)
+    # Styles:  'self' + 'unsafe-inline' (Tailwind utility classes) + cdnjs + Google Fonts
+    # Fonts:   'self' + Google Fonts static + cdnjs
+    # Connect: 'self' + production API
+    # No objects, no embeds, no frames
+    Header always set Content-Security-Policy "\
+default-src 'self'; \
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
+style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; \
+font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; \
+img-src 'self' data:; \
+connect-src 'self' https://ims.bdcms.bharatdatacenter.com; \
+frame-src 'none'; \
+frame-ancestors 'none'; \
+object-src 'none'; \
+base-uri 'self'; \
+form-action 'self'; \
+upgrade-insecure-requests"
+
+    # Prevent MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Clickjacking — this SPA should never be framed
+    Header always set X-Frame-Options "DENY"
+
+    # Cross-Origin Resource Policy
+    Header always set Cross-Origin-Resource-Policy "same-origin"
+
+    # Cross-Origin Opener Policy
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+
+    # Referrer policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # HSTS — 1 year, include subdomains, preload-ready
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # XSS protection (legacy browsers)
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Permissions policy
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+
+    # Hide server fingerprint
+    Header unset Server
+    Header always unset X-Powered-By
+
+    # Cache control for HTML pages (always revalidate)
+    <FilesMatch "\.(html|htm)$">
+        Header always set Cache-Control "no-cache, no-store, must-revalidate"
+        Header always set Pragma "no-cache"
+        Header always set Expires "0"
+    </FilesMatch>
+
+    # Cache static assets aggressively (they are versioned by query string in the app)
+    <FilesMatch "\.(css|js|woff|woff2|ttf|eot|svg|png|jpg|jpeg|gif|ico)$">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# ── Block rewrite exploits ────────────────────────────────────
+<IfModule mod_rewrite.c>
+    RewriteRule ^\.git(/.*)?$  - [F,L]
+    RewriteRule ^\.svn(/.*)?$  - [F,L]
+    RewriteRule ^node_modules(/.*)?$ - [F,L]
+
+    # Block path traversal in query strings
+    RewriteCond %{QUERY_STRING} (\.\.\/|\.\.\\|%2e%2e%2f|%252e%252e%252f) [NC]
+    RewriteRule .* - [F,L]
+
+    # Block XSS in query strings
+    RewriteCond %{QUERY_STRING} (<script|javascript:|vbscript:|onload=|onerror=) [NC]
+    RewriteRule .* - [F,L]
+
+    # Block bad bots
+    RewriteCond %{HTTP_USER_AGENT} (sqlmap|nikto|nmap|masscan|zgrab|dirbuster|gobuster|wfuzz|hydra) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# ── Allowed HTTP methods ──────────────────────────────────────
+<LimitExcept GET POST HEAD OPTIONS>
+    Order Deny,Allow
+    Deny from all
+</LimitExcept>

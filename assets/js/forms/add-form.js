@@ -10,7 +10,7 @@ class AddComponentForm {
         this.selectedComponent = null;
         this.componentSpecification = {};
         this.isSubmitting = false;
-        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_backend/api/api.php';
+        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
 
         this.init();
     }
@@ -452,11 +452,20 @@ class AddComponentForm {
             }
         });
 
+        const formFactorLabels = {
+            '3.5-inch':    '3.5-inch (SATA HDD / SAS HDD)',
+            '2.5-inch':    '2.5-inch (SATA SSD / SAS SSD / U.3)',
+            '2.5-inch U.2':'2.5-inch U.2 (NVMe U.2)',
+            'M.2 2280':    'M.2 2280 (NVMe PCIe 4.0)',
+            'M.3 2280':    'M.3 2280 (NVMe PCIe 5.0)',
+            'M.3 2230':    'M.3 2230 (NVMe PCIe 5.0)',
+        };
+
         const fragStorageFF = document.createDocumentFragment();
         [...formFactors].sort().forEach(formFactor => {
             const option = document.createElement('option');
             option.value = formFactor;
-            option.textContent = formFactor;
+            option.textContent = formFactorLabels[formFactor] || formFactor;
             fragStorageFF.appendChild(option);
         });
         dropdown2.appendChild(fragStorageFF);
