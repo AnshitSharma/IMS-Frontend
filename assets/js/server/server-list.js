@@ -25,7 +25,7 @@ class ServerListManager {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
 
         if (!token) {
             // Clear all auth data from both storages

@@ -4,8 +4,8 @@ class ServerAPI {
         // Uses centralized config (see assets/js/config.js)
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_frontend/';
-        // Check both token keys for compatibility with dashboard
-        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        // Get token from bdc_token key (current standard)
+        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
 
         // Setup axios defaults
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';

@@ -52,7 +52,7 @@ class ConfigurationPage {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
         if (!token) {
             sessionStorage.removeItem('bdc_token');
             sessionStorage.removeItem('jwt_token');
@@ -532,8 +532,8 @@ class ConfigurationPage {
         try {
             // Use ServerBuilder's JSON cache if available, otherwise fetch directly
             const nicData = typeof ServerBuilder !== 'undefined'
-                ? await ServerBuilder.fetchJSON('/IMS/ims-data/nic/nic-level-3.json')
-                : await fetch('/IMS/ims-data/nic/nic-level-3.json').then(r => r.json());
+                ? await ServerBuilder.fetchJSON('/ims-data/nic/nic-level-3.json')
+                : await fetch('/ims-data/nic/nic-level-3.json').then(r => r.json());
 
             // Search for NIC by UUID in the JSON structure
             for (const brandObj of nicData) {
@@ -1134,16 +1134,16 @@ class ConfigurationPage {
      */
     async fetchJSONData(componentType) {
         const jsonPaths = {
-            'cpu': ['/IMS/ims-data/cpu/Cpu-details-level-3.json'],
-            'motherboard': ['/IMS/ims-data/motherboard/motherboard-level-3.json'],
-            'ram': ['/IMS/ims-data/ram/ram_detail.json'],
-            'storage': ['/IMS/ims-data/storage/storage-level-3.json'],
-            'nic': ['/IMS/ims-data/nic/nic-level-3.json'],
-            'chassis': ['/IMS/ims-data/chassis/chasis-level-3.json'],
-            'caddy': ['/IMS/ims-data/caddy/caddy_details.json'],
-            'pciecard': ['/IMS/ims-data/pciecard/pci-level-3.json'],
-            'hbacard': ['/IMS/ims-data/hbacard/hbacard-level-3.json'],
-            'sfp': ['/IMS/ims-data/sfp/sfp-level-3.json']
+            'cpu': ['/ims-data/cpu/Cpu-details-level-3.json'],
+            'motherboard': ['/ims-data/motherboard/motherboard-level-3.json'],
+            'ram': ['/ims-data/ram/ram_detail.json'],
+            'storage': ['/ims-data/storage/storage-level-3.json'],
+            'nic': ['/ims-data/nic/nic-level-3.json'],
+            'chassis': ['/ims-data/chassis/chasis-level-3.json'],
+            'caddy': ['/ims-data/caddy/caddy_details.json'],
+            'pciecard': ['/ims-data/pciecard/pci-level-3.json'],
+            'hbacard': ['/ims-data/hbacard/hbacard-level-3.json'],
+            'sfp': ['/ims-data/sfp/sfp-level-3.json']
         };
 
         const paths = jsonPaths[componentType] || [];

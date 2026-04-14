@@ -142,7 +142,7 @@ class ServerBuilder {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
 
         if (!token) {
             sessionStorage.removeItem('bdc_token');
@@ -481,7 +481,7 @@ class ServerBuilder {
     // async loadMotherboardDetails(uuid) {
     //     try {
     //         // Fetch motherboard JSON
-    //         const response = await fetch('/IMS/ims-data/motherboard/motherboard-level-3.json');
+    //         const response = await fetch('/ims-data/motherboard/motherboard-level-3.json');
     //         if (!response.ok) {
     //             console.error('Failed to fetch motherboard JSON');
     //             return;
@@ -519,7 +519,7 @@ class ServerBuilder {
     async loadMotherboardDetails(uuid) {
         try {
             // Fetch motherboard JSON (cached)
-            const motherboardData = await ServerBuilder.fetchJSON('/IMS/ims-data/motherboard/motherboard-level-3.json');
+            const motherboardData = await ServerBuilder.fetchJSON('/ims-data/motherboard/motherboard-level-3.json');
 
             // Search for the motherboard by UUID
             for (const brand of motherboardData) {
@@ -955,16 +955,16 @@ class ServerBuilder {
 
         // Map component types to their JSON resource files
         const jsonMaps = {
-            'cpu': '/IMS/ims-data/cpu/Cpu-details-level-3.json',
-            'motherboard': '/IMS/ims-data/motherboard/motherboard-level-3.json',
-            'chassis': '/IMS/ims-data/chassis/chasis-level-3.json',
-            'ram': '/IMS/ims-data/ram/ram_detail.json',
-            'storage': '/IMS/ims-data/storage/storage-level-3.json',
-            'nic': '/IMS/ims-data/nic/nic-level-3.json',
-            'pciecard': '/IMS/ims-data/pciecard/pci-level-3.json',
-            'hbacard': '/IMS/ims-data/hbacard/hbacard-level-3.json',
-            'sfp': '/IMS/ims-data/sfp/sfp-level-3.json',
-            'caddy': '/IMS/ims-data/caddy/caddy_details.json'
+            'cpu': '/ims-data/cpu/Cpu-details-level-3.json',
+            'motherboard': '/ims-data/motherboard/motherboard-level-3.json',
+            'chassis': '/ims-data/chassis/chasis-level-3.json',
+            'ram': '/ims-data/ram/ram_detail.json',
+            'storage': '/ims-data/storage/storage-level-3.json',
+            'nic': '/ims-data/nic/nic-level-3.json',
+            'pciecard': '/ims-data/pciecard/pci-level-3.json',
+            'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
+            'sfp': '/ims-data/sfp/sfp-level-3.json',
+            'caddy': '/ims-data/caddy/caddy_details.json'
         };
 
         const jsonPath = jsonMaps[type.toLowerCase()];
@@ -1390,7 +1390,7 @@ class ServerBuilder {
             }
 
             // Component NIC - search in the NIC JSON spec file (cached)
-            const nicData = await ServerBuilder.fetchJSON('/IMS/ims-data/nic/nic-level-3.json');
+            const nicData = await ServerBuilder.fetchJSON('/ims-data/nic/nic-level-3.json');
 
             for (const brandObj of nicData) {
                 for (const series of brandObj.series) {
@@ -2100,7 +2100,7 @@ class ServerBuilder {
     async loadChassisDetails(uuid) {
         try {
             // Fetch chassis JSON (cached)
-            const chassisData = await ServerBuilder.fetchJSON('/IMS/ims-data/chassis/chasis-level-3.json');
+            const chassisData = await ServerBuilder.fetchJSON('/ims-data/chassis/chasis-level-3.json');
 
             // Search for the chassis by UUID
             for (const manufacturer of chassisData.manufacturers) {

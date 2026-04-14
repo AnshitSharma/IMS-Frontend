@@ -679,15 +679,15 @@ class TicketsManager {
         try {
             // Load all component JSON files
             const componentTypes = {
-                cpu: '/IMS/ims-data/cpu/Cpu-details-level-3.json',
-                ram: '/IMS/ims-data/ram/ram_detail.json',
-                storage: '/IMS/ims-data/storage/storage-level-3.json',
-                motherboard: '/IMS/ims-data/motherboard/motherboard-level-3.json',
-                nic: '/IMS/ims-data/nic/nic-level-3.json',
-                caddy: '/IMS/ims-data/caddy/caddy_details.json',
-                chassis: '/IMS/ims-data/chassis/chasis-level-3.json',
-                pciecard: '/IMS/ims-data/pciecard/pci-level-3.json',
-                hbacard: '/IMS/ims-data/hbacard/hbacard-level-3.json'
+                cpu: '/ims-data/cpu/Cpu-details-level-3.json',
+                ram: '/ims-data/ram/ram_detail.json',
+                storage: '/ims-data/storage/storage-level-3.json',
+                motherboard: '/ims-data/motherboard/motherboard-level-3.json',
+                nic: '/ims-data/nic/nic-level-3.json',
+                caddy: '/ims-data/caddy/caddy_details.json',
+                chassis: '/ims-data/chassis/chasis-level-3.json',
+                pciecard: '/ims-data/pciecard/pci-level-3.json',
+                hbacard: '/ims-data/hbacard/hbacard-level-3.json'
             };
 
             for (const [type, path] of Object.entries(componentTypes)) {
@@ -1119,8 +1119,8 @@ class TicketsManager {
      * Get authentication token
      */
     getAuthToken() {
-        // Try to get token from sessionStorage (check both possible keys)
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token') || sessionStorage.getItem('jwt_token');
+        // Get token from bdc_token key (current standard)
+        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
         return token;
     }
 

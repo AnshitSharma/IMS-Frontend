@@ -8,26 +8,12 @@
 Options -Indexes -MultiViews +FollowSymLinks
 AddDefaultCharset UTF-8
 
-# ── HTTPS redirect & extension-less URLs ─────────────────────
+# ── HTTPS redirect ───────────────────────────────────────────
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # 1. HTTPS redirect
     RewriteCond %{HTTPS} off
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-    # 2. Strip .html extension from URLs
-    #    /pages/dashboard/cpu  →  serves cpu.html internally
-    #    Skips real files/directories and already-.html requests
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME}\.html -f
-    RewriteRule ^(.+)$ $1.html [L]
-
-    # 3. Block anyone who requests the .html extension directly
-    #    (forces clean URLs — /cpu not /cpu.html)
-    RewriteCond %{THE_REQUEST} \s.+\.html[\s?] [NC]
-    RewriteRule ^(.+)\.html$ /$1 [R=301,L]
 </IfModule>
 
 # ── Block dot-files and config ───────────────────────────────
