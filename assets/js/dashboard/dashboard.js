@@ -60,7 +60,13 @@ class Dashboard {
             }
         } else if (page === 'activity-log.html') {
             this.currentComponent = 'activity-log';
-            // Activity log has its own init script, nothing to load here
+        } else if (page === 'vendors.html') {
+            this.currentComponent = 'vendors';
+            if (!api.utils.hasRole(['admin', 'superadmin'])) {
+                window.location.href = 'index.html';
+                return;
+            }
+            await this.loadVendorList();
         } else {
             // Assume it's a component page
             const component = page.replace('.html', '');
@@ -528,13 +534,15 @@ class Dashboard {
             const modelName = component.ModelName || null;
             const serialNumber = component.SerialNumber || component.UUID || 'N/A';
             const location = component.Location || '-';
+            const vendorName = component.VendorName || '';
             const primaryDisplay = modelName ? utils.escapeHtml(modelName) : utils.escapeHtml(serialNumber);
             const secondaryDisplay = modelName ? `<br><small style="color: var(--text-muted); font-family: monospace;">${utils.escapeHtml(serialNumber)}</small>` : '';
+            const vendorBadge = vendorName ? `<br><small class="text-text-muted"><i class="fas fa-truck text-xs"></i> ${utils.escapeHtml(vendorName)}</small>` : '';
 
             return `
             <tr class="h-16">
                 <td class="px-4 py-3 align-middle h-16" data-label="Select"><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Model"><strong>${primaryDisplay}</strong>${secondaryDisplay}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Model"><strong>${primaryDisplay}</strong>${secondaryDisplay}${vendorBadge}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Status">${utils.createStatusBadge(component.Status)}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code>${utils.truncateText(component.ServerUUID, 20)}</code>` : '-'}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Location">${utils.escapeHtml(location)}</td>
@@ -2522,6 +2530,328 @@ class Dashboard {
                 };
             }
             this.switchView(view);
+        }
+    }
+
+    // ── Vendor Management ──
+
+    async loadVendorList() {
+        try {
+            utils.showLoading(true, 'Loading vendors...');
+            const result = await api.vendors.list();
+            if (result.success) {
+                this.allVendors = result.data.vendors || [];
+                this.filterAndRenderVendors();
+            }
+        } catch (error) {
+            console.error('Error loading vendors:', error);
+            utils.showAlert(error.message || 'Failed to load vendors', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+
+        this.setupVendorEventListeners();
+    }
+
+    setupVendorEventListeners() {
+        const searchInput = document.getElementById('componentSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', utils.debounce(() => {
+                this.filterAndRenderVendors();
+            }, 300));
+        }
+
+        const addBtn = document.getElementById('addVendorBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => this.showAddVendorForm());
+        }
+
+        const refreshBtn = document.getElementById('refreshVendors');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadVendorList());
+        }
+    }
+
+    filterAndRenderVendors() {
+        const search = (document.getElementById('componentSearch')?.value || '').trim().toLowerCase();
+        let filtered = this.allVendors || [];
+
+        if (search) {
+            filtered = filtered.filter(v =>
+                (v.name || '').toLowerCase().includes(search) ||
+                (v.email || '').toLowerCase().includes(search) ||
+                (v.phone || '').toLowerCase().includes(search)
+            );
+        }
+
+        this.renderVendorTable(filtered);
+    }
+
+    renderVendorTable(vendors) {
+        const tbody = document.getElementById('vendorsTableBody');
+        if (!tbody) return;
+
+        const infoEl = document.getElementById('vendorPaginationInfo');
+        if (infoEl) {
+            infoEl.textContent = `Showing ${vendors.length} of ${(this.allVendors || []).length} vendors`;
+        }
+
+        if (vendors.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-text-muted">
+                <i class="fas fa-truck text-4xl mb-4 block opacity-50"></i>
+                <h3 class="text-lg font-semibold mb-2">No Vendors Found</h3>
+                <p class="mb-4">Add your first vendor to get started.</p>
+                <button class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg" onclick="dashboard.showAddVendorForm()">
+                    <i class="fas fa-plus"></i> Add Vendor
+                </button>
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = vendors.map(vendor => `
+            <tr class="h-16 hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3 align-middle" data-label="Name">
+                    <strong class="text-text-primary">${utils.escapeHtml(vendor.name)}</strong>
+                </td>
+                <td class="px-4 py-3 align-middle text-text-secondary" data-label="Email">${utils.escapeHtml(vendor.email || '-')}</td>
+                <td class="px-4 py-3 align-middle text-text-secondary" data-label="Phone">${utils.escapeHtml(vendor.phone || '-')}</td>
+                <td class="px-4 py-3 align-middle text-text-muted" data-label="Created">${utils.formatDate(vendor.created_at)}</td>
+                <td class="px-4 py-3 align-middle" data-label="Actions">
+                    <div class="flex gap-2">
+                        <button class="action-btn p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="View Components">
+                            <i class="fas fa-boxes"></i>
+                        </button>
+                        <button class="action-btn px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditVendorForm(${vendor.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="action-btn px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    showAddVendorForm() {
+        const formHtml = `
+            <form id="addVendorForm" class="max-w-lg">
+                <div class="form-group mb-4">
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
+                    <input type="text" id="vendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="Enter vendor name">
+                </div>
+                <div class="form-group mb-4">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Email</label>
+                    <input type="email" id="vendorEmail" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="vendor@example.com">
+                </div>
+                <div class="form-group mb-4">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
+                    <input type="tel" id="vendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ...">
+                </div>
+                <div class="form-group mb-4">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+                    <textarea id="vendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+                <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
+                    <button type="button" class="btn btn-secondary px-5 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover" onclick="dashboard.closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add Vendor</button>
+                </div>
+            </form>
+        `;
+        this.showModal('Add New Vendor', formHtml);
+        document.getElementById('addVendorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.handleAddVendor();
+        });
+    }
+
+    async handleAddVendor() {
+        const name = document.getElementById('vendorName').value.trim();
+        if (!name) {
+            toast.error('Vendor name is required');
+            return;
+        }
+        try {
+            utils.showLoading(true, 'Adding vendor...');
+            const result = await api.vendors.add({
+                name,
+                email: document.getElementById('vendorEmail').value.trim(),
+                phone: document.getElementById('vendorPhone').value.trim(),
+                notes: document.getElementById('vendorNotes').value.trim()
+            });
+            if (result.success) {
+                toast.success('Vendor added successfully');
+                this.closeModal();
+                await this.loadVendorList();
+            } else {
+                toast.error(result.message || 'Failed to add vendor');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to add vendor');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async showEditVendorForm(vendorId) {
+        try {
+            utils.showLoading(true, 'Loading vendor...');
+            const result = await api.vendors.get(vendorId);
+            if (!result.success) {
+                toast.error(result.message || 'Vendor not found');
+                return;
+            }
+            const vendor = result.data.vendor;
+            const formHtml = `
+                <form id="editVendorForm" class="max-w-lg">
+                    <input type="hidden" id="editVendorId" value="${vendor.id}">
+                    <div class="form-group mb-4">
+                        <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
+                        <input type="text" id="editVendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required value="${utils.escapeHtml(vendor.name || '')}">
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Email</label>
+                        <input type="email" id="editVendorEmail" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" value="${utils.escapeHtml(vendor.email || '')}">
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
+                        <input type="tel" id="editVendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" value="${utils.escapeHtml(vendor.phone || '')}">
+                    </div>
+                    <div class="form-group mb-4">
+                        <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+                        <textarea id="editVendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3">${utils.escapeHtml(vendor.notes || '')}</textarea>
+                    </div>
+                    <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
+                        <button type="button" class="btn btn-secondary px-5 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover" onclick="dashboard.closeModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Save Changes</button>
+                    </div>
+                </form>
+            `;
+            this.showModal('Edit Vendor', formHtml);
+            document.getElementById('editVendorForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleUpdateVendor();
+            });
+        } catch (error) {
+            toast.error(error.message || 'Failed to load vendor');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async handleUpdateVendor() {
+        const vendorId = document.getElementById('editVendorId').value;
+        const name = document.getElementById('editVendorName').value.trim();
+        if (!name) {
+            toast.error('Vendor name is required');
+            return;
+        }
+        try {
+            utils.showLoading(true, 'Updating vendor...');
+            const result = await api.vendors.update(vendorId, {
+                name,
+                email: document.getElementById('editVendorEmail').value.trim(),
+                phone: document.getElementById('editVendorPhone').value.trim(),
+                notes: document.getElementById('editVendorNotes').value.trim()
+            });
+            if (result.success) {
+                toast.success('Vendor updated successfully');
+                this.closeModal();
+                await this.loadVendorList();
+            } else {
+                toast.error(result.message || 'Failed to update vendor');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to update vendor');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async handleDeleteVendor(vendorId, vendorName) {
+        if (!confirm(`Are you sure you want to delete vendor "${vendorName}"?\n\nComponents linked to this vendor will have their vendor reference cleared.`)) {
+            return;
+        }
+        try {
+            utils.showLoading(true, 'Deleting vendor...');
+            const result = await api.vendors.delete(vendorId);
+            if (result.success) {
+                toast.success('Vendor deleted successfully');
+                await this.loadVendorList();
+            } else {
+                toast.error(result.message || 'Failed to delete vendor');
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to delete vendor');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async showVendorComponents(vendorId, vendorName) {
+        try {
+            utils.showLoading(true, 'Loading vendor components...');
+            const result = await api.vendors.getComponents(vendorId);
+            if (!result.success) {
+                toast.error(result.message || 'Failed to load components');
+                return;
+            }
+
+            const components = result.data.components || [];
+            let content;
+
+            if (components.length === 0) {
+                content = `
+                    <div class="text-center py-8 text-text-muted">
+                        <i class="fas fa-box-open text-4xl mb-4 block opacity-50"></i>
+                        <p>No components have been assigned to this vendor yet.</p>
+                    </div>
+                `;
+            } else {
+                const grouped = {};
+                components.forEach(c => {
+                    const type = (c.component_type || 'unknown').toUpperCase();
+                    if (!grouped[type]) grouped[type] = [];
+                    grouped[type].push(c);
+                });
+
+                let tableRows = '';
+                for (const [type, items] of Object.entries(grouped)) {
+                    items.forEach(item => {
+                        tableRows += `
+                            <tr class="hover:bg-surface-hover transition-colors">
+                                <td class="px-4 py-2 text-sm"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">${type}</span></td>
+                                <td class="px-4 py-2 text-sm text-text-primary">${utils.escapeHtml(item.SerialNumber || '-')}</td>
+                                <td class="px-4 py-2 text-sm">${utils.createStatusBadge(item.Status)}</td>
+                                <td class="px-4 py-2 text-sm text-text-muted">${utils.escapeHtml(item.Location || '-')}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                content = `
+                    <p class="text-sm text-text-muted mb-4">${components.length} component(s) supplied by this vendor</p>
+                    <div class="overflow-auto max-h-96">
+                        <table class="w-full table-base">
+                            <thead class="bg-surface-hover border-b border-border sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Type</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Serial Number</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Status</th>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Location</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">${tableRows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            this.showModal(`Components from ${utils.escapeHtml(vendorName)}`, content);
+        } catch (error) {
+            toast.error(error.message || 'Failed to load vendor components');
+        } finally {
+            utils.showLoading(false);
         }
     }
 }

@@ -339,6 +339,27 @@ window.api = {
         }
     },
 
+    vendors: {
+        async list() {
+            return await api.request('vendor-list');
+        },
+        async get(id) {
+            return await api.request('vendor-get', { id });
+        },
+        async add(data) {
+            return await api.request('vendor-add', data);
+        },
+        async update(id, data) {
+            return await api.request('vendor-update', { id, ...data });
+        },
+        async delete(id) {
+            return await api.request('vendor-delete', { id });
+        },
+        async getComponents(id) {
+            return await api.request('vendor-components', { id });
+        }
+    },
+
     servers: {
         async createConfig(serverName, description, startWith, isVirtual, location, rackPosition) {
             const requestData = {

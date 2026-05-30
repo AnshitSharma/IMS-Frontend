@@ -1573,11 +1573,14 @@ class AddComponentForm {
             'specificationSection',
             'identificationSection',
             'statusSection',
+            'vendorSection',
             'locationSection',
             'datesSection',
             'flagSection',
             'notesSection'
         ];
+
+        this.loadVendors();
 
         sections.forEach(sectionId => {
             const section = document.getElementById(sectionId);
@@ -1633,6 +1636,7 @@ class AddComponentForm {
             'specificationSection',
             'identificationSection',
             'statusSection',
+            'vendorSection',
             'locationSection',
             'datesSection',
             'flagSection',
@@ -1830,6 +1834,27 @@ class AddComponentForm {
         return labelMap[fieldId] || fieldId.replace(/([A-Z])/g, ' $1').toLowerCase();
     }
 
+    async loadVendors() {
+        const vendorSelect = document.getElementById('vendorSelect');
+        if (!vendorSelect) return;
+        vendorSelect.innerHTML = '<option value="">-- No Vendor --</option>';
+        try {
+            if (window.api && window.api.vendors) {
+                const result = await window.api.vendors.list();
+                if (result.success && result.data.vendors) {
+                    result.data.vendors.forEach(vendor => {
+                        const option = document.createElement('option');
+                        option.value = vendor.id;
+                        option.textContent = vendor.name;
+                        vendorSelect.appendChild(option);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Error loading vendors:', e);
+        }
+    }
+
     collectFormData() {
         // Base form data
         const formData = {
@@ -1837,6 +1862,7 @@ class AddComponentForm {
             UUID: document.getElementById('componentUUID').value,
             SerialNumber: document.getElementById('serialNumber').value,
             Status: document.getElementById('status').value,
+            VendorID: document.getElementById('vendorSelect')?.value || null,
             Location: document.getElementById('location').value || null,
             RackPosition: document.getElementById('rackPosition').value || null,
             PurchaseDate: document.getElementById('purchaseDate').value || null,
@@ -1883,6 +1909,7 @@ class AddComponentForm {
                 UUID: formData.UUID,
                 SerialNumber: formData.SerialNumber,
                 Status: formData.Status,
+                VendorID: formData.VendorID,
                 Location: formData.Location,
                 RackPosition: formData.RackPosition,
                 PurchaseDate: formData.PurchaseDate,

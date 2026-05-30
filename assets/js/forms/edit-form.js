@@ -40,9 +40,8 @@ class EditFormComponent {
 
         let fieldsHtml = this.renderCommonFields();
 
-
-
         this.formContainer.innerHTML = fieldsHtml;
+        this.loadVendors();
     }
 
     escapeHtml(str) {
@@ -59,6 +58,12 @@ class EditFormComponent {
                 <div class="form-grid two-column">
                     ${this.renderSelectField('Status', 'Status', this.componentData.Status, [{ value: 1, text: 'Available' }, { value: 2, text: 'In Use' }, { value: 0, text: 'Failed' }])}
                     ${this.renderTextField('ServerUUID', 'Server UUID', this.componentData.ServerUUID)}
+                    <div class="form-group">
+                        <label for="VendorID" class="form-label">Vendor</label>
+                        <select id="VendorID" name="VendorID" class="form-select">
+                            <option value="">-- No Vendor --</option>
+                        </select>
+                    </div>
                     ${this.renderSelectField('Location', 'Location', this.componentData.Location, [{ value: '', text: '-- Select Location --' }, { value: 'Noida', text: 'Noida' }, { value: 'Jaipur', text: 'Jaipur' }, { value: 'Delhi', text: 'Delhi' }, { value: 'Pune', text: 'Pune' }])}
                     ${this.renderTextField('RackPosition', 'Rack Position', this.componentData.RackPosition)}
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
@@ -72,6 +77,30 @@ class EditFormComponent {
                 </div>
             </div>
         `;
+    }
+
+    async loadVendors() {
+        const vendorSelect = document.getElementById('VendorID');
+        if (!vendorSelect) return;
+        try {
+            if (window.api && window.api.vendors) {
+                const result = await window.api.vendors.list();
+                if (result.success && result.data.vendors) {
+                    const currentVendorId = this.componentData.VendorID;
+                    result.data.vendors.forEach(vendor => {
+                        const option = document.createElement('option');
+                        option.value = vendor.id;
+                        option.textContent = vendor.name;
+                        if (currentVendorId && vendor.id == currentVendorId) {
+                            option.selected = true;
+                        }
+                        vendorSelect.appendChild(option);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Error loading vendors:', e);
+        }
     }
 
 

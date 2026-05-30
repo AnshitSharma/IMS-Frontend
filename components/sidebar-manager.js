@@ -69,6 +69,12 @@ class SidebarManager {
 
             placeholder.innerHTML = html;
 
+            // Show vendor menu item only for admin/superadmin (UI-only gate; API enforces server-side)
+            if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'superadmin'])) {
+                const vendorMenuItem = document.getElementById('vendorMenuItem');
+                if (vendorMenuItem) vendorMenuItem.style.display = '';
+            }
+
             // Reinitialize handlers after injecting new DOM
             this.reinitMobileMenu();
 

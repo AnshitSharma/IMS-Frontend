@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>Vendors - BDC Inventory</title>
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+
+<body class="bg-surface-main">
+    <!-- Navigation Header -->
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button
+                    class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                    id="hamburgerBtn" aria-label="Toggle Menu">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <a href="./index.html" class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
+                    <i class="fas fa-server"></i>
+                    <span>BDC Inventory</span>
+                </a>
+            </div>
+
+            <div class="nav-menu flex items-center gap-4">
+                <div class="nav-user flex items-center gap-3">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme"
+                        title="Toggle dark mode">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+
+                    <div class="user-info text-right hidden md:block">
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
+                    </div>
+                    <div
+                        class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown relative">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div
+                            class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                            <a href="#" id="changePassword"
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-key"></i> Change Password
+                            </a>
+                            <a href="#" id="logoutBtn"
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container with Layout Wrapper -->
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <div id="sidebar-placeholder"></div>
+
+            <!-- Main Content -->
+            <main class="main-content flex-1 p-6">
+                <div id="componentView" class="content-section active">
+                    <div class="content-header mb-6">
+                        <h2 id="componentTitle" class="text-2xl font-bold text-text-primary mb-4">Vendors</h2>
+                        <div
+                            class="header-actions flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+                            <div class="search-filter-group flex flex-col sm:flex-row gap-3 sm:flex-1 w-full sm:w-auto">
+                                <input type="text" id="componentSearch" placeholder="Search vendors..."
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
+                            </div>
+                            <button
+                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                id="addVendorBtn">
+                                <i class="fas fa-plus"></i> Add Vendor
+                            </button>
+                            <button
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                id="refreshVendors">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Vendors Table -->
+                    <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
+                        <table class="w-full table-base components-table table-responsive" id="vendorsTable">
+                            <thead class="bg-surface-hover border-b border-border">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
+                                        Name
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
+                                        Email
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
+                                        Phone
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
+                                        Created
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="vendorsTableBody" class="divide-y divide-border">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination Info -->
+                    <div class="pagination-container mt-6 flex items-center justify-between">
+                        <div class="pagination-info text-sm text-text-muted">
+                            <span id="vendorPaginationInfo"></span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"
+        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody">
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] hidden">
+        <div class="bg-surface-card rounded-lg p-8 text-center">
+            <div class="loading-spinner mb-4 mx-auto"></div>
+            <p class="text-text-primary">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+
+    <!-- Scripts -->
+    <script src="../../components/global-loading.js"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../components/sidebar-manager.js"></script>
+    <script src="../../assets/js/dashboard/dashboard.js"></script>
+    <script>
+        // Theme Toggle Handler
+        (function () {
+            function initTheme() {
+                if (typeof utils !== 'undefined' && utils.theme) {
+                    utils.theme.init();
+                    updateThemeIcon(utils.theme.get());
+                }
+            }
+
+            function updateThemeIcon(theme) {
+                const icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+
+            function handleThemeToggle() {
+                if (typeof utils === 'undefined' || !utils.theme) return;
+                const toggleBtn = document.getElementById('themeToggleBtn');
+                if (toggleBtn) {
+                    toggleBtn.classList.add('toggling');
+                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
+                }
+                const newTheme = utils.theme.toggle();
+                updateThemeIcon(newTheme);
+                if (typeof toast !== 'undefined') {
+                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTheme);
+            } else {
+                initTheme();
+            }
+
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', handleThemeToggle);
+            }
+        })();
+    </script>
+</body>
+
+</html>
