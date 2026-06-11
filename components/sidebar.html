@@ -5,205 +5,131 @@
 <!-- Sidebar - z-index above overlay on mobile, static on desktop -->
 <aside
     class="sidebar w-sidebar bg-surface-card border-r border-border h-[calc(100vh-70px)] fixed lg:relative lg:h-full top-[70px] lg:top-0 z-[1001] lg:z-auto flex flex-col transition-transform duration-300 transform -translate-x-full lg:translate-x-0 shadow-sidebar lg:shadow-none flex-shrink-0">
-    <div class="sidebar-header px-6 py-3 border-b border-border flex items-center justify-between">
-        <h3 class="font-bold text-lg text-primary tracking-wide">Components</h3>
-        <button class="lg:hidden text-text-muted hover:text-text-primary transition-colors" id="closeSidebarBtn">
+    <div class="sidebar-header px-5 py-3 border-b border-border-light flex items-center justify-between lg:hidden">
+        <h3>Navigation</h3>
+        <button class="text-text-muted hover:text-text-primary transition-colors p-1" id="closeSidebarBtn"
+            aria-label="Close menu">
             <i class="fas fa-times"></i>
         </button>
     </div>
 
-    <div class="flex-1 overflow-y-auto py-4">
-        <ul class="sidebar-menu space-y-1 px-3">
+    <nav class="flex-1 overflow-y-auto py-3" aria-label="Main">
+        <ul class="sidebar-menu">
+            <li class="menu-section">Overview</li>
+
             <li class="menu-item" data-component="dashboard">
-                <a href="index.html"
-                    class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <i
-                        class="fas fa-tachometer-alt w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                    <span class="text-sm font-medium">Dashboard</span>
+                <a href="index.html">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span class="menu-label">Dashboard</span>
                 </a>
             </li>
-
-
             <li class="menu-item" data-component="servers">
-                <a href="servers.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-cubes w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Servers</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="serversCount">0</span>
+                <a href="servers.html">
+                    <i class="fas fa-cubes"></i>
+                    <span class="menu-label">Servers</span>
+                    <span class="count" id="serversCount">0</span>
                 </a>
             </li>
 
+            <li class="menu-section">Inventory</li>
 
             <li class="menu-item" data-component="cpu">
-                <a href="cpu.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-bolt w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">CPUs</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="cpuCount">0</span>
+                <a href="cpu.html">
+                    <i class="fas fa-bolt"></i>
+                    <span class="menu-label">CPUs</span>
+                    <span class="count" id="cpuCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="ram">
-                <a href="ram.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-memory w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">RAM</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="ramCount">0</span>
+                <a href="ram.html">
+                    <i class="fas fa-memory"></i>
+                    <span class="menu-label">RAM</span>
+                    <span class="count" id="ramCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="storage">
-                <a href="storage.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-hdd w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Storage</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="storageCount">0</span>
+                <a href="storage.html">
+                    <i class="fas fa-hdd"></i>
+                    <span class="menu-label">Storage</span>
+                    <span class="count" id="storageCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="motherboard">
-                <a href="motherboard.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-th-large w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Motherboards</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="motherboardCount">0</span>
+                <a href="motherboard.html">
+                    <i class="fas fa-th-large"></i>
+                    <span class="menu-label">Motherboards</span>
+                    <span class="count" id="motherboardCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="nic">
-                <a href="nic.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-network-wired w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Network Cards</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="nicCount">0</span>
+                <a href="nic.html">
+                    <i class="fas fa-network-wired"></i>
+                    <span class="menu-label">Network Cards</span>
+                    <span class="count" id="nicCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="caddy">
-                <a href="caddy.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-box w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Caddies</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="caddyCount">0</span>
+                <a href="caddy.html">
+                    <i class="fas fa-box"></i>
+                    <span class="menu-label">Caddies</span>
+                    <span class="count" id="caddyCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="chassis">
-                <a href="chassis.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-server w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">Chassis</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="chassisCount">0</span>
+                <a href="chassis.html">
+                    <i class="fas fa-server"></i>
+                    <span class="menu-label">Chassis</span>
+                    <span class="count" id="chassisCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="pciecard">
-                <a href="pciecard.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-credit-card w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">PCIe Cards</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="pciecardCount">0</span>
+                <a href="pciecard.html">
+                    <i class="fas fa-credit-card"></i>
+                    <span class="menu-label">PCIe Cards</span>
+                    <span class="count" id="pciecardCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="hbacard">
-                <a href="hbacard.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-plug w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">HBA Cards</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="hbacardCount">0</span>
+                <a href="hbacard.html">
+                    <i class="fas fa-plug"></i>
+                    <span class="menu-label">HBA Cards</span>
+                    <span class="count" id="hbacardCount">0</span>
                 </a>
             </li>
             <li class="menu-item" data-component="sfp">
-                <a href="sfp.html"
-                    class="px-4 py-3 flex items-center justify-between w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <div class="flex items-center gap-3">
-                        <i
-                            class="fas fa-plug w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                        <span class="text-sm font-medium">SFP Modules</span>
-                    </div>
-                    <span
-                        class="count text-xs bg-surface-secondary text-text-muted px-2 py-0.5 rounded-full group-hover:bg-surface-card group-hover:shadow-sm transition-all"
-                        id="sfpCount">0</span>
+                <a href="sfp.html">
+                    <i class="fas fa-ethernet"></i>
+                    <span class="menu-label">SFP Modules</span>
+                    <span class="count" id="sfpCount">0</span>
                 </a>
             </li>
+
+            <li class="menu-section">Management</li>
 
             <li class="menu-item" id="vendorMenuItem" data-component="vendors" style="display:none;">
-                <a href="vendors.html"
-                    class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <i
-                        class="fas fa-truck w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                    <span class="text-sm font-medium">Vendors</span>
+                <a href="vendors.html">
+                    <i class="fas fa-truck"></i>
+                    <span class="menu-label">Vendors</span>
                 </a>
             </li>
-
             <li class="menu-item" data-component="activity-log" id="activityLogMenuItem" style="display:none;">
-                <a href="activity-log.html"
-                    class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <i
-                        class="fas fa-history w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                    <span class="text-sm font-medium">Activity Log</span>
+                <a href="activity-log.html">
+                    <i class="fas fa-history"></i>
+                    <span class="menu-label">Activity Log</span>
                 </a>
             </li>
-
             <li class="menu-item" data-component="acl">
-                <a href="acl.html"
-                    class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <i
-                        class="fas fa-shield-alt w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                    <span class="text-sm font-medium">Access Control</span>
+                <a href="acl.html">
+                    <i class="fas fa-shield-alt"></i>
+                    <span class="menu-label">Access Control</span>
                 </a>
             </li>
             <li class="menu-item" data-component="tickets">
-                <a href="tickets.html"
-                    class="px-4 py-3 flex items-center gap-3 w-full cursor-pointer rounded-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-all group">
-                    <i
-                        class="fas fa-ticket-alt w-5 text-center text-text-muted group-hover:text-primary transition-colors"></i>
-                    <span class="text-sm font-medium">Tickets</span>
+                <a href="tickets.html">
+                    <i class="fas fa-ticket-alt"></i>
+                    <span class="menu-label">Tickets</span>
                 </a>
             </li>
         </ul>
-    </div>
+    </nav>
 </aside>

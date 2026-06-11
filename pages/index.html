@@ -8,324 +8,304 @@
     <title>BDC IMS - Bharat Datacenter Infrastructure Management System</title>
     <link rel="stylesheet" href="../assets/css/tailwind.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
+        /* Form Container Toggle */
+        .form-container {
+            display: none;
         }
 
-        .bg-animation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
-            background: linear-gradient(135deg, var(--color-primary, #0D9488) 0%, var(--color-primary-light, #14B8A6) 100%);
+        .form-container.active {
+            display: block;
         }
 
-        .particle {
-            position: absolute;
-            background: rgba(255, 255, 255, 0.1);
+        /* Button Loader */
+        .btn-loader {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.35);
             border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            margin-top: -9px;
         }
 
-        .particle:nth-child(1) {
-            width: 80px;
-            height: 80px;
-            left: 10%;
-            animation: float 25s ease-in-out infinite;
-            animation-delay: 0s;
+        .loading .btn-loader {
+            display: block;
         }
 
-        .particle:nth-child(2) {
-            width: 120px;
-            height: 120px;
-            left: 20%;
-            animation: float 30s ease-in-out infinite;
-            animation-delay: 2s;
+        .loading .btn-text {
+            opacity: 0.8;
         }
 
-        .particle:nth-child(3) {
-            width: 60px;
-            height: 60px;
-            left: 70%;
-            animation: float 20s ease-in-out infinite;
-            animation-delay: 4s;
-        }
-
-        .particle:nth-child(4) {
-            width: 100px;
-            height: 100px;
-            left: 80%;
-            animation: float 35s ease-in-out infinite;
-            animation-delay: 6s;
-        }
-
-        .particle:nth-child(5) {
-            width: 40px;
-            height: 40px;
-            left: 50%;
-            animation: float 15s ease-in-out infinite;
-            animation-delay: 1s;
-        }
-
-        .particle:nth-child(6) {
-            width: 90px;
-            height: 90px;
-            left: 30%;
-            animation: float 28s ease-in-out infinite;
-            animation-delay: 3s;
-        }
-
-        .particle:nth-child(7) {
-            width: 70px;
-            height: 70px;
-            left: 60%;
-            animation: float 22s ease-in-out infinite;
-            animation-delay: 5s;
-        }
-
-        .particle:nth-child(8) {
-            width: 110px;
-            height: 110px;
-            left: 90%;
-            animation: float 32s ease-in-out infinite;
-            animation-delay: 7s;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0px) rotate(0deg);
-                opacity: 0;
-            }
-
-            10% {
-                opacity: 1;
-            }
-
-            90% {
-                opacity: 1;
-            }
-
-            100% {
-                transform: translateY(-100vh) rotate(360deg);
-                opacity: 0;
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
-        .logo {
-            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-light, #14B8A6));
-            animation: logoFloat 3s ease-in-out infinite;
+        /* Input Group */
+        .input-group {
+            background: #FFFFFF;
+            border: 1px solid #DFE3E6;
+            border-radius: 6px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        @keyframes logoFloat {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-10px);
-            }
+        .input-group:hover {
+            border-color: #B9C0C6;
         }
 
-        .toggle-btn.active {
-            color: white;
+        .input-group:focus-within {
+            border-color: #0F766E;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+        }
+
+        .input-group:focus-within i {
+            color: #0F766E;
+        }
+
+        .input-group input {
+            border: none !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .input-group input:focus,
+        .input-group input:active {
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Validation Error Styling */
+        .field-error {
+            width: 100%;
+            color: #DC2626;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+            flex-basis: 100%;
+            order: 3;
+            font-weight: 500;
+            padding-left: 0.125rem;
+        }
+
+        .input-group:has(.field-error) {
+            border-color: #DC2626 !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
+        }
+
+        /* Custom Checkbox */
+        .custom-checkbox:has(input:checked) .checkbox-icon {
+            opacity: 1;
+        }
+
+        .custom-checkbox:has(input:checked) .checkbox-box {
+            border-color: #0F766E;
+            background-color: #0F766E;
+        }
+
+        /* Auth Toggle (segmented control) — JS toggles .active */
+        .auth-toggle button {
+            color: #6E777E;
+        }
+
+        .auth-toggle button:hover {
+            color: #161A1D;
+        }
+
+        .auth-toggle button.active {
+            background-color: #FFFFFF;
+            color: #161A1D !important;
+            box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+            border: 1px solid #DFE3E6;
         }
 
         .toggle-indicator {
-            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-hover, #0F766E));
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+            display: none;
         }
 
-        .toggle-indicator.register {
-            transform: translateX(100%);
-        }
-
-        .auth-btn {
-            background: linear-gradient(45deg, var(--color-primary, #0D9488), var(--color-primary-hover, #0F766E));
-            box-shadow: 0 8px 25px rgba(13, 148, 136, 0.3);
-        }
-
-        .auth-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 35px rgba(13, 148, 136, 0.4);
-        }
-
-        .auth-btn:active {
-            transform: translateY(0);
-        }
-
-        .checkmark {
-            border: 2px solid var(--color-border-light, #E2E8F0);
-            transition: all 0.3s ease;
-        }
-
-        .remember-me input:checked+.checkmark {
-            background: var(--color-primary, #0D9488);
-            border-color: var(--color-primary, #0D9488);
-        }
-
-        .remember-me input:checked+.checkmark::after {
-            content: '✓';
-            position: absolute;
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-
+        /* Fallback alert (primary path is toast.js) */
         .alert {
+            display: none;
             position: fixed;
-            top: 30px;
-            right: 30px;
-            max-width: 400px;
+            top: 1.5rem;
+            right: 1.5rem;
+            max-width: min(24rem, calc(100vw - 3rem));
+            width: 100%;
+            background: #FFFFFF;
+            border: 1px solid #EBEEF0;
+            border-left: 3px solid #0F766E;
+            border-radius: 6px;
+            box-shadow: 0 6px 20px rgba(16, 24, 40, 0.10);
+            padding: 1rem;
             z-index: 1000;
-            transform: translateX(450px);
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            backdrop-filter: blur(10px);
         }
 
         .alert.show {
-            transform: translateX(0);
-        }
-
-        .alert.success {
-            background: linear-gradient(45deg, var(--color-success, #22C55E), var(--color-success-hover, #16A34A));
-            color: white;
+            display: block;
         }
 
         .alert.error {
-            background: linear-gradient(45deg, var(--color-danger, #DC2626), var(--color-danger-hover, #B91C1C));
-            color: white;
+            border-left-color: #DC2626;
+        }
+
+        .alert.success {
+            border-left-color: #16A34A;
         }
 
         .alert.warning {
-            background: linear-gradient(45deg, var(--color-warning, #EAB308), var(--color-warning-hover, #CA8A04));
-            color: white;
+            border-left-color: #D97706;
+        }
+
+        /* Blueprint grid texture for the brand panel (static) */
+        .brand-grid {
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+            background-size: 56px 56px;
         }
     </style>
 </head>
 
-<body class="overflow-hidden h-screen">
-    <!-- Background Animation -->
-    <div class="bg-animation">
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-        <div class="particle"></div>
-    </div>
+<body class="bg-surface-main text-text-primary h-screen-safe overflow-hidden">
 
     <!-- Main Container -->
-    <div class="flex h-screen">
+    <div class="relative z-10 flex h-full">
+
         <!-- Left Side - Branding -->
-        <div class="hidden md:flex flex-1 items-center justify-center p-10">
-            <div class="text-center max-w-sm p-8">
-                <div class="mb-10">
-                    <div class="logo w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-                        <i class="fas fa-server text-3xl text-white"></i>
-                    </div>
-                    <div class="inline-block px-6 py-3 bg-black/20 backdrop-blur-sm rounded-2xl">
-                        <h1 class="text-4xl font-bold mb-2 text-white drop-shadow-lg">BDC IMS</h1>
-                        <p class="text-base text-white/95 font-light leading-relaxed">Bharat Datacenter Infrastructure
-                            Management System</p>
-                    </div>
+        <div class="hidden lg:flex w-[44%] xl:w-[42%] flex-col justify-between p-12 xl:p-14 relative overflow-hidden bg-[#14181C] brand-grid">
+
+            <!-- Header Logo -->
+            <div class="flex items-center gap-3 relative z-10">
+                <div class="w-10 h-10 rounded bg-primary flex items-center justify-center">
+                    <i class="fas fa-server text-white text-base"></i>
+                </div>
+                <div>
+                    <span class="text-base font-semibold text-white tracking-tight block leading-none">BDC IMS</span>
+                    <span class="text-[10px] text-[#98A1A9] uppercase tracking-[0.18em] block mt-1">Infrastructure Management</span>
+                </div>
+            </div>
+
+            <!-- Hero Content -->
+            <div class="relative z-10 max-w-md">
+                <div class="inline-flex items-center gap-2 mb-8 border border-[#2A3138] rounded-full px-3 py-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
+                    <span class="text-[11px] font-medium text-[#B9C1C9] uppercase tracking-[0.14em]">All Systems Operational</span>
                 </div>
 
-                <div class="flex flex-col gap-4 hidden lg:flex">
-                    <div
-                        class="flex items-center gap-4 text-sm text-white p-4 bg-black/20 backdrop-blur-sm rounded-xl hover:bg-black/30 hover:translate-x-1 transition-all">
-                        <i class="fas fa-shield-alt text-base text-emerald-300"></i>
-                        <span class="font-medium">Secure Infrastructure Management</span>
+                <h1 class="text-4xl xl:text-[2.75rem] font-semibold text-white mb-6 leading-[1.15] tracking-tight">
+                    The control plane for your datacenter floor.
+                </h1>
+                <p class="text-[15px] text-[#98A1A9] leading-relaxed mb-12 max-w-sm">
+                    Hardware inventory, server configuration, and deployment workflow — tracked from intake to rack.
+                </p>
+
+                <!-- Capability Index -->
+                <div class="border-t border-[#2A3138] divide-y divide-[#2A3138] font-mono text-[12px]">
+                    <div class="flex items-center justify-between py-3">
+                        <span class="text-[#6E777E] uppercase tracking-wider">Component classes</span>
+                        <span class="text-[#E6EAED]">10 tracked</span>
                     </div>
-                    <div
-                        class="flex items-center gap-4 text-sm text-white p-4 bg-black/20 backdrop-blur-sm rounded-xl hover:bg-black/30 hover:translate-x-1 transition-all">
-                        <i class="fas fa-chart-line text-base text-emerald-300"></i>
-                        <span class="font-medium">Real-time Monitoring</span>
+                    <div class="flex items-center justify-between py-3">
+                        <span class="text-[#6E777E] uppercase tracking-wider">Configuration builder</span>
+                        <span class="text-[#E6EAED]">Compatibility-validated</span>
                     </div>
-                    <div
-                        class="flex items-center gap-4 text-sm text-white p-4 bg-black/20 backdrop-blur-sm rounded-xl hover:bg-black/30 hover:translate-x-1 transition-all">
-                        <i class="fas fa-cogs text-base text-emerald-300"></i>
-                        <span class="font-medium">Advanced Component Control</span>
+                    <div class="flex items-center justify-between py-3">
+                        <span class="text-[#6E777E] uppercase tracking-wider">Access control</span>
+                        <span class="text-[#E6EAED]">Role-based · JWT</span>
                     </div>
                 </div>
+            </div>
+
+            <!-- Footer Info -->
+            <div class="relative z-10 flex items-center justify-between text-[11px] font-mono text-[#6E777E]">
+                <span>© 2025 Bharat Datacenter</span>
+                <span>v2.0.0</span>
             </div>
         </div>
 
         <!-- Right Side - Authentication Forms -->
-        <div class="flex-1 flex items-center justify-center p-6 md:p-10">
-            <div
-                class="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-10 shadow-2xl shadow-black/10 border border-white/50">
-                <!-- Form Toggle Buttons -->
-                <div class="flex bg-slate-100 rounded-2xl p-1 mb-10 relative shadow-inset">
-                    <button
-                        class="toggle-btn active flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-slate-500 z-10 relative"
-                        id="loginToggle">Sign In</button>
-                    <button
-                        class="toggle-btn flex-1 py-3 px-5 bg-none border-none rounded-xl font-semibold text-sm cursor-pointer transition-all text-slate-500 z-10 relative"
-                        id="registerToggle">Sign Up</button>
-                    <div class="toggle-indicator absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] rounded-xl">
+        <div class="flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
+            <div class="w-full max-w-[400px]">
+
+                <!-- Mobile Logo (visible only on small screens) -->
+                <div class="lg:hidden mb-10">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded bg-primary flex items-center justify-center">
+                            <i class="fas fa-server text-white text-base"></i>
+                        </div>
+                        <div>
+                            <span class="text-base font-semibold text-text-primary tracking-tight block leading-none">BDC IMS</span>
+                            <span class="text-[10px] text-text-muted uppercase tracking-[0.18em] block mt-1">Infrastructure Management</span>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Form Toggle Buttons -->
+                <div class="auth-toggle flex bg-surface-secondary p-1 rounded-md mb-10 relative">
+                    <button id="loginToggle"
+                        class="toggle-btn active flex-1 py-2 text-sm font-medium rounded relative z-10 transition-colors duration-150 cursor-pointer">
+                        Sign In
+                    </button>
+                    <button id="registerToggle"
+                        class="toggle-btn flex-1 py-2 text-sm font-medium rounded relative z-10 transition-colors duration-150 cursor-pointer border border-transparent">
+                        Sign Up
+                    </button>
+                    <!-- Keep element for JS compatibility but hide it visually -->
+                    <div class="toggle-indicator hidden" style="display: none;"></div>
+                </div>
+
                 <!-- Login Form -->
-                <div class="form-container active block" id="loginForm">
-                    <div class="text-center mb-10">
-                        <h2 class="text-4xl font-bold text-text-primary mb-2">Welcome Back</h2>
-                        <p class="text-text-secondary text-base">Sign in to your BDC IMS account</p>
+                <div class="form-container active" id="loginForm">
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-semibold text-text-primary mb-2 tracking-tight">Welcome back</h2>
+                        <p class="text-text-muted text-sm">Sign in to your BDC IMS account.</p>
                     </div>
 
-                    <form id="loginFormElement">
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-user absolute left-5 text-slate-400 text-base z-10"></i>
+                    <form id="loginFormElement" class="space-y-5">
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Username</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-user text-text-disabled text-sm min-w-[20px] transition-colors"></i>
                                 <input type="text" id="loginUsername" name="username" placeholder="Username" required
-                                    maxlength="50"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                    maxlength="50" autocomplete="username"
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
                             </div>
                         </div>
 
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
-                                <input type="password" id="loginPassword" name="password" placeholder="Password"
-                                    required maxlength="128"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button"
-                                    class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
-                                    id="toggleLoginPassword">
-                                    <i class="fas fa-eye"></i>
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Password</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
+                                <input type="password" id="loginPassword" name="password" placeholder="••••••••"
+                                    required maxlength="128" autocomplete="current-password"
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
+                                <button type="button" id="toggleLoginPassword"
+                                    class="toggle-password text-text-disabled hover:text-text-secondary transition-colors p-1">
+                                    <i class="fas fa-eye text-sm"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
-                            <label class="remember-me flex items-center cursor-pointer text-sm text-slate-500 gap-2.5">
-                                <input type="checkbox" id="rememberMe" class="hidden">
-                                <span class="checkmark w-5 h-5 border-2 border-slate-200 rounded relative"></span>
-                                Remember me
+                        <div class="flex items-center justify-between text-sm pt-1">
+                            <label class="custom-checkbox flex items-center gap-2 cursor-pointer group select-none">
+                                <input type="checkbox" id="rememberMe" class="sr-only">
+                                <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
+                                    <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity"></i>
+                                </div>
+                                <span class="text-text-secondary group-hover:text-text-primary transition-colors">Remember me</span>
                             </label>
                             <a href="#"
-                                class="text-primary no-underline text-sm font-medium transition-all hover:text-primary-dark hover:underline">Forgot
-                                Password?</a>
+                                class="text-primary hover:text-primary-dark font-medium transition-colors">Forgot password?</a>
                         </div>
 
-                        <button type="submit"
-                            class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl"
-                            id="loginBtn">
-                            <span class="btn-text">Sign In</span>
+                        <button type="submit" id="loginBtn"
+                            class="w-full bg-primary text-white text-sm font-semibold py-3 rounded-md hover:bg-primary-dark transition-colors duration-150 relative mt-2">
+                            <span class="btn-text">Sign in to console</span>
                             <div class="btn-loader"></div>
                         </button>
                     </form>
@@ -333,97 +313,108 @@
 
                 <!-- Register Form -->
                 <div class="form-container hidden" id="registerForm">
-                    <div class="text-center mb-10">
-                        <h2 class="text-4xl font-bold text-text-primary mb-2">Create Account</h2>
-                        <p class="text-text-secondary text-base">Join BDC IMS and start managing your infrastructure</p>
+                    <div class="mb-8">
+                        <h2 class="text-2xl font-semibold text-text-primary mb-2 tracking-tight">Create account</h2>
+                        <p class="text-text-muted text-sm">Join BDC IMS and start managing your infrastructure.</p>
                     </div>
 
-                    <form id="registerFormElement">
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-user absolute left-5 text-slate-400 text-base z-10"></i>
+                    <form id="registerFormElement" class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Username</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-user text-text-disabled text-sm min-w-[20px] transition-colors"></i>
                                 <input type="text" id="registerUsername" name="username" placeholder="Username" required
                                     maxlength="50"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
                             </div>
                         </div>
 
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-envelope absolute left-5 text-slate-400 text-base z-10"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="Email Address" required
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Email Address</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-envelope text-text-disabled text-sm min-w-[20px] transition-colors"></i>
+                                <input type="email" id="registerEmail" name="email" placeholder="name@company.com" required
                                     maxlength="100"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
                             </div>
                         </div>
 
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Password</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
                                 <input type="password" id="registerPassword" name="password" placeholder="Password"
-                                    required maxlength="128"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button"
-                                    class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
-                                    id="toggleRegisterPassword">
-                                    <i class="fas fa-eye"></i>
+                                    required maxlength="128" autocomplete="new-password"
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
+                                <button type="button" id="toggleRegisterPassword"
+                                    class="toggle-password text-text-disabled hover:text-text-secondary transition-colors p-1">
+                                    <i class="fas fa-eye text-sm"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="mb-6">
-                            <div class="relative flex items-center">
-                                <i class="fas fa-lock absolute left-5 text-slate-400 text-base z-10"></i>
+                        <div class="space-y-1.5">
+                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Confirm Password</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
+                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
                                 <input type="password" id="confirmPassword" name="confirmPassword"
-                                    placeholder="Confirm Password" required maxlength="128"
-                                    class="input-field w-full px-14 py-4 border-2 border-slate-200 rounded-2xl bg-white text-slate-900 placeholder-slate-400 transition-all focus:border-primary focus:ring-1 focus:ring-primary/10 focus:translate-y-[-2px]">
-                                <button type="button"
-                                    class="toggle-password absolute right-5 bg-none border-none text-slate-500 cursor-pointer text-base p-2 rounded transition-all hover:text-primary hover:bg-primary/10 focus:outline-2 focus:outline-primary focus:outline-offset-2 z-20 flex items-center justify-center w-10 h-10"
-                                    id="toggleConfirmPassword">
-                                    <i class="fas fa-eye"></i>
+                                    placeholder="Confirm Password" required maxlength="128" autocomplete="new-password"
+                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
+                                <button type="button" id="toggleConfirmPassword"
+                                    class="toggle-password text-text-disabled hover:text-text-secondary transition-colors p-1">
+                                    <i class="fas fa-eye text-sm"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="mb-8">
-                            <label class="remember-me flex items-center cursor-pointer text-sm text-slate-500 gap-2.5">
-                                <input type="checkbox" id="agreeTerms" required class="hidden">
-                                <span class="checkmark w-5 h-5 border-2 border-slate-200 rounded relative"></span>
-                                I agree to the <a href="#" class="terms-link text-primary ml-1">Terms & Conditions</a>
+                        <div class="pt-1">
+                            <label class="custom-checkbox flex items-center gap-2 cursor-pointer group text-sm select-none">
+                                <input type="checkbox" id="agreeTerms" required class="sr-only">
+                                <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
+                                    <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity"></i>
+                                </div>
+                                <span class="text-text-secondary">I agree to the <a href="#"
+                                        class="terms-link text-primary hover:text-primary-dark font-medium transition-colors">Terms &amp; Conditions</a></span>
                             </label>
                         </div>
 
-                        <button type="submit"
-                            class="auth-btn w-full py-4 text-white text-lg font-semibold cursor-pointer relative overflow-hidden transition-all border-none rounded-2xl"
-                            id="registerBtn">
-                            <span class="btn-text">Create Account</span>
+                        <button type="submit" id="registerBtn"
+                            class="w-full bg-primary text-white text-sm font-semibold py-3 rounded-md hover:bg-primary-dark transition-colors duration-150 relative mt-2">
+                            <span class="btn-text">Create account</span>
                             <div class="btn-loader"></div>
                         </button>
                     </form>
                 </div>
 
                 <!-- Alert Messages -->
-                <div class="alert fixed top-8 right-8 max-w-sm p-5 rounded-2xl shadow-lg hidden z-40" id="alertMessage">
-                    <div class="flex items-center gap-4">
-                        <i class="alert-icon text-xl"></i>
-                        <span class="alert-text flex-1 font-medium"></span>
+                <div class="alert hidden" id="alertMessage">
+                    <div class="flex items-center gap-3">
+                        <i class="alert-icon text-base text-primary"></i>
+                        <span class="alert-text flex-1 text-sm text-text-primary font-medium"></span>
                         <button
-                            class="alert-close bg-none border-none text-current cursor-pointer p-1 rounded transition-all opacity-80 hover:opacity-100"
+                            class="alert-close bg-none border-none text-text-muted hover:text-text-primary cursor-pointer p-1 rounded transition-colors"
                             onclick="closeAlert()">
-                            <i class="fas fa-times text-xl"></i>
+                            <i class="fas fa-times text-base"></i>
                         </button>
                     </div>
                 </div>
+
+                <!-- Security Badge -->
+                <div class="mt-10 pt-6 border-t border-border-light flex items-center justify-center gap-2 text-xs text-text-muted">
+                    <i class="fas fa-lock text-text-disabled text-[10px]"></i>
+                    <span class="font-mono">256-bit SSL encrypted connection</span>
+                </div>
+
             </div>
         </div>
     </div>
 
     <!-- Loading Overlay -->
-    <div class="loading-overlay fixed inset-0 bg-black/80 flex items-center justify-center z-9999 opacity-0 invisible transition-all"
+    <div class="loading-overlay fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-9999 opacity-0 invisible transition-opacity duration-150"
         id="loadingOverlay">
-        <div class="text-center text-white">
-            <div class="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto mb-5"></div>
-            <p class="text-lg font-medium">Processing...</p>
+        <div class="text-center bg-surface-card border border-border-light rounded-lg px-10 py-8 shadow-modal">
+            <div class="loading-spinner mb-4 mx-auto"></div>
+            <p class="text-sm font-medium text-text-primary">Processing...</p>
         </div>
     </div>
 

@@ -78,19 +78,19 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-6">
+            <main class="main-content flex-1 p-4 sm:p-6">
                 <!-- Role Management View -->
                 <div id="roleManagementView" class="content-section active">
                     <!-- Header -->
                     <div class="content-header mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <div class="min-w-0">
                                 <h2 class="text-2xl font-bold text-text-primary mb-2">
                                     <i class="fas fa-shield-alt"></i> Access Control Management
                                 </h2>
                                 <p class="text-sm text-text-muted">Manage roles, permissions, and user assignments</p>
                             </div>
-                            <div class="flex gap-3">
+                            <div class="flex flex-wrap gap-3">
                                 <button
                                     class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
                                     id="createRoleBtn">
@@ -162,7 +162,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium text-text-secondary mb-2">
-                                Role Name <span class="text-red-500">*</span>
+                                Role Name <span class="text-danger">*</span>
                             </label>
                             <input type="text" id="roleName"
                                 class="input-field w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
@@ -170,7 +170,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-text-secondary mb-2">
-                                Display Name <span class="text-red-500">*</span>
+                                Display Name <span class="text-danger">*</span>
                             </label>
                             <input type="text" id="roleDisplayName"
                                 class="input-field w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
@@ -217,11 +217,11 @@
             </div>
 
             <div
-                class="modal-footer flex items-center justify-between px-6 py-4 border-t border-border bg-surface-hover">
+                class="modal-footer flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-border bg-surface-hover">
                 <div class="text-sm text-text-muted">
                     <span id="selectedPermissionsCount">0</span> permissions selected
                 </div>
-                <div class="flex gap-3">
+                <div class="flex flex-wrap gap-3">
                     <button type="button"
                         class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors"
                         id="cancelRoleModal">Cancel</button>
@@ -250,7 +250,7 @@
             <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-180px)]">
                 <!-- Role Info Summary -->
                 <div class="bg-surface-hover rounded-lg p-4 mb-4">
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <span class="text-sm text-text-muted">Role Name:</span>
                             <span class="text-sm font-semibold text-text-primary ml-2" id="detailRoleName"></span>
@@ -265,7 +265,7 @@
                 <!-- Assign User Section -->
                 <div class="mb-6">
                     <h5 class="text-md font-semibold text-text-secondary mb-3">Assign User to Role</h5>
-                    <div class="flex gap-3">
+                    <div class="flex flex-col sm:flex-row gap-3">
                         <select id="assignUserSelect"
                             class="input-field flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
                             <option value="">Select a user...</option>

@@ -1,104 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   CUSTOM KEYFRAME ANIMATIONS
+   FUNCTIONAL KEYFRAMES ONLY
+   Decorative animations are intentionally removed — the UI is
+   static and instant; only progress/loading indicators move.
    ============================================================ */
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px) rotate(0deg);
-    opacity: 0;
-  }
-
-  10% {
-    opacity: 1;
-  }
-
-  90% {
-    opacity: 1;
-  }
-
-  100% {
-    transform: translateY(-100vh) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-@keyframes logoFloat {
-
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes modalSlideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes alertSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes formFieldSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 @keyframes toastProgress {
   from {
@@ -110,112 +20,106 @@
   }
 }
 
-@keyframes shimmer {
-  0% {
-    background-position: -1200px 0;
-  }
-
-  100% {
-    background-position: calc(1200px + 100%) 0;
-  }
-}
-
 /* ============================================================
    BASE STYLES
    ============================================================ */
 
 @layer base {
-  html {
-    @apply scroll-smooth;
+  body {
+    @apply bg-surface-main text-text-primary font-sans antialiased;
   }
 
-  body {
-    @apply bg-surface-main text-text-primary;
+  h1, h2, h3, h4, h5, h6 {
+    letter-spacing: -0.015em;
+  }
+
+  code, kbd, samp, pre {
+    @apply font-mono text-[0.92em];
   }
 
   /* Light mode colors (default) */
   :root {
-    /* Primary Brand Colors (Teal) */
-    --color-primary: #0D9488;
-    --color-primary-hover: #0F766E;
+    /* Primary Brand Colors (Deep Teal) */
+    --color-primary: #0F766E;
+    --color-primary-hover: #0C5D57;
     --color-primary-light: #14B8A6;
-    --color-primary-lighter: #5EEAD4;
-    --color-primary-lightest: #CCFBF1;
+    --color-primary-lighter: #7DD3C8;
+    --color-primary-lightest: #D9F2EF;
 
     /* Status Colors */
-    --color-success: #22C55E;
-    --color-success-hover: #16A34A;
-    --color-success-light: #DCFCE7;
-    --color-warning: #EAB308;
-    --color-warning-hover: #CA8A04;
-    --color-warning-light: #FEF9C3;
+    --color-success: #16A34A;
+    --color-success-hover: #15803D;
+    --color-success-light: #E9F7EE;
+    --color-warning: #D97706;
+    --color-warning-hover: #B45309;
+    --color-warning-light: #FCEFD8;
     --color-danger: #DC2626;
     --color-danger-hover: #B91C1C;
-    --color-danger-light: #FEE2E2;
-    --color-info: #0EA5E9;
-    --color-info-hover: #0284C7;
-    --color-info-light: #E0F2FE;
+    --color-danger-light: #FCE8E8;
+    --color-info: #0284C7;
+    --color-info-hover: #0369A1;
+    --color-info-light: #E3F1FA;
 
     /* Text colors */
-    --color-text-primary: #0F172A;
-    --color-text-secondary: #334155;
-    --color-text-muted: #64748B;
-    --color-text-disabled: #94A3B8;
-    --color-text-inverse: #F8FAFC;
+    --color-text-primary: #161A1D;
+    --color-text-secondary: #41494F;
+    --color-text-muted: #6E777E;
+    --color-text-disabled: #9CA4AB;
+    --color-text-inverse: #F8FAFB;
 
     /* Surface/Background colors */
-    --color-surface-main: #F1F5F9;
+    --color-surface-main: #F4F5F6;
     --color-surface-card: #FFFFFF;
-    --color-surface-secondary: #E2E8F0;
-    --color-surface-hover: #F8FAFC;
+    --color-surface-secondary: #ECEEF0;
+    --color-surface-hover: #F6F7F8;
 
     /* Border colors */
-    --color-border: #CBD5E1;
-    --color-border-light: #E2E8F0;
-    --color-border-dark: #94A3B8;
+    --color-border: #DFE3E6;
+    --color-border-light: #EBEEF0;
+    --color-border-dark: #B9C0C6;
 
     /* Sidebar colors */
-    --color-sidebar-bg: #0F172A;
-    --color-sidebar-hover: #1E293B;
-    --color-sidebar-text: #E2E8F0;
-    --color-sidebar-text-muted: #94A3B8;
+    --color-sidebar-bg: #14181C;
+    --color-sidebar-hover: #1E242A;
+    --color-sidebar-text: #E6EAED;
+    --color-sidebar-text-muted: #98A1A9;
 
     /* Scrollbar colors */
-    --color-scrollbar-track: #E2E8F0;
-    --color-scrollbar-thumb: #CBD5E1;
-    --color-scrollbar-thumb-hover: #94A3B8;
+    --color-scrollbar-track: transparent;
+    --color-scrollbar-thumb: #C9CFD4;
+    --color-scrollbar-thumb-hover: #ABB3BA;
   }
 
   /* Dark mode colors */
   [data-theme="dark"] {
     /* Text colors - inverted for dark backgrounds */
-    --color-text-primary: #F8FAFC;
-    --color-text-secondary: #CBD5E1;
-    --color-text-muted: #94A3B8;
-    --color-text-disabled: #64748B;
-    --color-text-inverse: #0F172A;
+    --color-text-primary: #ECEFF2;
+    --color-text-secondary: #B9C1C9;
+    --color-text-muted: #828C95;
+    --color-text-disabled: #5C656E;
+    --color-text-inverse: #14181C;
 
     /* Surface/Background colors - darker shades */
-    --color-surface-main: #0F172A;
-    --color-surface-card: #1E293B;
-    --color-surface-secondary: #334155;
-    --color-surface-hover: #475569;
+    --color-surface-main: #0F1316;
+    --color-surface-card: #171C21;
+    --color-surface-secondary: #21272D;
+    --color-surface-hover: #1D2329;
 
     /* Border colors - lighter for contrast */
-    --color-border: #475569;
-    --color-border-light: #334155;
-    --color-border-dark: #64748B;
+    --color-border: #2A3138;
+    --color-border-light: #232930;
+    --color-border-dark: #424B54;
 
     /* Sidebar colors */
-    --color-sidebar-bg: #0B1120;
-    --color-sidebar-hover: #1E293B;
-    --color-sidebar-text: #F8FAFC;
-    --color-sidebar-text-muted: #CBD5E1;
+    --color-sidebar-bg: #12161A;
+    --color-sidebar-hover: #1C2228;
+    --color-sidebar-text: #ECEFF2;
+    --color-sidebar-text-muted: #828C95;
 
     /* Scrollbar colors */
-    --color-scrollbar-track: #1E293B;
-    --color-scrollbar-thumb: #475569;
-    --color-scrollbar-thumb-hover: #64748B;
+    --color-scrollbar-track: transparent;
+    --color-scrollbar-thumb: #333B43;
+    --color-scrollbar-thumb-hover: #424B54;
   }
 
   input,
@@ -224,15 +128,15 @@
     @apply focus:outline-none;
   }
 
-  /* Custom Autofill Styling */
+  /* Custom Autofill Styling — neutral, theme-aware */
   input:-webkit-autofill,
-  input:-webkit-autofill:hover, 
-  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: #ffffff !important;
-      transition: background-color 5000s ease-in-out 0s;
-      box-shadow: inset 0 0 20px 20px #23232329 !important;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: var(--color-text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+    box-shadow: inset 0 0 20px 20px var(--color-surface-card) !important;
   }
 }
 
@@ -274,11 +178,11 @@
 
   /* Form Inputs */
   .input-field {
-    @apply w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary placeholder-text-muted transition-all duration-200;
+    @apply w-full px-3 py-2 border border-border rounded bg-surface-card text-text-primary placeholder-text-muted transition-colors duration-150;
   }
 
   .input-field:focus {
-    @apply border-border-focus ring-1 ring-primary/20 shadow-focus;
+    @apply border-border-focus shadow-focus;
   }
 
   .input-field:disabled {
@@ -291,24 +195,31 @@
 
   /* Buttons */
   .btn-primary {
-    @apply px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 bg-primary text-white rounded font-medium hover:bg-primary-dark transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
-    @apply px-4 py-2 bg-surface-secondary text-text-primary rounded-lg font-medium hover:bg-border transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 bg-surface-card text-text-secondary border border-border rounded font-medium hover:bg-surface-hover hover:text-text-primary transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-danger {
-    @apply px-4 py-2 bg-danger text-white rounded-lg font-medium hover:bg-danger-hover transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 bg-danger text-white rounded font-medium hover:bg-danger-hover transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-success {
-    @apply px-4 py-2 bg-success text-white rounded-lg font-medium hover:bg-success-hover transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-4 py-2 bg-success text-white rounded font-medium hover:bg-success-hover transition-colors duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   /* Button with Loading State */
   .btn-loading {
     @apply opacity-75 pointer-events-none;
+  }
+
+  /* Loading Spinner (referenced by global-loading.js and page overlays) */
+  .loading-spinner {
+    @apply inline-block w-8 h-8 rounded-full border-2 border-border align-middle;
+    border-top-color: var(--color-primary);
+    animation: spin 0.7s linear infinite;
   }
 
   /* Form Sections */
@@ -325,7 +236,7 @@
   }
 
   .form-label {
-    @apply block text-sm font-medium text-text-primary mb-2;
+    @apply block text-sm font-medium text-text-secondary mb-1.5;
   }
 
   .form-label.required::after {
@@ -334,11 +245,11 @@
 
   /* Form Input Fields */
   .form-input {
-    @apply w-full px-4 py-3 border border-border rounded-lg bg-surface-card text-text-primary placeholder-text-muted transition-all duration-200;
+    @apply w-full px-3.5 py-2.5 border border-border rounded bg-surface-card text-text-primary placeholder-text-muted transition-colors duration-150;
   }
 
   .form-input:focus {
-    @apply border-primary ring-2 ring-primary/20 outline-none;
+    @apply border-primary shadow-focus outline-none;
   }
 
   .form-input:disabled {
@@ -347,11 +258,11 @@
 
   /* Form Textarea */
   .form-textarea {
-    @apply w-full px-4 py-3 border border-border rounded-lg bg-surface-card text-text-primary placeholder-text-muted transition-all duration-200 resize-y min-h-[100px];
+    @apply w-full px-3.5 py-2.5 border border-border rounded bg-surface-card text-text-primary placeholder-text-muted transition-colors duration-150 resize-y min-h-[100px];
   }
 
   .form-textarea:focus {
-    @apply border-primary ring-2 ring-primary/20 outline-none;
+    @apply border-primary shadow-focus outline-none;
   }
 
   .form-textarea:disabled {
@@ -360,16 +271,16 @@
 
   /* Form Select */
   .form-select {
-    @apply w-full px-4 py-3 border border-border rounded-lg bg-surface-card text-text-primary transition-all duration-200 cursor-pointer appearance-none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748B'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+    @apply w-full px-3.5 py-2.5 border border-border rounded bg-surface-card text-text-primary transition-colors duration-150 cursor-pointer appearance-none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236E777E'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
-    background-size: 20px;
+    background-size: 18px;
     padding-right: 40px;
   }
 
   .form-select:focus {
-    @apply border-primary ring-2 ring-primary/20 outline-none;
+    @apply border-primary shadow-focus outline-none;
   }
 
   .form-select:disabled {
@@ -400,12 +311,12 @@
   }
 
   .toggle-slider {
-    @apply relative w-11 h-6 bg-border rounded-full transition-all duration-300;
+    @apply relative w-10 h-[22px] bg-border rounded-full transition-colors duration-150;
   }
 
   .toggle-slider::before {
     content: '';
-    @apply absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300;
+    @apply absolute left-[3px] top-[3px] w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-150;
   }
 
   .toggle-switch input:checked+.toggle-slider {
@@ -413,7 +324,7 @@
   }
 
   .toggle-switch input:checked+.toggle-slider::before {
-    transform: translateX(20px);
+    transform: translateX(18px);
   }
 
   .toggle-switch input:focus+.toggle-slider {
@@ -433,9 +344,42 @@
     @apply grid-cols-1 md:grid-cols-3;
   }
 
+  /* Status Badges (markup generated by utils.createStatusBadge) */
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap border border-border bg-surface-secondary;
+  }
+
+  .status-badge i {
+    @apply text-[9px];
+  }
+
+  .status-badge.available {
+    @apply text-success dark:text-green-400;
+  }
+
+  .status-badge.in-use {
+    @apply text-info dark:text-sky-400;
+  }
+
+  .status-badge.failed {
+    @apply text-danger dark:text-red-400;
+  }
+
+  .status-badge.draft {
+    @apply text-warning dark:text-amber-400;
+  }
+
+  .status-badge.finalized {
+    @apply text-primary dark:text-teal-400;
+  }
+
+  .status-badge.unknown {
+    @apply text-text-muted;
+  }
+
   /* Status Badges */
   .badge-status {
-    @apply inline-block px-3 py-1 rounded-full text-xs font-medium;
+    @apply inline-block px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 
   .badge-success {
@@ -456,7 +400,7 @@
 
   /* Cards */
   .card-base {
-    @apply bg-surface-card border border-border-light rounded-lg shadow-card p-4 hover:shadow-md transition-shadow duration-200;
+    @apply bg-surface-card border border-border-light rounded-lg shadow-card p-4 hover:border-border transition-colors duration-150;
   }
 
   .card-header {
@@ -469,9 +413,9 @@
 
   /* Modal Overlay */
   .modal-overlay {
-    @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-md flex items-center justify-center z-modal;
+    @apply fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center z-modal;
     opacity: 0;
-    transition: opacity 0.2s ease-out;
+    transition: opacity 0.15s ease-out;
   }
 
   .modal-overlay.active {
@@ -479,10 +423,9 @@
   }
 
   .modal-content {
-    @apply bg-surface-card rounded-lg shadow-modal w-full overflow-auto;
-    transform: scale(0.95);
+    @apply bg-surface-card rounded-lg shadow-modal w-full overflow-auto border border-border-light;
     opacity: 0;
-    transition: all 0.2s ease-out;
+    transition: opacity 0.15s ease-out;
   }
 
   /* Desktop: Centered modal with max-width */
@@ -520,7 +463,7 @@
     @apply fixed inset-0 z-modal flex items-center justify-center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s ease-out, visibility 0.2s ease-out;
+    transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
   }
 
   .finish-confirmation-modal.active {
@@ -529,25 +472,23 @@
   }
 
   .finish-confirmation-modal.active .modal-content {
-    transform: scale(1);
     opacity: 1;
   }
 
   .finish-confirmation-modal .modal-overlay {
-    @apply absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm;
+    @apply absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm;
     pointer-events: none;
   }
 
   .finish-confirmation-modal .modal-content {
-    @apply relative bg-surface-card rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-auto;
-    transform: scale(0.95);
+    @apply relative bg-surface-card rounded-lg shadow-modal max-w-3xl w-full max-h-[90vh] overflow-auto border border-border-light;
     opacity: 0;
-    transition: all 0.2s ease-out;
+    transition: opacity 0.15s ease-out;
     z-index: 1;
   }
 
   .modal-title {
-    @apply text-xl font-bold text-text-primary flex items-center gap-2;
+    @apply text-xl font-semibold text-text-primary flex items-center gap-2;
   }
 
   .modal-close {
@@ -567,7 +508,7 @@
   }
 
   .component-count {
-    @apply text-sm text-text-muted bg-surface-hover px-3 py-1 rounded-full;
+    @apply text-sm text-text-muted bg-surface-secondary px-2.5 py-0.5 rounded-full;
   }
 
   .component-list {
@@ -575,11 +516,11 @@
   }
 
   .warning-section {
-    @apply mb-6 bg-warning-light/10 border border-warning rounded-lg p-4;
+    @apply mb-6 bg-warning-50 border border-warning/40 rounded-lg p-4;
   }
 
   .warning-header {
-    @apply flex items-center gap-2 mb-3 text-warning;
+    @apply flex items-center gap-2 mb-3 text-warning-600;
   }
 
   .warning-header h4 {
@@ -591,11 +532,11 @@
   }
 
   .warning-item {
-    @apply flex items-center gap-3 p-3 bg-surface-card rounded-lg;
+    @apply flex items-center gap-3 p-3 bg-surface-card rounded border border-border-light;
   }
 
   .warning-item.critical {
-    @apply border-l-4 border-danger;
+    @apply border-l-4 border-l-danger;
   }
 
   .warning-text {
@@ -603,11 +544,11 @@
   }
 
   .btn-fix {
-    @apply px-3 py-1.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors cursor-pointer border-none;
+    @apply px-3 py-1.5 bg-primary text-white rounded text-sm font-medium hover:bg-primary-dark transition-colors cursor-pointer border-none;
   }
 
   .success-section {
-    @apply flex items-start gap-4 p-6 bg-success-light/10 border border-success rounded-lg;
+    @apply flex items-start gap-4 p-6 bg-success-50 border border-success/40 rounded-lg;
   }
 
   .success-icon {
@@ -639,11 +580,11 @@
   }
 
   .btn-cancel {
-    @apply px-4 py-2 bg-surface-hover text-text-primary rounded-lg font-medium hover:bg-surface-secondary transition-colors cursor-pointer border-none;
+    @apply px-4 py-2 bg-surface-card text-text-secondary border border-border rounded font-medium hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer;
   }
 
   .btn-confirm {
-    @apply px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors cursor-pointer border-none;
+    @apply px-4 py-2 bg-primary text-white rounded font-medium hover:bg-primary-dark transition-colors cursor-pointer border-none;
   }
 
   .btn-confirm.disabled {
@@ -656,7 +597,7 @@
   }
 
   .component-category.missing {
-    @apply border-warning/30 bg-warning-light/5;
+    @apply border-warning/30 bg-warning-50/40;
   }
 
   .category-header {
@@ -672,15 +613,15 @@
   }
 
   .category-status {
-    @apply px-2.5 py-1 rounded-full text-xs font-medium;
+    @apply px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 
   .category-status.missing {
-    @apply bg-warning-light text-warning;
+    @apply bg-warning-light text-warning-900;
   }
 
   .category-status.selected {
-    @apply bg-success-light text-success;
+    @apply bg-success-light text-success-900;
   }
 
   .component-items {
@@ -745,20 +686,20 @@
   }
 
   .toast-progress {
-    @apply absolute bottom-0 left-0 h-1 bg-gradient-to-r from-primary to-primary-dark animate-toast-progress;
+    @apply absolute bottom-0 left-0 h-0.5 bg-primary animate-toast-progress;
   }
 
   /* Sidebar Navigation */
   .sidebar-base {
-    @apply fixed left-0 top-navbar h-screen w-sidebar bg-sidebar-bg border-r border-sidebar-bg overflow-y-auto transition-all duration-300 z-navbar shadow-sidebar;
+    @apply fixed left-0 top-navbar h-screen w-sidebar bg-surface-card border-r border-border-light overflow-y-auto transition-transform duration-200 z-navbar;
   }
 
   .sidebar-item {
-    @apply px-4 py-3 text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text transition-colors duration-200 cursor-pointer flex items-center gap-3;
+    @apply px-4 py-2.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors duration-150 cursor-pointer flex items-center gap-3 rounded;
   }
 
   .sidebar-item.active {
-    @apply bg-sidebar-active text-white border-r-2 border-primary-light font-medium;
+    @apply bg-primary-50 text-primary font-medium;
   }
 
   .sidebar-item-icon {
@@ -771,7 +712,7 @@
 
   /* Navigation Bar */
   .navbar-base {
-    @apply fixed top-0 left-0 right-0 h-navbar bg-surface-card border-b border-border-light shadow-sm z-navbar flex items-center px-6;
+    @apply fixed top-0 left-0 right-0 h-navbar bg-surface-card border-b border-border-light z-navbar flex items-center px-6;
   }
 
   .navbar-content {
@@ -780,21 +721,13 @@
 
   /* Theme Toggle Button */
   .theme-toggle-btn {
-    @apply w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer;
-    @apply bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-text-primary;
-    @apply border border-border-light hover:border-border;
-  }
-
-  .theme-toggle-btn:active {
-    @apply scale-95;
+    @apply w-9 h-9 rounded flex items-center justify-center transition-colors duration-150 cursor-pointer;
+    @apply bg-surface-card hover:bg-surface-hover text-text-muted hover:text-text-primary;
+    @apply border border-border;
   }
 
   .theme-toggle-btn i {
-    @apply text-lg transition-transform duration-300;
-  }
-
-  .theme-toggle-btn.toggling i {
-    @apply rotate-180;
+    @apply text-base;
   }
 
   /* Dropdown */
@@ -803,11 +736,11 @@
   }
 
   .dropdown-button {
-    @apply flex items-center gap-2 px-4 py-2 hover:bg-surface-hover rounded-lg transition-colors duration-200;
+    @apply flex items-center gap-2 px-4 py-2 hover:bg-surface-hover rounded transition-colors duration-150;
   }
 
   .dropdown-menu {
-    @apply hidden absolute top-full right-0 mt-2 w-48 bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown;
+    @apply hidden absolute top-full right-0 mt-2 w-48 bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown overflow-hidden;
   }
 
   .dropdown.active .dropdown-menu {
@@ -816,7 +749,7 @@
 
   /* Dropdown Content (alternative selector) */
   .dropdown-content {
-    @apply hidden absolute right-0 mt-2 w-48 bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown;
+    @apply hidden absolute right-0 mt-2 w-48 bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown overflow-hidden;
   }
 
   .dropdown.active .dropdown-content {
@@ -824,33 +757,33 @@
   }
 
   .dropdown-item {
-    @apply block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover first:rounded-t-lg last:rounded-b-lg transition-colors duration-200;
+    @apply block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover first:rounded-t-lg last:rounded-b-lg transition-colors duration-150;
   }
 
   /* Table Base Styles with Fixed Heights */
   .table-base th {
-    @apply h-14 align-middle;
+    @apply h-12 align-middle;
   }
 
   .table-base td {
-    @apply h-16 align-middle;
+    @apply h-14 align-middle;
   }
 
   .table-base tbody tr {
-    @apply h-16;
+    @apply h-14;
   }
 
   /* Ensure consistent row heights across all component tables */
   .components-table th {
-    @apply px-4 py-3 text-left text-sm font-semibold text-text-primary h-14 align-middle;
+    @apply px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider h-12 align-middle;
   }
 
   .components-table td {
-    @apply px-4 py-3 text-sm text-text-secondary h-16 align-middle;
+    @apply px-4 py-3 text-sm text-text-secondary h-14 align-middle;
   }
 
   .components-table tbody tr {
-    @apply h-16 transition-colors;
+    @apply h-14 transition-colors duration-150;
   }
 
   .components-table tbody tr:hover {
@@ -889,9 +822,9 @@
     }
 
     .table-responsive tr {
-      @apply mb-4 rounded-lg shadow-sm border p-5;
+      @apply mb-4 rounded-lg shadow-card border p-5;
       @apply bg-surface-card border-border-light;
-      height: auto !important; /* Override desktop h-16 constraint */
+      height: auto !important; /* Override desktop h-14 constraint */
       min-height: auto;
     }
 
@@ -901,14 +834,17 @@
       min-height: auto;
       word-break: break-word;
       overflow-wrap: break-word;
+      white-space: normal; /* Defeat whitespace-nowrap utilities inside stacked cards */
     }
 
     .table-responsive td::before {
       content: attr(data-label);
-      @apply font-semibold mb-1 text-text-secondary text-xs uppercase;
+      @apply font-semibold mb-1 text-text-muted text-xs uppercase tracking-wider;
     }
 
-    .table-responsive td:first-child {
+    /* Hide only the bulk-select checkbox cell in card mode. Tables without a
+       checkbox column (vendors, roles) keep their first data cell visible. */
+    .table-responsive td[data-label="Select"] {
       @apply hidden;
     }
 
@@ -945,7 +881,7 @@
 
   /* Global Loading Overlay - Clean, Professional Design */
   #globalLoadingOverlay {
-    @apply fixed inset-0 flex items-center justify-center z-[9999] transition-all duration-300;
+    @apply fixed inset-0 flex items-center justify-center z-[9999] transition-opacity duration-150;
   }
 
   #globalLoadingOverlay.hidden {
@@ -954,7 +890,7 @@
 
   /* Alert Banner */
   .alert-banner {
-    @apply fixed top-navbar left-0 right-0 px-6 py-4 bg-warning-light border-b border-warning text-warning-900 flex items-center gap-4 animate-alert-slide z-alert;
+    @apply fixed top-navbar left-0 right-0 px-6 py-4 bg-warning-light border-b border-warning text-warning-900 flex items-center gap-4 z-alert;
   }
 
   .alert-banner.success {
@@ -991,11 +927,11 @@
   }
 
   .table-base thead {
-    @apply bg-surface-secondary;
+    @apply bg-surface-hover;
   }
 
   .table-base th {
-    @apply px-4 py-3 text-left text-sm font-semibold text-text-primary border-b border-border-light;
+    @apply px-4 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider border-b border-border-light;
   }
 
   .table-base td {
@@ -1009,7 +945,7 @@
   /* Checkbox & Radio */
   input[type="checkbox"],
   input[type="radio"] {
-    @apply w-4 h-4 text-primary bg-white border border-gray-300 rounded cursor-pointer accent-primary focus:ring-2 focus:ring-gray-300;
+    @apply w-4 h-4 text-primary bg-surface-card border border-border-dark rounded cursor-pointer accent-primary focus:ring-2 focus:ring-primary/20;
   }
 
   input[type="checkbox"]:checked,
@@ -1019,271 +955,787 @@
 
   /* Range Slider */
   input[type="range"] {
-    @apply w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary;
+    @apply w-full h-1.5 bg-surface-secondary rounded-lg appearance-none cursor-pointer accent-primary;
   }
 
   input[type="range"]::-webkit-slider-thumb {
     appearance: none;
     width: 1rem;
     height: 1rem;
-    background-color: #0D9488;
+    background-color: #0F766E;
     border-radius: 9999px;
     cursor: pointer;
   }
 
   input[type="range"]::-webkit-slider-thumb:hover {
-    background-color: #0F766E;
+    background-color: #0C5D57;
   }
 
   input[type="range"]::-moz-range-thumb {
     width: 1rem;
     height: 1rem;
-    background-color: #0D9488;
+    background-color: #0F766E;
     border-radius: 9999px;
     cursor: pointer;
     border: 0;
   }
 
   input[type="range"]::-moz-range-thumb:hover {
-    background-color: #0F766E;
+    background-color: #0C5D57;
   }
 
   /* Selection */
   ::selection {
-    @apply bg-primary-lightest text-text-primary;
+    @apply bg-primary-lightest text-primary-900;
   }
 
   /* Focus Ring */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary/20 ring-offset-2;
+    @apply outline-none ring-2 ring-primary/30 ring-offset-1;
   }
 }
 
 /* ============================================================
-   MOTHERBOARD USAGE - SLOT STYLING
+   SERVER BUILDER — COMPONENT SELECTION TABLE
    ============================================================ */
 
-/* Socket Item (CPU Sockets) */
-.socket-item {
-  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
-  @apply bg-surface-card border-border-light;
+/* Component type icon tile */
+.comp-type-icon {
+  @apply w-10 h-10 rounded border border-border-light bg-surface-secondary flex items-center justify-center flex-shrink-0;
 }
 
-.socket-item.occupied {
-  @apply border-primary bg-primary/5;
+.comp-type-icon i {
+  @apply text-base text-primary;
 }
 
-.socket-item.empty {
-  @apply border-border opacity-60;
+/* "Required" tag on missing required components */
+.comp-required-tag {
+  @apply inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-warning bg-warning/10 border border-warning/30 rounded px-1.5 py-0.5;
 }
 
-/* Memory Slot (RAM Slots) */
-.memory-slot {
-  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
-  @apply bg-surface-card border-border-light mb-2 last:mb-0;
+/* Selected component chip */
+.comp-chip {
+  @apply inline-flex items-stretch rounded border border-border bg-surface-card overflow-hidden transition-colors duration-150;
 }
 
-.memory-slot.occupied {
-  @apply border-primary bg-primary/5;
+.comp-chip:hover {
+  @apply border-primary/40;
 }
 
-.memory-slot.empty {
-  @apply border-border opacity-60;
+.comp-chip-body {
+  @apply flex flex-col justify-center px-3 py-1.5 border-l-2 border-l-primary;
 }
 
-/* Expansion Slot (PCIe, HBA, NIC) */
-.expansion-slot {
-  @apply flex justify-between items-center p-3 rounded-lg border-2 transition-all duration-200;
-  @apply bg-surface-card border-border-light mb-2 last:mb-0;
+.comp-chip-name {
+  @apply text-sm font-medium text-text-primary leading-tight;
 }
 
-.expansion-slot.occupied {
-  @apply border-primary bg-primary/5;
+.comp-chip-serial {
+  @apply font-mono text-[11px] text-text-muted leading-tight mt-0.5;
 }
 
-.expansion-slot.empty {
-  @apply border-border opacity-60;
+.comp-chip-remove {
+  @apply flex items-center justify-center w-7 bg-transparent border-0 border-l border-border-light text-text-muted cursor-pointer transition-colors duration-150;
 }
 
-/* Slot Labels and Components */
-.slot-label {
-  @apply text-xs sm:text-sm font-semibold text-text-primary uppercase tracking-wide;
+.comp-chip-remove:hover {
+  @apply bg-danger/10 text-danger;
 }
 
-.slot-component {
-  @apply text-xs sm:text-sm font-medium text-text-primary flex items-center gap-2;
+/* Primary CTA for empty required rows */
+.btn-choose {
+  @apply inline-flex items-center gap-2 px-4 py-2 bg-primary text-white border border-primary rounded text-sm font-medium cursor-pointer transition-colors duration-150 whitespace-nowrap;
 }
 
-.slot-empty {
-  @apply text-xs sm:text-sm text-text-muted italic;
+.btn-choose:hover {
+  @apply bg-primary-dark border-primary-dark;
 }
 
-/* Component with Type (for expansion slots showing component type) */
-.component-with-type {
-  @apply flex items-center gap-2 text-xs sm:text-sm;
+/* Ghost "add" button (optional rows, Add More) */
+.btn-ghost-add {
+  @apply inline-flex items-center gap-2 px-3.5 py-2 bg-transparent text-primary border border-dashed border-primary/50 rounded text-sm font-medium cursor-pointer transition-colors duration-150 whitespace-nowrap;
 }
 
-.component-with-type i {
-  @apply text-primary;
+.btn-ghost-add:hover {
+  @apply bg-primary/5 border-primary border-solid;
 }
 
-.component-type {
-  @apply font-medium text-text-secondary;
-}
-
+/* Legacy aliases still used by the finish-confirmation modal */
 .component-name {
   @apply font-semibold text-text-primary;
 }
 
-.slot-serial, .component-serial {
-  @apply block text-xs text-text-muted;
+.slot-serial,
+.component-serial {
+  @apply block text-xs text-text-muted font-mono;
 }
 
 /* ============================================================
-   SERVER USAGE - SCHEMATIC STYLING
+   SERVER BUILDER — COMPATIBILITY BANNER
    ============================================================ */
 
-/* Schematic section headers with left accent */
-.schematic-section-header {
-  @apply text-sm font-semibold text-text-primary uppercase tracking-wide mb-3 pl-3 border-l-2 border-primary;
+.compat-banner {
+  @apply flex items-center gap-3 px-4 py-3.5 rounded-lg border border-l-4 mb-6 text-sm font-medium;
+}
+
+.compat-banner.is-success {
+  @apply bg-success/5 border-success/30 border-l-success text-success-600;
+}
+
+.compat-banner.is-warning {
+  @apply bg-warning/5 border-warning/30 border-l-warning text-warning-600;
+}
+
+[data-theme="dark"] .compat-banner.is-success {
+  @apply text-success;
+}
+
+[data-theme="dark"] .compat-banner.is-warning {
+  @apply text-warning;
+}
+
+/* ============================================================
+   SERVER BUILDER — POTENTIAL ISSUES PANEL (theme-aware)
+   ============================================================ */
+
+.issues-panel {
+  @apply bg-surface-card border border-border-light rounded-lg overflow-hidden mb-6;
+}
+
+.issues-panel-header {
+  @apply flex items-center justify-between gap-4 px-5 py-4 border-b border-border-light;
+}
+
+.issues-panel-title {
+  @apply flex items-center gap-3 text-base font-semibold text-text-primary;
+}
+
+.issues-panel-title-icon {
+  @apply w-8 h-8 rounded flex items-center justify-center bg-warning/10 text-warning text-sm;
+}
+
+.issues-count-badge {
+  @apply font-mono text-xs font-semibold px-2.5 py-1 rounded bg-warning/10 text-warning border border-warning/30 whitespace-nowrap;
+}
+
+.issues-count-badge.is-clear {
+  @apply bg-success/10 text-success border-success/30;
+}
+
+.issues-progress {
+  @apply px-5 py-3 border-b border-border-light;
+}
+
+.issues-progress-bar {
+  @apply w-full h-1.5 rounded-full bg-surface-secondary overflow-hidden;
+}
+
+.issues-progress-fill {
+  @apply h-full rounded-full bg-primary;
+}
+
+.issues-progress-text {
+  @apply font-mono text-[11px] text-text-muted mt-1.5;
+}
+
+.issues-group {
+  @apply border-b border-border-light;
+}
+
+.issues-group:last-child {
+  @apply border-b-0;
+}
+
+.issues-group-header {
+  @apply flex items-center gap-3 px-5 py-3 cursor-pointer select-none transition-colors duration-150;
+}
+
+.issues-group-header:hover {
+  @apply bg-surface-hover;
+}
+
+.issues-group-header .group-caret {
+  @apply text-[10px] text-text-muted w-3 flex-shrink-0;
+}
+
+.issues-group:not(.expanded) .group-caret {
+  transform: rotate(-90deg);
+}
+
+.issues-group-header .group-icon {
+  @apply text-text-muted text-sm w-4;
+}
+
+.issues-group-header .group-title {
+  @apply flex-1 text-sm font-semibold text-text-primary;
+}
+
+.issues-group-header .group-count {
+  @apply font-mono text-xs font-semibold px-2 py-0.5 rounded bg-surface-secondary text-text-secondary min-w-[24px] text-center;
+}
+
+.issues-group-content {
+  @apply hidden;
+}
+
+.issues-group.expanded .issues-group-content {
+  @apply block;
+}
+
+.issue-item {
+  @apply relative flex items-start gap-3 pl-6 pr-5 py-3.5 border-t border-border-light transition-colors duration-150;
+}
+
+.issue-item:hover {
+  @apply bg-surface-hover;
+}
+
+.issue-item::before {
+  content: '';
+  @apply absolute left-0 top-0 bottom-0 w-1;
+}
+
+.issue-item.severity-critical::before {
+  @apply bg-danger;
+}
+
+.issue-item.severity-warning::before {
+  @apply bg-warning;
+}
+
+.issue-item.severity-info::before {
+  @apply bg-info;
+}
+
+.issue-icon {
+  @apply flex-shrink-0 w-7 h-7 rounded flex items-center justify-center text-xs mt-0.5;
+}
+
+.severity-critical .issue-icon {
+  @apply bg-danger/10 text-danger;
+}
+
+.severity-warning .issue-icon {
+  @apply bg-warning/10 text-warning;
+}
+
+.severity-info .issue-icon {
+  @apply bg-info/10 text-info;
+}
+
+.issue-content {
+  @apply flex-1 min-w-0;
+}
+
+.issue-title {
+  @apply text-sm font-semibold text-text-primary mb-0.5;
+}
+
+.issue-message {
+  @apply text-xs text-text-secondary leading-relaxed;
+}
+
+.issue-actions {
+  @apply flex items-center gap-2 flex-shrink-0;
+}
+
+.issue-action-btn {
+  @apply px-3 py-1.5 bg-primary text-white border border-primary rounded text-xs font-medium cursor-pointer transition-colors duration-150 whitespace-nowrap;
+}
+
+.issue-action-btn:hover {
+  @apply bg-primary-dark border-primary-dark;
+}
+
+/* ============================================================
+   SERVER BUILDER — HARDWARE TREE (Server Usage)
+   Chassis → Motherboard → sections → slots
+   ============================================================ */
+
+.hw-card {
+  @apply bg-surface-card border border-border-light rounded-lg p-5 mb-6;
+}
+
+/* Chassis container — outermost physical layer */
+.hw-chassis {
+  @apply border border-border rounded-lg overflow-visible bg-surface-main;
+}
+
+.hw-chassis.is-missing {
+  @apply border-warning/50;
+}
+
+.hw-chassis-header {
+  @apply flex flex-wrap items-center gap-3 px-4 py-3 bg-surface-secondary border-b border-border rounded-t-lg;
+}
+
+.hw-chassis-body {
+  @apply p-3 flex flex-col gap-3;
+}
+
+/* Container-level tags (CHASSIS / MOTHERBOARD) */
+.hw-tag {
+  @apply inline-flex items-center font-mono text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded border whitespace-nowrap;
+}
+
+.hw-tag-chassis {
+  @apply text-primary border-primary/40 bg-primary/5;
+}
+
+.hw-tag-board {
+  @apply text-text-secondary border-border bg-surface-card;
+}
+
+/* Motherboard container — nested inside chassis */
+.hw-board {
+  @apply border border-border-light rounded-lg bg-surface-card overflow-visible;
+}
+
+.hw-board-header {
+  @apply flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-border-light rounded-t-lg;
+}
+
+.hw-board-body {
+  @apply p-3 flex flex-col gap-3;
+}
+
+/* Chassis spec strip */
+.hw-specs {
+  @apply grid gap-2;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+.hw-spec {
+  @apply rounded border border-border-light bg-surface-card px-3 py-2 min-w-0;
+}
+
+.hw-spec-k {
+  @apply font-mono text-[10px] uppercase tracking-wider text-text-muted block truncate;
+}
+
+.hw-spec-v {
+  @apply text-sm font-semibold text-text-primary block mt-0.5 truncate;
+}
+
+/* Collapsible hardware section */
+.hw-section {
+  @apply border border-border-light rounded-lg bg-surface-card overflow-visible;
+}
+
+.hw-section-toggle {
+  @apply w-full flex items-center gap-2.5 px-3.5 py-2.5 bg-transparent border-0 cursor-pointer text-left transition-colors duration-150 rounded-lg;
+}
+
+.hw-section-toggle:hover {
+  @apply bg-surface-hover;
+}
+
+.hw-caret {
+  @apply text-[10px] text-text-muted w-3 flex-shrink-0;
+}
+
+.hw-section.collapsed .hw-caret {
+  transform: rotate(-90deg);
+}
+
+.hw-section-title {
+  @apply font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-text-secondary whitespace-nowrap;
+}
+
+.hw-section-sub {
+  @apply text-[11px] text-text-muted truncate;
+}
+
+.hw-section-meterwrap {
+  @apply ml-auto flex items-center gap-2 flex-shrink-0;
+}
+
+.hw-section-body {
+  @apply px-3.5 pb-3.5 pt-1;
+}
+
+.hw-section.collapsed .hw-section-body {
+  @apply hidden;
+}
+
+/* Segmented utilization meter */
+.hw-meter {
+  @apply inline-flex items-center gap-[3px];
+}
+
+.hw-meter-seg {
+  @apply w-[5px] h-3 rounded-[1px] bg-surface-secondary border border-border;
+}
+
+.hw-meter-seg.filled {
+  @apply bg-primary border-primary;
+}
+
+.hw-meter-bar {
+  @apply inline-block w-20 h-1.5 rounded-full bg-surface-secondary overflow-hidden align-middle;
+}
+
+.hw-meter-bar-fill {
+  @apply block h-full rounded-full bg-primary;
+}
+
+.hw-meter-count {
+  @apply font-mono text-[11px] text-text-muted whitespace-nowrap;
+}
+
+/* On narrow screens keep only the mono count — segments would overflow */
+@media (max-width: 639px) {
+  .hw-section-meterwrap .hw-meter {
+    @apply hidden;
+  }
+}
+
+/* Slot rows — shared state language:
+   is-empty / is-filled / is-required / is-error */
+.hw-slot {
+  @apply relative flex items-center justify-between gap-3 px-3 py-2.5 rounded border transition-colors duration-150 mb-1.5 last:mb-0 min-w-0;
+}
+
+.hw-slot.is-empty {
+  @apply border-border-light bg-transparent cursor-pointer;
+}
+
+.hw-slot.is-empty:hover {
+  @apply border-primary/50 bg-primary/5;
+}
+
+.hw-slot.is-filled {
+  @apply border-border-light bg-surface-secondary cursor-pointer;
+  border-left: 3px solid var(--color-primary);
+}
+
+.hw-slot.is-filled:hover {
+  @apply border-primary/40;
+}
+
+.hw-slot.is-required {
+  @apply border-warning/40 bg-transparent cursor-pointer;
+  border-left: 3px solid var(--color-warning);
+}
+
+.hw-slot.is-required:hover {
+  @apply border-warning bg-warning/5;
+}
+
+.hw-slot.is-error {
+  @apply border-danger/40;
+  border-left: 3px solid var(--color-danger);
+}
+
+/* Stacked variant — multi-row slot content (e.g. NIC with port cages) */
+.hw-slot.is-stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.hw-slot-main {
+  @apply flex items-center gap-2 min-w-0;
+}
+
+.hw-slot-label {
+  @apply font-mono text-[11px] font-semibold uppercase tracking-wide text-text-secondary whitespace-nowrap;
+}
+
+.hw-slot-name {
+  @apply text-sm font-semibold text-text-primary truncate;
+}
+
+.hw-slot-serial {
+  @apply font-mono text-[11px] text-text-muted whitespace-nowrap;
+}
+
+.hw-slot-state {
+  @apply text-xs italic text-text-muted whitespace-nowrap;
+}
+
+.hw-slot-state.is-required-text {
+  @apply text-warning not-italic font-medium;
+}
+
+.hw-slot-add-hint {
+  @apply text-xs text-primary font-medium opacity-0 whitespace-nowrap transition-opacity duration-150;
+}
+
+.hw-slot.is-empty:hover .hw-slot-add-hint,
+.hw-slot.is-required:hover .hw-slot-add-hint {
+  @apply opacity-100;
+}
+
+/* DIMM grid — compact memory slot cells */
+.dimm-grid {
+  @apply grid gap-1.5;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 768px) {
+  .dimm-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dimm-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.dimm-cell {
+  @apply relative rounded border px-2.5 py-2 transition-colors duration-150 min-w-0;
+}
+
+.dimm-cell.is-empty {
+  @apply border-border-light bg-transparent cursor-pointer;
+}
+
+.dimm-cell.is-empty:hover {
+  @apply border-primary/50 bg-primary/5;
+}
+
+.dimm-cell.is-filled {
+  @apply border-border-light bg-surface-secondary cursor-pointer;
+  border-left: 3px solid var(--color-primary);
+}
+
+.dimm-cell.is-filled:hover {
+  @apply border-primary/40;
+}
+
+.dimm-cell.is-required {
+  @apply border-warning/40 cursor-pointer;
+  border-left: 3px solid var(--color-warning);
+}
+
+.dimm-cell.is-required:hover {
+  @apply border-warning bg-warning/5;
+}
+
+.dimm-cell-label {
+  @apply font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted block truncate;
+}
+
+.dimm-cell-name {
+  @apply text-xs font-semibold text-text-primary truncate block mt-0.5;
+}
+
+.dimm-cell-serial {
+  @apply font-mono text-[10px] text-text-muted truncate block;
+}
+
+.dimm-cell-state {
+  @apply text-[11px] italic text-text-muted mt-0.5 block;
+}
+
+.dimm-cell-state.is-required-text {
+  @apply text-warning not-italic font-medium;
+}
+
+/* Slot detail popover (populated slots) */
+.slot-popover {
+  @apply hidden absolute right-1 top-full mt-1 w-64 bg-surface-card border border-border rounded-lg shadow-dropdown p-3 text-left cursor-default z-dropdown;
+}
+
+.popover-open {
+  z-index: 30;
+}
+
+.popover-open > .slot-popover {
+  @apply block;
+}
+
+.slot-popover-name {
+  @apply text-sm font-semibold text-text-primary mb-1.5 break-words;
+}
+
+.slot-popover-row {
+  @apply flex justify-between items-baseline gap-3 py-1 text-xs;
+}
+
+.slot-popover-row .k {
+  @apply text-text-muted flex-shrink-0;
+}
+
+.slot-popover-row .v {
+  @apply font-mono text-text-primary text-right break-all;
+}
+
+.slot-popover-actions {
+  @apply mt-2 pt-2 border-t border-border-light flex justify-end;
+}
+
+.slot-popover-remove {
+  @apply inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-medium text-danger bg-transparent border border-danger/40 cursor-pointer transition-colors duration-150;
+}
+
+.slot-popover-remove:hover {
+  @apply bg-danger/10 border-danger;
+}
+
+/* Placeholder when no motherboard installed */
+.hw-placeholder {
+  @apply flex flex-col items-center justify-center text-center py-10 px-6 border border-dashed border-border rounded-lg;
+}
+
+/* Scroll-target highlight (applied briefly after add/navigate) */
+.flash-highlight {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  @apply bg-primary/5;
 }
 
 /* Interface color-coded badges */
 .interface-badge {
-  @apply text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider whitespace-nowrap;
+  @apply font-mono text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap border;
 }
 
 .interface-nvme {
-  @apply bg-blue-500/15 text-blue-400 border border-blue-500/30;
+  @apply bg-blue-500/10 text-blue-600 border-blue-500/30;
 }
 
 .interface-sata {
-  @apply bg-emerald-500/15 text-emerald-400 border border-emerald-500/30;
+  @apply bg-emerald-500/10 text-emerald-600 border-emerald-500/30;
 }
 
 .interface-sas {
-  @apply bg-orange-500/15 text-orange-400 border border-orange-500/30;
+  @apply bg-orange-500/10 text-orange-600 border-orange-500/30;
 }
 
 .interface-pcie {
-  @apply bg-purple-500/15 text-purple-400 border border-purple-500/30;
+  @apply bg-purple-500/10 text-purple-600 border-purple-500/30;
 }
 
-/* Slot utilization bar */
-.slot-utilization-bar {
-  @apply w-full h-1.5 rounded-full bg-surface-secondary overflow-hidden;
+[data-theme="dark"] .interface-nvme {
+  @apply text-blue-400;
 }
 
-.slot-utilization-fill {
-  @apply h-full rounded-full transition-all duration-500;
-  background: linear-gradient(90deg, #0D9488, #14B8A6);
+[data-theme="dark"] .interface-sata {
+  @apply text-emerald-400;
+}
+
+[data-theme="dark"] .interface-sas {
+  @apply text-orange-400;
+}
+
+[data-theme="dark"] .interface-pcie {
+  @apply text-purple-400;
 }
 
 /* Drive bay grid */
 .drive-bay-grid {
-  @apply grid gap-2;
-  grid-template-columns: repeat(4, 1fr);
+  @apply grid gap-1.5;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
 }
 
-@media (min-width: 640px) {
-  .drive-bay-grid {
-    grid-template-columns: repeat(6, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .drive-bay-grid {
-    grid-template-columns: repeat(8, 1fr);
-  }
-}
-
-/* Drive bay cell */
 .drive-bay-cell {
-  @apply rounded-lg border-2 p-2 text-center transition-all duration-200 relative;
-  min-height: 64px;
+  @apply relative rounded border px-2 py-1.5 transition-colors duration-150 min-w-0;
+  min-height: 58px;
 }
 
 .drive-bay-cell.occupied {
-  @apply border-primary bg-primary/5;
+  @apply border-border-light bg-surface-secondary cursor-pointer;
+  border-left: 3px solid var(--color-primary);
+}
+
+.drive-bay-cell.occupied:hover {
+  @apply border-primary/40;
 }
 
 .drive-bay-cell.empty {
-  @apply border-border bg-surface-secondary opacity-40;
+  @apply border-border-light bg-transparent cursor-pointer;
+}
+
+.drive-bay-cell.empty:hover {
+  @apply border-primary/50 bg-primary/5;
 }
 
 .drive-bay-cell .bay-number {
-  @apply text-[10px] font-bold text-text-muted absolute top-1 left-1.5;
+  @apply font-mono text-[10px] font-semibold text-text-muted;
 }
 
 .drive-bay-cell .bay-drive-name {
-  @apply text-[11px] font-semibold text-text-primary mt-3 leading-tight;
+  @apply text-[11px] font-semibold text-text-primary leading-tight truncate mt-0.5;
 }
 
-.drive-bay-cell .bay-interface {
-  @apply mt-1;
+.drive-bay-cell .bay-state {
+  @apply block text-[11px] italic text-text-muted mt-1;
 }
 
 /* NIC port row */
 .nic-port-row {
-  @apply flex items-center gap-1.5 mt-2;
+  @apply flex items-center gap-1.5 mt-2 flex-wrap;
 }
 
-/* SFP port indicators */
+.nic-port-label {
+  @apply font-mono text-[10px] uppercase tracking-wider text-text-muted mr-1;
+}
+
+/* SFP port cages */
 .sfp-port {
-  @apply w-6 h-4 rounded-sm border transition-all duration-200 flex items-center justify-center;
+  @apply w-6 h-4 rounded-sm border transition-colors duration-150 flex items-center justify-center;
 }
 
 .sfp-port.populated {
-  @apply bg-teal-500/20 border-teal-500/60;
+  @apply bg-primary/20 border-primary/60;
 }
 
 .sfp-port.populated::after {
   content: '';
-  @apply w-2 h-1.5 rounded-sm bg-teal-400;
+  @apply w-2 h-1.5 rounded-sm bg-primary;
 }
 
 .sfp-port.empty-port {
-  @apply bg-surface-secondary border-border opacity-50;
+  @apply bg-surface-secondary border-border cursor-pointer;
+}
+
+.sfp-port.empty-port:hover {
+  @apply border-primary/60 bg-primary/5;
 }
 
 .sfp-port.empty-port::after {
   content: '';
-  @apply w-2 h-1.5 rounded-sm bg-text-muted;
-  opacity: 0.3;
+  @apply w-2 h-1.5 rounded-sm bg-text-muted opacity-30;
 }
 
 /* RJ45 port indicators */
 .rj45-port {
-  @apply w-5 h-5 rounded border transition-all duration-200 flex items-center justify-center text-[8px] font-bold;
+  @apply w-5 h-5 rounded border flex items-center justify-center font-mono text-[8px] font-bold;
 }
 
 .rj45-port.active {
-  @apply bg-blue-500/20 border-blue-500/60 text-blue-400;
+  @apply bg-info/10 border-info/50 text-info;
 }
 
 .rj45-port.empty-port {
-  @apply bg-surface-secondary border-border opacity-50 text-text-muted;
+  @apply bg-surface-secondary border-border text-text-muted opacity-60;
 }
 
-/* Connection path indicator */
+/* Connection path indicator (HBA → backplane → bays) */
 .connection-path {
-  @apply flex items-center gap-2 text-xs text-text-muted py-1.5 px-3 my-2 rounded;
+  @apply flex items-center gap-2 flex-wrap text-xs text-text-secondary py-1.5 px-3 mb-2.5 rounded;
   @apply bg-surface-secondary border-l-2 border-primary;
 }
 
 .connection-path i {
-  @apply text-primary text-[10px];
-  opacity: 0.6;
+  @apply text-primary text-[10px] opacity-60;
 }
 
 /* Slot type group header */
 .slot-group-header {
-  @apply text-[11px] font-bold text-text-muted uppercase tracking-widest mt-3 mb-2 first:mt-0;
+  @apply font-mono text-[10px] font-semibold text-text-muted uppercase tracking-widest mt-3 mb-1.5 first:mt-0;
 }
 
-/* Expansion slot with type badge */
-.expansion-slot .slot-type-badge {
-  @apply text-[10px] font-bold px-1.5 py-0.5 rounded bg-surface-secondary text-text-muted uppercase;
+/* Slot type badge (mono identifier chips on slots) */
+.slot-type-badge {
+  @apply font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-secondary border border-border-light text-text-muted uppercase whitespace-nowrap;
+}
+
+.hw-slot.is-filled .slot-type-badge,
+.dimm-cell.is-filled .slot-type-badge {
+  @apply bg-surface-card;
 }
 
 /* ============================================================
@@ -1296,29 +1748,29 @@
 }
 
 .pill-button {
-  @apply px-4 py-2 text-sm font-medium rounded-full border-2 transition-all duration-200 cursor-pointer select-none;
-  @apply bg-surface-card text-text-secondary border-border-light;
-  @apply hover:bg-primary-50 hover:border-primary hover:text-primary;
-  @apply focus:outline-none focus:ring-2 focus:ring-primary/30;
+  @apply px-3.5 py-1.5 text-sm font-medium rounded-full border transition-colors duration-150 cursor-pointer select-none;
+  @apply bg-surface-card text-text-secondary border-border;
+  @apply hover:border-primary hover:text-primary;
+  @apply focus:outline-none focus:ring-2 focus:ring-primary/20;
 }
 
 .pill-button.active {
-  @apply bg-primary text-white border-primary shadow-sm;
+  @apply bg-primary text-white border-primary;
   @apply hover:bg-primary-dark hover:border-primary-dark hover:text-white;
 }
 
 .pill-button:disabled {
-  @apply opacity-50 cursor-not-allowed hover:bg-surface-card hover:border-border-light hover:text-text-secondary;
+  @apply opacity-50 cursor-not-allowed hover:bg-surface-card hover:border-border hover:text-text-secondary;
 }
 
 /* Small variant for compact areas */
 .pill-button-sm {
-  @apply px-3 py-1.5 text-xs;
+  @apply px-3 py-1 text-xs;
 }
 
 /* Filter Section Header */
 .filter-section-header {
-  @apply text-xs font-bold text-text-muted uppercase tracking-wider mb-3;
+  @apply text-xs font-semibold text-text-muted uppercase tracking-wider mb-3;
 }
 
 /* Enhanced Range Slider */
@@ -1335,20 +1787,19 @@
 }
 
 .range-slider-value {
-  @apply text-sm font-bold text-primary bg-primary-50 px-2 py-0.5 rounded;
+  @apply text-sm font-semibold text-primary bg-primary-50 px-2 py-0.5 rounded font-mono;
 }
 
 .range-slider-track {
-  @apply relative w-full h-2 bg-surface-secondary rounded-full overflow-hidden;
+  @apply relative w-full h-1.5 bg-surface-secondary rounded-full overflow-hidden;
 }
 
 .range-slider-fill {
-  @apply absolute left-0 top-0 h-full bg-gradient-to-r from-primary to-primary-light rounded-full;
-  transition: width 0.15s ease;
+  @apply absolute left-0 top-0 h-full bg-primary rounded-full;
 }
 
 .range-slider-bounds {
-  @apply flex justify-between text-xs text-text-muted mt-2;
+  @apply flex justify-between text-xs text-text-muted mt-2 font-mono;
 }
 
 /* ============================================================
@@ -1365,7 +1816,7 @@
 }
 
 .config-sidebar::-webkit-scrollbar-track {
-  @apply bg-surface-secondary;
+  background: transparent;
 }
 
 .config-sidebar::-webkit-scrollbar-thumb {
@@ -1373,13 +1824,14 @@
 }
 
 .config-sidebar::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(100, 116, 139);
+  background-color: var(--color-scrollbar-thumb-hover);
 }
 
 /* Mobile Filter Panel */
 @media (max-width: 1024px) {
   .config-sidebar {
-    @apply fixed inset-y-0 left-0 z-50 w-80 transform -translate-x-full transition-transform duration-300;
+    @apply fixed inset-y-0 left-0 z-50 w-80 transform -translate-x-full transition-transform duration-200;
+    max-width: calc(100vw - 3rem);
   }
 
   .config-sidebar.active {
@@ -1393,14 +1845,12 @@
 
 /* Component Card Mobile View */
 .component-card {
-  @apply bg-surface-card border border-border-light rounded-xl p-4 shadow-sm mb-4;
-  @apply hover:shadow-md hover:border-primary/30 transition-all duration-200;
+  @apply bg-surface-card border border-border-light rounded-lg p-4 shadow-card mb-4;
+  @apply hover:border-primary/40 transition-colors duration-150;
 }
 
 .component-card.incompatible {
-  @apply opacity-60;
-  background-color: rgba(254, 226, 226, 0.3);
-  border-color: rgba(220, 38, 38, 0.2);
+  @apply opacity-60 bg-danger-50/50 border-danger/20;
 }
 
 .component-card-header {
@@ -1408,11 +1858,11 @@
 }
 
 .component-card-icon {
-  @apply w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0;
+  @apply w-11 h-11 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0;
 }
 
 .component-card-icon i {
-  @apply text-xl text-primary;
+  @apply text-lg text-primary;
 }
 
 .component-card-title {
@@ -1428,8 +1878,7 @@
 }
 
 .component-card-spec {
-  @apply bg-surface-secondary rounded-lg px-3 py-2;
-  opacity: 0.8;
+  @apply bg-surface-hover border border-border-light rounded px-3 py-2;
 }
 
 .component-card-spec-label {
@@ -1492,13 +1941,13 @@
     @apply md:hidden flex;
   }
 
-  /* Transitions */
+  /* Transitions — fast and quiet by design */
   .transition-smooth {
-    @apply transition-all duration-300 ease-smooth;
+    @apply transition-all duration-150 ease-smooth;
   }
 
   .transition-bounce {
-    @apply transition-all duration-300 ease-bouncy;
+    @apply transition-all duration-150 ease-smooth;
   }
 
   /* Grid Utilities */
@@ -1523,9 +1972,15 @@
      MOBILE-FIRST RESPONSIVE UTILITIES
      ============================================================ */
 
+  /* Full-viewport height that tracks mobile browser toolbar changes */
+  .h-screen-safe {
+    height: 100vh;
+    height: 100dvh;
+  }
+
   /* Toast Notifications - Mobile-first sizing */
   .toast {
-    @apply min-w-60 sm:min-w-72 md:min-w-80 bg-surface-card rounded-lg shadow-toast border-l-4 p-4 animate-modal-slide pointer-events-auto flex gap-4 items-start;
+    @apply min-w-60 sm:min-w-72 md:min-w-80 bg-surface-card rounded-lg shadow-toast border border-border-light border-l-4 p-4 pointer-events-auto flex gap-4 items-start relative overflow-hidden;
   }
 
   /* Modal - Full screen on mobile */
@@ -1540,11 +1995,11 @@
 
   /* Form Input - Mobile-first with 44px minimum on tablet+ */
   .form-input-responsive {
-    @apply w-full h-10 sm:h-11 px-2 py-2 sm:px-3 md:px-4 text-xs sm:text-sm md:text-base border border-border rounded-lg bg-surface-card text-text-primary placeholder-text-muted transition-all duration-200;
+    @apply w-full h-10 sm:h-11 px-2 py-2 sm:px-3 md:px-4 text-xs sm:text-sm md:text-base border border-border rounded bg-surface-card text-text-primary placeholder-text-muted transition-colors duration-150;
   }
 
   .form-input-responsive:focus {
-    @apply border-border-focus ring-1 ring-primary/20 shadow-focus;
+    @apply border-border-focus shadow-focus;
   }
 
   .form-input-responsive:disabled {
@@ -1557,7 +2012,7 @@
 
   /* Form Label - Responsive typography */
   .form-label-responsive {
-    @apply block text-xs sm:text-sm font-medium text-slate-700 mb-2;
+    @apply block text-xs sm:text-sm font-medium text-text-secondary mb-2;
   }
 
   /* Button Group - Mobile-first stacking */
@@ -1640,10 +2095,13 @@
   @media (max-width: 1023px) {
     .sidebar {
       @apply fixed z-[1001] -translate-x-full;
-      /* Width is controlled by w-sidebar class in HTML (320px from tailwind.config.js) */
+      /* Width is controlled by w-sidebar class in HTML (300px from tailwind.config.js) */
       top: 70px;
       left: 0;
       bottom: 0;
+      /* Ultra-narrow screens (folded devices ~280px): keep the drawer inside
+         the viewport so its close button stays reachable */
+      max-width: calc(100vw - 3rem);
       max-height: calc(100vh - 70px);
       max-height: calc(100dvh - 70px);
       overflow-y: auto;
@@ -1657,7 +2115,7 @@
 
   /* Pagination */
   .pagination-btn {
-    @apply px-4 py-2 bg-surface-card border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-surface-hover hover:border-primary-lighter hover:text-primary transition-all duration-200 flex items-center gap-1.5 min-h-[44px] min-w-[44px] justify-center;
+    @apply px-3.5 py-2 bg-surface-card border border-border rounded text-sm font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors duration-150 flex items-center gap-1.5 min-h-[40px] min-w-[40px] justify-center;
     -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
   }
 
@@ -1689,9 +2147,13 @@
      LAYOUT SYSTEM - Navbar + Sidebar + Main Content
      ============================================================ */
 
-  /* Layout wrapper fills remaining viewport height below navbar */
+  /* Layout wrapper fills remaining viewport height below navbar.
+     dvh fallback keeps the bottom edge visible when mobile browser
+     toolbars expand/collapse. */
   .layout-wrapper {
-    @apply h-[calc(100vh-70px)] overflow-hidden;
+    @apply overflow-hidden;
+    height: calc(100vh - 70px);
+    height: calc(100dvh - 70px);
   }
 
   /* Main container is a flex row that fills layout-wrapper */
@@ -1768,13 +2230,13 @@
     @apply pt-2 border-t border-border-light;
   }
 
-  /* Make buttons full width and larger for touch */
-  #app table tbody td button {
+  /* Make buttons full width and larger for touch (chip remove stays inline) */
+  #app table tbody td button:not(.comp-chip-remove) {
     @apply w-full min-h-[48px] justify-center;
   }
 
   /* Component chips (selected components) */
-  #app table tbody td .inline-flex.items-center.gap-2.bg-surface-secondary {
+  #app table tbody td .comp-chip {
     @apply w-full justify-between;
   }
 
@@ -1848,47 +2310,169 @@
 }
 
 /* ============================================================
-   PARTICLE ANIMATION VARIANTS
+   LEGACY DECORATIVE PARTICLES — removed by design
    ============================================================ */
 
-.particle-1 {
-  animation: float 15s infinite ease-in-out;
-  animation-delay: 0s;
-}
-
-.particle-2 {
-  animation: float 20s infinite ease-in-out;
-  animation-delay: 2s;
-}
-
-.particle-3 {
-  animation: float 25s infinite ease-in-out;
-  animation-delay: 4s;
-}
-
-.particle-4 {
-  animation: float 30s infinite ease-in-out;
-  animation-delay: 6s;
-}
-
-.particle-5 {
-  animation: float 17s infinite ease-in-out;
-  animation-delay: 1s;
-}
-
-.particle-6 {
-  animation: float 22s infinite ease-in-out;
-  animation-delay: 3s;
-}
-
-.particle-7 {
-  animation: float 27s infinite ease-in-out;
-  animation-delay: 5s;
-}
-
+.particle-1,
+.particle-2,
+.particle-3,
+.particle-4,
+.particle-5,
+.particle-6,
+.particle-7,
 .particle-8 {
-  animation: float 35s infinite ease-in-out;
-  animation-delay: 7s;
+  display: none;
+}
+
+/* ============================================================
+   SHARED CHROME POLISH
+   Plain CSS (after utilities) so it restyles the navbar/sidebar
+   markup duplicated across pages without touching each file.
+   ============================================================ */
+
+.navbar {
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.nav-brand {
+  color: var(--color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.nav-brand i {
+  color: var(--color-primary);
+}
+
+.user-info #userRole {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.user-avatar {
+  border-radius: 6px;
+}
+
+.sidebar-header h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+}
+
+/* --- Sidebar navigation ------------------------------------- */
+
+.sidebar-menu {
+  padding: 0 12px;
+}
+
+.sidebar-menu .menu-section {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-text-muted);
+  padding: 18px 12px 6px;
+  user-select: none;
+}
+
+.sidebar-menu .menu-section:first-child {
+  padding-top: 8px;
+}
+
+.sidebar-menu .menu-item + .menu-item {
+  margin-top: 2px;
+}
+
+.sidebar-menu .menu-item a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-menu .menu-item a i {
+  width: 18px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  transition: color 0.15s ease;
+}
+
+.sidebar-menu .menu-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-menu .count {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--color-text-muted);
+  background: var(--color-surface-secondary);
+  border-radius: 4px;
+  padding: 3px 7px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-menu .menu-item a:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.sidebar-menu .menu-item a:hover i {
+  color: var(--color-primary);
+}
+
+/* Active page: teal indicator bar + tinted row */
+.sidebar-menu .menu-item.active a {
+  background: var(--color-primary-lightest);
+  color: var(--color-primary-hover);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .sidebar-menu .menu-item.active a {
+  background: rgba(20, 184, 166, 0.12);
+  color: var(--color-primary-light);
+}
+
+.sidebar-menu .menu-item.active a::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--color-primary);
+}
+
+.sidebar-menu .menu-item.active a i {
+  color: var(--color-primary);
+}
+
+.sidebar-menu .menu-item.active .count {
+  background: var(--color-surface-card);
+  color: var(--color-primary-hover);
+}
+
+[data-theme="dark"] .sidebar-menu .menu-item.active .count {
+  background: rgba(20, 184, 166, 0.18);
+  color: var(--color-primary-light);
 }
 
 /* ============================================================
@@ -1898,12 +2482,5 @@
 @supports (-webkit-touch-callout: none) {
   .ios-scroll-fix {
     -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Smooth scrolling fallback */
-@supports (scroll-behavior: smooth) {
-  html {
-    scroll-behavior: smooth;
   }
 }

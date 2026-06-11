@@ -15,8 +15,62 @@
         })();
     </script>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+
+    <style>
+        /* Dashboard-scoped design refinements */
+        #dashboardView {
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        }
+
+        #dashboardView .dash-num {
+            font-family: 'IBM Plex Mono', monospace;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+        }
+
+        /* Staggered entrance for stat cards */
+        @keyframes dashCardIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #dashboardView .dash-card {
+            animation: dashCardIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        #dashboardView .dash-card:nth-child(1)  { animation-delay: 0.03s; }
+        #dashboardView .dash-card:nth-child(2)  { animation-delay: 0.06s; }
+        #dashboardView .dash-card:nth-child(3)  { animation-delay: 0.09s; }
+        #dashboardView .dash-card:nth-child(4)  { animation-delay: 0.12s; }
+        #dashboardView .dash-card:nth-child(5)  { animation-delay: 0.15s; }
+        #dashboardView .dash-card:nth-child(6)  { animation-delay: 0.18s; }
+        #dashboardView .dash-card:nth-child(7)  { animation-delay: 0.21s; }
+        #dashboardView .dash-card:nth-child(8)  { animation-delay: 0.24s; }
+        #dashboardView .dash-card:nth-child(9)  { animation-delay: 0.27s; }
+        #dashboardView .dash-card:nth-child(10) { animation-delay: 0.30s; }
+        #dashboardView .dash-card:nth-child(11) { animation-delay: 0.33s; }
+
+        #dashboardView .dash-card {
+            transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+                        box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+
+        #dashboardView .dash-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px -12px rgba(15, 118, 110, 0.25),
+                        0 4px 12px -6px rgba(0, 0, 0, 0.08);
+            border-color: rgba(15, 118, 110, 0.35);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            #dashboardView .dash-card { animation: none; transition: none; }
+        }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -81,14 +135,23 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-6">
+            <main class="main-content flex-1 p-4 sm:p-6">
                 <!-- Dashboard Overview -->
                 <div id="dashboardView" class="content-section active">
-                    <div class="content-header flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-text-primary">Dashboard Overview</h2>
+                    <!-- Page Header -->
+                    <div class="content-header flex flex-wrap items-end justify-between gap-4 mb-8">
+                        <div>
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary mb-1.5">
+                                BDC Datacenter &middot; Inventory
+                            </p>
+                            <h2 class="text-2xl md:text-[1.75rem] font-bold text-text-primary tracking-tight leading-none">
+                                Infrastructure Overview
+                            </h2>
+                            <p id="dashDateLine" class="text-sm text-text-muted mt-2"></p>
+                        </div>
                         <div class="header-actions">
                             <button
-                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                class="btn btn-primary px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-600 shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-sm font-medium"
                                 id="refreshDashboard">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
@@ -96,373 +159,358 @@
                     </div>
 
                     <!-- Stats Cards -->
-                    <div
-                        class="stats-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive">
+                    <div class="stats-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         <!-- CPU Card -->
-                        <div
-                            class="stat-card cpu-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-bolt text-9xl text-primary"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                        <i class="fas fa-bolt text-xl"></i>
+                        <div class="stat-card cpu-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View CPU inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                                        <i class="fas fa-microchip"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">CPUs</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashCpuTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0
-                                        </h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashCpuAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashCpuInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashCpuFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">CPUs</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Processors</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashCpuTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashCpuBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashCpuBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashCpuBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashCpuAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashCpuInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashCpuFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- RAM Card -->
-                        <div
-                            class="stat-card ram-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-memory text-9xl text-info"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-info/10 flex items-center justify-center text-info">
-                                        <i class="fas fa-memory text-xl"></i>
+                        <div class="stat-card ram-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View RAM inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-info/10 text-info flex items-center justify-center">
+                                        <i class="fas fa-memory"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">RAM Modules</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashRamTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0
-                                        </h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashRamAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashRamInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashRamFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">RAM</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Memory modules</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashRamTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashRamBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashRamBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashRamBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashRamAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashRamInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashRamFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- Storage Card -->
-                        <div
-                            class="stat-card storage-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-hdd text-9xl text-success"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
-                                        <i class="fas fa-hdd text-xl"></i>
+                        <div class="stat-card storage-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View storage inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-success/10 text-success flex items-center justify-center">
+                                        <i class="fas fa-hdd"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Storage</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashStorageTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashStorageAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashStorageInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashStorageFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Storage</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Drives &amp; SSDs</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashStorageTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashStorageBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashStorageBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashStorageBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashStorageAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashStorageInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashStorageFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- Motherboard Card -->
-                        <div
-                            class="stat-card motherboard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-th-large text-9xl text-warning"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
-                                        <i class="fas fa-th-large text-xl"></i>
+                        <div class="stat-card motherboard-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View motherboard inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-warning/10 text-warning flex items-center justify-center">
+                                        <i class="fas fa-th-large"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Motherboards</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashMotherboardTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span
-                                                id="dashMotherboardAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashMotherboardInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span
-                                                id="dashMotherboardFailed" class="text-danger font-bold ml-1">0</span>
-                                        </div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Motherboards</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">System boards</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashMotherboardTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashMotherboardBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashMotherboardBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashMotherboardBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashMotherboardAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashMotherboardInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashMotherboardFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- NIC Card -->
-                        <div
-                            class="stat-card nic-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-network-wired text-9xl text-primary"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                        <i class="fas fa-network-wired text-xl"></i>
+                        <div class="stat-card nic-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View network card inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
+                                        <i class="fas fa-network-wired"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Network Cards</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashNicTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0
-                                        </h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashNicAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashNicInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashNicFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Network Cards</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Interfaces</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashNicTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashNicBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashNicBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashNicBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashNicAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashNicInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashNicFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- Caddy Card -->
-                        <div
-                            class="stat-card caddy-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-box text-9xl text-warning"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-warning/10 flex items-center justify-center text-warning">
-                                        <i class="fas fa-box text-xl"></i>
+                        <div class="stat-card caddy-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View caddy inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                                        <i class="fas fa-box"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Caddies</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashCaddyTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashCaddyAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashCaddyInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashCaddyFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Caddies</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Drive trays</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashCaddyTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashCaddyBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashCaddyBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashCaddyBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashCaddyAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashCaddyInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashCaddyFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- Chassis Card -->
-                        <div
-                            class="stat-card chassis-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-server text-9xl text-primary"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                        <i class="fas fa-server text-xl"></i>
+                        <div class="stat-card chassis-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View chassis inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-600 flex items-center justify-center">
+                                        <i class="fas fa-server"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Chassis</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashChassisTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashChassisAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashChassisInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashChassisFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Chassis</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Enclosures</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashChassisTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashChassisBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashChassisBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashChassisBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashChassisAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashChassisInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashChassisFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- PCIe Card -->
-                        <div
-                            class="stat-card pciecard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-credit-card text-9xl text-info"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-info/10 flex items-center justify-center text-info">
-                                        <i class="fas fa-credit-card text-xl"></i>
+                        <div class="stat-card pciecard-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View PCIe card inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                        <i class="fas fa-credit-card"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">PCIe Cards</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashPciecardTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashPciecardAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashPciecardInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashPciecardFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">PCIe Cards</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Expansion cards</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashPciecardTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashPciecardBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashPciecardBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashPciecardBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashPciecardAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashPciecardInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashPciecardFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- HBA Card -->
-                        <div
-                            class="stat-card hbacard-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-plug text-9xl text-danger"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-danger/10 flex items-center justify-center text-danger">
-                                        <i class="fas fa-plug text-xl"></i>
+                        <div class="stat-card hbacard-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View HBA card inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                                        <i class="fas fa-plug"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">HBA Cards</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashHbacardTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashHbacardAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashHbacardInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashHbacardFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">HBA Cards</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Bus adapters</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashHbacardTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashHbacardBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashHbacardBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashHbacardBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashHbacardAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashHbacardInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashHbacardFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
                         <!-- SFP Modules Card -->
-                        <div
-                            class="stat-card sfp-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-plug text-9xl text-purple-500"></i>
-                            </div>
-                            <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500">
-                                        <i class="fas fa-plug text-xl"></i>
+                        <div class="stat-card sfp-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View SFP module inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-500 flex items-center justify-center">
+                                        <i class="fas fa-ethernet"></i>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">SFP Modules</h3>
-                                </div>
-                                <div class="flex items-end justify-between">
                                     <div>
-                                        <h3 id="dashSfpTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Units</p>
-                                    </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Avail: <span id="dashSfpAvailable"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">In Use: <span id="dashSfpInUse"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Failed: <span id="dashSfpFailed"
-                                                class="text-danger font-bold ml-1">0</span></div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">SFP Modules</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">Transceivers</p>
                                     </div>
                                 </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashSfpTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashSfpBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashSfpBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashSfpBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashSfpAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashSfpInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashSfpFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 
-                        <!-- Servers Card -->
-                        <div
-                            class="stat-card servers-card bg-surface-card rounded-xl shadow-sm hover:shadow-md transition-all p-6 relative overflow-hidden group border border-border-light cursor-pointer">
-                            <div
-                                class="absolute -right-6 -top-6 opacity-5 group-hover:opacity-10 transition-opacity rotate-12">
-                                <i class="fas fa-cubes text-9xl text-success"></i>
+                        <!-- Servers Card (featured) -->
+                        <div class="stat-card servers-card dash-card group rounded-2xl border border-teal-900/20 p-5 cursor-pointer sm:col-span-2 relative overflow-hidden bg-gradient-to-br from-teal-700 via-teal-800 to-slate-900"
+                            role="link" tabindex="0" aria-label="View server configurations">
+                            <div class="absolute -right-8 -bottom-10 opacity-10 rotate-12 pointer-events-none">
+                                <i class="fas fa-cubes text-white" style="font-size: 11rem;"></i>
                             </div>
                             <div class="relative z-10">
-                                <div class="flex items-center gap-4 mb-6">
-                                    <div
-                                        class="w-12 h-12 rounded-lg bg-success/10 flex items-center justify-center text-success">
-                                        <i class="fas fa-cubes text-xl"></i>
+                                <div class="flex items-center justify-between mb-5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-white/15 text-white flex items-center justify-center backdrop-blur-sm">
+                                            <i class="fas fa-cubes"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-sm font-semibold text-white leading-tight">Servers</h3>
+                                            <p class="text-[11px] uppercase tracking-wider text-teal-200/80">Build pipeline</p>
+                                        </div>
                                     </div>
-                                    <h3 class="text-base font-semibold text-text-secondary">Servers</h3>
+                                    <i class="fas fa-arrow-right text-xs text-teal-100 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
                                 </div>
-                                <div class="flex items-end justify-between">
-                                    <div>
-                                        <h3 id="dashServersTotal"
-                                            class="text-3xl font-bold text-text-primary tracking-tight">0</h3>
-                                        <p class="text-xs text-text-muted font-medium mt-1">Total Servers</p>
+                                <div class="flex flex-wrap items-end justify-between gap-4">
+                                    <div class="flex items-baseline gap-2">
+                                        <span id="dashServersTotal" class="dash-num text-4xl font-bold text-white">0</span>
+                                        <span class="text-xs text-teal-100/80 font-medium">total servers</span>
                                     </div>
-                                    <div class="text-xs space-y-1.5 text-right">
-                                        <div class="text-text-muted font-medium">Draft: <span id="dashServersDraft"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Valid: <span id="dashServersValidated"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Built: <span id="dashServersBuilt"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
-                                        <div class="text-text-muted font-medium">Final: <span id="dashServersFinalized"
-                                                class="text-text-primary font-bold ml-1">0</span></div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                                        <div class="px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                                            <div id="dashServersDraft" class="dash-num text-lg font-bold text-white leading-none">0</div>
+                                            <div class="text-[10px] uppercase tracking-wider text-teal-100/80 mt-1">Draft</div>
+                                        </div>
+                                        <div class="px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                                            <div id="dashServersValidated" class="dash-num text-lg font-bold text-white leading-none">0</div>
+                                            <div class="text-[10px] uppercase tracking-wider text-teal-100/80 mt-1">Valid</div>
+                                        </div>
+                                        <div class="px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                                            <div id="dashServersBuilt" class="dash-num text-lg font-bold text-white leading-none">0</div>
+                                            <div class="text-[10px] uppercase tracking-wider text-teal-100/80 mt-1">Built</div>
+                                        </div>
+                                        <div class="px-3 py-2 rounded-xl bg-white/10 backdrop-blur-sm">
+                                            <div id="dashServersFinalized" class="dash-num text-lg font-bold text-white leading-none">0</div>
+                                            <div class="text-[10px] uppercase tracking-wider text-teal-100/80 mt-1">Final</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -470,35 +518,40 @@
                     </div>
 
                     <!-- Recent Activity Log -->
-                    <div class="mt-8">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-text-primary flex items-center gap-2">
-                                <i class="fas fa-history text-primary"></i> Recent Activity
-                            </h3>
-                            <a href="activity-log.html"
-                                class="text-sm text-primary hover:text-primary-600 font-medium flex items-center gap-1">
-                                View All <i class="fas fa-arrow-right text-xs"></i>
-                            </a>
-                        </div>
-                        <div class="bg-surface-card rounded-xl shadow-sm border border-border-light overflow-hidden">
-                            <table class="w-full">
-                                <thead class="bg-surface-hover border-b border-border">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Time</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">User</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Action</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Component</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Notes</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="recentActivityBody" class="divide-y divide-border">
-                                    <tr>
-                                        <td colspan="5" class="px-4 py-8 text-center text-text-muted">
-                                            <i class="fas fa-spinner fa-spin mr-2"></i> Loading recent activity...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <div class="mt-10">
+                        <div class="bg-surface-card rounded-2xl border border-border-light overflow-hidden">
+                            <div class="flex items-center justify-between px-5 py-4 border-b border-border-light">
+                                <h3 class="text-base font-semibold text-text-primary flex items-center gap-2.5">
+                                    <span class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                                        <i class="fas fa-history text-sm"></i>
+                                    </span>
+                                    Recent Activity
+                                </h3>
+                                <a href="activity-log.html"
+                                    class="text-sm text-primary hover:text-primary-600 font-medium flex items-center gap-1.5 group/link">
+                                    View All <i class="fas fa-arrow-right text-xs transition-transform group-hover/link:translate-x-0.5"></i>
+                                </a>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-surface-hover/60 border-b border-border-light">
+                                        <tr>
+                                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Time</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">User</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Action</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Component</th>
+                                            <th class="px-5 py-3 text-left text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recentActivityBody" class="divide-y divide-border-light">
+                                        <tr>
+                                            <td colspan="5" class="px-4 py-8 text-center text-text-muted">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i> Loading recent activity...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -535,6 +588,16 @@
     <script src="../../components/sidebar-manager.js"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
     <script>
+        // Header date line
+        (function () {
+            const el = document.getElementById('dashDateLine');
+            if (el) {
+                el.textContent = new Date().toLocaleDateString(undefined, {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                });
+            }
+        })();
+
         // Theme Toggle Handler for Dashboard
         (function () {
             // Initialize theme on page load

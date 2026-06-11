@@ -124,6 +124,10 @@ class ServerBuilder {
         this.compatibilityIssues = [];
         this.performanceWarnings = [];
 
+        // UI state that must survive re-renders (collapsible sections, popover wiring)
+        this.sectionCollapsed = {};
+        this._popoverListenerAttached = false;
+
         this.loading = false;
         this.init();
     }
@@ -398,80 +402,64 @@ class ServerBuilder {
         const chassisData = this.chassisDetails;
 
         if (!chassisData) {
-            // Fallback if no chassis data
-            return chassisComponents.map((chassis, index) => `
-            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
-                <span class="text-[13px] font-medium text-text-secondary">Chassis</span>
-                <span class="text-sm font-semibold text-text-primary">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-server"></i>
-                        <span>Chassis:</span>
-                        <span>${chassis.serial_number}</span>
-                    </div>
-                </span>
-            </div>
-        `).join('') || `
-            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-border opacity-60 transition-all">
-                <span class="text-[13px] font-medium text-text-secondary">Chassis</span>
-                <span class="text-sm text-text-muted italic">Empty</span>
-            </div>
-        `;
+            // Fallback if no chassis JSON data — show what we know from inventory
+            if (chassisComponents.length === 0) return '';
+            return `
+            <div class="hw-specs">
+                ${chassisComponents.map(chassis => `
+                <div class="hw-spec">
+                    <span class="hw-spec-k">Serial</span>
+                    <span class="hw-spec-v">${this.escapeHtml(chassis.serial_number || '—')}</span>
+                </div>`).join('')}
+            </div>`;
         }
 
-        // Render detailed chassis information
+        // Render detailed chassis information as a spec strip
         return `
-        <div class="chassis-details">
-            <div class="chassis-header">
-                <div class="chassis-model">${chassisData.model}</div>
-                <div class="chassis-brand">${chassisData.brand} - ${chassisData.series}</div>
+        <div class="hw-specs">
+            <div class="hw-spec">
+                <span class="hw-spec-k">Model</span>
+                <span class="hw-spec-v" title="${this.escapeHtml(`${chassisData.brand || ''} ${chassisData.series || ''}`.trim())}">${this.escapeHtml(chassisData.model || '—')}</span>
             </div>
-            
-            <div class="chassis-specs">
-                <div class="spec-item">
-                    <span class="spec-label">Form Factor:</span>
-                    <span class="spec-value">${chassisData.form_factor} (${chassisData.u_size}U)</span>
-                </div>
-                
-                <div class="spec-item">
-                    <span class="spec-label">Drive Bays:</span>
-                    <span class="spec-value">${chassisData.drive_bays.total_bays} total</span>
-                </div>
-                
-                ${this.renderDriveBays(chassisData.drive_bays)}
-                
-                ${chassisData.backplane ? `
-                <div class="spec-item">
-                    <span class="spec-label">Backplane:</span>
-                    <span class="spec-value">${chassisData.backplane.model}</span>
-                </div>
-                
-                <div class="spec-item">
-                    <span class="spec-label">Interface:</span>
-                    <span class="spec-value">${chassisData.backplane.interface}</span>
-                </div>
-                ` : ''}
-                
-                ${chassisData.power_supply ? `
-                <div class="spec-item">
-                    <span class="spec-label">Power Supply:</span>
-                    <span class="spec-value">${chassisData.power_supply.wattage}W ${chassisData.power_supply.redundant ? '(Redundant)' : ''}</span>
-                </div>
-                ` : ''}
+            <div class="hw-spec">
+                <span class="hw-spec-k">Form Factor</span>
+                <span class="hw-spec-v">${this.escapeHtml(chassisData.form_factor || '—')} · ${chassisData.u_size}U</span>
             </div>
+            <div class="hw-spec">
+                <span class="hw-spec-k">Drive Bays</span>
+                <span class="hw-spec-v">${chassisData.drive_bays.total_bays} total</span>
+            </div>
+            ${this.renderDriveBays(chassisData.drive_bays)}
+            ${chassisData.backplane ? `
+            <div class="hw-spec">
+                <span class="hw-spec-k">Backplane</span>
+                <span class="hw-spec-v" title="${this.escapeHtml(chassisData.backplane.model || '')}">${this.escapeHtml(chassisData.backplane.model || '—')}</span>
+            </div>
+            <div class="hw-spec">
+                <span class="hw-spec-k">Interface</span>
+                <span class="hw-spec-v">${this.escapeHtml(chassisData.backplane.interface || '—')}</span>
+            </div>
+            ` : ''}
+            ${chassisData.power_supply ? `
+            <div class="hw-spec">
+                <span class="hw-spec-k">Power Supply</span>
+                <span class="hw-spec-v">${chassisData.power_supply.wattage}W${chassisData.power_supply.redundant ? ' · Redundant' : ''}</span>
+            </div>
+            ` : ''}
         </div>
         `;
     }
 
     /**
-     * Render drive bays configuration
+     * Render drive bays configuration (spec tiles inside the chassis strip)
      */
     renderDriveBays(driveBays) {
         if (!driveBays.bay_configuration) return '';
 
         return driveBays.bay_configuration.map(bay => `
-        <div class="spec-item indent">
-            <span class="spec-label">${bay.bay_type.replace('_', ' ')}:</span>
-            <span class="spec-value">${bay.count} bays ${bay.hot_swap ? '(Hot-swap)' : ''}</span>
+        <div class="hw-spec">
+            <span class="hw-spec-k">${this.escapeHtml(bay.bay_type.replace(/_/g, ' '))}</span>
+            <span class="hw-spec-v">${bay.count} bays${bay.hot_swap ? ' · Hot-swap' : ''}</span>
         </div>
         `).join('');
     }
@@ -552,49 +540,35 @@ class ServerBuilder {
         const caddyComponents = this.selectedComponents.caddy || [];
         const motherboardData = this.motherboardDetails;
 
-        if (!motherboardData || !motherboardData.caddySockets || motherboardData.caddySockets.length === 0) {
+        const caddySockets = motherboardData?.caddySockets || [];
+
+        if (caddySockets.length === 0) {
             // Fallback if no caddy socket data
-            return caddyComponents.map((caddy, index) => `
-            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-primary transition-all">
-                <span class="text-[13px] font-medium text-text-secondary">Caddy Socket ${index + 1}</span>
-                <span class="text-sm font-semibold text-text-primary">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-box"></i>
-                        <span>Caddy:</span>
-                        <span>${caddy.serial_number}</span>
-                    </div>
-                </span>
-            </div>
-        `).join('') || `
-            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 border-border opacity-60 transition-all">
-                <span class="text-[13px] font-medium text-text-secondary">Caddy Socket</span>
-                <span class="text-sm text-text-muted italic">Empty</span>
-            </div>
-        `;
+            const html = caddyComponents.map((caddy, index) => this.renderHwSlotRow({
+                label: `Caddy Socket ${index + 1}`,
+                component: { ...caddy, compType: 'caddy' },
+                emptyType: 'caddy',
+                icon: 'fas fa-box'
+            })).join('');
+
+            return html || this.renderHwSlotRow({
+                label: 'Caddy Socket',
+                emptyType: 'caddy'
+            });
         }
 
         let html = '';
-        const caddySockets = motherboardData.caddySockets;
-
         caddySockets.forEach((socket, index) => {
             const caddy = caddyComponents[index];
             const socketType = socket.type || 'Caddy';
-            const socketSize = socket.size ? ` (${socket.size})` : '';
 
-            html += `
-            <div class="flex justify-between items-center p-3 bg-surface-card rounded-md mb-2 border-2 ${caddy ? 'border-primary' : 'border-border opacity-60'} transition-all">
-                <span class="text-[13px] font-medium text-text-secondary">${socketType} Socket ${index + 1}${socketSize}</span>
-                <span class="${caddy ? 'text-sm font-semibold text-text-primary' : 'text-sm text-text-muted italic'}">
-                    ${caddy ? `
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-box"></i>
-                            <span>Caddy:</span>
-                            <span class="component-name">${caddy.serial_number}</span>
-                        </div>
-                    ` : 'Empty'}
-                </span>
-            </div>
-        `;
+            html += this.renderHwSlotRow({
+                label: `${socketType} Socket ${index + 1}`,
+                badge: socket.size || '',
+                component: caddy ? { ...caddy, compType: 'caddy' } : null,
+                emptyType: 'caddy',
+                icon: 'fas fa-box'
+            });
         });
 
         return html;
@@ -781,7 +755,7 @@ class ServerBuilder {
     renderImportButton() {
         return `
             <div class="flex justify-end mb-4">
-                <button class="inline-flex items-center gap-2 px-4 py-2 bg-surface-card border border-primary/20 text-primary rounded-lg text-sm font-medium hover:bg-primary/5 transition-colors" onclick="window.serverBuilder.openImportModal()">
+                <button class="inline-flex items-center gap-2 px-4 py-2 bg-surface-card border border-border text-text-secondary rounded text-sm font-medium hover:text-primary hover:border-primary/50 transition-colors duration-150" onclick="window.serverBuilder.openImportModal()">
                     <i class="fas fa-file-import"></i>
                     Import Template
                 </button>
@@ -1593,19 +1567,19 @@ class ServerBuilder {
 
 
         const hasIssues = this.compatibilityIssues.length > 0;
-        const estimatedPower = this.calculateEstimatedPower();
 
         const interfaceHtml = `
             <div class="w-full mx-auto">
                 <!-- Import Template Button (Server Templates V2) -->
                 ${this.renderImportButton()}
 
-               <!-- Component Selection Table -->
-                <div class="bg-surface-card rounded-xl border border-border-light overflow-hidden mb-6">
+                <!-- Component Selection Table -->
+                <div class="bg-surface-card rounded-lg border border-border-light overflow-hidden mb-6">
                     <table class="w-full border-collapse">
-                        <thead class="bg-surface-secondary">
-                            <tr>
-                                <th class="text-left px-6 py-4 font-semibold text-sm text-text-primary uppercase tracking-wider">Component</th>
+                        <thead>
+                            <tr class="border-b border-border-light">
+                                <th class="text-left px-5 py-3 font-mono text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em] w-72">Component</th>
+                                <th class="text-left px-5 py-3 font-mono text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Installed</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1616,118 +1590,47 @@ class ServerBuilder {
 
                 <!-- Finish Configuration Button -->
                 <div class="flex justify-center my-6">
-                    <button class="inline-flex items-center gap-3 px-8 py-3.5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-all shadow-md hover:bg-primary-600 hover:-translate-y-0.5 hover:shadow-lg" onclick="window.serverBuilder.finishConfiguration()">
-                        <i class="fas fa-check-circle text-lg"></i>
+                    <button class="inline-flex items-center gap-2.5 px-8 py-3 bg-primary text-white border border-primary rounded-lg text-base font-semibold cursor-pointer transition-colors duration-150 hover:bg-primary-dark hover:border-primary-dark" onclick="window.serverBuilder.finishConfiguration()">
+                        <i class="fas fa-check-circle"></i>
                         Finish Setup
                     </button>
                 </div>
-                
 
-                <!-- Compatibility Warning -->
+                <!-- Compatibility Banner -->
                 ${hasIssues ? `
-                    <div class="flex items-center gap-3 px-5 py-4 rounded-xl mb-6 font-medium bg-warning/10 border border-warning text-warning">
+                    <div class="compat-banner is-warning">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <span class="text-[15px]">Compatibility: Warning! These parts have potential issues. See details below.</span>
+                        <span>Compatibility: these parts have potential issues. See details below.</span>
                     </div>
                 ` : `
-                    <div class="flex items-center gap-3 px-5 py-4 rounded-xl mb-6 font-medium bg-success/10 border border-success text-success">
+                    <div class="compat-banner is-success">
                         <i class="fas fa-check-circle"></i>
-                        <span class="text-[15px]">Compatibility: All components are compatible.</span>
+                        <span>Compatibility: all components are compatible.</span>
                     </div>
                 `}
 
                 <!-- Potential Issues -->
-                ${this.compatibilityIssues.length > 0 || this.performanceWarnings.length > 0 ? `
-                    <div class="bg-surface-card border border-border-light rounded-xl p-6 mb-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h4 class="flex items-center gap-2 text-lg font-semibold text-text-primary m-0">
-                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                ${this.getTotalIssuesCount() > 0 ? `
+                    <div class="issues-panel">
+                        <div class="issues-panel-header">
+                            <div class="issues-panel-title">
+                                <span class="issues-panel-title-icon"><i class="fas fa-exclamation-triangle"></i></span>
                                 Potential Issues
-                            </h4>
-                            <div class="flex items-center gap-2">
-                                <span class="text-2xl font-bold text-warning">${this.getTotalIssuesCount()}</span>
-                                <span class="text-sm text-text-muted">issues found</span>
                             </div>
+                            <span class="issues-count-badge">${this.getTotalIssuesCount()} open</span>
                         </div>
-                        <div class="mb-6">
-                            <div class="w-full h-2 bg-surface-secondary rounded overflow-hidden mb-2">
-                                <div class="h-full bg-primary transition-all duration-300" style="width: ${this.getIssuesResolvedPercentage()}%"></div>
+                        <div class="issues-progress">
+                            <div class="issues-progress-bar">
+                                <div class="issues-progress-fill" style="width: ${this.getIssuesResolvedPercentage()}%"></div>
                             </div>
-                            <div class="text-[13px] text-text-muted">${this.getIssuesResolvedCount()} of ${this.getTotalIssuesCount()} issues resolved</div>
+                            <div class="issues-progress-text">${this.getIssuesResolvedCount()} of ${this.getTotalIssuesCount()} issues resolved</div>
                         </div>
                         ${this.renderGroupedIssues()}
                     </div>
                 ` : ''}
 
                 <!-- Server Usage -->
-                ${this.selectedComponents.motherboard.length > 0 ? `
-                    <div class="bg-surface-card border border-border-light rounded-xl p-6 mb-6">
-                        <h4 class="text-lg font-semibold text-text-primary m-0 mb-6">Server Usage</h4>
-
-                        <!-- Chassis outer wrapper -->
-                        <div class="border-2 border-border-light rounded-xl p-4 pt-6 relative mb-4">
-                            <div class="absolute -top-3 left-4 bg-surface-card px-3 flex items-center gap-2">
-                                <i class="fas fa-server text-text-muted text-xs"></i>
-                                <span class="text-xs font-semibold text-text-secondary uppercase tracking-widest">
-                                    Chassis: ${this.chassisDetails?.model || this.selectedComponents.chassis[0]?.component_name || 'Server Chassis'}
-                                </span>
-                            </div>
-
-                            <!-- Chassis info strip -->
-                            ${this.renderChassisDetails()}
-
-                            <!-- Motherboard inner box -->
-                            <div class="border border-dashed border-border rounded-xl p-4 pt-6 mt-4 relative">
-                                <div class="absolute -top-3 left-4 bg-surface-card px-3 flex items-center gap-2">
-                                    <i class="fas fa-microchip text-text-muted text-xs"></i>
-                                    <span class="text-xs font-semibold text-text-muted uppercase tracking-widest">
-                                        Motherboard: ${this.motherboardDetails?.model || this.selectedComponents.motherboard[0]?.component_name || this.selectedComponents.motherboard[0]?.serial_number || 'Motherboard'}
-                                    </span>
-                                </div>
-                                <div class="grid gap-4">
-                                    <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">CPU Sockets</div>
-                                        ${this.renderSocketSlots()}
-                                    </div>
-                                    <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">Memory Slots</div>
-                                        ${this.renderMemorySlots()}
-                                    </div>
-                                    ${this.renderAllNICs() ? `
-                                    <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">Network Interfaces</div>
-                                        ${this.renderAllNICs()}
-                                    </div>
-                                    ` : ''}
-                                    <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">Expansion Slots</div>
-                                        ${this.renderExpansionSlots()}
-                                    </div>
-                                    ${this.renderM2Slots() ? `
-                                    <div class="bg-surface-secondary rounded-lg p-4">
-                                        <div class="schematic-section-header">M.2 Slots</div>
-                                        ${this.renderM2Slots()}
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            </div>
-
-                            <!-- Drive Bays (inside chassis, outside motherboard) -->
-                            <div class="bg-surface-secondary rounded-lg p-4 mt-4">
-                                <div class="schematic-section-header">Drive Bays</div>
-                                ${this.renderStorageConnectivity()}
-                            </div>
-                        </div>
-
-                        <!-- Caddy Sockets (below chassis box, still in card) -->
-                        <div class="bg-surface-secondary rounded-lg p-4">
-                            <div class="schematic-section-header">Caddy Sockets</div>
-                            ${this.renderCaddySockets()}
-                        </div>
-                    </div>
-                ` : ''}
-
-
+                ${this.renderServerUsage()}
             </div>
         `;
 
@@ -1736,9 +1639,297 @@ class ServerBuilder {
         if (targetElement) {
             targetElement.innerHTML = interfaceHtml;
             this.attachEventListeners();
+            this.applyPendingFocus();
         } else {
             console.error('No target element found for rendering');
         }
+    }
+
+    /**
+     * Render the Server Usage hardware tree:
+     * Chassis → Motherboard → sockets/slots/ports, plus drive bays and caddy sockets.
+     * Every slot is interactive: empty slots open the add-component flow,
+     * populated slots open a detail popover with a remove action.
+     */
+    renderServerUsage() {
+        const boardComp = this.selectedComponents.motherboard[0] || null;
+
+        if (!boardComp) {
+            return `
+            <div class="hw-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-base font-semibold text-text-primary m-0">Server Usage</h4>
+                    <span class="font-mono text-[11px] text-text-muted uppercase tracking-wider">Physical layout</span>
+                </div>
+                <div class="hw-placeholder">
+                    <i class="fas fa-microchip text-2xl text-text-muted mb-3"></i>
+                    <p class="text-sm font-medium text-text-primary mb-1">No motherboard installed</p>
+                    <p class="text-xs text-text-muted mb-4 max-w-sm">Install a motherboard to visualize CPU sockets, DIMM slots, network ports, expansion slots and drive bays.</p>
+                    <button class="btn-choose" onclick="window.serverBuilder.addComponent('motherboard')">
+                        <i class="fas fa-plus"></i>
+                        Add Motherboard
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        const chassisComp = this.selectedComponents.chassis[0] || null;
+        const chassisName = this.chassisDetails?.model || chassisComp?.component_name || (chassisComp ? 'Server Chassis' : null);
+        const boardName = this.motherboardDetails?.model || boardComp.component_name || boardComp.serial_number || 'Motherboard';
+
+        // Section meters
+        const cpuUsed = this.selectedComponents.cpu.length;
+        const socketTotal = this.motherboardDetails?.socket?.count || Math.max(cpuUsed, 1);
+        const socketType = this.motherboardDetails?.socket?.type || '';
+
+        const ramUsed = this.selectedComponents.ram.length;
+        const memTotal = this.motherboardDetails?.memory?.slots || Math.max(ramUsed, 4);
+        const memType = this.motherboardDetails?.memory?.type || 'DIMM';
+
+        const nicCount = (this.networkConfig?.nics || []).length;
+
+        const pcieData = this.slotAssignments?.pcie;
+        const riserData = this.slotAssignments?.riser;
+        const expTotal = (pcieData?.total_count || 0) + (riserData?.total_count || 0);
+        const expUsed = (pcieData?.used_count || 0) + (riserData?.used_count || 0);
+
+        const m2Data = this.slotAssignments?.m2;
+        const m2Total = m2Data?.total_count || null;
+        const m2Used = m2Data?.used_count || 0;
+
+        const bays = this.storageConnectivity?.drive_bays || null;
+
+        const caddyComponents = this.selectedComponents.caddy || [];
+        const caddyTotal = this.motherboardDetails?.caddySockets?.length || Math.max(caddyComponents.length, 1);
+        const caddyUsed = Math.min(caddyComponents.length, caddyTotal);
+
+        const nicHtml = this.renderAllNICs();
+        const m2Html = this.renderM2Slots();
+
+        return `
+        <div class="hw-card">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-base font-semibold text-text-primary m-0">Server Usage</h4>
+                <span class="font-mono text-[11px] text-text-muted uppercase tracking-wider">Physical layout</span>
+            </div>
+
+            <div class="hw-chassis ${chassisComp ? '' : 'is-missing'}" data-hw-section="chassis">
+                <div class="hw-chassis-header">
+                    <span class="hw-tag hw-tag-chassis"><i class="fas fa-server mr-1.5"></i>Chassis</span>
+                    ${chassisComp ? `
+                    <span class="relative inline-flex items-baseline gap-2 cursor-pointer min-w-0" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                        <span class="text-sm font-semibold text-text-primary truncate">${this.escapeHtml(chassisName)}</span>
+                        ${chassisComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${this.escapeHtml(chassisComp.serial_number)}</span>` : ''}
+                        ${this.renderSlotPopover('chassis', chassisComp, 'Chassis')}
+                    </span>
+                    ` : `
+                    <span class="text-sm text-warning font-medium"><i class="fas fa-exclamation-triangle mr-1.5"></i>No chassis installed</span>
+                    <button class="btn-ghost-add ml-auto !py-1.5" onclick="window.serverBuilder.addComponent('chassis')">
+                        <i class="fas fa-plus"></i>
+                        Add Chassis
+                    </button>
+                    `}
+                </div>
+
+                <div class="hw-chassis-body">
+                    ${this.renderChassisDetails()}
+
+                    <div class="hw-board" data-hw-section="board">
+                        <div class="hw-board-header">
+                            <span class="hw-tag hw-tag-board"><i class="fas fa-microchip mr-1.5"></i>Motherboard</span>
+                            <span class="relative inline-flex items-baseline gap-2 cursor-pointer min-w-0" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                                <span class="text-sm font-semibold text-text-primary truncate">${this.escapeHtml(boardName)}</span>
+                                ${boardComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${this.escapeHtml(boardComp.serial_number)}</span>` : ''}
+                                ${this.renderSlotPopover('motherboard', boardComp, 'Motherboard')}
+                            </span>
+                        </div>
+                        <div class="hw-board-body">
+                            ${this.renderHwSection({ key: 'cpu', title: 'CPU Sockets', sub: socketType, used: cpuUsed, total: socketTotal, body: this.renderSocketSlots() })}
+                            ${this.renderHwSection({ key: 'memory', title: 'Memory', sub: memType, used: ramUsed, total: memTotal, body: this.renderMemorySlots() })}
+                            ${nicHtml ? this.renderHwSection({ key: 'network', title: 'Network Interfaces', sub: `${nicCount} controller${nicCount === 1 ? '' : 's'}`, body: nicHtml }) : ''}
+                            ${this.renderHwSection({ key: 'expansion', title: 'Expansion Slots', used: expUsed, total: expTotal > 0 ? expTotal : null, body: this.renderExpansionSlots() })}
+                            ${m2Html ? this.renderHwSection({ key: 'm2', title: 'M.2 Slots', used: m2Used, total: m2Total, body: m2Html }) : ''}
+                        </div>
+                    </div>
+
+                    ${this.renderHwSection({ key: 'drivebays', title: 'Drive Bays', sub: bays ? '' : 'No backplane data', used: bays?.used || 0, total: bays?.total || null, body: this.renderStorageConnectivity() })}
+                </div>
+            </div>
+
+            ${this.renderHwSection({ key: 'caddy', title: 'Caddy Sockets', used: caddyUsed, total: caddyTotal, body: this.renderCaddySockets(), wrapperClass: 'mt-3' })}
+        </div>`;
+    }
+
+    /**
+     * Render a collapsible hardware section with title, optional subtitle and
+     * utilization meter. Collapse state persists in this.sectionCollapsed.
+     */
+    renderHwSection({ key, title, sub = '', used = 0, total = null, body, wrapperClass = '' }) {
+        const collapsed = this.sectionCollapsed[key] ? ' collapsed' : '';
+        const meter = (total !== null && total !== undefined)
+            ? `<span class="hw-section-meterwrap">${this.renderMeter(used, total)}</span>`
+            : '';
+
+        return `
+        <section class="hw-section${collapsed} ${wrapperClass}" data-hw-section="${key}">
+            <button type="button" class="hw-section-toggle" onclick="window.serverBuilder.toggleSection('${key}')">
+                <i class="fas fa-chevron-down hw-caret"></i>
+                <span class="hw-section-title">${title}</span>
+                ${sub ? `<span class="hw-section-sub">${sub}</span>` : ''}
+                ${meter}
+            </button>
+            <div class="hw-section-body">${body}</div>
+        </section>`;
+    }
+
+    /**
+     * Render a slot utilization meter: filled segments for small totals,
+     * a compact bar for large ones. Always paired with a mono "used/total" count.
+     */
+    renderMeter(used, total) {
+        if (!total || total <= 0) return '';
+        const clamped = Math.max(0, Math.min(used || 0, total));
+
+        if (total <= 24) {
+            let segs = '';
+            for (let i = 0; i < total; i++) {
+                segs += `<span class="hw-meter-seg${i < clamped ? ' filled' : ''}"></span>`;
+            }
+            return `<span class="hw-meter">${segs}</span><span class="hw-meter-count">${clamped}/${total}</span>`;
+        }
+
+        const pct = Math.round((clamped / total) * 100);
+        return `<span class="hw-meter-bar"><span class="hw-meter-bar-fill" style="width: ${pct}%"></span></span><span class="hw-meter-count">${clamped}/${total}</span>`;
+    }
+
+    /**
+     * Render the detail popover for a populated slot. Pass a falsy type to
+     * omit the remove action (e.g. data without a removable component uuid).
+     */
+    renderSlotPopover(type, comp, slotLabel = '', extraRows = '') {
+        if (!comp) return '';
+        const name = this.escapeHtml(comp.component_name || comp.serial_number || 'Component');
+
+        const row = (k, v) => v ? `<div class="slot-popover-row"><span class="k">${k}</span><span class="v">${this.escapeHtml(v)}</span></div>` : '';
+
+        return `
+        <div class="slot-popover" onclick="event.stopPropagation()">
+            <div class="slot-popover-name">${name}</div>
+            ${row('Serial', comp.serial_number)}
+            ${row('Slot', slotLabel)}
+            ${comp.slot_position && comp.slot_position !== slotLabel ? row('Position', comp.slot_position) : ''}
+            ${extraRows}
+            ${type && comp.uuid ? `
+            <div class="slot-popover-actions">
+                <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}')">
+                    <i class="fas fa-trash-alt"></i>
+                    Remove
+                </button>
+            </div>` : ''}
+        </div>`;
+    }
+
+    /**
+     * Render a standard slot row (expansion, M.2, caddy, CPU…).
+     * Empty slots open the add flow; filled slots toggle their popover.
+     */
+    renderHwSlotRow({ label, badge = '', component = null, emptyType = '', emptyText = 'Empty', required = false, icon = '', extraHtml = '' }) {
+        const badgeHtml = badge ? `<span class="slot-type-badge">${badge}</span>` : '';
+
+        if (component) {
+            const name = this.escapeHtml(component.component_name || component.serial_number || 'Component');
+            const serial = component.component_name && component.serial_number ? `<span class="hw-slot-serial">${this.escapeHtml(component.serial_number)}</span>` : '';
+            const mainRow = `
+                <div class="hw-slot-main">
+                    <span class="hw-slot-label">${label}</span>
+                    ${badgeHtml}
+                </div>
+                <div class="hw-slot-main justify-end">
+                    ${icon ? `<i class="${icon} text-primary text-xs"></i>` : ''}
+                    <span class="hw-slot-name">${name}</span>
+                    ${serial}
+                </div>`;
+            const popover = this.renderSlotPopover(component.compType || emptyType, component, label);
+
+            // Slots with port indicators stack their rows vertically
+            if (extraHtml) {
+                return `
+                <div class="hw-slot is-filled is-stack" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                    <div class="flex items-center justify-between gap-3 min-w-0">${mainRow}</div>
+                    ${extraHtml}
+                    ${popover}
+                </div>`;
+            }
+
+            return `
+            <div class="hw-slot is-filled" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                ${mainRow}
+                ${popover}
+            </div>`;
+        }
+
+        const stateClass = required ? 'is-required' : 'is-empty';
+        const clickAttr = emptyType ? ` onclick="window.serverBuilder.addComponent('${emptyType}')"` : '';
+        return `
+        <div class="hw-slot ${stateClass}"${clickAttr}>
+            <div class="hw-slot-main">
+                <span class="hw-slot-label">${label}</span>
+                ${badgeHtml}
+            </div>
+            <div class="hw-slot-main justify-end">
+                ${emptyType ? `<span class="hw-slot-add-hint"><i class="fas fa-plus mr-1"></i>Install</span>` : ''}
+                <span class="hw-slot-state${required ? ' is-required-text' : ''}">${required ? 'Required' : emptyText}</span>
+            </div>
+        </div>`;
+    }
+
+    /**
+     * Toggle a hardware section's collapsed state (persists across re-renders).
+     */
+    toggleSection(key) {
+        const section = document.querySelector(`section[data-hw-section="${key}"]`);
+        if (!section) return;
+        this.sectionCollapsed[key] = section.classList.toggle('collapsed');
+    }
+
+    /**
+     * Toggle the detail popover on a populated slot (one open at a time).
+     */
+    toggleSlotPopover(event, el) {
+        event.stopPropagation();
+        const wasOpen = el.classList.contains('popover-open');
+        this.closeAllSlotPopovers();
+        if (!wasOpen) el.classList.add('popover-open');
+    }
+
+    closeAllSlotPopovers() {
+        document.querySelectorAll('.popover-open').forEach(n => n.classList.remove('popover-open'));
+    }
+
+    /**
+     * After returning from the add-component flow, scroll to and briefly
+     * highlight the section (or table row) for the component that was added.
+     */
+    applyPendingFocus() {
+        let type = null;
+        try {
+            type = sessionStorage.getItem('bdc_builder_focus');
+            if (type) sessionStorage.removeItem('bdc_builder_focus');
+        } catch (e) { /* sessionStorage unavailable */ }
+        if (!type || (this.selectedComponents[type] || []).length === 0) return;
+
+        const sectionMap = {
+            cpu: 'cpu', ram: 'memory', nic: 'network', sfp: 'network',
+            pciecard: 'expansion', hbacard: 'expansion', storage: 'drivebays',
+            caddy: 'caddy', chassis: 'chassis', motherboard: 'board'
+        };
+        const target = document.querySelector(`[data-hw-section="${sectionMap[type]}"]`)
+            || document.getElementById(`component-row-${type}`);
+        if (!target) return;
+
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('flash-highlight');
+        setTimeout(() => target.classList.remove('flash-highlight'), 2000);
     }
     /**
      * Finish configuration and save the server
@@ -2040,40 +2231,38 @@ class ServerBuilder {
      */
     renderTestInterface() {
         const testHtml = `
-            <div class="server-builder-container">
-                <div class="server-builder-header">
-                    <h1 class="server-builder-title">Builder Test</h1>
-                    <p class="server-builder-subtitle">This confirms the builder is working</p>
+            <div class="w-full mx-auto">
+                <div class="mb-6">
+                    <h1 class="text-xl font-bold text-text-primary mb-1">Builder Test</h1>
+                    <p class="text-sm text-text-muted">This confirms the builder is working</p>
                 </div>
-                
-                <div class="compatibility-banner success">
+
+                <div class="compat-banner is-success">
                     <i class="fas fa-check-circle"></i>
-                    <span class="compatibility-text">Builder is loaded and working!</span>
+                    <span>Builder is loaded and working!</span>
                 </div>
-                
-                <div class="component-table-container">
-                    <table class="component-table">
+
+                <div class="bg-surface-card rounded-lg border border-border-light overflow-hidden">
+                    <table class="w-full border-collapse">
                         <thead>
-                            <tr>
-                                <th>Component</th>
-                             
+                            <tr class="border-b border-border-light">
+                                <th class="text-left px-5 py-3 font-mono text-[11px] font-semibold text-text-muted uppercase tracking-[0.12em]">Component</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr class="component-row">
-                                <td>
-                                    <div class="component-cell">
-                                        <div class="component-icon">
-                                            <i class="fas fa-microchip"></i>
-                                        </div>
-                                        <div class="component-info">
-                                            <div class="component-name">CPU</div>
-                                            <div class="component-specs">Test Component</div>
+                            <tr class="border-t border-border-light">
+                                <td class="px-5 py-3 align-middle">
+                                    <div class="flex items-center gap-3.5">
+                                        <div class="comp-type-icon"><i class="fas fa-microchip"></i></div>
+                                        <div class="flex flex-col gap-0.5">
+                                            <span class="font-semibold text-sm text-text-primary">CPU</span>
+                                            <span class="text-xs text-text-muted">Test Component</span>
                                         </div>
                                     </div>
                                 </td>
-                                <td colspan="8" style="text-align: center; color: var(--text-muted);">
-                                    <button class="btn-add">
+                                <td class="px-5 py-3 align-middle text-right">
+                                    <button class="btn-choose">
                                         <i class="fas fa-plus"></i>
                                         Choose CPU
                                     </button>
@@ -2082,7 +2271,6 @@ class ServerBuilder {
                         </tbody>
                     </table>
                 </div>
-                
             </div>
         `;
 
@@ -2125,151 +2313,86 @@ class ServerBuilder {
         const hasComponents = components.length > 0;
         const isMultiple = componentType.multiple;
 
-        if (hasComponents) {
-            if (isMultiple) {
-                // Show all selected components separated by "/" with "Add More" at the end
-                const componentsDisplay = components.map((comp, index) => {
-                    const displayName = comp.component_name || comp.serial_number || 'Unnamed Component';
-                    const subtitle = comp.component_name ? comp.serial_number : null;
-                    const position = comp.slot_position ? ` (${comp.slot_position})` : '';
-
-                    return `
-                    <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
-                        <span class="flex flex-col">
-                            <span class="text-sm font-medium">${displayName}${position}</span>
-                            ${subtitle ? `<span class="text-xs text-text-muted">${subtitle}</span>` : ''}
-                        </span>
-                        <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
-                            <i class="fas fa-times text-xs"></i>
-                        </button>
-                        ${index < components.length - 1 ? '<span class="text-text-muted font-normal mx-1">/</span>' : ''}
-                    </span>
-                `;
-                }).join('');
-
-                return `
-                <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                    <td class="px-6 py-2 align-middle">
-                        <div class="flex items-center gap-4">
-                            <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="${componentType.icon} text-xl text-primary"></i>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
-                                <div class="text-[13px] text-text-muted">${componentType.description}</div>
-                            </div>
+        const labelCell = `
+            <td class="px-5 py-3 align-middle">
+                <div class="flex items-center gap-3.5">
+                    <div class="comp-type-icon"><i class="${componentType.icon}"></i></div>
+                    <div class="flex flex-col gap-0.5 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-semibold text-sm text-text-primary">${componentType.name}</span>
+                            ${componentType.required && !hasComponents ? '<span class="comp-required-tag"><i class="fas fa-exclamation-triangle text-[9px]"></i>Required</span>' : ''}
                         </div>
-                    </td>
-                    <td class="px-6 py-2 align-middle">
-                        <div class="flex flex-wrap items-center gap-2">
-                            ${componentsDisplay}
-                            <span class="text-text-muted font-normal mx-1">/</span>
-                            <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-transparent text-primary border border-primary rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary/10" onclick="window.serverBuilder.addComponent('${componentType.type}')">
-                                <i class="fas fa-plus"></i>
-                                Add More
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            } else {
-                // Single component - show only the component WITHOUT any replace button
-                const comp = components[0];
-                const displayName = comp.component_name || comp.serial_number || 'Unnamed Component';
-                const subtitle = comp.component_name ? comp.serial_number : null;
-                const position = comp.slot_position ? ` (${comp.slot_position})` : '';
-
-                return `
-                <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                    <td class="px-6 py-2 align-middle">
-                        <div class="flex items-center gap-4">
-                            <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="${componentType.icon} text-xl text-primary"></i>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
-                                <div class="text-[13px] text-text-muted">${componentType.description}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-2 align-middle">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="inline-flex items-center gap-2 bg-surface-secondary px-3 py-2 rounded-lg">
-                                <span class="flex flex-col">
-                                    <span class="text-sm font-medium">${displayName}${position}</span>
-                                    ${subtitle ? `<span class="text-xs text-text-muted">${subtitle}</span>` : ''}
-                                </span>
-                                <button class="inline-flex items-center justify-center w-6 h-6 bg-transparent text-text-muted border-none rounded cursor-pointer transition-all p-0 hover:bg-danger/10 hover:text-danger" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
-                                    <i class="fas fa-times text-xs"></i>
-                                </button>
-                            </span>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            }
-        } else {
-            // No components yet - show add button
-            const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
-
-            return `
-            <tr class="border-t border-border-light transition-colors hover:bg-surface-hover" id="component-row-${componentType.type}">
-                <td class="px-6 py-2 align-middle">
-                    <div class="flex items-center gap-4">
-                        <div class="w-11 h-11 bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
-                            <i class="${componentType.icon} text-xl text-primary"></i>
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <div class="font-semibold text-[15px] text-text-primary">${componentType.name}</div>
-                            <div class="text-[13px] text-text-muted">${componentType.description}</div>
-                        </div>
+                        <span class="text-xs text-text-muted">${componentType.description}</span>
                     </div>
-                </td>
-                <td class="px-6 py-4 align-middle text-right">
-                    <button class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white border-none rounded-lg text-sm font-medium cursor-pointer transition-all hover:bg-primary-600 hover:-translate-y-px" onclick="window.serverBuilder.addComponent('${componentType.type}')">
-                        <i class="fas fa-plus"></i>
-                        ${buttonText}
+                </div>
+            </td>`;
+
+        let valueCell;
+        if (hasComponents) {
+            const chips = components.map(comp => {
+                const displayName = this.escapeHtml(comp.component_name || comp.serial_number || 'Unnamed Component');
+                const subtitle = comp.component_name ? this.escapeHtml(comp.serial_number || '') : '';
+                const position = comp.slot_position ? ` <span class="font-normal text-text-muted">(${this.escapeHtml(comp.slot_position)})</span>` : '';
+
+                return `
+                <span class="comp-chip">
+                    <span class="comp-chip-body">
+                        <span class="comp-chip-name">${displayName}${position}</span>
+                        ${subtitle ? `<span class="comp-chip-serial">${subtitle}</span>` : ''}
+                    </span>
+                    <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                        <i class="fas fa-times text-xs"></i>
                     </button>
-                </td>
-            </tr>
-        `;
+                </span>`;
+            }).join('');
+
+            valueCell = `
+            <td class="px-5 py-3 align-middle">
+                <div class="flex flex-wrap items-center gap-2">
+                    ${chips}
+                    ${isMultiple ? `
+                    <button class="btn-ghost-add" onclick="window.serverBuilder.addComponent('${componentType.type}')">
+                        <i class="fas fa-plus"></i>
+                        Add More
+                    </button>` : ''}
+                </div>
+            </td>`;
+        } else {
+            const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
+            valueCell = `
+            <td class="px-5 py-3 align-middle text-right">
+                <button class="${componentType.required ? 'btn-choose' : 'btn-ghost-add'}" onclick="window.serverBuilder.addComponent('${componentType.type}')">
+                    <i class="fas fa-plus"></i>
+                    ${buttonText}
+                </button>
+            </td>`;
         }
+
+        return `
+        <tr class="border-t border-border-light transition-colors duration-150 hover:bg-surface-hover" id="component-row-${componentType.type}">
+            ${labelCell}
+            ${valueCell}
+        </tr>`;
     }
     renderSocketSlots() {
         const cpuComponents = this.selectedComponents.cpu;
         const motherboardData = this.motherboardDetails;
 
-        if (!motherboardData || !motherboardData.socket) {
-            // Fallback if no motherboard data
-            return cpuComponents.map((cpu, index) => `
-            <div class="socket-item occupied">
-                <span class="slot-label">CPU Socket ${cpuComponents.length > 1 ? (index + 1) : ''}</span>
-                <span class="slot-component">${cpu.component_name || cpu.serial_number}</span>
-                ${cpu.component_name ? `<span class="slot-serial">${cpu.serial_number}</span>` : ''}
-            </div>
-        `).join('') || `
-            <div class="socket-item empty">
-                <span class="slot-label">CPU Socket</span>
-                <span class="slot-empty">Empty</span>
-            </div>
-        `;
-        }
+        const socketCount = motherboardData?.socket?.count || Math.max(cpuComponents.length, 1);
+        const socketType = motherboardData?.socket?.type || '';
+        const noneInstalled = cpuComponents.length === 0;
 
-        const socketCount = motherboardData.socket.count || 1;
-        const socketType = motherboardData.socket.type || 'Unknown';
         let html = '';
-
         for (let i = 0; i < socketCount; i++) {
             const cpu = cpuComponents[i];
-            html += `
-            <div class="socket-item ${cpu ? 'occupied' : 'empty'}">
-                <span class="slot-label">CPU Socket ${socketCount > 1 ? (i + 1) : ''} (${socketType})</span>
-                <span class="${cpu ? 'slot-component' : 'slot-empty'}">
-                    ${cpu ? (cpu.component_name || cpu.serial_number) : 'Empty'}
-                </span>
-                ${cpu && cpu.component_name ? `<span class="slot-serial">${cpu.serial_number}</span>` : ''}
-            </div>
-        `;
+            html += this.renderHwSlotRow({
+                label: `CPU ${socketCount > 1 ? i + 1 : ''}`.trim(),
+                badge: socketType,
+                component: cpu || null,
+                emptyType: 'cpu',
+                icon: 'fas fa-microchip',
+                required: noneInstalled && i === 0
+            });
         }
 
         return html;
@@ -2281,22 +2404,12 @@ class ServerBuilder {
     renderChassisSocket() {
         const motherboardData = this.motherboardDetails;
 
-        if (!motherboardData || !motherboardData.chassisSocket) {
-            // Fallback if no motherboard data
-            return `
-                <div class="socket-item">
-                    <span class="slot-label">Chassis Socket</span>
-                    <span class="slot-component">ATX</span>
-                </div>
-            `;
-        }
-
-        const chassisSocket = motherboardData.chassisSocket;
+        const chassisSocket = motherboardData?.chassisSocket || 'ATX';
 
         return `
-            <div class="socket-item">
-                <span class="slot-label">Chassis Socket</span>
-                <span class="slot-component">${chassisSocket}</span>
+            <div class="hw-slot is-filled !cursor-default">
+                <div class="hw-slot-main"><span class="hw-slot-label">Chassis Socket</span></div>
+                <div class="hw-slot-main justify-end"><span class="hw-slot-name">${chassisSocket}</span></div>
             </div>
         `;
     }
@@ -2346,40 +2459,33 @@ class ServerBuilder {
         const ramComponents = this.selectedComponents.ram;
         const motherboardData = this.motherboardDetails;
 
-        if (!motherboardData || !motherboardData.memory) {
-            // Fallback to 4 slots if no motherboard data
-            let html = '';
-            for (let i = 0; i < 4; i++) {
-                const ram = ramComponents[i];
-                html += `
-                <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
-                    <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
-                    <span class="${ram ? 'slot-component' : 'slot-empty'}">
-                        ${ram ? (ram.component_name || ram.serial_number) : 'Empty'}
-                    </span>
-                    ${ram && ram.component_name ? `<span class="slot-serial">${ram.serial_number}</span>` : ''}
-                </div>
-            `;
-            }
-            return html;
-        }
+        const memorySlots = motherboardData?.memory?.slots || 4;
+        const memoryType = motherboardData?.memory?.type || '288-pin DIMM';
+        const noneInstalled = ramComponents.length === 0;
 
-        const memorySlots = motherboardData.memory.slots || 4;
-        const memoryType = motherboardData.memory.type || 'DIMM';
-        let html = '';
-
+        let html = '<div class="dimm-grid">';
         for (let i = 0; i < memorySlots; i++) {
             const ram = ramComponents[i];
-            html += `
-            <div class="memory-slot ${ram ? 'occupied' : 'empty'}">
-                <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
-                <span class="${ram ? 'slot-component' : 'slot-empty'}">
-                    ${ram ? (ram.component_name || ram.serial_number) : 'Empty'}
-                </span>
-                ${ram && ram.component_name ? `<span class="slot-serial">${ram.serial_number}</span>` : ''}
-            </div>
-        `;
+            const label = `DIMM ${String(i + 1).padStart(2, '0')}`;
+
+            if (ram) {
+                html += `
+                <div class="dimm-cell is-filled" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                    <span class="dimm-cell-label">${label} · ${memoryType}</span>
+                    <span class="dimm-cell-name">${this.escapeHtml(ram.component_name || ram.serial_number)}</span>
+                    ${ram.component_name && ram.serial_number ? `<span class="dimm-cell-serial">${this.escapeHtml(ram.serial_number)}</span>` : ''}
+                    ${this.renderSlotPopover('ram', ram, label)}
+                </div>`;
+            } else {
+                const required = noneInstalled && i === 0;
+                html += `
+                <div class="dimm-cell ${required ? 'is-required' : 'is-empty'}" onclick="window.serverBuilder.addComponent('ram')" title="${label} — click to install memory">
+                    <span class="dimm-cell-label">${label} · ${memoryType}</span>
+                    <span class="dimm-cell-state${required ? ' is-required-text' : ''}">${required ? 'Required' : 'Empty'}</span>
+                </div>`;
+            }
         }
+        html += '</div>';
 
         return html;
     }
@@ -2529,34 +2635,23 @@ class ServerBuilder {
     renderExpansionSlots() {
         const pcieComponents = this.selectedComponents.pciecard || [];
         const hbaComponents = this.selectedComponents.hbacard || [];
-        // Filter out onboard NICs - they render in renderOnboardNICs()
+        // Filter out onboard NICs - they render in renderAllNICs()
         const nicComponents = (this.selectedComponents.nic || []).filter(n => !n.uuid?.startsWith('onboard-'));
 
         // Build UUID → component lookup map with type metadata
         const componentMap = new Map();
-        pcieComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card' }));
-        hbaComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd' }));
-        nicComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired' }));
+        pcieComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card', compType: 'pciecard' }));
+        hbaComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd', compType: 'hbacard' }));
+        nicComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired', compType: 'nic' }));
 
+        const noSlotsHtml = '<div class="hw-slot is-empty"><div class="hw-slot-main"><span class="hw-slot-label">No expansion slots</span></div></div>';
         const slotData = this.slotAssignments?.pcie;
+        const slotTypes = ['x16', 'x8', 'x4'];
 
         // If we have API slot data, use it for correct placement
         if (slotData && slotData.total_slots) {
             let html = '';
             const usedSlots = slotData.used_slots || {};
-            const slotTypes = ['x16', 'x8', 'x4'];
-
-            // Utilization bar
-            if (slotData.total_count > 0) {
-                const pct = Math.round((slotData.used_count / slotData.total_count) * 100);
-                html += `
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="slot-utilization-bar flex-1">
-                        <div class="slot-utilization-fill" style="width: ${pct}%"></div>
-                    </div>
-                    <span class="text-[11px] text-text-muted">${slotData.used_count}/${slotData.total_count} used</span>
-                </div>`;
-            }
 
             slotTypes.forEach(type => {
                 const slots = slotData.total_slots[type];
@@ -2567,28 +2662,15 @@ class ServerBuilder {
                 slots.forEach((slotName, idx) => {
                     const assignedUuid = usedSlots[slotName];
                     const component = assignedUuid ? componentMap.get(assignedUuid) : null;
-                    const slotLabel = `${type.toUpperCase()} Slot ${idx + 1}`;
 
-                    html += `
-                    <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-                        <div class="flex justify-between items-center w-full gap-2">
-                            <div class="flex items-center gap-2">
-                                <span class="slot-label">${slotLabel}</span>
-                                <span class="slot-type-badge">${slotName.replace(/_/g, ' ')}</span>
-                            </div>
-                            <span class="${component ? 'slot-component' : 'slot-empty'}">
-                                ${component ? `
-                                    <div class="component-with-type">
-                                        <i class="${component.typeIcon}"></i>
-                                        <span class="component-type">${component.type}:</span>
-                                        <span class="component-name">${component.component_name || component.serial_number}</span>
-                                    </div>
-                                ` : 'Empty'}
-                            </span>
-                        </div>
-                        ${component ? `<div class="text-xs text-text-muted mt-0.5 pl-1">${component.serial_number}</div>` : ''}
-                        ${component && component.type === 'Network Card' ? this.renderSFPPorts(component.uuid) : ''}
-                    </div>`;
+                    html += this.renderHwSlotRow({
+                        label: `${type.toUpperCase()} Slot ${idx + 1}`,
+                        badge: slotName.replace(/_/g, ' '),
+                        component,
+                        emptyType: 'pciecard',
+                        icon: component?.typeIcon || '',
+                        extraHtml: component && component.type === 'Network Card' ? this.renderSFPPorts(component.uuid) : ''
+                    });
                 });
             });
 
@@ -2599,17 +2681,11 @@ class ServerBuilder {
                 const hasRiserSlots = Object.values(riserData.total_slots).some(arr => arr && arr.length > 0);
 
                 if (hasRiserSlots) {
-                    html += `<div class="slot-group-header mt-4">Riser Slots</div>`;
-                    if (riserData.total_count > 0) {
-                        const pct = Math.round((riserData.used_count / riserData.total_count) * 100);
-                        html += `
-                        <div class="flex items-center gap-3 mb-3">
-                            <div class="slot-utilization-bar flex-1">
-                                <div class="slot-utilization-fill" style="width: ${pct}%"></div>
-                            </div>
-                            <span class="text-[11px] text-text-muted">${riserData.used_count}/${riserData.total_count} used</span>
-                        </div>`;
-                    }
+                    html += `
+                    <div class="flex items-center justify-between gap-3 mt-3 mb-1.5">
+                        <span class="slot-group-header !m-0">Riser Slots</span>
+                        <span class="flex items-center gap-2">${this.renderMeter(riserData.used_count || 0, riserData.total_count || 0)}</span>
+                    </div>`;
 
                     slotTypes.forEach(type => {
                         const slots = riserData.total_slots[type];
@@ -2619,38 +2695,26 @@ class ServerBuilder {
                             const assignedUuid = riserUsed[slotName];
                             const component = assignedUuid ? componentMap.get(assignedUuid) : null;
 
-                            html += `
-                            <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-                                <div class="flex justify-between items-center w-full gap-2">
-                                    <div class="flex items-center gap-2">
-                                        <span class="slot-label">Riser ${type.toUpperCase()} ${idx + 1}</span>
-                                        <span class="slot-type-badge">${slotName.replace(/_/g, ' ')}</span>
-                                    </div>
-                                    <span class="${component ? 'slot-component' : 'slot-empty'}">
-                                        ${component ? `
-                                            <div class="component-with-type">
-                                                <i class="${component.typeIcon}"></i>
-                                                <span class="component-type">${component.type}:</span>
-                                                <span class="component-name">${component.component_name || component.serial_number}</span>
-                                            </div>
-                                        ` : 'Empty'}
-                                    </span>
-                                </div>
-                                ${component ? `<div class="text-xs text-text-muted mt-0.5 pl-1">${component.serial_number}</div>` : ''}
-                            </div>`;
+                            html += this.renderHwSlotRow({
+                                label: `Riser ${type.toUpperCase()} ${idx + 1}`,
+                                badge: slotName.replace(/_/g, ' '),
+                                component,
+                                emptyType: 'pciecard',
+                                icon: component?.typeIcon || ''
+                            });
                         });
                     });
                 }
             }
 
-            return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+            return html || noSlotsHtml;
         }
 
         // Fallback: no slot assignment data — sequential placement
         const allExpansionComponents = [
-            ...pcieComponents.map(c => ({ ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card' })),
-            ...hbaComponents.map(c => ({ ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd' })),
-            ...nicComponents.map(c => ({ ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired' }))
+            ...pcieComponents.map(c => ({ ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card', compType: 'pciecard' })),
+            ...hbaComponents.map(c => ({ ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd', compType: 'hbacard' })),
+            ...nicComponents.map(c => ({ ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired', compType: 'nic' }))
         ];
 
         const motherboardData = this.motherboardDetails;
@@ -2660,20 +2724,12 @@ class ServerBuilder {
             const totalSlots = Math.max(4, allExpansionComponents.length);
             for (let i = 0; i < totalSlots; i++) {
                 const component = allExpansionComponents[i];
-                html += `
-                <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-                    <span class="slot-label">PCIe Slot ${i + 1}</span>
-                    <span class="${component ? 'slot-component' : 'slot-empty'}">
-                        ${component ? `
-                            <div class="component-with-type">
-                                <i class="${component.typeIcon}"></i>
-                                <span class="component-type">${component.type}:</span>
-                                <span class="component-name">${component.component_name || component.serial_number}</span>
-                                ${component.component_name ? `<span class="component-serial">${component.serial_number}</span>` : ''}
-                            </div>
-                        ` : 'Empty'}
-                    </span>
-                </div>`;
+                html += this.renderHwSlotRow({
+                    label: `PCIe Slot ${i + 1}`,
+                    component: component || null,
+                    emptyType: 'pciecard',
+                    icon: component?.typeIcon || ''
+                });
             }
             return html;
         }
@@ -2686,26 +2742,18 @@ class ServerBuilder {
 
                 for (let i = 0; i < slotCount; i++) {
                     const component = allExpansionComponents[componentIndex];
-                    html += `
-                    <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-                        <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
-                        <span class="${component ? 'slot-component' : 'slot-empty'}">
-                            ${component ? `
-                                <div class="component-with-type">
-                                    <i class="${component.typeIcon}"></i>
-                                    <span class="component-type">${component.type}:</span>
-                                    <span class="component-name">${component.component_name || component.serial_number}</span>
-                                    ${component.component_name ? `<span class="component-serial">${component.serial_number}</span>` : ''}
-                                </div>
-                            ` : 'Empty'}
-                        </span>
-                    </div>`;
+                    html += this.renderHwSlotRow({
+                        label: `${slotType} Slot ${componentIndex + 1}`,
+                        component: component || null,
+                        emptyType: 'pciecard',
+                        icon: component?.typeIcon || ''
+                    });
                     componentIndex++;
                 }
             });
         }
 
-        return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
+        return html || noSlotsHtml;
     }
 
     /**
@@ -2733,27 +2781,28 @@ class ServerBuilder {
                 ? `${portCount}× ${specs.speed || ''} ${specs.connector || ''}`
                 : `${portCount}× ${(specs.speeds || [])[0] || ''} ${specs.port_type || ''}`;
 
-            const badgeLabel = isOnboard ? 'onboard' : 'add-in';
+            // Add-in NICs map back to a removable inventory component
+            const nicComp = !isOnboard
+                ? (this.selectedComponents.nic || []).find(n => n.uuid === nic.uuid)
+                : null;
+            const clickable = !!nicComp;
 
             html += `
-            <div class="expansion-slot occupied">
-                <div class="flex justify-between items-center w-full gap-2">
-                    <div class="flex items-center gap-2">
-                        <span class="slot-label">${isOnboard ? 'Onboard NIC' : 'NIC Card'}</span>
-                        <span class="slot-type-badge">${badgeLabel}</span>
+            <div class="hw-slot is-filled is-stack ${clickable ? '' : '!cursor-default'}"${clickable ? ` onclick="window.serverBuilder.toggleSlotPopover(event, this)"` : ''}>
+                <div class="flex justify-between items-center w-full gap-3 min-w-0">
+                    <div class="hw-slot-main">
+                        <span class="hw-slot-label">${isOnboard ? 'Onboard NIC' : 'NIC Card'}</span>
+                        <span class="slot-type-badge">${isOnboard ? 'onboard' : 'add-in'}</span>
                     </div>
-                    <span class="slot-component">
-                        <div class="component-with-type">
-                            <i class="fas fa-network-wired"></i>
-                            <span class="component-name">${displayName}</span>
-                        </div>
-                    </span>
-                </div>
-                <div class="flex items-center gap-3 mt-1 pl-1">
-                    <span class="text-xs text-text-muted">${speedInfo}</span>
+                    <div class="hw-slot-main justify-end">
+                        <i class="fas fa-network-wired text-primary text-xs"></i>
+                        <span class="hw-slot-name">${this.escapeHtml(displayName)}</span>
+                        <span class="hw-slot-serial">${this.escapeHtml(speedInfo.trim())}</span>
+                    </div>
                 </div>
                 ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
                 ${!isSfpConnector && portCount > 0 ? this.renderRJ45Ports(portCount, connectorType) : ''}
+                ${nicComp ? this.renderSlotPopover('nic', nicComp, isOnboard ? 'Onboard' : 'Add-in NIC') : ''}
             </div>`;
         });
 
@@ -2769,7 +2818,7 @@ class ServerBuilder {
 
         let html = `
         <div class="nic-port-row">
-            <span class="text-[10px] text-text-muted mr-1">${connectorType || 'RJ45'}:</span>`;
+            <span class="nic-port-label">${connectorType || 'RJ45'}</span>`;
 
         for (let i = 0; i < portCount; i++) {
             html += `
@@ -2778,7 +2827,7 @@ class ServerBuilder {
             </div>`;
         }
 
-        html += `<span class="text-[10px] text-text-muted ml-1">${portCount} ports</span>`;
+        html += `<span class="hw-meter-count ml-1">${portCount} ports</span>`;
         html += `</div>`;
         return html;
     }
@@ -2815,18 +2864,22 @@ class ServerBuilder {
 
         let html = `
         <div class="nic-port-row">
-            <span class="text-[10px] text-text-muted mr-1">SFP:</span>`;
+            <span class="nic-port-label">SFP</span>`;
 
         for (let i = 0; i < portCount; i++) {
             const sfp = effectiveSfps[i];
-            html += `
-            <div class="sfp-port ${sfp ? 'populated' : 'empty-port'}" title="${sfp ? (sfp.component_name || sfp.serial_number || 'SFP Module') : `Port ${i + 1} - Empty`}">
-            </div>`;
+            if (sfp) {
+                html += `
+                <div class="sfp-port populated" title="${this.escapeHtml(sfp.component_name || sfp.serial_number || 'SFP Module')}"></div>`;
+            } else {
+                html += `
+                <div class="sfp-port empty-port" title="Port ${i + 1} — Empty, click to add SFP" onclick="event.stopPropagation(); window.serverBuilder.addComponent('sfp')"></div>`;
+            }
         }
 
         // Show SFP count summary
         const populatedCount = Math.min(effectiveSfps.length, portCount);
-        html += `<span class="text-[10px] text-text-muted ml-1">${populatedCount}/${portCount}</span>`;
+        html += `<span class="hw-meter-count ml-1">${populatedCount}/${portCount}</span>`;
         html += `</div>`;
 
         return html;
@@ -2961,46 +3014,20 @@ class ServerBuilder {
             ? (this.selectedComponents.hbacard || []).find(h => h.uuid === controllerUuid)
             : null;
 
-        // Summary badges
-        let html = `
-            <div class="flex gap-2 mb-3 flex-wrap items-center">
-                <span class="text-xs px-2 py-1 bg-surface-card rounded border border-border-light font-medium">
-                    ${drive_bays.total} bays
-                </span>
-                <span class="text-xs px-2 py-1 bg-primary/10 text-primary rounded border border-primary/30 font-medium">
-                    ${drive_bays.used} used
-                </span>
-                <span class="text-xs px-2 py-1 bg-surface-secondary rounded border border-border-light">
-                    ${drive_bays.available} free
-                </span>
-                ${backplaneInterface ? `
-                <span class="interface-badge ${this._getInterfaceClass(backplaneInterface)}">
-                    ${backplaneInterface}
-                </span>` : ''}
-            </div>`;
+        let html = '';
 
-        // Connection path: HBA → Backplane
-        if (hbaCard) {
+        // Connection path: HBA → Backplane → Bays
+        if (hbaCard || backplaneInterface) {
             html += `
             <div class="connection-path">
+                ${hbaCard ? `
                 <i class="fas fa-hdd"></i>
-                <span>${hbaCard.component_name || 'HBA Card'}</span>
+                <span class="font-medium">${this.escapeHtml(hbaCard.component_name || 'HBA Card')}</span>
+                <i class="fas fa-long-arrow-alt-right"></i>` : ''}
+                <span>Backplane</span>
+                ${backplaneInterface ? `<span class="interface-badge ${this._getInterfaceClass(backplaneInterface)}">${backplaneInterface}</span>` : ''}
                 <i class="fas fa-long-arrow-alt-right"></i>
-                <span>Backplane${backplaneInterface ? ` (${backplaneInterface})` : ''}</span>
-                <i class="fas fa-long-arrow-alt-right"></i>
-                <span>Drive Bays</span>
-            </div>`;
-        }
-
-        // Utilization bar
-        if (drive_bays.total > 0) {
-            const pct = Math.round((drive_bays.used / drive_bays.total) * 100);
-            html += `
-            <div class="flex items-center gap-3 mb-3">
-                <div class="slot-utilization-bar flex-1">
-                    <div class="slot-utilization-fill" style="width: ${pct}%"></div>
-                </div>
-                <span class="text-[11px] text-text-muted">${pct}%</span>
+                <span>${drive_bays.total} drive bays · ${drive_bays.available} free</span>
             </div>`;
         }
 
@@ -3015,26 +3042,39 @@ class ServerBuilder {
         html += `<div class="drive-bay-grid">`;
 
         for (let bay = 1; bay <= displayBays; bay++) {
-            const conn = bayMap.get(bay);
-            if (conn) {
-                const interfaceClass = this._getInterfaceClass(conn.storage_interface);
-                const compatIcon = conn.compatibility === 'native' ? 'fas fa-check-circle text-green-400'
-                    : conn.compatibility === 'backward_compatible' ? 'fas fa-exchange-alt text-yellow-400'
-                    : 'fas fa-exclamation-triangle text-red-400';
+            const bayConn = bayMap.get(bay);
+            const bayLabel = `Bay ${String(bay).padStart(2, '0')}`;
+
+            if (bayConn) {
+                const interfaceClass = this._getInterfaceClass(bayConn.storage_interface);
+                const compatIcon = bayConn.compatibility === 'native' ? 'fas fa-check-circle text-success'
+                    : bayConn.compatibility === 'backward_compatible' ? 'fas fa-exchange-alt text-warning'
+                    : 'fas fa-exclamation-triangle text-danger';
+
+                // Resolve back to a removable storage component when possible
+                const storageComp = bayConn.storage_uuid
+                    ? (this.selectedComponents.storage || []).find(s => s.uuid === bayConn.storage_uuid)
+                    : null;
+                const popoverComp = storageComp || { component_name: bayConn.storage_name, serial_number: bayConn.storage_serial || '' };
+                const extraRows = `
+                    ${bayConn.storage_interface ? `<div class="slot-popover-row"><span class="k">Interface</span><span class="v">${this.escapeHtml(bayConn.storage_interface)}</span></div>` : ''}
+                    ${bayConn.compatibility ? `<div class="slot-popover-row"><span class="k">Compatibility</span><span class="v">${this.escapeHtml(bayConn.compatibility.replace(/_/g, ' '))}</span></div>` : ''}`;
 
                 html += `
-                <div class="drive-bay-cell occupied" title="${conn.description || ''}">
-                    <span class="bay-number">${bay}</span>
-                    <div class="bay-drive-name">${conn.storage_name}</div>
-                    <div class="bay-interface">
-                        <span class="interface-badge ${interfaceClass}" style="font-size: 8px; padding: 1px 4px;">${this._shortInterface(conn.storage_interface)}</span>
+                <div class="drive-bay-cell occupied" title="${this.escapeHtml(bayConn.description || '')}" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                    <div class="flex items-center justify-between gap-1">
+                        <span class="bay-number">${bayLabel}</span>
+                        <span class="interface-badge ${interfaceClass} !text-[8px] !px-1 !py-0">${this._shortInterface(bayConn.storage_interface)}</span>
                     </div>
-                    <div class="mt-1"><i class="${compatIcon}" style="font-size: 9px;" title="${conn.compatibility}"></i></div>
+                    <div class="bay-drive-name">${this.escapeHtml(bayConn.storage_name || 'Drive')}</div>
+                    <div class="mt-0.5"><i class="${compatIcon} text-[9px]" title="${bayConn.compatibility || ''}"></i></div>
+                    ${this.renderSlotPopover(storageComp ? 'storage' : null, popoverComp, bayLabel, extraRows)}
                 </div>`;
             } else {
                 html += `
-                <div class="drive-bay-cell empty" title="Bay ${bay} - Empty">
-                    <span class="bay-number">${bay}</span>
+                <div class="drive-bay-cell empty" title="${bayLabel} — Empty, click to add storage" onclick="window.serverBuilder.addComponent('storage')">
+                    <span class="bay-number">${bayLabel}</span>
+                    <span class="bay-state">Empty</span>
                 </div>`;
             }
         }
@@ -3080,16 +3120,6 @@ class ServerBuilder {
         if (m2Data && m2Data.total_count > 0) {
             let html = '';
 
-            // Utilization bar
-            const pct = m2Data.total_count > 0 ? Math.round((m2Data.used_count / m2Data.total_count) * 100) : 0;
-            html += `
-            <div class="flex items-center gap-3 mb-3">
-                <div class="slot-utilization-bar flex-1">
-                    <div class="slot-utilization-fill" style="width: ${pct}%"></div>
-                </div>
-                <span class="text-[11px] text-text-muted">${m2Data.used_count}/${m2Data.total_count} used</span>
-            </div>`;
-
             // Motherboard M.2 slots
             if (m2Data.motherboard_slots && m2Data.motherboard_slots.total > 0) {
                 const assignments = m2Data.motherboard_slots.assignments || [];
@@ -3097,19 +3127,13 @@ class ServerBuilder {
 
                 for (let i = 0; i < total; i++) {
                     const assignment = assignments[i];
-                    html += `
-                    <div class="expansion-slot ${assignment ? 'occupied' : 'empty'}">
-                        <span class="slot-label">M.2 Slot ${i + 1}</span>
-                        <span class="${assignment ? 'slot-component' : 'slot-empty'}">
-                            ${assignment ? `
-                                <div class="component-with-type">
-                                    <i class="fas fa-hdd"></i>
-                                    <span class="component-type">NVMe:</span>
-                                    <span class="component-name">${assignment.component_name || assignment.serial_number || 'Storage'}</span>
-                                </div>
-                            ` : 'Empty'}
-                        </span>
-                    </div>`;
+                    html += this.renderHwSlotRow({
+                        label: `M.2 Slot ${i + 1}`,
+                        badge: 'NVMe',
+                        component: assignment ? { ...assignment, compType: assignment.uuid ? 'storage' : null } : null,
+                        emptyType: 'storage',
+                        icon: 'fas fa-hdd'
+                    });
                 }
             }
 
@@ -3118,11 +3142,11 @@ class ServerBuilder {
                 html += `<div class="slot-group-header mt-3">Expansion Card M.2</div>`;
                 const providers = m2Data.expansion_card_slots.providers || [];
                 providers.forEach(provider => {
-                    html += `
-                    <div class="expansion-slot empty">
-                        <span class="slot-label">${provider.card_name || 'Expansion'} M.2</span>
-                        <span class="slot-empty">${provider.available || 0} available</span>
-                    </div>`;
+                    html += this.renderHwSlotRow({
+                        label: `${provider.card_name || 'Expansion'} M.2`,
+                        emptyType: 'storage',
+                        emptyText: `${provider.available || 0} available`
+                    });
                 });
             }
 
@@ -3137,11 +3161,11 @@ class ServerBuilder {
                 const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
 
                 for (let i = 0; i < m2Count; i++) {
-                    html += `
-                    <div class="expansion-slot empty">
-                        <span class="slot-label">M.2 Slot ${groupIndex * m2Count + i + 1} (${formFactors})</span>
-                        <span class="slot-empty">Empty</span>
-                    </div>`;
+                    html += this.renderHwSlotRow({
+                        label: `M.2 Slot ${groupIndex * m2Count + i + 1}`,
+                        badge: formFactors,
+                        emptyType: 'storage'
+                    });
                 }
             });
             return html;
@@ -3163,33 +3187,25 @@ class ServerBuilder {
 
             // Show occupied storage slots first
             storageComponents.forEach((storage, index) => {
-                html += `
-                <div class="expansion-slot occupied">
-                    <span class="slot-label">Storage ${index + 1}</span>
-                    <span class="slot-component">
-                        <div class="component-with-type">
-                            <i class="fas fa-hdd"></i>
-                            <span class="component-type">Storage:</span>
-                            <span class="component-name">${storage.component_name || storage.serial_number}</span>
-                            ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
-                        </div>
-                    </span>
-                </div>
-            `;
+                html += this.renderHwSlotRow({
+                    label: `Storage ${index + 1}`,
+                    component: { ...storage, compType: 'storage' },
+                    emptyType: 'storage',
+                    icon: 'fas fa-hdd'
+                });
             });
 
             // Show available slots only if we have storage components
             const remainingSlots = Math.max(2, 4 - storageComponents.length);
             for (let i = 0; i < remainingSlots; i++) {
-                html += `
-                <div class="expansion-slot empty">
-                    <span class="slot-label">Storage ${storageComponents.length + i + 1}</span>
-                    <span class="slot-empty">Available</span>
-                </div>
-            `;
+                html += this.renderHwSlotRow({
+                    label: `Storage ${storageComponents.length + i + 1}`,
+                    emptyType: 'storage',
+                    emptyText: 'Available'
+                });
             }
 
-            return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
+            return html || '<div class="hw-slot is-empty"><div class="hw-slot-main"><span class="hw-slot-label">No storage info</span></div></div>';
         }
 
         let html = '';
@@ -3203,21 +3219,13 @@ class ServerBuilder {
 
                 for (let i = 0; i < m2Count; i++) {
                     const storage = storageComponents[storageIndex];
-                    html += `
-                    <div class="expansion-slot ${storage ? 'occupied' : 'empty'}">
-                        <span class="slot-label">M.2 Slot ${groupIndex * m2Count + i + 1} (${formFactors})</span>
-                        <span class="${storage ? 'slot-component' : 'slot-empty'}">
-                            ${storage ? `
-                                <div class="component-with-type">
-                                    <i class="fas fa-hdd"></i>
-                                    <span class="component-type">NVMe:</span>
-                                    <span class="component-name">${storage.component_name || storage.serial_number}</span>
-                                    ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
-                                </div>
-                            ` : 'Empty'}
-                        </span>
-                    </div>
-                `;
+                    html += this.renderHwSlotRow({
+                        label: `M.2 Slot ${groupIndex * m2Count + i + 1}`,
+                        badge: formFactors,
+                        component: storage ? { ...storage, compType: 'storage' } : null,
+                        emptyType: 'storage',
+                        icon: 'fas fa-hdd'
+                    });
                     if (storage) storageIndex++;
                 }
             });
@@ -3228,23 +3236,16 @@ class ServerBuilder {
         // If no M.2 slots found in motherboard data but we have storage components, show them
         if (html === '' && storageComponents.length > 0) {
             storageComponents.forEach((storage, index) => {
-                html += `
-                <div class="expansion-slot occupied">
-                    <span class="slot-label">Storage ${index + 1}</span>
-                    <span class="slot-component">
-                        <div class="component-with-type">
-                            <i class="fas fa-hdd"></i>
-                            <span class="component-type">Storage:</span>
-                            <span class="component-name">${storage.component_name || storage.serial_number}</span>
-                            ${storage.component_name ? `<span class="component-serial">${storage.serial_number}</span>` : ''}
-                        </div>
-                    </span>
-                </div>
-            `;
+                html += this.renderHwSlotRow({
+                    label: `Storage ${index + 1}`,
+                    component: { ...storage, compType: 'storage' },
+                    emptyType: 'storage',
+                    icon: 'fas fa-hdd'
+                });
             });
         }
 
-        return html || '<div class="expansion-slot empty"><span class="slot-label">No M.2 slots available</span></div>';
+        return html || '<div class="hw-slot is-empty"><div class="hw-slot-main"><span class="hw-slot-label">No M.2 slots available</span></div></div>';
     }
 
     /**
@@ -3288,6 +3289,10 @@ class ServerBuilder {
             }
 
             const configUuid = this.currentConfig.config_uuid;
+
+            // Remember what was added so the relevant slot can be highlighted
+            // when the user returns from the selection flow
+            try { sessionStorage.setItem('bdc_builder_focus', type); } catch (e) { /* sessionStorage unavailable */ }
 
             // Special handling for SFP - show NIC selection modal first
             if (type === 'sfp') {
@@ -3372,9 +3377,10 @@ class ServerBuilder {
             const groupIcon = this.getGroupIcon(groupKey);
 
             return `
-                <div class="issues-group">
+                <div class="issues-group expanded">
                     <div class="issues-group-header">
-                        <i class="${groupIcon}"></i>
+                        <i class="fas fa-chevron-down group-caret"></i>
+                        <i class="${groupIcon} group-icon"></i>
                         <span class="group-title">${groupTitle}</span>
                         <span class="group-count">${groupIssues.length}</span>
                     </div>
@@ -3442,19 +3448,17 @@ class ServerBuilder {
         const hasComponent = issue.componentType && this.selectedComponents[issue.componentType] && this.selectedComponents[issue.componentType].length > 0;
 
         return `
-            <div class="issue-item ${severityClass} ${hasComponent ? 'clickable' : ''}" onclick="window.serverBuilder.handleIssueClick('${issue.componentType || ''}', this)">
-                <div class="issue-header">
-                    <div class="issue-icon">
-                        <i class="${iconClass}"></i>
-                    </div>
-                    <div class="issue-content">
-                        <div class="issue-title">${issue.title || issue.message}</div>
-                        <div class="issue-message">${issue.message}</div>
-                    </div>
-                    <div class="issue-actions">
-                        ${issue.action ? `<button class="issue-action-btn" onclick="event.stopPropagation(); window.serverBuilder.addComponent('${issue.action.actionType}')">${issue.action.text}</button>` : ''}
-                        ${hasComponent ? '<i class="fas fa-arrow-up scroll-icon"></i>' : ''}
-                    </div>
+            <div class="issue-item ${severityClass} ${hasComponent ? 'cursor-pointer' : ''}" onclick="window.serverBuilder.handleIssueClick('${issue.componentType || ''}', this)">
+                <div class="issue-icon">
+                    <i class="${iconClass}"></i>
+                </div>
+                <div class="issue-content">
+                    <div class="issue-title">${issue.title || issue.message}</div>
+                    <div class="issue-message">${issue.message}</div>
+                </div>
+                <div class="issue-actions">
+                    ${issue.action ? `<button class="issue-action-btn" onclick="event.stopPropagation(); window.serverBuilder.addComponent('${issue.action.actionType}')"><i class="fas fa-plus mr-1"></i>${issue.action.text}</button>` : ''}
+                    ${hasComponent ? '<i class="fas fa-arrow-up text-text-muted text-xs"></i>' : ''}
                 </div>
             </div>
         `;
@@ -3479,10 +3483,9 @@ class ServerBuilder {
         if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // Highlight briefly
-            element.style.backgroundColor = 'var(--highlight-color, #e3f2fd)';
-            element.style.transition = 'background-color 0.3s ease';
+            element.classList.add('flash-highlight');
             setTimeout(() => {
-                element.style.backgroundColor = '';
+                element.classList.remove('flash-highlight');
             }, 2000);
         }
     }
@@ -3491,26 +3494,7 @@ class ServerBuilder {
      * Attach event listeners
      */
     attachEventListeners() {
-        // Toggle switch functionality
-        const toggleSwitch = document.getElementById('advancedViewToggle');
-        const toggleState = document.getElementById('toggleState');
-
-        if (toggleSwitch && toggleState) {
-            toggleSwitch.addEventListener('change', (e) => {
-                const isChecked = e.target.checked;
-                toggleState.textContent = isChecked ? 'On' : 'Off';
-                this.toggleAdvancedView(isChecked);
-            });
-        }
-        // Buy button
-        const buyButton = document.querySelector('.buy-button');
-        if (buyButton) {
-            buyButton.addEventListener('click', () => {
-                this.showAlert('This would redirect to purchase page in a real implementation', 'info');
-            });
-        }
-
-        // Issue group expansion toggles
+        // Issue group expansion toggles (rendered expanded by default)
         const issueGroupHeaders = document.querySelectorAll('.issues-group-header');
         issueGroupHeaders.forEach(header => {
             header.addEventListener('click', function () {
@@ -3519,19 +3503,11 @@ class ServerBuilder {
             });
         });
 
-        // Individual issue expansion toggles
-        const expandableIssues = document.querySelectorAll('.issue-item.expandable');
-        expandableIssues.forEach(issue => {
-            issue.addEventListener('click', function () {
-                this.classList.toggle('expanded');
-            });
-        });
-
-        // Initialize groups as expanded by default
-        const issueGroups = document.querySelectorAll('.issues-group');
-        issueGroups.forEach(group => {
-            group.classList.add('expanded');
-        });
+        // Close slot popovers when clicking anywhere outside (bind once per page)
+        if (!this._popoverListenerAttached) {
+            document.addEventListener('click', () => this.closeAllSlotPopovers());
+            this._popoverListenerAttached = true;
+        }
     }
     toggleAdvancedView(enabled) {
         // Add/remove advanced view classes
@@ -3623,364 +3599,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.serverBuilder = new ServerBuilder();
 });
 
-// Add CSS animations and styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-
-    /* Issues Section Styles */
-    .issues-section {
-        background: var(--bg-primary, #ffffff);
-        border: 1px solid var(--border-color, #e1e5e9);
-        border-radius: 8px;
-        margin: 1.5rem 0;
-        overflow: hidden;
-    }
-
-    .issues-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1rem 1.5rem;
-        background: var(--bg-secondary, #f8f9fa);
-        border-bottom: 1px solid var(--border-color, #e1e5e9);
-    }
-
-    .issues-title {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: var(--text-primary, #2c3e50);
-        margin: 0;
-    }
-
-    .issues-title i {
-        color: var(--warning-color, #f39c12);
-    }
-
-    .issues-summary {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        color: var(--text-secondary, #6c757d);
-    }
-
-    .issues-count {
-        background: var(--warning-color, #f39c12);
-        color: white;
-        padding: 0.125rem 0.5rem;
-        border-radius: 12px;
-        font-weight: 600;
-        min-width: 24px;
-        text-align: center;
-    }
-
-    .issues-progress {
-        padding: 1rem 1.5rem;
-        background: var(--bg-primary, #ffffff);
-        border-bottom: 1px solid var(--border-color, #e1e5e9);
-    }
-
-    .progress-bar {
-        width: 100%;
-        height: 8px;
-        background: var(--bg-tertiary, #e9ecef);
-        border-radius: 4px;
-        overflow: hidden;
-        margin-bottom: 0.5rem;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--success-color, #27ae60), var(--warning-color, #f39c12));
-        transition: width 0.3s ease;
-    }
-
-    .progress-text {
-        font-size: 0.875rem;
-        color: var(--text-secondary, #6c757d);
-        text-align: center;
-    }
-
-    .issues-group {
-        border-bottom: 1px solid var(--border-color, #e1e5e9);
-    }
-
-    .issues-group:last-child {
-        border-bottom: none;
-    }
-
-    .issues-group-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem 1.5rem;
-        background: var(--bg-secondary, #f8f9fa);
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .issues-group-header:hover {
-        background: var(--bg-hover, #e9ecef);
-    }
-
-    .issues-group-header i {
-        color: var(--text-secondary, #6c757d);
-        width: 16px;
-    }
-
-    .group-title {
-        flex: 1;
-        font-weight: 500;
-        color: var(--text-primary, #2c3e50);
-    }
-
-    .group-count {
-        background: var(--primary-color, #3498db);
-        color: white;
-        padding: 0.125rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        min-width: 20px;
-        text-align: center;
-    }
-
-    .issues-group-content {
-        padding: 0;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease;
-    }
-
-    .issues-group.expanded .issues-group-content {
-        max-height: 1000px;
-    }
-
-    .issue-item {
-        border-bottom: 1px solid var(--border-light, #f1f3f4);
-        transition: background-color 0.2s ease;
-    }
-
-    .issue-item:last-child {
-        border-bottom: none;
-    }
-
-    .issue-item:hover {
-        background: var(--bg-hover, #f8f9fa);
-    }
-
-    .issue-item.expandable {
-        cursor: pointer;
-    }
-
-    .issue-item.expanded {
-        background: var(--bg-expanded, #f8f9fa);
-    }
-
-    .issue-header {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 1rem 1.5rem;
-    }
-
-    .issue-icon {
-        flex-shrink: 0;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        font-size: 0.875rem;
-    }
-
-    .severity-critical .issue-icon {
-        background: var(--error-bg, #fee);
-        color: var(--error-color, #e74c3c);
-    }
-
-    .severity-warning .issue-icon {
-        background: var(--warning-bg, #fff3cd);
-        color: var(--warning-color, #f39c12);
-    }
-
-    .severity-info .issue-icon {
-        background: var(--info-bg, #d1ecf1);
-        color: var(--info-color, #17a2b8);
-    }
-
-    .issue-content {
-        flex: 1;
-    }
-
-    .issue-title {
-        font-weight: 600;
-        color: var(--text-primary, #2c3e50);
-        margin-bottom: 0.25rem;
-        font-size: 0.875rem;
-    }
-
-    .issue-message {
-        color: var(--text-secondary, #6c757d);
-        font-size: 0.8125rem;
-        line-height: 1.4;
-    }
-
-    .issue-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-shrink: 0;
-    }
-
-    .issue-action-btn {
-        background: var(--primary-color, #3498db);
-        color: white;
-        border: none;
-        padding: 0.375rem 0.75rem;
-        border-radius: 4px;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .issue-action-btn:hover {
-        background: var(--primary-hover, #2980b9);
-    }
-
-    .expand-icon {
-        color: var(--text-muted, #adb5bd);
-        transition: transform 0.2s ease;
-    }
-
-    .issue-item.expanded .expand-icon {
-        transform: rotate(180deg);
-    }
-
-    .issue-details {
-        padding: 0 1.5rem 1rem 5rem;
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease, padding 0.3s ease;
-    }
-
-    .issue-item.expanded .issue-details {
-        max-height: 500px;
-        padding: 0 1.5rem 1rem 5rem;
-    }
-
-    .issue-detail-text {
-        color: var(--text-secondary, #6c757d);
-        font-size: 0.8125rem;
-        line-height: 1.5;
-        margin-bottom: 0.75rem;
-    }
-
-    .issue-action-large {
-        text-align: left;
-    }
-
-    .issue-action-large button {
-        background: var(--primary-color, #3498db);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-    }
-
-    .issue-action-large button:hover {
-        background: var(--primary-hover, #2980b9);
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 1024px) {
-        .issues-header {
-            padding: 1rem;
-        }
-
-        .issues-title {
-            font-size: 1rem;
-        }
-
-        .issues-progress {
-            padding: 0.75rem 1rem;
-        }
-
-        .issues-group-header {
-            padding: 0.75rem 1rem;
-        }
-
-        .issue-header {
-            padding: 0.75rem 1rem;
-            gap: 0.75rem;
-        }
-
-        .issue-details {
-            padding: 0 1rem 0.75rem 4rem;
-        }
-
-        .issue-item.expanded .issue-details {
-            padding: 0 1rem 0.75rem 4rem;
-        }
-    }
-
-    @media (max-width: 360px) {
-        .issues-header {
-            padding: 0.375rem 0.5rem;
-        }
-
-        .issues-title {
-            font-size: 0.85rem;
-        }
-
-        .issues-progress {
-            padding: 0.375rem 0.5rem;
-        }
-
-        .issues-group-header {
-            padding: 0.375rem 0.5rem;
-        }
-
-        .issue-header {
-            padding: 0.375rem 0.5rem;
-        }
-
-        .issue-details {
-            padding: 0 0.5rem 0.375rem 0.5rem;
-        }
-
-        .issue-item.expanded .issue-details {
-            padding: 0 0.5rem 0.375rem 0.5rem;
-        }
-    }
-`;
-document.head.appendChild(style);

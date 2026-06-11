@@ -16,10 +16,10 @@
     <form id="addComponentForm" class="component-form">
         <!-- Component Type Selection -->
         <div class="form-section mb-6">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Type</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Type</h3>
             <div class="form-group">
                 <label
-                    class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Select
+                    class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Select
                     Component Type</label>
                 <select id="componentType"
                     class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -41,14 +41,14 @@
 
         <!-- Component Specification (Dynamic based on type) -->
         <div id="specificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Specification</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Specification</h3>
 
             <!-- Cascading Dropdowns for components with JSON data -->
             <div id="cascadingDropdowns" class="hidden">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div class="form-group" id="dropdown1Group">
                         <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
                             id="dropdown1Label">Field 1</label>
                         <select id="dropdown1Select"
                             class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
@@ -58,7 +58,7 @@
 
                     <div class="form-group" id="dropdown2Group">
                         <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
                             id="dropdown2Label">Field 2</label>
                         <select id="dropdown2Select"
                             class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
@@ -69,7 +69,7 @@
 
                     <div class="form-group" id="dropdown3Group">
                         <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
                             id="dropdown3Label">Field 3</label>
                         <select id="dropdown3Select"
                             class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
@@ -83,7 +83,7 @@
                 <div class="grid grid-cols-1 gap-4 hidden" id="dropdown4Row">
                     <div class="form-group" id="dropdown4Group">
                         <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500"
+                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
                             id="dropdown4Label">Specific Model</label>
                         <select id="dropdown4Select"
                             class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
@@ -97,7 +97,7 @@
             <!-- Component Details Display -->
             <div id="componentDetails"
                 class="component-details bg-surface-hover border border-border-light rounded-lg p-4 mt-4 hidden">
-                <h4 class="font-semibold text-text-primary mb-3">Selected Component Details</h4>
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-3 border-b border-border-light">Selected Component Details</h4>
                 <div id="detailsContent">
                     <!-- Details will be populated dynamically -->
                 </div>
@@ -106,12 +106,12 @@
 
         <!-- Component Identification -->
         <div id="identificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Component Identification</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Identification</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Component
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Component
                         UUID</label>
                     <input type="text" id="componentUUID"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-secondary text-text-primary cursor-not-allowed"
@@ -121,7 +121,7 @@
 
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Serial
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Serial
                         Number</label>
                     <input type="text" id="serialNumber"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -132,12 +132,12 @@
 
         <!-- Status and Assignment -->
         <div id="statusSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Status & Assignment</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Status & Assignment</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
                     <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Status</label>
+                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Status</label>
                     <select id="status"
                         class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required>
@@ -152,7 +152,7 @@
 
         <!-- Vendor Selection -->
         <div id="vendorSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Vendor / Supplier</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Vendor / Supplier</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
                     <label class="block text-sm font-medium text-text-secondary mb-2">Vendor</label>
@@ -166,7 +166,7 @@
 
         <!-- Location Information -->
         <div id="locationSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Location Information</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Location Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
@@ -192,17 +192,17 @@
 
         <!-- Date Information -->
         <div id="datesSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Date Information</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Date Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Purchase Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Purchase Date</label>
                     <input type="date" id="purchaseDate"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
                 </div>
 
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Installation Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Installation Date</label>
                     <input type="date" id="installationDate"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
                 </div>
@@ -210,7 +210,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Warranty End Date</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Warranty End Date</label>
                     <input type="date" id="warrantyEndDate"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" required>
                 </div>
@@ -222,7 +222,7 @@
 
         <!-- Flag and Notes -->
         <div id="flagSection" class="form-section mb-6 hidden">
-            <h3 class="text-lg font-semibold text-text-primary mb-4">Additional Information</h3>
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Additional Information</h3>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="form-group">

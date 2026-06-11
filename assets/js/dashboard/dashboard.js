@@ -62,7 +62,7 @@ class Dashboard {
             this.currentComponent = 'activity-log';
         } else if (page === 'vendors.html') {
             this.currentComponent = 'vendors';
-            if (!api.utils.hasRole(['admin', 'superadmin'])) {
+            if (!api.utils.hasRole(['admin', 'super_admin'])) {
                 window.location.href = 'index.html';
                 return;
             }
@@ -260,6 +260,16 @@ class Dashboard {
                 if (availEl) availEl.textContent = stat.available || 0;
                 if (inUseEl) inUseEl.textContent = stat.in_use || 0;
                 if (failedEl) failedEl.textContent = stat.failed || 0;
+
+                // Segmented utilization bar (dashboard index page only)
+                const total = stat.total || 0;
+                const pct = (value) => total > 0 ? `${((value || 0) / total) * 100}%` : '0%';
+                const barAvail = document.getElementById(`dash${componentName}BarAvailable`);
+                const barInUse = document.getElementById(`dash${componentName}BarInUse`);
+                const barFailed = document.getElementById(`dash${componentName}BarFailed`);
+                if (barAvail) barAvail.style.width = pct(stat.available);
+                if (barInUse) barInUse.style.width = pct(stat.in_use);
+                if (barFailed) barFailed.style.width = pct(stat.failed);
             }
         });
         if (stats.servers) {
@@ -527,36 +537,48 @@ class Dashboard {
         const tbody = document.getElementById('componentsTableBody');
         if (!tbody) return;
         if (components.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><div style="text-align: center; padding: 40px;"><i class="fas fa-box-open" style="font-size: 48px; color: var(--text-muted); margin-bottom: 16px;"></i><h3>No Components Found</h3><p>No ${componentType} components match your search criteria.</p><button class="btn btn-primary" onclick="dashboard.showAddForm()"><i class="fas fa-plus"></i> Add First ${componentType.toUpperCase()}</button></div></td></tr>`;
+            tbody.innerHTML = `
+                <tr><td colspan="7" class="empty-state">
+                    <div class="flex flex-col items-center text-center py-16 px-6">
+                        <div class="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                            <i class="fas fa-box-open text-primary text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-text-primary mb-1">No Components Found</h3>
+                        <p class="text-sm text-text-secondary mb-6">No ${componentType} components match your search criteria.</p>
+                        <button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddForm()">
+                            <i class="fas fa-plus text-xs"></i> Add First ${componentType.toUpperCase()}
+                        </button>
+                    </div>
+                </td></tr>`;
             return;
         }
         tbody.innerHTML = components.map(component => {
             const modelName = component.ModelName || null;
             const serialNumber = component.SerialNumber || component.UUID || 'N/A';
-            const location = component.Location || '-';
+            const location = component.Location || '—';
             const vendorName = component.VendorName || '';
             const primaryDisplay = modelName ? utils.escapeHtml(modelName) : utils.escapeHtml(serialNumber);
-            const secondaryDisplay = modelName ? `<br><small style="color: var(--text-muted); font-family: monospace;">${utils.escapeHtml(serialNumber)}</small>` : '';
-            const vendorBadge = vendorName ? `<br><small class="text-text-muted"><i class="fas fa-truck text-xs"></i> ${utils.escapeHtml(vendorName)}</small>` : '';
+            const secondaryDisplay = modelName ? `<span class="block font-mono text-xs text-text-muted mt-0.5">${utils.escapeHtml(serialNumber)}</span>` : '';
+            const vendorBadge = vendorName ? `<span class="block text-xs text-text-muted mt-0.5"><i class="fas fa-truck text-[10px] mr-1"></i>${utils.escapeHtml(vendorName)}</span>` : '';
 
             return `
-            <tr class="h-16">
+            <tr class="h-16 transition-colors hover:bg-surface-hover">
                 <td class="px-4 py-3 align-middle h-16" data-label="Select"><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Model"><strong>${primaryDisplay}</strong>${secondaryDisplay}${vendorBadge}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Model"><span class="font-semibold text-text-primary text-sm">${primaryDisplay}</span>${secondaryDisplay}${vendorBadge}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Status">${utils.createStatusBadge(component.Status)}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code>${utils.truncateText(component.ServerUUID, 20)}</code>` : '-'}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Location">${utils.escapeHtml(location)}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
+                <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code class="font-mono text-xs text-text-secondary bg-surface-secondary border border-border-light rounded px-1.5 py-0.5">${utils.truncateText(component.ServerUUID, 20)}</code>` : '<span class="text-text-muted">—</span>'}</td>
+                <td class="px-4 py-3 align-middle h-16 text-sm text-text-secondary" data-label="Location">${utils.escapeHtml(location)}</td>
+                <td class="px-4 py-3 align-middle h-16 text-sm text-text-secondary tabular-nums" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
                 <td class="px-4 py-3 align-middle h-16" data-label="Actions">
-                    <div class="action-buttons flex gap-2">
-                        <button class="action-btn view p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors" onclick="dashboard.showComponentViewModal('${componentType}', ${component.ID})" title="View Details" aria-label="View component details">
-                            <i class="fas fa-eye"></i>
+                    <div class="action-buttons flex items-center gap-1.5">
+                        <button class="action-btn view w-9 h-9 rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary border border-transparent hover:border-border transition-colors flex items-center justify-center" onclick="dashboard.showComponentViewModal('${componentType}', ${component.ID})" title="View Details" aria-label="View component details">
+                            <i class="fas fa-eye text-sm"></i>
                         </button>
-                        <button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[44px] text-sm rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
-                            <i class="fas fa-edit"></i><span class="hidden sm:inline ml-1">Edit</span>
+                        <button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors flex items-center" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
+                            <i class="fas fa-pen text-xs"></i><span class="hidden sm:inline ml-1.5">Edit</span>
                         </button>
-                        <button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[44px] text-sm rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
-                            <i class="fas fa-trash"></i><span class="hidden sm:inline ml-1">Delete</span>
+                        <button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-danger hover:text-danger transition-colors flex items-center" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
+                            <i class="fas fa-trash text-xs"></i><span class="hidden sm:inline ml-1.5">Delete</span>
                         </button>
                     </div>
                 </td>
@@ -571,12 +593,14 @@ class Dashboard {
 
         if (servers.length === 0) {
             serverCardsGrid.innerHTML = `
-                <div class="col-span-full text-center py-16">
-                    <i class="fas fa-server text-6xl text-text-muted mb-4"></i>
-                    <h3 class="text-xl font-semibold text-text-primary mb-2">No Servers Found</h3>
-                    <p class="text-text-secondary mb-6">Start building your first server configuration</p>
-                    <button class="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
-                        <i class="fas fa-plus"></i> Create New Server
+                <div class="col-span-full flex flex-col items-center text-center py-16 px-6 bg-surface-card border border-dashed border-border rounded-xl">
+                    <div class="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <i class="fas fa-server text-primary text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-text-primary mb-1">No Servers Found</h3>
+                    <p class="text-sm text-text-secondary mb-6">Start building your first server configuration</p>
+                    <button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
+                        <i class="fas fa-plus text-xs"></i> Create New Server
                     </button>
                 </div>`;
             return;
@@ -584,82 +608,73 @@ class Dashboard {
 
         const getStatusBadge = (status) => {
             const statusMap = {
-                '0': { label: 'Draft', bgClass: 'bg-yellow-100', textClass: 'text-yellow-700' },
-                '1': { label: 'Validated', bgClass: 'bg-sky-100', textClass: 'text-sky-700' },
-                '2': { label: 'Built', bgClass: 'bg-green-100', textClass: 'text-green-700' },
-                '3': { label: 'Finalized', bgClass: 'bg-teal-100', textClass: 'text-teal-800' }
+                '0': { label: 'Draft', dotClass: 'bg-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
+                '1': { label: 'Validated', dotClass: 'bg-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
+                '2': { label: 'Built', dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
+                '3': { label: 'Finalized', dotClass: 'bg-teal-500', textClass: 'text-teal-600 dark:text-teal-400' }
             };
             const s = statusMap[status] || statusMap['0'];
-            return `<span class="inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${s.bgClass} ${s.textClass}">${s.label}</span>`;
+            return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${s.textClass}"><span class="w-1.5 h-1.5 rounded-full ${s.dotClass}"></span>${s.label}</span>`;
         };
 
         serverCardsGrid.innerHTML = servers.map(server => `
-            <div class="bg-surface-card border border-border rounded-xl p-5 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-teal-200 flex flex-col gap-4 cursor-pointer group" data-server-uuid="${server.config_uuid}">
+            <div class="bg-surface-card border border-border rounded-xl overflow-hidden flex flex-col cursor-pointer group transition-colors hover:border-primary-light" data-server-uuid="${server.config_uuid}">
                 <!-- Header -->
-                <div class="flex justify-between items-start gap-3">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-start gap-3 mb-3">
-                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-sm">
-                                <i class="fas fa-server text-white"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h3 class="text-lg font-semibold text-text-primary truncate mb-1.5 group-hover:text-teal-700 transition-colors">
-                                    ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
-                                </h3>
+                <div class="p-5 pb-4">
+                    <div class="flex items-start gap-3">
+                        <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-server text-primary text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-base font-semibold text-text-primary truncate leading-snug group-hover:text-primary transition-colors" title="${utils.escapeHtml(server.server_name || 'Unnamed Server')}">
+                                ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
+                            </h3>
+                            <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5">
                                 ${getStatusBadge(server.configuration_status)}
-                            ${server.location || server.rack_position ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted mt-1"><i class="fas fa-map-marker-alt text-xs"></i>${utils.escapeHtml([server.location, server.rack_position].filter(Boolean).join(' / '))}</span>` : ''}
+                                ${server.location || server.rack_position ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${utils.escapeHtml([server.location, server.rack_position].filter(Boolean).join(' / '))}</span></span>` : ''}
                             </div>
                         </div>
-                        ${server.description ? `<p class="text-sm text-text-secondary mt-2 line-clamp-2">${utils.escapeHtml(server.description)}</p>` : ''}
+                        <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center flex-shrink-0 transition-colors hover:bg-danger-light hover:text-danger"
+                                onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
+                                title="Delete Server" aria-label="Delete server">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
                     </div>
-                    <button class="px-3 py-2 bg-surface-hover text-text-muted rounded-lg hover:bg-red-50 hover:text-red-600 transition-colors flex-shrink-0"
-                            onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
-                            title="Delete Server">
-                        <i class="fas fa-trash text-sm"></i>
-                    </button>
+                    ${server.description ? `<p class="text-sm text-text-secondary mt-3 line-clamp-2 leading-relaxed">${utils.escapeHtml(server.description)}</p>` : ''}
                 </div>
 
                 <!-- Stats -->
-                <div class="flex gap-3 p-3 bg-surface-hover rounded-lg border border-border">
-                    <div class="flex items-center gap-2 flex-1">
-                        <div class="w-8 h-8 rounded-md bg-surface-card flex items-center justify-center shadow-sm border border-border">
-                            <i class="fas fa-microchip text-teal-600 text-sm"></i>
-                        </div>
-                        <div class="flex items-center justify-between flex-1">
-                            <span class="text-xs font-medium text-text-secondary uppercase tracking-wide">Components</span>
-                            <span class="text-xl font-bold text-text-primary">${server.total_component_types || 0}</span>
-                        </div>
-                    </div>
+                <div class="mx-5 flex items-center justify-between px-4 py-3 bg-surface-secondary border border-border-light rounded-lg">
+                    <span class="inline-flex items-center gap-2 text-xs font-medium text-text-secondary uppercase tracking-wider">
+                        <i class="fas fa-microchip text-primary"></i>Components
+                    </span>
+                    <span class="text-xl font-bold text-text-primary tabular-nums">${server.total_component_types || 0}</span>
                 </div>
 
                 <!-- Meta -->
-                <div class="flex flex-col gap-2 pt-3 border-t border-border">
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-text-muted flex items-center gap-1.5">
-                            <i class="fas fa-server text-xs mr-1 text-text-muted"></i>Rack
-                        </span>
-                        <span class="text-text-secondary font-medium">${server.rack_position ? utils.escapeHtml(server.rack_position) : 'N/A'}</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-text-muted flex items-center gap-1.5">
-                            <i class="fas fa-calendar text-xs mr-1 text-text-muted"></i>Created
-                        </span>
-                        <span class="text-text-secondary font-medium">${utils.formatDate(server.created_at)}</span>
-                    </div>
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="text-text-muted flex items-center gap-1.5">
-                            <i class="fas fa-clock text-xs mr-1 text-text-muted"></i>Modified
-                        </span>
-                        <span class="text-text-secondary font-medium">${utils.formatDate(server.last_modified)}</span>
+                <div class="px-5 py-4 flex-1">
+                    <div class="divide-y divide-border-light">
+                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
+                            <span class="text-text-muted">Rack</span>
+                            <span class="text-text-primary font-medium truncate tabular-nums">${server.rack_position ? utils.escapeHtml(server.rack_position) : '—'}</span>
+                        </div>
+                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
+                            <span class="text-text-muted">Created</span>
+                            <span class="text-text-primary font-medium tabular-nums">${utils.formatDate(server.created_at)}</span>
+                        </div>
+                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
+                            <span class="text-text-muted">Modified</span>
+                            <span class="text-text-primary font-medium tabular-nums">${utils.formatDate(server.last_modified)}</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Actions -->
-                <div class="flex gap-2 pt-3 border-t border-border">
-                    <button class="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 shadow-sm hover:shadow-md transition-all duration-200 font-medium text-sm flex items-center justify-center gap-2"
+                <div class="px-5 pb-5 mt-auto">
+                    <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
                             onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                             title="Configure server components">
-                        <i class="fas fa-wrench"></i> Configure
+                        <i class="fas fa-wrench text-xs"></i> Configure
                     </button>
                 </div>
             </div>

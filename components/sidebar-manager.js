@@ -70,7 +70,7 @@ class SidebarManager {
             placeholder.innerHTML = html;
 
             // Show vendor menu item only for admin/superadmin (UI-only gate; API enforces server-side)
-            if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'superadmin'])) {
+            if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const vendorMenuItem = document.getElementById('vendorMenuItem');
                 if (vendorMenuItem) vendorMenuItem.style.display = '';
             }
@@ -318,54 +318,21 @@ class SidebarManager {
      * Set active menu item based on current page
      */
     setActiveComponent() {
-        // Remove active class from all menu items
+        // Visual styling is driven entirely by the .active class (see globals.css)
         document.querySelectorAll('.menu-item').forEach(item => {
             item.classList.remove('active');
-            const link = item.querySelector('a');
-            if (link) {
-                link.classList.remove('bg-primary-50', 'text-primary');
-                link.classList.add('text-text-secondary', 'hover:bg-surface-hover', 'hover:text-text-primary');
-
-                const icon = link.querySelector('i');
-                if (icon) {
-                    icon.classList.remove('text-primary');
-                    icon.classList.add('text-text-muted');
-                }
-
-                const count = link.querySelector('.count');
-                if (count) {
-                    count.classList.remove('bg-primary-100', 'text-primary-700');
-                    count.classList.add('bg-surface-secondary', 'text-text-muted');
-                }
-            }
         });
 
         // Get current page
         const path = window.location.pathname;
         const page = path.split('/').pop() || 'index.html';
-        const componentName = page.replace('.html', '');
+        let componentName = page.replace('.html', '');
+        if (componentName === 'index') componentName = 'dashboard';
 
         // Find and activate current page
         const currentMenuItem = document.querySelector(`[data-component="${componentName}"]`);
         if (currentMenuItem) {
             currentMenuItem.classList.add('active');
-            const link = currentMenuItem.querySelector('a');
-            if (link) {
-                link.classList.remove('text-text-secondary', 'hover:bg-surface-hover', 'hover:text-text-primary');
-                link.classList.add('bg-primary-50', 'text-primary');
-
-                const icon = link.querySelector('i');
-                if (icon) {
-                    icon.classList.remove('text-text-muted');
-                    icon.classList.add('text-primary');
-                }
-
-                const count = link.querySelector('.count');
-                if (count) {
-                    count.classList.remove('bg-surface-secondary', 'text-text-muted');
-                    count.classList.add('bg-primary-100', 'text-primary-700');
-                }
-            }
         }
 
         this.activeComponent = componentName;

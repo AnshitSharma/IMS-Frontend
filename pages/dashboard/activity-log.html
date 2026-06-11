@@ -68,12 +68,12 @@
         <div class="main-container flex">
             <div id="sidebar-placeholder"></div>
 
-            <main class="main-content flex-1 p-6">
+            <main class="main-content flex-1 p-4 sm:p-6">
                 <div id="activityLogView" class="content-section active">
                     <!-- Header -->
                     <div class="content-header mb-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <div>
+                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                            <div class="min-w-0">
                                 <h2 class="text-2xl font-bold text-text-primary mb-2">
                                     <i class="fas fa-history"></i> Activity Log
                                 </h2>
@@ -119,7 +119,7 @@
                     </div>
 
                     <!-- Pagination -->
-                    <div class="flex items-center justify-between mt-4" id="logPagination">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4" id="logPagination">
                         <span id="logPaginationInfo" class="text-sm text-text-muted"></span>
                         <div class="flex gap-2">
                             <button id="logPrevBtn"
@@ -177,13 +177,13 @@
                 }
                 tbody.innerHTML = logs.map(log => `
                     <tr class="hover:bg-surface-hover transition-colors">
-                        <td class="px-4 py-3 text-sm text-text-secondary whitespace-nowrap">${formatDate(log.created_at)}</td>
-                        <td class="px-4 py-3 text-sm text-text-primary font-medium">${utils.escapeHtml(log.username || `#${log.user_id}`)}</td>
-                        <td class="px-4 py-3 text-sm text-text-secondary uppercase">${utils.escapeHtml(log.component_type || '-')}</td>
-                        <td class="px-4 py-3 text-sm text-text-muted">${log.component_id || '-'}</td>
-                        <td class="px-4 py-3">${getActionBadge(log.action)}</td>
-                        <td class="px-4 py-3 text-sm text-text-secondary max-w-xs truncate" title="${utils.escapeHtml(log.notes || '')}">${utils.escapeHtml(log.notes || '-')}</td>
-                        <td class="px-4 py-3 text-sm text-text-muted">${utils.escapeHtml(log.ip_address || '-')}</td>
+                        <td class="px-4 py-3 text-sm text-text-secondary whitespace-nowrap" data-label="Time">${formatDate(log.created_at)}</td>
+                        <td class="px-4 py-3 text-sm text-text-primary font-medium" data-label="User">${utils.escapeHtml(log.username || `#${log.user_id}`)}</td>
+                        <td class="px-4 py-3 text-sm text-text-secondary uppercase" data-label="Component Type">${utils.escapeHtml(log.component_type || '-')}</td>
+                        <td class="px-4 py-3 text-sm text-text-muted" data-label="Component ID">${log.component_id || '-'}</td>
+                        <td class="px-4 py-3" data-label="Action">${getActionBadge(log.action)}</td>
+                        <td class="px-4 py-3 text-sm text-text-secondary max-w-xs truncate" data-label="Notes" title="${utils.escapeHtml(log.notes || '')}">${utils.escapeHtml(log.notes || '-')}</td>
+                        <td class="px-4 py-3 text-sm text-text-muted" data-label="IP Address">${utils.escapeHtml(log.ip_address || '-')}</td>
                     </tr>
                 `).join('');
             }

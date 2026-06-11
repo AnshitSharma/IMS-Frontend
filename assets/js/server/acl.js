@@ -219,7 +219,7 @@ window.initACL = function () {
     let currentPermissions = {};
     let originalPermissions = {};
     let roleToDelete = null;
-    const systemRoles = ['admin', 'superadmin', 'manager', 'viewer'];
+    const systemRoles = ['admin', 'super_admin', 'manager', 'viewer'];
 
     // Fetch permissions from the server
     async function fetchPermissions() {
@@ -750,7 +750,7 @@ window.initACL = function () {
                     <i class="fas fa-user-shield"></i>
                     ${roleName}
                     ${isSystemRole ? '<span class="system-badge">System Role</span>' : ''}
-                    ${roleKey === 'superadmin' ? '<span class="superadmin-badge">All Permissions</span>' : ''}
+                    ${roleKey === 'super_admin' ? '<span class="superadmin-badge">All Permissions</span>' : ''}
                 </div>
                 <div class="delete-role-desc">${roleDesc}</div>
             `;
@@ -886,7 +886,7 @@ window.initACL = function () {
             // Show loading state
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                    <td colspan="5" class="px-4 py-8 text-center text-text-muted">
                         <i class="fas fa-spinner fa-spin mr-2"></i> Loading users...
                     </td>
                 </tr>
@@ -902,7 +902,7 @@ window.initACL = function () {
                 // Show placeholder if no data
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                        <td colspan="5" class="px-4 py-8 text-center text-text-muted">
                             <i class="fas fa-users text-4xl mb-3 block"></i>
                             <p class="text-lg font-medium mb-2">No users found</p>
                             <p class="text-sm">User access control list is empty</p>
@@ -916,10 +916,10 @@ window.initACL = function () {
             if (tableBody) {
                 tableBody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-red-600">
+                        <td colspan="5" class="px-4 py-8 text-center text-danger">
                             <i class="fas fa-exclamation-triangle text-2xl mb-2 block"></i>
                             <p>Failed to load users</p>
-                            <p class="text-sm text-slate-500 mt-1">${error.message || 'Unknown error'}</p>
+                            <p class="text-sm text-text-muted mt-1">${error.message || 'Unknown error'}</p>
                         </td>
                     </tr>
                 `;
@@ -934,7 +934,7 @@ window.initACL = function () {
         if (!users || users.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="px-4 py-8 text-center text-slate-500">
+                    <td colspan="5" class="px-4 py-8 text-center text-text-muted">
                         No users found
                     </td>
                 </tr>
@@ -943,22 +943,22 @@ window.initACL = function () {
         }
 
         tableBody.innerHTML = users.map(user => `
-            <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-4 py-3">${escapeHtml(user.username || user.name || 'N/A')}</td>
+            <tr class="hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3 font-medium text-text-primary">${escapeHtml(user.username || user.name || 'N/A')}</td>
                 <td class="px-4 py-3">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                         ${escapeHtml(user.role || 'User')}
                     </span>
                 </td>
-                <td class="px-4 py-3">${escapeHtml(user.email || 'N/A')}</td>
-                <td class="px-4 py-3 text-slate-500">${user.last_active || 'Never'}</td>
+                <td class="px-4 py-3 text-text-secondary">${escapeHtml(user.email || 'N/A')}</td>
+                <td class="px-4 py-3 text-text-muted">${user.last_active || 'Never'}</td>
                 <td class="px-4 py-3">
-                    <div class="flex items-center gap-2">
-                        <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="editACLUser(${user.id})" title="Edit">
-                            <i class="fas fa-edit"></i>
+                    <div class="flex items-center gap-1.5">
+                        <button class="w-9 h-9 rounded-lg text-text-muted hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center" onclick="editACLUser(${user.id})" title="Edit" aria-label="Edit user">
+                            <i class="fas fa-pen text-sm"></i>
                         </button>
-                        <button class="text-red-600 hover:text-red-800 transition-colors" onclick="deleteACLUser(${user.id})" title="Delete">
-                            <i class="fas fa-trash"></i>
+                        <button class="w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center" onclick="deleteACLUser(${user.id})" title="Delete" aria-label="Delete user">
+                            <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>
                 </td>

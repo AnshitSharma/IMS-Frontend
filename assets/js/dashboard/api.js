@@ -611,7 +611,7 @@ window.api = {
             }
 
             // Superadmin bypasses all permission checks
-            const isSuperadmin = this.hasRole('superadmin');
+            const isSuperadmin = this.hasRole('super_admin');
 
             if (isSuperadmin) {
                 return true;

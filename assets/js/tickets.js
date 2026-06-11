@@ -243,7 +243,7 @@ class TicketsManager {
                             <button class="btn-icon-mobile p-2 min-h-[44px] min-w-[44px] text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-primary/20" onclick="ticketsManager.viewTicket(${ticket.id})" title="View Details" aria-label="View ticket details">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn-icon-mobile p-2 min-h-[44px] min-w-[44px] text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200 ring-1 ring-transparent hover:ring-blue-200" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit" aria-label="Edit ticket">
+                            <button class="btn-icon-mobile p-2 min-h-[44px] min-w-[44px] text-text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors ring-1 ring-transparent hover:ring-primary/20" onclick="ticketsManager.editTicket(${ticket.id})" title="Edit" aria-label="Edit ticket">
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
@@ -260,23 +260,23 @@ class TicketsManager {
      */
     getStatusBadge(status) {
         const statusMap = {
-            'draft': { classes: 'bg-gray-100 text-gray-600 border-gray-200', icon: 'fa-file' },
-            'pending': { classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'fa-clock' },
-            'approved': { classes: 'bg-green-50 text-green-700 border-green-200', icon: 'fa-check' },
-            'in_progress': { classes: 'bg-blue-50 text-blue-700 border-blue-200', icon: 'fa-spinner fa-spin' },
-            'deployed': { classes: 'bg-teal-50 text-teal-700 border-teal-200', icon: 'fa-server' },
-            'completed': { classes: 'bg-green-100 text-green-800 border-green-300', icon: 'fa-check-circle' },
-            'rejected': { classes: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-times' },
-            'cancelled': { classes: 'bg-slate-100 text-slate-500 border-slate-200', icon: 'fa-ban' }
+            'draft': { classes: 'text-text-muted', icon: 'fa-file' },
+            'pending': { classes: 'text-amber-600 dark:text-amber-400', icon: 'fa-clock' },
+            'approved': { classes: 'text-green-600 dark:text-green-400', icon: 'fa-check' },
+            'in_progress': { classes: 'text-sky-600 dark:text-sky-400', icon: 'fa-circle-notch' },
+            'deployed': { classes: 'text-teal-600 dark:text-teal-400', icon: 'fa-server' },
+            'completed': { classes: 'text-green-700 dark:text-green-400', icon: 'fa-check-circle' },
+            'rejected': { classes: 'text-red-600 dark:text-red-400', icon: 'fa-times' },
+            'cancelled': { classes: 'text-text-muted', icon: 'fa-ban' }
         };
 
         const key = (status || '').toLowerCase();
-        const config = statusMap[key] || { classes: 'bg-gray-50 text-gray-500 border-gray-200', icon: 'fa-circle' };
+        const config = statusMap[key] || { classes: 'text-text-muted', icon: 'fa-circle' };
         const label = status ? status.replace(/_/g, ' ') : 'Unknown';
 
         return `
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.classes} capitalize shadow-sm">
-                <i class="fas ${config.icon} text-[10px] opacity-70"></i>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${config.classes}">
+                <i class="fas ${config.icon} text-[9px]"></i>
                 ${this.escapeHtml(label)}
             </span>
         `;
@@ -287,19 +287,19 @@ class TicketsManager {
      */
     getPriorityBadge(priority) {
         const priorityMap = {
-            'low': { classes: 'bg-slate-50 text-slate-600 border-slate-200', icon: 'fa-arrow-down' },
-            'medium': { classes: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: 'fa-minus' },
-            'high': { classes: 'bg-orange-50 text-orange-700 border-orange-200', icon: 'fa-arrow-up' },
-            'urgent': { classes: 'bg-red-50 text-red-700 border-red-200', icon: 'fa-exclamation' }
+            'low': { classes: 'text-text-muted', icon: 'fa-arrow-down' },
+            'medium': { classes: 'text-amber-600 dark:text-amber-400', icon: 'fa-minus' },
+            'high': { classes: 'text-orange-600 dark:text-orange-400', icon: 'fa-arrow-up' },
+            'urgent': { classes: 'text-red-600 dark:text-red-400', icon: 'fa-exclamation' }
         };
 
         const key = (priority || '').toLowerCase();
-        const config = priorityMap[key] || { classes: 'bg-gray-50 text-gray-500 border-gray-200', icon: 'fa-circle' };
+        const config = priorityMap[key] || { classes: 'text-text-muted', icon: 'fa-circle' };
         const label = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Normal';
 
         return `
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${config.classes} shadow-sm">
-                <i class="fas ${config.icon} text-[10px] opacity-70"></i>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${config.classes}">
+                <i class="fas ${config.icon} text-[9px]"></i>
                 ${this.escapeHtml(label)}
             </span>
         `;
@@ -903,7 +903,7 @@ class TicketsManager {
                             </select>
                         </div>
                     </div>
-                    <button type="button" class="remove-component-btn mt-6 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove">
+                    <button type="button" class="remove-component-btn mt-6 p-2 text-text-muted hover:bg-danger-light hover:text-danger rounded-lg transition-colors" title="Remove">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>

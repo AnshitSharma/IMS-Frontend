@@ -78,17 +78,17 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-6 flex flex-col overflow-hidden h-[calc(100vh-64px)]">
+            <main class="main-content flex-1 p-4 sm:p-6 flex flex-col overflow-hidden h-full">
                 <!-- Server View -->
                 <div id="serverView" class="content-section active overflow-y-auto overflow-x-hidden">
                     <div class="content-header mb-6">
                         <h2 class="text-2xl font-bold text-text-primary mb-4">Servers</h2>
                         <div class="header-actions flex flex-wrap items-center gap-3">
-                            <div class="search-filter flex flex-wrap gap-3 flex-1">
+                            <div class="search-filter flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:flex-1">
                                 <input type="text" id="serverSearch" placeholder="Search servers..."
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
                                 <select id="serverStatusFilter"
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-surface-card text-text-primary">
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] bg-surface-card text-text-primary">
                                     <option value="">All Status</option>
                                     <option value="0">Draft</option>
                                     <option value="1">Validated</option>
@@ -120,8 +120,8 @@
                 <div id="serverBuilderView" class="content-section h-full overflow-hidden">
                     <!-- Header Section -->
                     <div class="content-header mb-6 pb-4 border-b border-border-light">
-                        <div class="flex items-center justify-between">
-                            <div class="flex-1">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex-1 min-w-0">
                                 <h2 id="serverBuilderTitle"
                                     class="text-2xl md:text-3xl font-bold text-text-primary mb-1">
                                     <i class="fas fa-wrench"></i> Server Builder
@@ -130,7 +130,7 @@
                                     components</p>
                             </div>
                             <button
-                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2 whitespace-nowrap ml-4"
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2 whitespace-nowrap sm:ml-4"
                                 onclick="dashboard.showServerView()">
                                 <i class="fas fa-arrow-left"></i> Back to Servers
                             </button>

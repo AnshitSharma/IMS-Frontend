@@ -210,29 +210,29 @@ class ACLManager {
                     <div class="flex items-center gap-2">
                         <i class="fas fa-shield-alt text-primary"></i>
                         <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
-                        ${isDefault ? '<span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded">Default</span>' : ''}
+                        ${isDefault ? '<span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary text-green-600 dark:text-green-400"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Default</span>' : ''}
                     </div>
                 </td>
                 <td class="px-4 py-3 text-text-secondary text-sm" data-label="Description">
                     ${utils.escapeHtml(description)}
                 </td>
                 <td class="px-4 py-3" data-label="Assigned Admin Users">
-                    <button class="text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openRoleDetailsModal(${role.id})">
-                        <i class="fas fa-users"></i> ${usersCount} user${usersCount !== 1 ? 's' : ''}
+                    <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors" onclick="aclManager.openRoleDetailsModal(${role.id})">
+                        <i class="fas fa-users text-xs"></i> ${usersCount} user${usersCount !== 1 ? 's' : ''}
                     </button>
                 </td>
                 <td class="px-4 py-3" data-label="Permissions">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 tabular-nums">
                         ${permissionsCount} permission${permissionsCount !== 1 ? 's' : ''}
                     </span>
                 </td>
                 <td class="px-4 py-3" data-label="Actions">
-                    <div class="action-buttons flex items-center gap-2">
-                        <button class="btn-icon-mobile min-h-[44px] min-w-[44px] text-blue-600 hover:text-blue-800 transition-colors" onclick="aclManager.openEditRoleModal(${role.id})" title="Edit" aria-label="Edit role">
-                            <i class="fas fa-edit"></i>
+                    <div class="action-buttons flex items-center gap-1.5">
+                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center" onclick="aclManager.openEditRoleModal(${role.id})" title="Edit" aria-label="Edit role">
+                            <i class="fas fa-pen text-sm"></i>
                         </button>
-                        <button class="btn-icon-mobile min-h-[44px] min-w-[44px] text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleDeleteRole(${role.id})" title="Delete" aria-label="Delete role">
-                            <i class="fas fa-trash"></i>
+                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center" onclick="aclManager.handleDeleteRole(${role.id})" title="Delete" aria-label="Delete role">
+                            <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>
                 </td>
@@ -248,12 +248,12 @@ class ACLManager {
 
         // Ensure permissions is an array before iterating
         if (!Array.isArray(this.permissions)) {
-            grid.innerHTML = '<p class="text-center text-slate-500 py-4">No permissions available. Please refresh the page.</p>';
+            grid.innerHTML = '<p class="text-center text-text-muted py-4">No permissions available. Please refresh the page.</p>';
             return;
         }
 
         if (this.permissions.length === 0) {
-            grid.innerHTML = '<p class="text-center text-slate-500 py-4">No permissions found</p>';
+            grid.innerHTML = '<p class="text-center text-text-muted py-4">No permissions found</p>';
             return;
         }
 
@@ -306,7 +306,7 @@ class ACLManager {
         if (!users || users.length === 0) {
             tableBody.innerHTML = `
                 <tr>
-                    <td colspan="4" class="px-4 py-8 text-center text-slate-500">
+                    <td colspan="4" class="px-4 py-8 text-center text-text-muted">
                         No users assigned to this role
                     </td>
                 </tr>
@@ -320,8 +320,8 @@ class ACLManager {
                 <td class="px-4 py-2">${utils.escapeHtml(user.email || 'N/A')}</td>
                 <td class="px-4 py-2 text-text-secondary text-sm">${utils.formatDate(user.assigned_at) || '-'}</td>
                 <td class="px-4 py-2">
-                    <button class="text-red-600 hover:text-red-800 transition-colors" onclick="aclManager.handleRemoveUser(${user.id}, ${this.currentRole})" title="Remove">
-                        <i class="fas fa-user-minus"></i> Remove
+                    <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm text-text-muted border border-transparent hover:border-danger hover:text-danger transition-colors" onclick="aclManager.handleRemoveUser(${user.id}, ${this.currentRole})" title="Remove">
+                        <i class="fas fa-user-minus text-xs"></i> Remove
                     </button>
                 </td>
             </tr>
