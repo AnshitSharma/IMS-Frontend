@@ -919,10 +919,12 @@ class Dashboard {
                     </label>
                     <select class="form-select" id="serverLocation">
                         <option value="">-- Select Location --</option>
-                        <option value="Noida">Noida</option>
-                        <option value="Jaipur">Jaipur</option>
-                        <option value="Delhi">Delhi</option>
-                        <option value="Pune">Pune</option>
+                        <option value="Noida Yotta">Noida Yotta</option>
+                        <option value="Noida Ctrls">Noida Ctrls</option>
+                        <option value="Noida Office">Noida Office</option>
+                        <option value="Jaipur Office">Jaipur Office</option>
+                        <option value="Indore Office">Indore Office</option>
+                        <option value="Sonipat Office">Sonipat Office</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -2031,7 +2033,7 @@ class Dashboard {
         const modalContent = `
             <div style="max-width: 400px;">
                 <div class="form-group"><label class="form-label">Update Status</label><select id="bulkStatus" class="form-select"><option value="">Keep Current</option><option value="1">Available</option><option value="2">In Use</option><option value="0">Failed</option></select></div>
-                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Keep Current</option><option value="Noida">Noida</option><option value="Jaipur">Jaipur</option><option value="Delhi">Delhi</option><option value="Pune">Pune</option></select></div>
+                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Keep Current</option><option value="Noida Yotta">Noida Yotta</option><option value="Noida Ctrls">Noida Ctrls</option><option value="Noida Office">Noida Office</option><option value="Jaipur Office">Jaipur Office</option><option value="Indore Office">Indore Office</option><option value="Sonipat Office">Sonipat Office</option></select></div>
                 <div class="form-group"><label class="form-label">Update Flag</label><select id="bulkFlag" class="form-select"><option value="">Keep Current</option><option value="Backup">Backup</option><option value="Critical">Critical</option><option value="Maintenance">Maintenance</option><option value="Testing">Testing</option><option value="Production">Production</option></select></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button class="btn btn-primary" onclick="dashboard.executeBulkUpdate()">Update ${this.selectedItems.size} Items</button></div>
             </div>
@@ -2606,41 +2608,66 @@ class Dashboard {
         const tbody = document.getElementById('vendorsTableBody');
         if (!tbody) return;
 
+        const totalVendors = (this.allVendors || []).length;
+
         const infoEl = document.getElementById('vendorPaginationInfo');
         if (infoEl) {
-            infoEl.textContent = `Showing ${vendors.length} of ${(this.allVendors || []).length} vendors`;
+            infoEl.textContent = `Showing ${vendors.length} of ${totalVendors} vendor${totalVendors === 1 ? '' : 's'}`;
+        }
+
+        const countBadge = document.getElementById('vendorCountBadge');
+        if (countBadge) {
+            countBadge.textContent = totalVendors;
+            countBadge.classList.remove('hidden');
+            countBadge.classList.add('inline-flex');
         }
 
         if (vendors.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-text-muted">
-                <i class="fas fa-truck text-4xl mb-4 block opacity-50"></i>
-                <h3 class="text-lg font-semibold mb-2">No Vendors Found</h3>
-                <p class="mb-4">Add your first vendor to get started.</p>
-                <button class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg" onclick="dashboard.showAddVendorForm()">
-                    <i class="fas fa-plus"></i> Add Vendor
-                </button>
+            const isUnfiltered = totalVendors === 0;
+            const icon = isUnfiltered ? 'fa-truck' : 'fa-search';
+            const heading = isUnfiltered ? 'No vendors yet' : 'No matching vendors';
+            const message = isUnfiltered
+                ? 'Add your first vendor to start tracking suppliers.'
+                : 'Try a different name, email or phone number.';
+            const action = isUnfiltered
+                ? `<button class="inline-flex items-center gap-2 h-10 px-4 mt-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 transition-colors" onclick="dashboard.showAddVendorForm()">
+                       <i class="fas fa-plus text-xs"></i> Add Vendor
+                   </button>`
+                : '';
+            tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-16 text-center">
+                <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-surface-secondary flex items-center justify-center">
+                    <i class="fas ${icon} text-2xl text-text-muted"></i>
+                </div>
+                <h3 class="text-base font-semibold text-text-primary mb-1">${heading}</h3>
+                <p class="text-sm text-text-muted">${message}</p>
+                ${action}
             </td></tr>`;
             return;
         }
 
         tbody.innerHTML = vendors.map(vendor => `
-            <tr class="h-16 hover:bg-surface-hover transition-colors">
-                <td class="px-4 py-3 align-middle" data-label="Name">
-                    <strong class="text-text-primary">${utils.escapeHtml(vendor.name)}</strong>
+            <tr class="hover:bg-surface-hover transition-colors">
+                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Name">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary dark:text-primary-light flex items-center justify-center text-sm font-semibold uppercase">
+                            ${utils.escapeHtml((vendor.name || '?').trim().charAt(0))}
+                        </div>
+                        <span class="font-semibold text-text-primary">${utils.escapeHtml(vendor.name)}</span>
+                    </div>
                 </td>
-                <td class="px-4 py-3 align-middle text-text-secondary" data-label="Email">${utils.escapeHtml(vendor.email || '-')}</td>
-                <td class="px-4 py-3 align-middle text-text-secondary" data-label="Phone">${utils.escapeHtml(vendor.phone || '-')}</td>
-                <td class="px-4 py-3 align-middle text-text-muted" data-label="Created">${utils.formatDate(vendor.created_at)}</td>
-                <td class="px-4 py-3 align-middle" data-label="Actions">
-                    <div class="flex gap-2">
-                        <button class="action-btn p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="View Components">
-                            <i class="fas fa-boxes"></i>
+                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-secondary" data-label="Email">${vendor.email ? utils.escapeHtml(vendor.email) : '<span class="text-text-muted">—</span>'}</td>
+                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm font-mono tabular-nums text-text-secondary" data-label="Phone">${vendor.phone ? utils.escapeHtml(vendor.phone) : '<span class="font-sans text-text-muted">—</span>'}</td>
+                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-muted whitespace-nowrap" data-label="Created">${utils.formatDate(vendor.created_at)}</td>
+                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Actions">
+                    <div class="flex items-center justify-end gap-1">
+                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="View Components">
+                            <i class="fas fa-boxes text-sm"></i>
                         </button>
-                        <button class="action-btn px-3 py-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="dashboard.showEditVendorForm(${vendor.id})" title="Edit">
-                            <i class="fas fa-edit"></i>
+                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-info hover:bg-info/10 transition-colors" onclick="dashboard.showEditVendorForm(${vendor.id})" title="Edit">
+                            <i class="fas fa-edit text-sm"></i>
                         </button>
-                        <button class="action-btn px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="Delete">
-                            <i class="fas fa-trash"></i>
+                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="Delete">
+                            <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>
                 </td>

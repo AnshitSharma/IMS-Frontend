@@ -76,58 +76,69 @@
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
                 <div id="componentView" class="content-section active">
-                    <div class="content-header mb-6">
-                        <h2 id="componentTitle" class="text-2xl font-bold text-text-primary mb-4">Vendors</h2>
-                        <div
-                            class="header-actions flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                            <div class="search-filter-group flex flex-col sm:flex-row gap-3 sm:flex-1 w-full sm:w-auto">
-                                <input type="text" id="componentSearch" placeholder="Search vendors..."
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
-                            </div>
-                            <button
-                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addVendorBtn">
-                                <i class="fas fa-plus"></i> Add Vendor
-                            </button>
-                            <button
-                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshVendors">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
+                    <!-- Page Header -->
+                    <div class="content-header mb-5">
+                        <div class="flex items-baseline gap-3">
+                            <h2 id="componentTitle" class="text-2xl font-bold text-text-primary tracking-tight">Vendors</h2>
+                            <span id="vendorCountBadge"
+                                class="hidden items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums"></span>
                         </div>
+                        <p class="text-sm text-text-muted mt-1">Manage suppliers and the components linked to them.</p>
                     </div>
 
-                    <!-- Vendors Table -->
-                    <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base components-table table-responsive" id="vendorsTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Name
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Email
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Phone
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Created
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="vendorsTableBody" class="divide-y divide-border">
-                            </tbody>
-                        </table>
-                    </div>
+                    <!-- Vendors Card -->
+                    <div class="bg-surface-card border border-border rounded-lg shadow-card overflow-hidden">
+                        <!-- Toolbar -->
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-4 border-b border-border">
+                            <div class="relative w-full sm:max-w-md sm:flex-1">
+                                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none"></i>
+                                <input type="text" id="componentSearch" placeholder="Search by name, email or phone..."
+                                    class="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-surface-main text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors">
+                            </div>
+                            <div class="flex items-center gap-2 sm:ml-auto">
+                                <button id="refreshVendors" title="Refresh list"
+                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-border bg-surface-card text-text-secondary text-sm font-medium hover:bg-surface-hover hover:text-text-primary transition-colors">
+                                    <i class="fas fa-sync-alt text-xs"></i>
+                                    <span class="hidden md:inline">Refresh</span>
+                                </button>
+                                <button id="addVendorBtn"
+                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 shadow-sm transition-colors">
+                                    <i class="fas fa-plus text-xs"></i>
+                                    <span>Add Vendor</span>
+                                </button>
+                            </div>
+                        </div>
 
-                    <!-- Pagination Info -->
-                    <div class="pagination-container mt-6 flex items-center justify-between">
-                        <div class="pagination-info text-sm text-text-muted">
-                            <span id="vendorPaginationInfo"></span>
+                        <!-- Table -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full table-base components-table table-responsive" id="vendorsTable">
+                                <thead>
+                                    <tr class="border-b border-border bg-surface-secondary">
+                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                            Vendor
+                                        </th>
+                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                            Email
+                                        </th>
+                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                            Phone
+                                        </th>
+                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                            Created
+                                        </th>
+                                        <th class="px-4 sm:px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vendorsTableBody" class="divide-y divide-border [&_tr:last-child_td]:border-b-0">
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Card Footer -->
+                        <div class="px-4 sm:px-5 py-3 border-t border-border bg-surface-secondary/50">
+                            <span id="vendorPaginationInfo" class="text-xs text-text-muted tabular-nums"></span>
                         </div>
                     </div>
                 </div>

@@ -15,7 +15,6 @@ class ServerAPI {
     setToken(token) {
         this.token = token;
         sessionStorage.setItem('bdc_token', token);
-        sessionStorage.setItem('jwt_token', token); // Keep both for compatibility
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
@@ -23,7 +22,7 @@ class ServerAPI {
     clearToken() {
         this.token = null;
         sessionStorage.removeItem('bdc_token');
-        sessionStorage.removeItem('jwt_token');
+        sessionStorage.removeItem('jwt_token'); // legacy key cleanup (no longer written)
         sessionStorage.removeItem('bdc_refresh_token');
         sessionStorage.removeItem('bdc_user');
         localStorage.removeItem('bdc_token');

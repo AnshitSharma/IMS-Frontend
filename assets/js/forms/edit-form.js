@@ -64,7 +64,7 @@ class EditFormComponent {
                             <option value="">-- No Vendor --</option>
                         </select>
                     </div>
-                    ${this.renderSelectField('Location', 'Location', this.componentData.Location, [{ value: '', text: '-- Select Location --' }, { value: 'Noida', text: 'Noida' }, { value: 'Jaipur', text: 'Jaipur' }, { value: 'Delhi', text: 'Delhi' }, { value: 'Pune', text: 'Pune' }])}
+                    ${this.renderSelectField('Location', 'Location', this.componentData.Location, [{ value: '', text: '-- Select Location --' }, { value: 'Noida Yotta', text: 'Noida Yotta' }, { value: 'Noida Ctrls', text: 'Noida Ctrls' }, { value: 'Noida Office', text: 'Noida Office' }, { value: 'Jaipur Office', text: 'Jaipur Office' }, { value: 'Indore Office', text: 'Indore Office' }, { value: 'Sonipat Office', text: 'Sonipat Office' }])}
                     ${this.renderTextField('RackPosition', 'Rack Position', this.componentData.RackPosition)}
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
                     ${this.renderDateField('InstallationDate', 'Installation Date', this.componentData.InstallationDate)}
