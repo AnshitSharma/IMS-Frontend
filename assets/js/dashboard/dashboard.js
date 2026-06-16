@@ -2675,9 +2675,63 @@ class Dashboard {
         `).join('');
     }
 
+    // Component types a vendor can sell — keys match VALID_COMPONENT_TYPES in the
+    // backend; labels mirror the sidebar menu.
+    getVendorSellTypes() {
+        return [
+            { key: 'cpu', label: 'CPUs' },
+            { key: 'ram', label: 'RAM' },
+            { key: 'storage', label: 'Storage' },
+            { key: 'motherboard', label: 'Motherboards' },
+            { key: 'nic', label: 'Network Cards' },
+            { key: 'caddy', label: 'Caddies' },
+            { key: 'chassis', label: 'Chassis' },
+            { key: 'pciecard', label: 'PCIe Cards' },
+            { key: 'hbacard', label: 'HBA Cards' },
+            { key: 'sfp', label: 'SFP Modules' }
+        ];
+    }
+
+    // Builds the optional extended-profile fields shared by the Add and Edit
+    // vendor forms. `prefix` namespaces the element IDs ('vendor' | 'editVendor').
+    renderVendorExtraFields(prefix, vendor = {}) {
+        const selected = (vendor.sells || '').split(',').map(s => s.trim()).filter(Boolean);
+        const checkboxClass = `${prefix}SellsOption`;
+        const sellsCheckboxes = this.getVendorSellTypes().map(({ key, label }) => `
+            <label class="flex items-center gap-2 px-3 py-2 border border-border rounded-lg cursor-pointer hover:bg-surface-hover transition-colors">
+                <input type="checkbox" class="${checkboxClass} accent-primary" value="${key}" ${selected.includes(key) ? 'checked' : ''}>
+                <span class="text-sm text-text-primary">${label}</span>
+            </label>
+        `).join('');
+
+        return `
+            <div class="form-group mb-4">
+                <label class="block text-sm font-medium text-text-secondary mb-2">Additional Phone</label>
+                <input type="tel" id="${prefix}Phone2" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ..." value="${utils.escapeHtml(vendor.phone2 || '')}">
+            </div>
+            <div class="form-group mb-4">
+                <label class="block text-sm font-medium text-text-secondary mb-2">Address</label>
+                <textarea id="${prefix}Address" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="2" placeholder="Street, city, state, postal code...">${utils.escapeHtml(vendor.address || '')}</textarea>
+            </div>
+            <div class="form-group mb-4">
+                <label class="block text-sm font-medium text-text-secondary mb-2">Bank Details</label>
+                <textarea id="${prefix}BankDetails" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Account name, account number, IFSC, bank...">${utils.escapeHtml(vendor.bank_details || '')}</textarea>
+            </div>
+            <div class="form-group mb-4">
+                <label class="block text-sm font-medium text-text-secondary mb-2">What They Sell</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${sellsCheckboxes}</div>
+            </div>
+        `;
+    }
+
+    // Reads the checked "what they sell" options for the given form prefix.
+    getVendorSellsSelection(prefix) {
+        return Array.from(document.querySelectorAll(`.${prefix}SellsOption:checked`)).map(cb => cb.value);
+    }
+
     showAddVendorForm() {
         const formHtml = `
-            <form id="addVendorForm" class="max-w-lg">
+            <form id="addVendorForm" class="max-w-2xl">
                 <div class="form-group mb-4">
                     <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
                     <input type="text" id="vendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="Enter vendor name">
@@ -2690,6 +2744,7 @@ class Dashboard {
                     <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
                     <input type="tel" id="vendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ...">
                 </div>
+                ${this.renderVendorExtraFields('vendor')}
                 <div class="form-group mb-4">
                     <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
                     <textarea id="vendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Additional notes..."></textarea>
@@ -2719,6 +2774,10 @@ class Dashboard {
                 name,
                 email: document.getElementById('vendorEmail').value.trim(),
                 phone: document.getElementById('vendorPhone').value.trim(),
+                phone2: document.getElementById('vendorPhone2').value.trim(),
+                address: document.getElementById('vendorAddress').value.trim(),
+                bank_details: document.getElementById('vendorBankDetails').value.trim(),
+                sells: this.getVendorSellsSelection('vendor'),
                 notes: document.getElementById('vendorNotes').value.trim()
             });
             if (result.success) {
@@ -2745,7 +2804,7 @@ class Dashboard {
             }
             const vendor = result.data.vendor;
             const formHtml = `
-                <form id="editVendorForm" class="max-w-lg">
+                <form id="editVendorForm" class="max-w-2xl">
                     <input type="hidden" id="editVendorId" value="${vendor.id}">
                     <div class="form-group mb-4">
                         <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
@@ -2759,6 +2818,7 @@ class Dashboard {
                         <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
                         <input type="tel" id="editVendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" value="${utils.escapeHtml(vendor.phone || '')}">
                     </div>
+                    ${this.renderVendorExtraFields('editVendor', vendor)}
                     <div class="form-group mb-4">
                         <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
                         <textarea id="editVendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3">${utils.escapeHtml(vendor.notes || '')}</textarea>
@@ -2794,6 +2854,10 @@ class Dashboard {
                 name,
                 email: document.getElementById('editVendorEmail').value.trim(),
                 phone: document.getElementById('editVendorPhone').value.trim(),
+                phone2: document.getElementById('editVendorPhone2').value.trim(),
+                address: document.getElementById('editVendorAddress').value.trim(),
+                bank_details: document.getElementById('editVendorBankDetails').value.trim(),
+                sells: this.getVendorSellsSelection('editVendor'),
                 notes: document.getElementById('editVendorNotes').value.trim()
             });
             if (result.success) {

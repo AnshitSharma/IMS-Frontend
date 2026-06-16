@@ -42,6 +42,36 @@ class EditFormComponent {
 
         this.formContainer.innerHTML = fieldsHtml;
         this.loadVendors();
+
+        // Show/hide Fail Date based on the Status select, then sync to the
+        // current value so an already-failed component shows its date.
+        const statusSelect = document.getElementById('Status');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', () => this.toggleFailDate());
+        }
+        this.toggleFailDate();
+    }
+
+    /**
+     * Reveal Fail Date only when Status = Failed (0). Auto-fills today's
+     * date (editable) when revealed and empty; clears it otherwise so the
+     * update sends an empty value for non-failed components.
+     */
+    toggleFailDate() {
+        const status = document.getElementById('Status');
+        const group = document.getElementById('FailDateGroup');
+        const input = document.getElementById('FailDate');
+        if (!status || !group || !input) return;
+
+        if (String(status.value) === '0') {
+            group.style.display = '';
+            if (!input.value) {
+                input.value = new Date().toISOString().split('T')[0];
+            }
+        } else {
+            group.style.display = 'none';
+            input.value = '';
+        }
     }
 
     escapeHtml(str) {
@@ -69,6 +99,7 @@ class EditFormComponent {
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
                     ${this.renderDateField('InstallationDate', 'Installation Date', this.componentData.InstallationDate)}
                     ${this.renderDateField('WarrantyEndDate', 'Warranty End Date', this.componentData.WarrantyEndDate)}
+                    ${this.renderFailDateField(this.componentData.FailDate)}
                     ${this.renderTextField('Flag', 'Flag', this.componentData.Flag)}
                     <div class="form-group form-column-span-2">
                         <label for="notes" class="form-label">Notes</label>
@@ -122,6 +153,18 @@ class EditFormComponent {
             <div class="form-group">
                 <label for="${name}" class="form-label">${label}</label>
                 <input type="date" id="${name}" name="${name}" class="form-input" value="${dateValue}">
+            </div>
+        `;
+    }
+
+    // Fail Date is only shown when Status = Failed (0). The wrapper id lets
+    // toggleFailDate() show/hide it as the status changes.
+    renderFailDateField(value) {
+        const dateValue = value ? value.split(' ')[0] : '';
+        return `
+            <div class="form-group" id="FailDateGroup">
+                <label for="FailDate" class="form-label">Fail Date</label>
+                <input type="date" id="FailDate" name="FailDate" class="form-input" value="${dateValue}">
             </div>
         `;
     }

@@ -67,6 +67,12 @@ class AddComponentForm {
         // Custom specification handlers
         this.setupCustomSpecificationListeners();
 
+        // Fail Date is only relevant when the component has failed.
+        const statusSelect = document.getElementById('status');
+        if (statusSelect) {
+            statusSelect.addEventListener('change', () => this.toggleFailDate());
+        }
+
         // Form submission
         document.getElementById('addComponentForm').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -79,6 +85,28 @@ class AddComponentForm {
 
     setupCustomSpecificationListeners() {
         // No longer needed - all components use JSON-based cascading dropdowns
+    }
+
+    /**
+     * Show the Fail Date field only when Status = Failed (0).
+     * Auto-fills today's date (editable) when revealed; the field stays
+     * optional, so it is simply cleared when status moves away from Failed.
+     */
+    toggleFailDate() {
+        const status = document.getElementById('status');
+        const group = document.getElementById('failDateGroup');
+        const input = document.getElementById('failDate');
+        if (!status || !group || !input) return;
+
+        if (status.value === '0') {
+            group.classList.remove('hidden');
+            if (!input.value) {
+                input.value = new Date().toISOString().split('T')[0];
+            }
+        } else {
+            group.classList.add('hidden');
+            input.value = '';
+        }
     }
 
     async handleComponentTypeChange(componentType) {
@@ -1868,6 +1896,7 @@ class AddComponentForm {
             PurchaseDate: document.getElementById('purchaseDate').value || null,
             InstallationDate: document.getElementById('installationDate').value || null,
             WarrantyEndDate: document.getElementById('warrantyEndDate').value || null,
+            FailDate: document.getElementById('failDate').value || null,
             Flag: document.getElementById('flag').value || null,
             Notes: this.buildNotesWithSpecification()
         };
@@ -1915,6 +1944,7 @@ class AddComponentForm {
                 PurchaseDate: formData.PurchaseDate,
                 InstallationDate: formData.InstallationDate,
                 WarrantyEndDate: formData.WarrantyEndDate,
+                FailDate: formData.FailDate,
                 Flag: formData.Flag,
                 Notes: formData.Notes
             });
