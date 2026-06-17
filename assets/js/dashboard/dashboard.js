@@ -58,6 +58,13 @@ class Dashboard {
             if (typeof initTickets === 'function') {
                 initTickets();
             }
+        } else if (page === 'racks.html') {
+            // Rack View manages its own data via RackView (rack-view.js).
+            // Only load the sidebar counts here; don't treat it as a
+            // component inventory page (which would fire an invalid
+            // `racks-list` action against the API).
+            this.currentComponent = 'racks';
+            await this.loadSidebarCounts();
         } else if (page === 'activity-log.html') {
             this.currentComponent = 'activity-log';
         } else if (page === 'vendors.html') {
@@ -2253,6 +2260,7 @@ class Dashboard {
     async refresh() {
         if (this.currentComponent === 'dashboard') await this.loadDashboard();
         else if (this.currentComponent === 'servers') await this.loadServerList();
+        else if (this.currentComponent === 'racks') { if (window.rackView) await window.rackView.loadRacks(); }
         else await this.loadComponentList(this.currentComponent);
     }
 

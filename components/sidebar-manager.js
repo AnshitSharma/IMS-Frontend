@@ -75,6 +75,12 @@ class SidebarManager {
                 if (vendorMenuItem) vendorMenuItem.style.display = '';
             }
 
+            // Show Rack View only for super_admin (UI-only gate; API enforces server-side)
+            if (window.api && window.api.utils && window.api.utils.hasRole('super_admin')) {
+                const rackMenuItem = document.getElementById('rackMenuItem');
+                if (rackMenuItem) rackMenuItem.style.display = '';
+            }
+
             // Reinitialize handlers after injecting new DOM
             this.reinitMobileMenu();
 
