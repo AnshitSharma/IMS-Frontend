@@ -617,11 +617,12 @@ window.api = {
                 return true;
             }
 
-            // Check permissions array
+            // Check permissions array. A '*' entry means "all permissions"
+            // (admin role); treat it as a wildcard match.
             if (!user.permissions) {
                 return false;
             }
-            return user.permissions.includes(permission);
+            return user.permissions.includes('*') || user.permissions.includes(permission);
         },
 
         // UI-ONLY: hasRole() controls UI visibility only, not server-side access.

@@ -526,6 +526,123 @@ class ACLManager {
     }
 
     // ======================
+    // Create User
+    // ======================
+
+    openCreateUserModal() {
+        const modal = document.getElementById('createUserModal');
+        if (!modal) return;
+
+        // Reset the form
+        const form = document.getElementById('createUserForm');
+        if (form) form.reset();
+
+        // Populate the role dropdown from the already-loaded roles
+        this.populateUserRoleDropdown();
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            const modalContent = modal.querySelector('.modal');
+            if (modalContent) {
+                modalContent.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+            }
+        }, 10);
+    }
+
+    closeCreateUserModal() {
+        const modal = document.getElementById('createUserModal');
+        if (!modal) return;
+
+        modal.style.opacity = '0';
+        const modalContent = modal.querySelector('.modal');
+        if (modalContent) {
+            modalContent.style.opacity = '0';
+            modalContent.style.transform = 'scale(0.95)';
+        }
+        setTimeout(() => modal.classList.add('hidden'), 200);
+    }
+
+    populateUserRoleDropdown() {
+        const select = document.getElementById('newUserRole');
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Select a role...</option>';
+        this.roles.forEach(role => {
+            const option = document.createElement('option');
+            option.value = role.id;
+            option.textContent = role.display_name || role.name;
+            // Default the selection to the system default role when present
+            if (role.is_default) option.selected = true;
+            select.appendChild(option);
+        });
+    }
+
+    validateCreateUserForm(username, email, roleId, password, confirmPassword) {
+        if (username.length < 3 || username.length > 50) {
+            toast.error('Username must be between 3 and 50 characters');
+            return false;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            toast.error('Please enter a valid email address');
+            return false;
+        }
+        if (!roleId) {
+            toast.error('Please select a role for the user');
+            return false;
+        }
+        // Mirror the backend password policy (users-create)
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+            toast.error('Password must be 8+ characters with an uppercase letter, a number, and a special character');
+            return false;
+        }
+        if (password !== confirmPassword) {
+            toast.error('Passwords do not match');
+            return false;
+        }
+        return true;
+    }
+
+    async handleCreateUser() {
+        const username = document.getElementById('newUserUsername')?.value.trim() || '';
+        const email = document.getElementById('newUserEmail')?.value.trim() || '';
+        const roleId = document.getElementById('newUserRole')?.value || '';
+        const password = document.getElementById('newUserPassword')?.value || '';
+        const confirmPassword = document.getElementById('newUserConfirmPassword')?.value || '';
+
+        if (!this.validateCreateUserForm(username, email, roleId, password, confirmPassword)) {
+            return;
+        }
+
+        try {
+            utils.showLoading(true, 'Creating user...');
+            const result = await window.api.users.create({
+                username,
+                email,
+                password,
+                role_id: roleId
+            });
+
+            if (result && result.success) {
+                toast.success('User created successfully');
+                this.closeCreateUserModal();
+                // Refresh roles + users so counts and assignments reflect the new user
+                await this.loadInitialData();
+                await this.renderRolesTable();
+            } else {
+                toast.error(result?.message || 'Failed to create user');
+            }
+        } catch (error) {
+            console.error('Error creating user:', error);
+            toast.error(error.message || 'An error occurred while creating the user');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    // ======================
     // Event Handlers
     // ======================
 
@@ -579,6 +696,22 @@ class ACLManager {
         document.getElementById('assignUserBtn')?.addEventListener('click', () => {
             this.handleAssignUser();
         });
+
+        // Create User button — gated by the users.create permission (UI-only;
+        // the backend users-create endpoint enforces it for real).
+        const createUserBtn = document.getElementById('createUserBtn');
+        if (createUserBtn) {
+            const canCreateUser = window.api?.utils?.hasPermission('users.create');
+            if (canCreateUser) {
+                createUserBtn.classList.remove('hidden');
+            }
+            createUserBtn.addEventListener('click', () => this.openCreateUserModal());
+        }
+
+        // Create User modal close / cancel / submit
+        document.getElementById('createUserModalClose')?.addEventListener('click', () => this.closeCreateUserModal());
+        document.getElementById('cancelCreateUser')?.addEventListener('click', () => this.closeCreateUserModal());
+        document.getElementById('saveUserBtn')?.addEventListener('click', () => this.handleCreateUser());
     }
 
     attachPermissionEventListeners() {

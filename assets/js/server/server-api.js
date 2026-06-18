@@ -112,6 +112,16 @@ class ServerAPI {
         }, options);
     }
 
+    // Per-server activity log (change history) for a single configuration
+    async getServerLogs(configUuid, limit = 50, offset = 0, options = {}) {
+        return await this.makeRequest({
+            action: 'server-get-logs',
+            config_uuid: configUuid,
+            limit: limit,
+            offset: offset
+        }, options);
+    }
+
     async finalizeServerConfig(configUuid, notes = '', options = {}) {
         return await this.makeRequest({
             action: 'server-finalize-config',

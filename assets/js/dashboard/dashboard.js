@@ -53,11 +53,6 @@ class Dashboard {
             }
             // Load sidebar counts for ACL page (uses cache)
             await this.loadSidebarCounts();
-        } else if (page === 'tickets.html') {
-            this.currentComponent = 'tickets';
-            if (typeof initTickets === 'function') {
-                initTickets();
-            }
         } else if (page === 'racks.html') {
             // Rack View manages its own data via RackView (rack-view.js).
             // Only load the sidebar counts here; don't treat it as a
@@ -67,6 +62,26 @@ class Dashboard {
             await this.loadSidebarCounts();
         } else if (page === 'activity-log.html') {
             this.currentComponent = 'activity-log';
+        } else if (page === 'requests.html') {
+            // The unified Requests system is restricted to super_admin during rollout
+            // (mirrors Rack View). RequestsManager (requests.js) loads its own data;
+            // only refresh the sidebar counts here — treating this as a component page
+            // would fire an invalid inventory action against the API.
+            this.currentComponent = 'requests';
+            if (!api.utils.hasRole('super_admin')) {
+                window.location.href = 'index.html';
+                return;
+            }
+            await this.loadSidebarCounts();
+        } else if (page === 'request-types.html') {
+            // Request Types (Settings) is restricted to super_admin.
+            // RequestTypesManager (request-types.js) loads its own data.
+            this.currentComponent = 'request-types';
+            if (!api.utils.hasRole('super_admin')) {
+                window.location.href = 'index.html';
+                return;
+            }
+            await this.loadSidebarCounts();
         } else if (page === 'vendors.html') {
             this.currentComponent = 'vendors';
             if (!api.utils.hasRole(['admin', 'super_admin'])) {
@@ -641,11 +656,18 @@ class Dashboard {
                                 ${server.location || server.rack_position ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${utils.escapeHtml([server.location, server.rack_position].filter(Boolean).join(' / '))}</span></span>` : ''}
                             </div>
                         </div>
-                        <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center flex-shrink-0 transition-colors hover:bg-danger-light hover:text-danger"
-                                onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
-                                title="Delete Server" aria-label="Delete server">
-                            <i class="fas fa-trash text-xs"></i>
-                        </button>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
+                                    onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
+                                    title="View change history" aria-label="View server change history">
+                                <i class="fas fa-history text-xs"></i>
+                            </button>
+                            <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-danger-light hover:text-danger"
+                                    onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
+                                    title="Delete Server" aria-label="Delete server">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
                     </div>
                     ${server.description ? `<p class="text-sm text-text-secondary mt-3 line-clamp-2 leading-relaxed">${utils.escapeHtml(server.description)}</p>` : ''}
                 </div>
@@ -2112,6 +2134,119 @@ class Dashboard {
                 utils.showLoading(false);
             }
         }
+    }
+
+    /**
+     * Open the change-history modal for a single server. Reads from the
+     * server-get-logs endpoint (same inventory_log data as the dashboard
+     * activity log, scoped to this configuration).
+     */
+    async showServerLogs(configUuid, serverName) {
+        this.serverLogContext = { configUuid, serverName, offset: 0, limit: 50, total: 0 };
+        this.showModal(`History — ${serverName}`, '<div id="serverLogPanel"></div>');
+        await this._loadServerLogs();
+    }
+
+    async _loadServerLogs() {
+        const ctx = this.serverLogContext;
+        const panel = document.getElementById('serverLogPanel');
+        if (!ctx || !panel) return;
+
+        panel.innerHTML = `
+            <div class="py-16 text-center text-text-muted">
+                <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
+                <p class="text-sm">Loading change history…</p>
+            </div>`;
+
+        try {
+            const result = await serverAPI.getServerLogs(ctx.configUuid, ctx.limit, ctx.offset);
+            if (!result || !result.success) {
+                throw new Error(result?.message || 'Failed to load change history');
+            }
+            ctx.total = result.data?.pagination?.total || 0;
+            panel.innerHTML = this._renderServerLogs(result.data?.logs || []);
+        } catch (err) {
+            panel.innerHTML = `
+                <div class="py-16 text-center">
+                    <i class="fas fa-exclamation-circle text-2xl text-danger mb-3"></i>
+                    <p class="text-sm text-text-secondary">${utils.escapeHtml(err.message || 'Failed to load change history')}</p>
+                </div>`;
+        }
+    }
+
+    changeServerLogPage(delta) {
+        const ctx = this.serverLogContext;
+        if (!ctx) return;
+        const next = ctx.offset + delta * ctx.limit;
+        if (next < 0 || next >= ctx.total) return;
+        ctx.offset = next;
+        this._loadServerLogs();
+    }
+
+    _serverLogBadge(action) {
+        if (!action) return '<span class="text-text-muted">—</span>';
+        const lower = action.toLowerCase();
+        let cls = 'bg-surface-hover text-text-secondary';
+        if (lower.includes('created') || lower.includes('finalized')) cls = 'bg-green-100 text-green-700';
+        else if (lower.includes('added')) cls = 'bg-blue-100 text-blue-700';
+        else if (lower.includes('removed') || lower.includes('deleted')) cls = 'bg-red-100 text-red-600';
+        return `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}">${utils.escapeHtml(action)}</span>`;
+    }
+
+    _renderServerLogs(logs) {
+        if (!logs.length) {
+            return `
+                <div class="py-16 text-center">
+                    <div class="w-14 h-14 mx-auto rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
+                        <i class="fas fa-history text-primary text-xl"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-text-primary mb-1">No history yet</h3>
+                    <p class="text-sm text-text-secondary">No changes have been recorded for this server.</p>
+                </div>`;
+        }
+
+        const rows = logs.map(log => `
+            <tr class="hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3 text-text-secondary whitespace-nowrap align-top" data-label="Time">${utils.formatDate(log.created_at, 'long')}</td>
+                <td class="px-4 py-3 text-text-primary font-medium align-top" data-label="User">${utils.escapeHtml(log.username || ('#' + log.user_id))}</td>
+                <td class="px-4 py-3 align-top" data-label="Action">${this._serverLogBadge(log.action)}</td>
+                <td class="px-4 py-3 text-text-secondary align-top" data-label="Details">${utils.escapeHtml(log.notes || '—')}</td>
+            </tr>
+        `).join('');
+
+        const ctx = this.serverLogContext;
+        const start = ctx.total === 0 ? 0 : ctx.offset + 1;
+        const end = Math.min(ctx.offset + ctx.limit, ctx.total);
+        const pager = ctx.total > ctx.limit ? `
+            <div class="flex items-center justify-between gap-3 mt-4">
+                <span class="text-xs text-text-muted">Showing ${start}–${end} of ${ctx.total}</span>
+                <div class="flex gap-2">
+                    <button onclick="dashboard.changeServerLogPage(-1)" ${ctx.offset === 0 ? 'disabled' : ''}
+                        class="px-3 py-1.5 text-xs bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-1"></i> Previous
+                    </button>
+                    <button onclick="dashboard.changeServerLogPage(1)" ${end >= ctx.total ? 'disabled' : ''}
+                        class="px-3 py-1.5 text-xs bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>` : '';
+
+        return `
+            <div class="overflow-x-auto rounded-lg border border-border">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-hover border-b border-border">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">User</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Action</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border">${rows}</tbody>
+                </table>
+            </div>
+            ${pager}`;
     }
 
     showModal(title, content) {

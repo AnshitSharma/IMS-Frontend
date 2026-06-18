@@ -7,13 +7,7 @@ const API_CONFIG = {
 };
 
 // DOM Elements
-const loginToggle = document.getElementById('loginToggle');
-const registerToggle = document.getElementById('registerToggle');
-const toggleIndicator = document.querySelector('.toggle-indicator');
-const loginForm = document.getElementById('loginForm');
-const registerForm = document.getElementById('registerForm');
 const loginFormElement = document.getElementById('loginFormElement');
-const registerFormElement = document.getElementById('registerFormElement');
 const alertMessage = document.getElementById('alertMessage');
 
 // Security & Rate Limiting Config
@@ -44,8 +38,6 @@ let lockoutUntil = parseInt(localStorage.getItem('bdc_lockout_until') || '0');
 
 // Password Toggle Elements
 const toggleLoginPassword = document.getElementById('toggleLoginPassword');
-const toggleRegisterPassword = document.getElementById('toggleRegisterPassword');
-const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
 
 // Initialize Application
 document.addEventListener('DOMContentLoaded', function () {
@@ -53,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initializeApp() {
-    setupFormToggle();
     setupPasswordToggles();
     setupFormValidation();
     setupFormSubmissions();
@@ -62,53 +53,11 @@ function initializeApp() {
     checkLockoutStatus(); // Check if user is currently locked out
 }
 
-// Form Toggle Functionality
-function setupFormToggle() {
-    loginToggle.addEventListener('click', () => switchToLogin());
-    registerToggle.addEventListener('click', () => switchToRegister());
-}
-
-function switchToLogin() {
-    loginToggle.classList.add('active');
-    registerToggle.classList.remove('active');
-    toggleIndicator.classList.remove('register');
-
-    loginForm.classList.add('active');
-    registerForm.classList.remove('active');
-
-    clearForm(registerFormElement);
-    hideAlert();
-}
-
-function switchToRegister() {
-    registerToggle.classList.add('active');
-    loginToggle.classList.remove('active');
-    toggleIndicator.classList.add('register');
-
-    registerForm.classList.add('active');
-    loginForm.classList.remove('active');
-
-    clearForm(loginFormElement);
-    hideAlert();
-}
-
 // Password Toggle Functionality
 function setupPasswordToggles() {
     if (toggleLoginPassword) {
         toggleLoginPassword.addEventListener('click', () => {
             togglePasswordVisibility('loginPassword', toggleLoginPassword);
-        });
-    }
-
-    if (toggleRegisterPassword) {
-        toggleRegisterPassword.addEventListener('click', () => {
-            togglePasswordVisibility('registerPassword', toggleRegisterPassword);
-        });
-    }
-
-    if (toggleConfirmPassword) {
-        toggleConfirmPassword.addEventListener('click', () => {
-            togglePasswordVisibility('confirmPassword', toggleConfirmPassword);
         });
     }
 }
@@ -139,22 +88,6 @@ function setupFormValidation() {
         input.addEventListener('blur', () => validateField(input));
         input.addEventListener('input', () => clearFieldError(input));
     });
-
-    // Real-time password confirmation validation
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    const registerPasswordInput = document.getElementById('registerPassword');
-
-    if (confirmPasswordInput && registerPasswordInput) {
-        confirmPasswordInput.addEventListener('input', () => {
-            validatePasswordMatch(registerPasswordInput, confirmPasswordInput);
-        });
-
-        registerPasswordInput.addEventListener('input', () => {
-            if (confirmPasswordInput.value) {
-                validatePasswordMatch(registerPasswordInput, confirmPasswordInput);
-            }
-        });
-    }
 }
 
 function validateField(input) {
@@ -174,14 +107,6 @@ function validateField(input) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(value)) {
             setFieldError(input, 'Please enter a valid email address');
-            return false;
-        }
-    }
-
-    // Password validation
-    if (input.type === 'password' && input.id === 'registerPassword') {
-        if (value.length < 6) {
-            setFieldError(input, 'Password must be at least 6 characters long');
             return false;
         }
     }
@@ -260,16 +185,6 @@ function handleFailedLogin() {
     }
 }
 
-function validatePasswordMatch(passwordInput, confirmInput) {
-    if (passwordInput.value !== confirmInput.value) {
-        setFieldError(confirmInput, 'Passwords do not match');
-        return false;
-    } else {
-        clearFieldError(confirmInput);
-        return true;
-    }
-}
-
 function setFieldError(input, message) {
     clearFieldError(input);
 
@@ -306,7 +221,6 @@ function clearFieldError(input) {
 // Form Submissions
 function setupFormSubmissions() {
     loginFormElement.addEventListener('submit', handleLogin);
-    registerFormElement.addEventListener('submit', handleRegister);
 }
 
 async function handleLogin(e) {
@@ -396,48 +310,6 @@ async function handleLogin(e) {
     }
 }
 
-async function handleRegister(e) {
-    e.preventDefault();
-
-    const formData = new FormData(registerFormElement);
-    const username = formData.get('username').trim();
-    const email = formData.get('email').trim();
-    const password = formData.get('password').trim();
-    const confirmPassword = formData.get('confirmPassword').trim();
-
-    // Validate form
-    if (!validateRegisterForm(username, email, password, confirmPassword)) {
-        return;
-    }
-
-    // Show loading state
-    setButtonLoading('registerBtn', true);
-
-    try {
-        const response = await registerUser(username, email, password);
-
-        if (response.success) {
-            showAlert('success', 'Registration successful! Please login with your credentials.', 'fas fa-check-circle');
-
-            // Clear form and auto-saved data
-            clearForm(registerFormElement);
-            clearAutoSavedData();
-
-            // Switch to login form
-            setTimeout(() => {
-                switchToLogin();
-            }, 2000);
-        } else {
-            showAlert('error', response.message || 'Registration failed. Please try again.', 'fas fa-times-circle');
-        }
-    } catch (error) {
-        console.error('Registration error:', error);
-        showAlert('error', error.message || 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');
-    } finally {
-        setButtonLoading('registerBtn', false);
-    }
-}
-
 // Forgot Password Modal
 function setupForgotPassword() {
     const link = document.getElementById('forgotPasswordLink');
@@ -515,34 +387,6 @@ function validateLoginForm(username, password) {
     return isValid;
 }
 
-function validateRegisterForm(username, email, password, confirmPassword) {
-    let isValid = true;
-
-    const usernameInput = document.getElementById('registerUsername');
-    const emailInput = document.getElementById('registerEmail');
-    const passwordInput = document.getElementById('registerPassword');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-
-    // Validate all fields
-    if (!validateField(usernameInput)) isValid = false;
-    if (!validateField(emailInput)) isValid = false;
-    if (!validateField(passwordInput)) isValid = false;
-
-    // Validate password match
-    if (!validatePasswordMatch(passwordInput, confirmPasswordInput)) {
-        isValid = false;
-    }
-
-    // Check terms agreement
-    const agreeTerms = document.getElementById('agreeTerms');
-    if (agreeTerms && !agreeTerms.checked) {
-        showAlert('warning', 'Please agree to the Terms & Conditions', 'fas fa-exclamation-triangle');
-        isValid = false;
-    }
-
-    return isValid;
-}
-
 // Helper: extract API message from a non-ok fetch response
 async function parseAPIError(response) {
     try {
@@ -576,26 +420,6 @@ async function loginUser(username, password, rememberMe = false) {
         } catch (_) {}
         throw new Error(serverMsg);
     }
-
-    if (!response.ok) {
-        throw await parseAPIError(response);
-    }
-
-    return await response.json();
-}
-
-async function registerUser(username, email, password) {
-    const formData = new URLSearchParams();
-    formData.append('action', 'auth-register');
-    formData.append('username', username);
-    formData.append('email', email);
-    formData.append('password', password);
-
-    const response = await fetch(API_CONFIG.baseURL, {
-        method: 'POST',
-        headers: API_CONFIG.headers,
-        body: formData
-    });
 
     if (!response.ok) {
         throw await parseAPIError(response);
@@ -663,14 +487,6 @@ function setButtonLoading(buttonId, loading) {
         button.classList.remove('loading');
         button.disabled = false;
     }
-}
-
-function clearForm(form) {
-    if (!form) return;
-
-    form.reset();
-    const inputs = form.querySelectorAll('input');
-    inputs.forEach(input => clearFieldError(input));
 }
 
 function showAlert(type, message, iconClass) {

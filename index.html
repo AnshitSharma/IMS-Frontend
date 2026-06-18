@@ -232,21 +232,6 @@
                     </div>
                 </div>
 
-                <!-- Toggle Switch -->
-                <div class="auth-toggle flex bg-surface-secondary p-1 rounded-md mb-10 relative">
-                    <!-- Keep element for JS compatibility but hide it visually -->
-                    <div class="toggle-indicator hidden" style="display: none;"></div>
-
-                    <button id="loginToggle"
-                        class="active flex-1 py-2 text-sm font-medium rounded relative z-10 transition-colors duration-150">
-                        Sign In
-                    </button>
-                    <button id="registerToggle"
-                        class="flex-1 py-2 text-sm font-medium rounded relative z-10 transition-colors duration-150 border border-transparent">
-                        Sign Up
-                    </button>
-                </div>
-
                 <!-- Login Form -->
                 <div id="loginForm" class="form-container active">
                     <div class="mb-8">
@@ -296,75 +281,6 @@
                             <span class="relative z-10 btn-text flex items-center justify-center gap-2">
                                 Sign in to console
                             </span>
-                            <div class="btn-loader"></div>
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Register Form -->
-                <div id="registerForm" class="form-container hidden">
-                    <div class="mb-8">
-                        <h2 class="text-2xl font-semibold text-text-primary mb-2 tracking-tight">Create account</h2>
-                        <p class="text-text-muted text-sm">Set up a new administrative profile.</p>
-                    </div>
-
-                    <form id="registerFormElement" class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Username</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-user text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="text" id="registerUsername" name="username" placeholder="Username" required maxlength="50"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
-                            </div>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Work Email</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-envelope text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="email" id="registerEmail" name="email" placeholder="name@company.com" required maxlength="100"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
-                            </div>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Password</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="password" id="registerPassword" name="password" placeholder="Password"
-                                    required maxlength="128" autocomplete="new-password"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
-                            </div>
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Confirm Password</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="password" id="confirmPassword" name="confirmPassword"
-                                    placeholder="Confirm Password" required maxlength="128" autocomplete="new-password"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
-                                <button type="button" id="toggleConfirmPassword"
-                                    class="text-text-disabled hover:text-text-secondary transition-colors p-1">
-                                    <i class="fas fa-eye text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="pt-1">
-                            <label class="custom-checkbox flex items-center gap-2 cursor-pointer group text-sm select-none">
-                                <input type="checkbox" id="agreeTerms" required class="sr-only">
-                                <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
-                                    <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity"></i>
-                                </div>
-                                <span class="text-text-secondary">I agree to the <a href="#"
-                                        class="text-primary hover:text-primary-dark font-medium transition-colors">Terms &amp; Protocols</a></span>
-                            </label>
-                        </div>
-
-                        <button type="submit" id="registerBtn"
-                            class="w-full bg-primary text-white text-sm font-semibold py-3 rounded-md hover:bg-primary-dark transition-colors duration-150 relative mt-2">
-                            <span class="relative z-10 btn-text">Create account</span>
                             <div class="btn-loader"></div>
                         </button>
                     </form>

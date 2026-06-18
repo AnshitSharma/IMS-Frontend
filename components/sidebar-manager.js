@@ -81,6 +81,17 @@ class SidebarManager {
                 if (rackMenuItem) rackMenuItem.style.display = '';
             }
 
+            // Show Requests + the Settings section (Request Types) only for super_admin
+            // during rollout (UI-only gate; the API enforces super_admin server-side).
+            if (window.api && window.api.utils && window.api.utils.hasRole('super_admin')) {
+                const requestsMenuItem = document.getElementById('requestsMenuItem');
+                if (requestsMenuItem) requestsMenuItem.style.display = '';
+                const settingsSection = document.getElementById('settingsSection');
+                if (settingsSection) settingsSection.style.display = '';
+                const requestTypesMenuItem = document.getElementById('requestTypesMenuItem');
+                if (requestTypesMenuItem) requestTypesMenuItem.style.display = '';
+            }
+
             // Reinitialize handlers after injecting new DOM
             this.reinitMobileMenu();
 

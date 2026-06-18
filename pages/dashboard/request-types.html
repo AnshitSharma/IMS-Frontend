@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>Request Types - BDC Inventory</title>
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* Step flow "spine" — the signature element. Step chips connected by a
+           directional rail to read as the request's actual flow. Uses the app's
+           CSS variables so it tracks light/dark themes automatically. */
+        .flow-rail { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
+        .flow-node {
+            position: relative; display: flex; flex-direction: column; gap: 2px;
+            padding: 8px 12px; border: 1px solid var(--color-border, #e5e7eb);
+            border-radius: 10px; background: var(--color-surface-secondary, #f8fafc);
+            min-width: 0;
+        }
+        .flow-node + .flow-node { margin-left: 26px; }
+        .flow-node + .flow-node::before {
+            content: "\f054"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+            position: absolute; left: -20px; top: 50%; transform: translateY(-50%);
+            font-size: 10px; color: var(--color-text-muted, #94a3b8);
+        }
+        .flow-node .flow-stage-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
+        .flow-node .flow-owner { font-size: 10px; }
+        @media (max-width: 640px) {
+            .flow-node { width: 100%; }
+            .flow-node + .flow-node { margin-left: 0; margin-top: 22px; }
+            .flow-node + .flow-node::before { content: "\f078"; left: 50%; top: -18px; transform: translateX(-50%); }
+        }
+    </style>
+</head>
+
+<body class="bg-surface-main">
+    <!-- Navigation Header -->
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button
+                    class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                    id="hamburgerBtn" aria-label="Toggle Menu">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <a href="./index.html" class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
+                    <i class="fas fa-server"></i>
+                    <span>BDC Inventory</span>
+                </a>
+            </div>
+
+            <div class="nav-menu flex items-center gap-4">
+                <div class="nav-user flex items-center gap-3">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+                    <div class="user-info text-right hidden md:block">
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
+                    </div>
+                    <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown relative">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                            <a href="#" id="changePassword" class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-key"></i> Change Password
+                            </a>
+                            <a href="#" id="logoutBtn" class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <div id="sidebar-placeholder"></div>
+
+            <main class="main-content flex-1 p-4 sm:p-6">
+                <div id="pipelineTypesView" class="content-section active">
+                    <div class="content-header mb-6">
+                        <div class="flex flex-wrap items-start justify-between gap-3 mb-1">
+                            <div>
+                                <h2 class="text-2xl font-bold text-text-primary">Request Types</h2>
+                                <p class="text-sm text-text-muted mt-1">Define the steps a request flows through and who owns each one.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <a href="requests.html" class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] flex items-center gap-2">
+                                    <i class="fas fa-inbox"></i> <span class="hidden sm:inline">Requests</span>
+                                </a>
+                                <button id="refreshTypesBtn"
+                                    class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] min-w-[44px]"
+                                    title="Refresh">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button id="createTypeBtn"
+                                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 min-h-[44px]">
+                                    <i class="fas fa-plus"></i> New Type
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loading -->
+                    <div id="typesLoadingState" class="text-center py-12 hidden">
+                        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                        <p class="text-text-muted">Loading request types...</p>
+                    </div>
+
+                    <!-- Error -->
+                    <div id="typesErrorState" class="text-center py-12 bg-surface-card rounded-lg hidden">
+                        <i class="fas fa-exclamation-triangle text-4xl text-danger mb-4"></i>
+                        <p class="text-text-primary font-semibold mb-2">Couldn't load request types</p>
+                        <p id="typesErrorMessage" class="text-text-muted mb-4"></p>
+                        <button onclick="requestTypesManager.load()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Try Again</button>
+                    </div>
+
+                    <!-- Empty -->
+                    <div id="typesEmptyState" class="text-center py-16 bg-surface-card rounded-lg border border-dashed border-border hidden">
+                        <i class="fas fa-sliders text-4xl text-text-muted mb-4"></i>
+                        <p class="text-text-primary font-semibold mb-2">No request types yet</p>
+                        <p class="text-text-muted mb-4">Create one to describe how a kind of request moves through your team.</p>
+                        <button id="createFirstTypeBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
+                            <i class="fas fa-plus mr-2"></i>New Type
+                        </button>
+                    </div>
+
+                    <!-- Types grid -->
+                    <div id="typesGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Type editor modal -->
+    <div id="modalContainer" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden" style="z-index: 2000;">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[92vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">New Request Type</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(92vh-120px)]" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="../../components/global-loading.js"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../assets/js/requests/request-types.js"></script>
+    <script src="../../components/sidebar-manager.js"></script>
+    <script src="../../assets/js/dashboard/dashboard.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof initRequestTypes === 'function') {
+                initRequestTypes();
+            }
+        });
+    </script>
+    <script>
+        (function () {
+            function updateThemeIcon(theme) {
+                const icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+            function initTheme() {
+                if (typeof utils !== 'undefined' && utils.theme) {
+                    utils.theme.init();
+                    updateThemeIcon(utils.theme.get());
+                }
+            }
+            function handleThemeToggle() {
+                if (typeof utils === 'undefined' || !utils.theme) return;
+                const newTheme = utils.theme.toggle();
+                updateThemeIcon(newTheme);
+                if (typeof toast !== 'undefined') {
+                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTheme);
+            } else {
+                initTheme();
+            }
+            const btn = document.getElementById('themeToggleBtn');
+            if (btn) btn.addEventListener('click', handleThemeToggle);
+        })();
+    </script>
+</body>
+
+</html>
