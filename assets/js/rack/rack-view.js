@@ -43,8 +43,8 @@ class RackView {
             return false;
         }
 
-        // Rack View is restricted to super_admin (UI guard; API enforces server-side).
-        if (!(window.api && window.api.utils && window.api.utils.hasRole('super_admin'))) {
+        // Rack View is accessible to admin and super_admin (UI guard; API enforces server-side).
+        if (!(window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin']))) {
             if (window.toast) toast.error('You do not have access to Rack View.');
             window.location.href = 'index.html';
             return false;

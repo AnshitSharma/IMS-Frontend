@@ -63,21 +63,21 @@ class Dashboard {
         } else if (page === 'activity-log.html') {
             this.currentComponent = 'activity-log';
         } else if (page === 'requests.html') {
-            // The unified Requests system is restricted to super_admin during rollout
-            // (mirrors Rack View). RequestsManager (requests.js) loads its own data;
-            // only refresh the sidebar counts here — treating this as a component page
-            // would fire an invalid inventory action against the API.
+            // The unified Requests system is accessible to admin and super_admin.
+            // RequestsManager (requests.js) loads its own data; only refresh the
+            // sidebar counts here — treating this as a component page would fire
+            // an invalid inventory action against the API.
             this.currentComponent = 'requests';
-            if (!api.utils.hasRole('super_admin')) {
+            if (!api.utils.hasRole(['admin', 'super_admin'])) {
                 window.location.href = 'index.html';
                 return;
             }
             await this.loadSidebarCounts();
         } else if (page === 'request-types.html') {
-            // Request Types (Settings) is restricted to super_admin.
+            // Request Types (Settings) is accessible to admin and super_admin.
             // RequestTypesManager (request-types.js) loads its own data.
             this.currentComponent = 'request-types';
-            if (!api.utils.hasRole('super_admin')) {
+            if (!api.utils.hasRole(['admin', 'super_admin'])) {
                 window.location.href = 'index.html';
                 return;
             }

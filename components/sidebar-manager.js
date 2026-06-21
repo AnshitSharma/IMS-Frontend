@@ -75,15 +75,15 @@ class SidebarManager {
                 if (vendorMenuItem) vendorMenuItem.style.display = '';
             }
 
-            // Show Rack View only for super_admin (UI-only gate; API enforces server-side)
-            if (window.api && window.api.utils && window.api.utils.hasRole('super_admin')) {
+            // Show Rack View for admin and super_admin (UI-only gate; API enforces server-side)
+            if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const rackMenuItem = document.getElementById('rackMenuItem');
                 if (rackMenuItem) rackMenuItem.style.display = '';
             }
 
-            // Show Requests + the Settings section (Request Types) only for super_admin
-            // during rollout (UI-only gate; the API enforces super_admin server-side).
-            if (window.api && window.api.utils && window.api.utils.hasRole('super_admin')) {
+            // Show Requests + the Settings section (Request Types) for admin and super_admin
+            // (UI-only gate; the API enforces the role check server-side).
+            if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const requestsMenuItem = document.getElementById('requestsMenuItem');
                 if (requestsMenuItem) requestsMenuItem.style.display = '';
                 const settingsSection = document.getElementById('settingsSection');
