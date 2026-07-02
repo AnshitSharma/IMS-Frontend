@@ -4,4 +4,5 @@ CLAUDE.md
 .env.*
 .agent/
 *.md
-.claude/i m s - f t p . z i p  
+.claude/i m s - f t p . z i p
+.vscode/
