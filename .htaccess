@@ -85,8 +85,14 @@ upgrade-insecure-requests"
         Header always set Expires "0"
     </FilesMatch>
 
-    # Cache static assets aggressively (they are versioned by query string in the app)
-    <FilesMatch "\.(css|js|woff|woff2|ttf|eot|svg|png|jpg|jpeg|gif|ico)$">
+    # Interim fix: JS/CSS are NOT content-hashed/versioned, so they can't be cached long-term
+    # without risking stale code after a deploy. Short max-age until a real build step exists.
+    <FilesMatch "\.(css|js)$">
+        Header always set Cache-Control "public, max-age=300"
+    </FilesMatch>
+
+    # Fonts/images/icons rarely change and aren't part of the deploy-freshness risk
+    <FilesMatch "\.(woff|woff2|ttf|eot|svg|png|jpg|jpeg|gif|ico)$">
         Header always set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
 </IfModule>

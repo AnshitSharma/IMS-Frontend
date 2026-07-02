@@ -168,12 +168,6 @@ class Dashboard {
             });
         }
 
-        // Global search
-        const globalSearch = document.getElementById('globalSearch');
-        if (globalSearch) {
-            globalSearch.addEventListener('input', utils.debounce((e) => this.handleGlobalSearch(e.target.value), 500));
-        }
-
         // Select all
         const selectAllComponents = document.getElementById('selectAllComponents');
         if (selectAllComponents) {
@@ -783,17 +777,6 @@ class Dashboard {
         }
     }
 
-    async handleGlobalSearch(query) {
-        if (query.trim().length < 2) return;
-        try {
-            const result = await api.search.global(query, { limit: 10 });
-            if (result.success && result.data.results.length > 0) {
-            }
-        } catch (error) {
-            console.error('Global search error:', error);
-        }
-    }
-
     handleItemSelection(checkbox) {
         const id = parseInt(checkbox.value);
         if (checkbox.checked) this.selectedItems.add(id); else this.selectedItems.delete(id);
@@ -1053,7 +1036,7 @@ class Dashboard {
                     if (result.success) {
                         utils.showAlert('Server created successfully!', 'success');
                         this.closeModal();
-                        await this.loadServerList();
+                        await this.loadServerList(true);
                         await this.loadDashboard();
                         // Open server builder view if config_uuid is returned
                         if (result.data && result.data.config_uuid) {
@@ -1601,7 +1584,7 @@ class Dashboard {
                 utils.showAlert(`${typeInfo.name} added successfully`, 'success');
                 await this.loadServerConfiguration(this.currentServerConfig.uuid);
                 // Update server list in background to refresh component counts
-                this.loadServerList().catch(err => console.error('Error refreshing server list:', err));
+                this.loadServerList(true).catch(err => console.error('Error refreshing server list:', err));
             } else {
                 utils.showAlert(result.message || 'Failed to add component', 'error');
             }
@@ -1631,7 +1614,7 @@ class Dashboard {
                 utils.showAlert('Component removed successfully', 'success');
                 await this.loadServerConfiguration(this.currentServerConfig.uuid);
                 // Update server list in background to refresh component counts
-                this.loadServerList().catch(err => console.error('Error refreshing server list:', err));
+                this.loadServerList(true).catch(err => console.error('Error refreshing server list:', err));
             } else {
                 utils.showAlert(result.message || 'Failed to remove component', 'error');
             }
@@ -2365,7 +2348,7 @@ class Dashboard {
                 const result = await api.servers.deleteConfig(configUuid);
                 if (result.success) {
                     utils.showAlert('Server deleted successfully', 'success');
-                    await this.loadServerList();
+                    await this.loadServerList(true);
                     await this.loadDashboard();
                 }
             } catch (error) {
@@ -3111,6 +3094,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         dashboard = new Dashboard();
         dashboard.handleInitialView();
         window.dashboard = dashboard;
+
+        // Auto-refresh only on dashboard page, store interval for cleanup
+        if (dashboard.currentComponent === 'dashboard') {
+            dashboard._refreshInterval = setInterval(() => {
+                if (!document.hidden) dashboard.loadDashboard();
+            }, 5 * 60 * 1000);
+            window.addEventListener('beforeunload', () => clearInterval(dashboard._refreshInterval));
+        }
     } catch (error) {
         console.error('Failed to initialize dashboard:', error);
         utils.showAlert('Failed to initialize dashboard. Please refresh the page.', 'error');
@@ -3118,12 +3109,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('popstate', () => { if (dashboard) dashboard.handleInitialView(); });
-// Auto-refresh only on dashboard page, store interval for cleanup
-if (dashboard && dashboard.currentComponent === 'dashboard') {
-    dashboard._refreshInterval = setInterval(() => {
-        if (!document.hidden) dashboard.loadDashboard();
-    }, 5 * 60 * 1000);
-    window.addEventListener('beforeunload', () => clearInterval(dashboard._refreshInterval));
-}
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Dashboard;

@@ -143,13 +143,6 @@ class SharedNavbar {
             });
         }
 
-        // Global search (if needed in specific pages)
-        const globalSearch = document.getElementById('globalSearch');
-        if (globalSearch) {
-            globalSearch.addEventListener('input', utils.debounce((e) => {
-                this.handleGlobalSearch(e.target.value);
-            }, 300));
-        }
     }
 
     /**
@@ -181,14 +174,6 @@ class SharedNavbar {
 
         // Redirect to login
         window.location.href = '/ims_frontend/';
-    }
-
-    /**
-     * Handle global search (override this in specific pages if needed)
-     */
-    handleGlobalSearch(query) {
-        // This can be overridden by specific pages
-        // For now, just log it
     }
 
     /**

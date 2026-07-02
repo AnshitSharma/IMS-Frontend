@@ -18,8 +18,12 @@ class RackAPI {
                     formData.append(key, value);
                 }
             }
+            const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
             const response = await axios.post(this.baseURL, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'Authorization': token ? `Bearer ${token}` : '',
+                },
                 ...options
             });
             return response.data;
