@@ -9,7 +9,7 @@
 window.BDC_CONFIG = {
     // API Configuration
     API_BASE_URL: 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php',
-    FRONTEND_LOGIN_URL: 'https://ims.bdcms.bharatdatacenter.com/Ims_frontend/',
+    FRONTEND_LOGIN_URL: 'https://ims.bdcms.bharatdatacenter.com/',
 
     // Alternative endpoints (uncomment to switch)
     // API_BASE_URL: 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php',

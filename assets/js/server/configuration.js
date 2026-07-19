@@ -5,7 +5,7 @@
 
 class ConfigurationPage {
     constructor() {
-        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         this.currentComponentType = 'cpu';
         this.selectedComponents = [];
         this.parentNicUuid = null; // Parent NIC UUID for SFP modules

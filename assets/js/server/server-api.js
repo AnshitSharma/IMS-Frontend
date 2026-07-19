@@ -3,7 +3,7 @@ class ServerAPI {
     constructor() {
         // Uses centralized config (see assets/js/config.js)
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
-        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_frontend/';
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         // Get token from bdc_token key (current standard)
         this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
 

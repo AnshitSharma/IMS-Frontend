@@ -173,7 +173,7 @@ class SharedNavbar {
         localStorage.removeItem('bdc_remember_me');
 
         // Redirect to login
-        window.location.href = '/ims_frontend/';
+        window.location.href = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
     }
 
     /**

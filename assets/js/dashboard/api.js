@@ -6,7 +6,7 @@
 window.api = {
     // Base configuration - Uses centralized config (see assets/js/config.js)
     baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php',
-    loginURL: window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_frontend/',
+    loginURL: window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/',
 
     // SECURITY NOTE: Auth tokens are stored in sessionStorage rather than localStorage.
     // sessionStorage tokens expire when the tab is closed, limiting the exposure window

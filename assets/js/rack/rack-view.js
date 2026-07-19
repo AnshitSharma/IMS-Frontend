@@ -5,7 +5,7 @@
  */
 class RackView {
     constructor() {
-        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_frontend/';
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         this.racks = [];
         this.selectedRackUuid = null;
         this.currentRack = null;

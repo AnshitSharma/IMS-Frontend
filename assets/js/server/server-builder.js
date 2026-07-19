@@ -19,7 +19,7 @@ class ServerBuilder {
     }
 
     constructor() {
-        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/IMS/Ims_frontend/';
+        this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         this.currentConfig = null;
         this.motherboardDetails = null; // Will store motherboard JSON data
         this.networkConfig = null; // Will store network/NIC config from API
