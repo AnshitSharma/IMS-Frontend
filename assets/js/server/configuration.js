@@ -1433,7 +1433,7 @@ class ConfigurationPage {
             `;
             case 'ram':
                 return `
-                <td class="${cellClass}">${this.formatValue(component.notes)}</td>
+                <td class="${cellClass}">${this.formatValue(component.capacity)}</td>
                 <td class="${cellClass}">${this.formatValue(component.speed) !== 'N/A' ? this.formatValue(component.speed) + ' MHz' : 'N/A'}</td>
                 <td class="${cellClass}">${this.formatValue(component.type)}</td>
                 <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
