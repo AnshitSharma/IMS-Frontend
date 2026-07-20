@@ -478,7 +478,7 @@ window.api = {
         },
 
         async get(id) {
-            return await api.request('users-get', { id: id });
+            return await api.request('users-get', { user_id: id });
         },
 
         async create(data) {
@@ -487,13 +487,13 @@ window.api = {
 
         async update(id, data) {
             return await api.request('users-update', {
-                id: id,
+                user_id: id,
                 ...data
             });
         },
 
         async delete(id) {
-            return await api.request('users-delete', { id: id });
+            return await api.request('users-delete', { user_id: id });
         },
 
         async resetPassword(id, newPassword = null, sendEmail = true) {

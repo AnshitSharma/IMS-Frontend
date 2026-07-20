@@ -85,35 +85,45 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
+                <!-- Shared page header + tab switcher -->
+                <div class="content-header mb-6">
+                    <div class="min-w-0 mb-4">
+                        <h2 class="text-2xl font-bold text-text-primary mb-2">
+                            <i class="fas fa-shield-alt"></i> Access Control Management
+                        </h2>
+                        <p class="text-sm text-text-muted">Manage roles, permissions, and users</p>
+                    </div>
+
+                    <!-- Roles / Users tabs -->
+                    <div class="inline-flex items-center gap-1 p-1 bg-surface-hover rounded-lg border border-border"
+                        role="tablist" aria-label="Access control views">
+                        <button id="tabRolesBtn" role="tab" aria-selected="true"
+                            class="acl-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-surface-card text-primary shadow-sm transition-colors">
+                            <i class="fas fa-user-shield"></i> Roles
+                        </button>
+                        <button id="tabUsersBtn" role="tab" aria-selected="false"
+                            class="acl-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
+                            <i class="fas fa-users"></i> Users
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Role Management View -->
                 <div id="roleManagementView" class="content-section active">
-                    <!-- Header -->
-                    <div class="content-header mb-6">
-                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                            <div class="min-w-0">
-                                <h2 class="text-2xl font-bold text-text-primary mb-2">
-                                    <i class="fas fa-shield-alt"></i> Access Control Management
-                                </h2>
-                                <p class="text-sm text-text-muted">Manage roles, permissions, and user assignments</p>
-                            </div>
-                            <div class="flex flex-wrap gap-3">
-                                <!-- Shown only to users with the users.create permission (gated in acl-manager.js) -->
-                                <button
-                                    class="btn-primary hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                    id="createUserBtn">
-                                    <i class="fas fa-user-plus"></i> Create User
-                                </button>
-                                <button
-                                    class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                    id="createRoleBtn">
-                                    <i class="fas fa-plus"></i> Create Role
-                                </button>
-                                <button
-                                    class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                    id="refreshRolesBtn">
-                                    <i class="fas fa-sync-alt"></i> Refresh
-                                </button>
-                            </div>
+                    <!-- Action bar -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <p class="text-sm text-text-muted">Roles bundle permissions and can be assigned to users.</p>
+                        <div class="flex flex-wrap gap-3">
+                            <button
+                                class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                id="createRoleBtn">
+                                <i class="fas fa-plus"></i> Create Role
+                            </button>
+                            <button
+                                class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                id="refreshRolesBtn">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
                         </div>
                     </div>
 
@@ -149,6 +159,58 @@
                             class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 mx-auto"
                             onclick="aclManager.openCreateRoleModal()">
                             <i class="fas fa-plus"></i> Create Role
+                        </button>
+                    </div>
+                </div>
+
+                <!-- User Management View -->
+                <div id="userManagementView" class="content-section hidden">
+                    <!-- Action bar -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <p class="text-sm text-text-muted">All users in the system. Change a user's group, or add and remove users.</p>
+                        <div class="flex flex-wrap gap-3">
+                            <!-- Shown only to users with the users.create permission (gated in acl-manager.js) -->
+                            <button
+                                class="btn-primary hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                id="addUserBtn">
+                                <i class="fas fa-user-plus"></i> Add User
+                            </button>
+                            <button
+                                class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                id="refreshUsersBtn">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="users-table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
+                        <table class="w-full table-base table-responsive" id="usersTable">
+                            <thead class="bg-surface-hover border-b border-border">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">User</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Email</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Group / Role
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Status</th>
+                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y divide-border">
+                                <!-- User rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Users Empty State -->
+                    <div id="usersEmptyState" class="hidden bg-surface-card rounded-lg shadow-sm p-12 text-center">
+                        <i class="fas fa-users text-6xl text-text-muted mb-4"></i>
+                        <h3 class="text-xl font-semibold text-text-secondary mb-2">No Users Found</h3>
+                        <p class="text-text-muted mb-6">Add your first user to get started</p>
+                        <button
+                            class="btn-primary hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 mx-auto"
+                            id="usersEmptyAddBtn">
+                            <i class="fas fa-user-plus"></i> Add User
                         </button>
                     </div>
                 </div>
@@ -421,7 +483,7 @@
     <!-- Sidebar Component and Manager (must load before dashboard and acl-manager) -->
     <script src="../../components/sidebar-manager.js"></script>
     <!-- Load ACL manager AFTER sidebar is being loaded -->
-    <script src="../../assets/js/server/acl-manager.js?v=20260719"></script>
+    <script src="../../assets/js/server/acl-manager.js?v=20260720"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
     <script>
         // Show/hide toggles for the Create User password fields

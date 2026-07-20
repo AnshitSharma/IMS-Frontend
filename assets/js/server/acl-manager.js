@@ -12,6 +12,10 @@ class ACLManager {
         this.currentRoleUsers = [];
         this.editMode = false;
         this.selectedPermissions = new Set();
+        this.currentTab = 'roles';
+        // Own user id — used to keep admins from removing their own account (the
+        // backend blocks this too; this just disables the button up front).
+        this.currentUserId = window.api?.getUser?.()?.id ?? null;
 
         this.init();
     }
@@ -20,6 +24,7 @@ class ACLManager {
         this.setupEventListeners();
         await this.loadInitialData();
         await this.renderRolesTable();
+        this.renderUsersTable();
     }
 
     // ======================
@@ -238,6 +243,204 @@ class ACLManager {
                 </td>
             </tr>
         `;
+    }
+
+    // ======================
+    // Users Tab
+    // ======================
+
+    switchTab(tab) {
+        this.currentTab = tab;
+
+        const rolesView = document.getElementById('roleManagementView');
+        const usersView = document.getElementById('userManagementView');
+        const rolesTabBtn = document.getElementById('tabRolesBtn');
+        const usersTabBtn = document.getElementById('tabUsersBtn');
+
+        const isUsers = tab === 'users';
+
+        // Visibility is driven by the `active` class (.content-section.active is
+        // `display:flex !important`); `hidden` alone would be overridden.
+        if (rolesView) rolesView.classList.toggle('active', !isUsers);
+        if (usersView) usersView.classList.toggle('active', isUsers);
+
+        // Active/inactive tab styling (mirrors the segmented control in acl.html)
+        const activeClasses = ['bg-surface-card', 'text-primary', 'shadow-sm'];
+        const inactiveClasses = ['text-text-secondary', 'hover:text-text-primary'];
+
+        if (rolesTabBtn && usersTabBtn) {
+            const active = isUsers ? usersTabBtn : rolesTabBtn;
+            const inactive = isUsers ? rolesTabBtn : usersTabBtn;
+
+            active.classList.add(...activeClasses);
+            active.classList.remove(...inactiveClasses);
+            active.setAttribute('aria-selected', 'true');
+
+            inactive.classList.remove(...activeClasses);
+            inactive.classList.add(...inactiveClasses);
+            inactive.setAttribute('aria-selected', 'false');
+        }
+
+        if (isUsers) {
+            this.renderUsersTable();
+        }
+    }
+
+    renderUsersTable() {
+        const tableBody = document.getElementById('usersTableBody');
+        const emptyState = document.getElementById('usersEmptyState');
+        const tableContainer = document.querySelector('.users-table-container');
+
+        if (!tableBody) return;
+
+        if (!this.users || this.users.length === 0) {
+            tableBody.innerHTML = '';
+            if (emptyState) emptyState.classList.remove('hidden');
+            if (tableContainer) tableContainer.classList.add('hidden');
+            return;
+        }
+
+        if (emptyState) emptyState.classList.add('hidden');
+        if (tableContainer) tableContainer.classList.remove('hidden');
+
+        tableBody.innerHTML = this.users.map(user => this.createUserRow(user)).join('');
+    }
+
+    createUserRow(user) {
+        const roles = Array.isArray(user.roles) ? user.roles : [];
+        const currentRoleId = roles.length > 0 ? roles[0].id : '';
+        const isSelf = this.currentUserId != null && String(user.id) === String(this.currentUserId);
+
+        const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim();
+        const displayName = fullName || user.username || 'Unknown';
+
+        // Role dropdown — reassigns the user's group inline. Data attribute holds
+        // the current role id so the change handler knows what to swap out.
+        const roleOptions = this.roles.map(role =>
+            `<option value="${role.id}" ${role.id === currentRoleId ? 'selected' : ''}>${utils.escapeHtml(role.display_name || role.name)}</option>`
+        ).join('');
+
+        // Reuse the exact badge utility set the roles table already ships (its
+        // "Default" pill) so no new Tailwind classes need compiling.
+        const status = (user.status || 'active').toLowerCase();
+        const statusIsActive = status === 'active' || status === '1';
+        const statusBadge = `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${statusIsActive ? 'text-green-600 dark:text-green-400' : 'text-text-muted'}">
+                <span class="w-1.5 h-1.5 rounded-full ${statusIsActive ? 'bg-green-500' : 'bg-text-muted'}"></span>${utils.escapeHtml(statusIsActive ? 'Active' : (user.status || 'Inactive'))}
+            </span>`;
+
+        return `
+            <tr class="hover:bg-surface-hover transition-colors">
+                <td class="px-4 py-3" data-label="User">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-user-circle text-text-muted"></i>
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
+                        ${isSelf ? '<span class="ml-1 text-[11px] text-text-muted">(you)</span>' : ''}
+                    </div>
+                    <div class="text-xs text-text-muted mt-0.5">@${utils.escapeHtml(user.username || '')}</div>
+                </td>
+                <td class="px-4 py-3 text-text-secondary text-sm" data-label="Email">
+                    ${utils.escapeHtml(user.email || '-')}
+                </td>
+                <td class="px-4 py-3" data-label="Group / Role">
+                    <select class="user-role-select input-field px-2.5 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                            data-user-id="${user.id}" data-current-role="${currentRoleId}">
+                        <option value="" ${currentRoleId === '' ? 'selected' : ''}>No role</option>
+                        ${roleOptions}
+                    </select>
+                </td>
+                <td class="px-4 py-3" data-label="Status">
+                    ${statusBadge}
+                </td>
+                <td class="px-4 py-3" data-label="Actions">
+                    <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
+                            ${isSelf ? 'disabled title="You cannot remove your own account"' : 'title="Remove user" onclick="aclManager.handleDeleteUser(' + user.id + ')"'}
+                            aria-label="Remove user">
+                        <i class="fas fa-user-minus text-sm"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }
+
+    async handleDeleteUser(userId) {
+        const user = this.users.find(u => String(u.id) === String(userId));
+        const label = user ? (user.username || user.email || `#${userId}`) : `#${userId}`;
+
+        const confirmed = await utils.confirm(
+            `Remove user "${label}"? This deletes the account and its role assignments. This cannot be undone.`,
+            'Remove User'
+        );
+        if (!confirmed) return;
+
+        try {
+            utils.showLoading(true, 'Removing user...');
+            const result = await window.api.users.delete(userId);
+
+            if (result && result.success) {
+                toast.success('User removed successfully');
+                await this.loadInitialData();
+                this.renderUsersTable();
+                await this.renderRolesTable();
+            } else {
+                toast.error(result?.message || 'Failed to remove user');
+            }
+        } catch (error) {
+            console.error('Error removing user:', error);
+            toast.error(error.message || 'An error occurred while removing the user');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async handleChangeUserRole(selectEl) {
+        const userId = selectEl.dataset.userId;
+        const newRoleId = selectEl.value;
+        const previousRoleId = selectEl.dataset.currentRole || '';
+
+        if (String(newRoleId) === String(previousRoleId)) return;
+
+        try {
+            utils.showLoading(true, 'Updating user role...');
+
+            // Assign the new role first (when one is chosen) so the user is never
+            // left with zero roles mid-swap — the backend blocks removing a user's
+            // last role.
+            if (newRoleId) {
+                const assignResult = await window.api.acl.assignRole(userId, newRoleId);
+                if (!assignResult || !assignResult.success) {
+                    toast.error(assignResult?.message || 'Failed to assign the new role');
+                    selectEl.value = previousRoleId;
+                    return;
+                }
+            }
+
+            // Remove the previous role if it differs and existed.
+            if (previousRoleId && String(previousRoleId) !== String(newRoleId)) {
+                const removeResult = await window.api.acl.removeRole(userId, previousRoleId);
+                if (!removeResult || !removeResult.success) {
+                    // The backend keeps every user in at least one role, so clearing
+                    // to "No role" is refused. Report accurately and resync below.
+                    const msg = !newRoleId
+                        ? (removeResult?.message || 'A user must keep at least one role')
+                        : (removeResult?.message || 'New role assigned, but the previous role could not be removed');
+                    toast.warning(msg);
+                } else {
+                    toast.success('User role updated');
+                }
+            } else {
+                toast.success('User role updated');
+            }
+            await this.loadInitialData();
+            this.renderUsersTable();
+            await this.renderRolesTable();
+        } catch (error) {
+            console.error('Error changing user role:', error);
+            toast.error(error.message || 'An error occurred while updating the role');
+            selectEl.value = previousRoleId;
+        } finally {
+            utils.showLoading(false);
+        }
     }
 
     renderPermissionsGrid(selectedPermissions = []) {
@@ -631,6 +834,7 @@ class ACLManager {
                 // Refresh roles + users so counts and assignments reflect the new user
                 await this.loadInitialData();
                 await this.renderRolesTable();
+                this.renderUsersTable();
             } else {
                 toast.error(result?.message || 'Failed to create user');
             }
@@ -697,16 +901,32 @@ class ACLManager {
             this.handleAssignUser();
         });
 
-        // Create User button — gated by the users.create permission (UI-only;
+        // Roles / Users tab switcher
+        document.getElementById('tabRolesBtn')?.addEventListener('click', () => this.switchTab('roles'));
+        document.getElementById('tabUsersBtn')?.addEventListener('click', () => this.switchTab('users'));
+
+        // Users tab refresh
+        document.getElementById('refreshUsersBtn')?.addEventListener('click', async () => {
+            await this.loadInitialData();
+            this.renderUsersTable();
+            toast.success('Users refreshed');
+        });
+
+        // Add User buttons — gated by the users.create permission (UI-only;
         // the backend users-create endpoint enforces it for real).
-        const createUserBtn = document.getElementById('createUserBtn');
-        if (createUserBtn) {
-            const canCreateUser = window.api?.utils?.hasPermission('users.create');
-            if (canCreateUser) {
-                createUserBtn.classList.remove('hidden');
-            }
-            createUserBtn.addEventListener('click', () => this.openCreateUserModal());
-        }
+        const canCreateUser = window.api?.utils?.hasPermission('users.create');
+        ['addUserBtn', 'usersEmptyAddBtn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            if (canCreateUser) btn.classList.remove('hidden');
+            btn.addEventListener('click', () => this.openCreateUserModal());
+        });
+
+        // Inline role change (delegated — selects are rendered per row)
+        document.getElementById('usersTableBody')?.addEventListener('change', (e) => {
+            const select = e.target.closest('.user-role-select');
+            if (select) this.handleChangeUserRole(select);
+        });
 
         // Create User modal close / cancel / submit
         document.getElementById('createUserModalClose')?.addEventListener('click', () => this.closeCreateUserModal());
