@@ -796,9 +796,22 @@ class ACLManager {
             toast.error('Please select a role for the user');
             return false;
         }
-        // Mirror the backend password policy (users-create)
-        if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
-            toast.error('Password must be 8+ characters with an uppercase letter, a number, and a special character');
+        // Mirror the backend password policy (users-create). Each rule reports
+        // separately so the toast names the requirement that actually failed —
+        // a bundled message reads as a length complaint even when the length is fine.
+        if (password.length < 8) {
+            toast.error('Password must be at least 8 characters long');
+            return false;
+        }
+        const missing = [];
+        if (!/[A-Z]/.test(password)) missing.push('an uppercase letter');
+        if (!/[0-9]/.test(password)) missing.push('a number');
+        if (!/[^A-Za-z0-9]/.test(password)) missing.push('a special character');
+        if (missing.length) {
+            const needs = missing.length === 1
+                ? missing[0]
+                : missing.slice(0, -1).join(', ') + ' and ' + missing[missing.length - 1];
+            toast.error(`Password is missing ${needs}`);
             return false;
         }
         if (password !== confirmPassword) {
