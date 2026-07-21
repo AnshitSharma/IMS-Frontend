@@ -341,7 +341,11 @@ class ServerBuilder {
                 if (Array.isArray(typeComponents) && typeComponents.length > 0) {
                     this.selectedComponents[type] = typeComponents.map(comp => ({
                         uuid: comp.uuid,
-                        serial_number: comp.serial_number || 'Not Found',
+                        // Keep an absent serial as null. Substituting a string here
+                        // defeats every `component_name || serial_number || 'Component'`
+                        // fallback downstream, which made serial-less units render
+                        // with the literal name "Not Found".
+                        serial_number: comp.serial_number || null,
                         component_name: comp.component_name || null,
                         quantity: comp.quantity || 1,
                         slot_position: comp.slot_position || '',
@@ -2052,8 +2056,8 @@ class ServerBuilder {
                         ${components.map((component, index) => `
                             <div class="component-item">
                                 <div class="component-info">
-                                    <span class="component-serial">${component.component_name || component.serial_number}</span>
-                                    ${component.component_name ? `<span class="component-slot text-text-muted text-xs">${component.serial_number}</span>` : ''}
+                                    <span class="component-serial">${component.component_name || component.serial_number || 'Component'}</span>
+                                    ${component.component_name && component.serial_number ? `<span class="component-slot text-text-muted text-xs">${component.serial_number}</span>` : ''}
                                     ${component.slot_position ? `<span class="component-slot">(${component.slot_position})</span>` : ''}
                                 </div>
                                 ${componentType.multiple && components.length > 1 ? `<span class="component-index">#${index + 1}</span>` : ''}
@@ -2328,7 +2332,7 @@ class ServerBuilder {
                 html += `
                 <div class="dimm-cell is-filled" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
                     <span class="dimm-cell-label">${label} · ${memoryType}</span>
-                    <span class="dimm-cell-name">${this.escapeHtml(ram.component_name || ram.serial_number)}</span>
+                    <span class="dimm-cell-name">${this.escapeHtml(ram.component_name || ram.serial_number || 'DIMM')}</span>
                     ${ram.component_name && ram.serial_number ? `<span class="dimm-cell-serial">${this.escapeHtml(ram.serial_number)}</span>` : ''}
                     ${this.renderSlotPopover('ram', ram, label)}
                 </div>`;

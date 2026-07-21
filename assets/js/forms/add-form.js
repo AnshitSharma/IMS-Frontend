@@ -1708,9 +1708,16 @@ class AddComponentForm {
             const result = await this.submitComponent(formData);
 
             if (result.success || result.status === 1) {
-                // Show success toast
+                // Lead with the asset tag: it is the identifier the operator has
+                // to write onto the physical unit, and for serial-less stock it is
+                // the only way to tell this unit from its identical siblings.
+                const assetTag = result.data && result.data.asset_tag;
                 if (typeof toast !== 'undefined') {
-                    toast.success('Component added successfully!');
+                    // Longer than the default 4s: the form closes 1.5s from now and
+                    // the operator needs time to copy the tag down.
+                    toast.success(assetTag
+                        ? `Added as ${assetTag} — label the unit with this tag.`
+                        : 'Component added.', assetTag ? 8000 : 4000);
                 }
 
                 // Reset form and close modal
@@ -1888,7 +1895,10 @@ class AddComponentForm {
         const formData = {
             action: `${this.currentComponentType}-add`,
             UUID: document.getElementById('componentUUID').value,
-            SerialNumber: document.getElementById('serialNumber').value,
+            // A blank serial means "this unit has no readable serial", which is
+            // normal. Send null, never '' — SerialNumber is UNIQUE and only one
+            // row may hold ''. The unit is identified by its asset tag instead.
+            SerialNumber: document.getElementById('serialNumber').value.trim() || null,
             Status: document.getElementById('status').value,
             VendorID: document.getElementById('vendorSelect')?.value || null,
             Location: document.getElementById('location').value || null,
