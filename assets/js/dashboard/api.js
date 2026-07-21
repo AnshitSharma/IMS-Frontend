@@ -76,6 +76,19 @@ window.api = {
         localStorage.removeItem('bdc_remember_me');
     },
 
+    // Build the Error thrown for a failed API response.
+    // Carries the API's status code and data payload so callers can tell a
+    // refusal apart from a failure (e.g. 409 "remove the components first" is
+    // a warning the user can act on, not a red error).
+    buildError(result, response) {
+        const error = new Error(
+            result?.message || `HTTP ${response.status}: ${response.statusText}`
+        );
+        error.code = result?.code ?? response.status;
+        error.data = result?.data ?? null;
+        return error;
+    },
+
     // Make API request with automatic token refresh
     async request(action, data = {}, method = 'POST') {
         const token = this.getToken();
@@ -132,8 +145,7 @@ window.api = {
             // For non-ok responses, if we have an API message, throw it
             // This ensures the actual API error message reaches the catch block
             if (!response.ok && !result.success) {
-                const errorMessage = result.message || `HTTP ${response.status}: ${response.statusText}`;
-                throw new Error(errorMessage);
+                throw this.buildError(result, response);
             }
 
             // Handle token expiration
@@ -165,8 +177,7 @@ window.api = {
 
                     // For non-ok responses, if we have an API message, throw it
                     if (!retryResponse.ok && !retryResult.success) {
-                        const errorMessage = retryResult.message || `HTTP ${retryResponse.status}: ${retryResponse.statusText}`;
-                        throw new Error(errorMessage);
+                        throw this.buildError(retryResult, retryResponse);
                     }
 
                     return retryResult;

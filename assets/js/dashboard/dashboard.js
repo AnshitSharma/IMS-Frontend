@@ -2353,7 +2353,15 @@ class Dashboard {
                 }
             } catch (error) {
                 console.error('Error deleting server:', error);
-                utils.showAlert(error.message || 'Failed to delete server', 'error');
+                // 409 = the server still has components installed. That's a state
+                // the user can fix, so show it as an actionable warning (and give
+                // it longer on screen — it lists what has to be removed) instead
+                // of a red failure.
+                if (error.code === 409) {
+                    utils.showAlert(error.message, 'warning', 'Components Still Installed', 10000);
+                } else {
+                    utils.showAlert(error.message || 'Failed to delete server', 'error');
+                }
             } finally {
                 utils.showLoading(false);
             }
