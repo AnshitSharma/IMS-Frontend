@@ -1681,7 +1681,7 @@ class ServerBuilder {
             ${extraRows}
             ${type && comp.uuid ? `
             <div class="slot-popover-actions">
-                <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}')">
+                <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})">
                     <i class="fas fa-trash-alt"></i>
                     Remove
                 </button>
@@ -2200,7 +2200,7 @@ class ServerBuilder {
                         <span class="comp-chip-name">${displayName}${position}</span>
                         ${subtitle ? `<span class="comp-chip-serial">${subtitle}</span>` : ''}
                     </span>
-                    <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}')" title="Remove">
+                    <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})" title="Remove">
                         <i class="fas fa-times text-xs"></i>
                     </button>
                 </span>`;
@@ -3169,9 +3169,15 @@ class ServerBuilder {
     }
 
     /**
-     * Remove component from configuration
+     * Remove component from configuration.
+     *
+     * serialNumber identifies WHICH physical unit to remove when several units of
+     * the same model sit in one config (four identical M.2 adapters, a bank of
+     * matching DIMMs). Without it the backend cannot tell them apart: it refuses
+     * outright for pciecard/nic/hbacard, and for cpu/ram/storage/caddy it silently
+     * removes the first matching entry rather than the one clicked.
      */
-    async removeComponent(type, uuid) {
+    async removeComponent(type, uuid, serialNumber = null) {
         if (!confirm('Are you sure you want to remove this component?')) {
             return;
         }
@@ -3182,7 +3188,8 @@ class ServerBuilder {
             const result = await serverAPI.removeComponentFromServer(
                 this.currentConfig.config_uuid,
                 type,
-                uuid
+                uuid,
+                { serial_number: serialNumber }
             );
 
             if (result.success) {
@@ -3451,6 +3458,20 @@ class ServerBuilder {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    /**
+     * Render a value as a JS literal safe to drop into an inline onclick
+     * attribute. Serial numbers are user-entered free text, so they can carry
+     * quotes or backslashes that would otherwise break out of the handler.
+     * escapeHtml() is not enough on its own — it leaves both quote characters
+     * untouched. Returns the literal `null` for absent values so the receiving
+     * parameter falls back to its default.
+     */
+    jsArg(value) {
+        if (value === null || value === undefined || value === '') return 'null';
+        const js = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `'${js.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}'`;
     }
 }
 

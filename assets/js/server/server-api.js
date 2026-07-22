@@ -167,12 +167,22 @@ class ServerAPI {
     }
 
     async removeComponentFromServer(configUuid, componentType, componentUuid, options = {}) {
-        return await this.makeRequest({
+        const requestData = {
             action: 'server-remove-component',
             config_uuid: configUuid,
             component_type: componentType,
             component_uuid: componentUuid
-        }, options);
+        };
+
+        // Identifies WHICH physical unit to release when several units of the same
+        // model are in one config. Omitted for callers that have no serial to hand —
+        // the backend then falls back to the config JSON, and to the single bound
+        // inventory row when the model has only one.
+        if (options.serial_number) {
+            requestData.serial_number = options.serial_number;
+        }
+
+        return await this.makeRequest(requestData, options);
     }
 
     async validateServerConfig(configUuid, options = {}) {

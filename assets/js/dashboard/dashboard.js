@@ -1241,7 +1241,7 @@ class Dashboard {
                             <div style="font-weight: 500; font-size: 0.875rem;">${comp.serial_number}</div>
                             ${comp.slot_position ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Slot: ${comp.slot_position}</div>` : ''}
                         </div>
-                        <button class="btn-remove-component" onclick="event.stopPropagation(); dashboard.removeSpecificComponent('${componentType.type}', '${comp.uuid}')">
+                        <button class="btn-remove-component" onclick="event.stopPropagation(); dashboard.removeSpecificComponent('${componentType.type}', '${comp.uuid}', ${utils.jsArg(comp.serial_number)})">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -1596,7 +1596,9 @@ class Dashboard {
         }
     }
 
-    async removeSpecificComponent(componentType, componentUuid) {
+    // serialNumber identifies WHICH physical unit to release when several units of
+    // the same model sit in one config — see ServerBuilder.removeComponent().
+    async removeSpecificComponent(componentType, componentUuid, serialNumber = null) {
         if (!confirm('Are you sure you want to remove this component?')) {
             return;
         }
@@ -1607,7 +1609,8 @@ class Dashboard {
             const result = await serverAPI.removeComponentFromServer(
                 this.currentServerConfig.uuid,
                 componentType,
-                componentUuid
+                componentUuid,
+                { serial_number: serialNumber }
             );
 
             if (result.success) {

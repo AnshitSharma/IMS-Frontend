@@ -236,6 +236,18 @@ window.utils = {
         return text.replace(/[&<>"']/g, m => map[m]);
     },
 
+    // Render a value as a JS literal safe to drop into an inline onclick
+    // attribute. escapeHtml() alone is not enough: it turns ' into &#039;, which
+    // the browser decodes back to a real quote before the handler is parsed, so a
+    // value containing one would still break out of the string. JS-escape first,
+    // then HTML-escape the attribute delimiters. Absent values become `null` so
+    // the receiving parameter falls back to its default.
+    jsArg(value) {
+        if (value === null || value === undefined || value === '') return 'null';
+        const js = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return `'${js.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}'`;
+    },
+
     // Truncate text with ellipsis
     truncateText(text, maxLength = 50) {
         if (!text || text.length <= maxLength) return text;
