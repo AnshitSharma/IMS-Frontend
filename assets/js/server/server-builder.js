@@ -1555,7 +1555,11 @@ class ServerBuilder {
 
         const m2Data = this.slotAssignments?.m2;
         const m2Total = m2Data?.total_count || null;
-        const m2Used = m2Data?.used_count || 0;
+        // Adapter M.2 usage is derived from actual pcie_adapter connections rather than
+        // the tracker's used_count, which under-counts adapter drives (see renderM2Slots).
+        const adapterM2Used = (this.storageConnectivity?.connections || [])
+            .filter(c => (c.connection_type || '') === 'pcie_adapter').length;
+        const m2Used = (m2Data?.motherboard_slots?.used || 0) + adapterM2Used;
 
         const bays = this.storageConnectivity?.drive_bays || null;
 
@@ -2891,10 +2895,15 @@ class ServerBuilder {
             </div>`;
         }
 
-        // Build bay map: bay_number → connection data
+        // Build bay map: bay_number → connection data.
+        // Only chassis-bay drives belong in the drive-bay grid. Drives on a PCIe M.2
+        // adapter (or otherwise not bay-connected) carry a positional bay_number but
+        // are not in a chassis bay — they are shown in the M.2 Slots section instead.
         const bayMap = new Map();
         connections.forEach(c => {
-            bayMap.set(c.bay_number, c);
+            if ((c.connection_type || '') === 'chassis_bay' && c.bay_number != null) {
+                bayMap.set(c.bay_number, c);
+            }
         });
 
         // Drive bay grid
@@ -2997,16 +3006,40 @@ class ServerBuilder {
                 }
             }
 
-            // Expansion card M.2 slots
+            // Expansion card M.2 slots (e.g. a PCIe → M.2 NVMe adapter card).
             if (m2Data.expansion_card_slots && m2Data.expansion_card_slots.total > 0) {
                 html += `<div class="slot-group-header mt-3">Expansion Card M.2</div>`;
                 const providers = m2Data.expansion_card_slots.providers || [];
+
+                // Occupancy is derived from the actual pcie_adapter storage connections
+                // (reliable), not from provider.used_slots — the slot tracker only counts
+                // adapter usage via a slot_position field that adapter drives don't carry.
+                // Drives are consumed in order to fill slots across providers.
+                const adapterDrives = (this.storageConnectivity?.connections || [])
+                    .filter(c => (c.connection_type || '') === 'pcie_adapter');
+                let driveIdx = 0;
+
                 providers.forEach(provider => {
-                    html += this.renderHwSlotRow({
-                        label: `${provider.card_name || 'Expansion'} M.2`,
-                        emptyType: 'storage',
-                        emptyText: `${provider.available || 0} available`
-                    });
+                    const total = provider.m2_slots_provided || 0;
+                    const cardLabel = provider.model || provider.card_name || 'Expansion';
+
+                    for (let i = 0; i < total; i++) {
+                        const drive = driveIdx < adapterDrives.length ? adapterDrives[driveIdx++] : null;
+                        if (drive) {
+                            html += this.renderHwSlotRow({
+                                label: `${cardLabel} M.2 ${i + 1}`,
+                                badge: 'NVMe',
+                                icon: 'fas fa-hdd',
+                                component: { component_name: drive.storage_name, serial_number: drive.serial_number, uuid: drive.storage_uuid, compType: 'storage' }
+                            });
+                        } else {
+                            html += this.renderHwSlotRow({
+                                label: `${cardLabel} M.2 ${i + 1}`,
+                                badge: 'NVMe',
+                                emptyType: 'storage'
+                            });
+                        }
+                    }
                 });
             }
 
