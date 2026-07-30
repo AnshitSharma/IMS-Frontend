@@ -149,12 +149,105 @@ class SharedNavbar {
      * Handle change password action
      */
     handleChangePassword() {
-        // Check if we're on dashboard (which has modal)
+        // Dashboard pages own a #modalContainer and their own implementation;
+        // prefer it so the dialog looks the same everywhere it can.
         if (typeof dashboard !== 'undefined' && dashboard.showChangePasswordModal) {
             dashboard.showChangePasswordModal();
-        } else {
-            // Redirect to change password page
-            window.location.href = '../pages/change-password.html';
+            return;
+        }
+        // Server/builder pages load neither dashboard.js nor a modal container,
+        // so render a self-contained one here.
+        this.showChangePasswordModal();
+    }
+
+    /**
+     * Render the change-password dialog for pages without dashboard.js
+     */
+    showChangePasswordModal() {
+        // The trigger lives inside the user dropdown; leaving it open would
+        // float it above the modal backdrop.
+        document.querySelector('.dropdown.active')?.classList.remove('active');
+
+        if (document.getElementById('navbarChangePasswordOverlay')) {
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'navbarChangePasswordOverlay';
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML = `
+            <div class="modal-content" style="max-width: 460px;">
+                <div class="modal-header">
+                    <h3 class="modal-title">Change Password</h3>
+                    <button type="button" class="modal-close" id="navbarChangePasswordClose">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="navbarChangePasswordForm">
+                        <div class="form-group"><label class="form-label required">Current Password</label><input type="password" id="navbarCurrentPassword" class="form-input" required></div>
+                        <div class="form-group"><label class="form-label required">New Password</label><input type="password" id="navbarNewPassword" class="form-input" required minlength="8"><div class="form-help">At least 8 characters, with an uppercase letter, a number and a special character.</div></div>
+                        <div class="form-group"><label class="form-label required">Confirm New Password</label><input type="password" id="navbarConfirmPassword" class="form-input" required></div>
+                        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+                            <button type="button" class="btn btn-secondary" id="navbarChangePasswordCancel">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Change Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        // Next frame so the opacity transition on .active actually runs.
+        requestAnimationFrame(() => overlay.classList.add('active'));
+
+        const close = () => overlay.remove();
+        overlay.querySelector('#navbarChangePasswordClose').addEventListener('click', close);
+        overlay.querySelector('#navbarChangePasswordCancel').addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+
+        overlay.querySelector('#navbarChangePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.submitChangePassword(close);
+        });
+
+        setTimeout(() => overlay.querySelector('#navbarCurrentPassword').focus(), 100);
+    }
+
+    /**
+     * Validate and submit the change-password form
+     */
+    async submitChangePassword(closeModal) {
+        const currentPassword = document.getElementById('navbarCurrentPassword').value;
+        const newPassword = document.getElementById('navbarNewPassword').value;
+        const confirmPassword = document.getElementById('navbarConfirmPassword').value;
+
+        // Mirrors the backend rules in auth_api.php assertPasswordStrength()
+        const problem =
+            newPassword !== confirmPassword ? 'New passwords do not match' :
+            newPassword.length < 8 ? 'New password must be at least 8 characters long' :
+            !/[A-Z]/.test(newPassword) ? 'New password must contain at least one uppercase letter' :
+            !/[0-9]/.test(newPassword) ? 'New password must contain at least one number' :
+            !/[^A-Za-z0-9]/.test(newPassword) ? 'New password must contain at least one special character' :
+            null;
+
+        if (problem) {
+            toast.error(problem);
+            return;
+        }
+
+        try {
+            const result = await api.auth.changePassword(currentPassword, newPassword, confirmPassword);
+            if (result.success) {
+                closeModal();
+                // Changing the password invalidates every session, including this
+                // one — the current token stops working immediately.
+                toast.success('Password changed successfully. Please login again.');
+                api.clearAuth();
+                setTimeout(() => { window.location.href = api.loginURL; }, 2000);
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            toast.error(error.message || 'Failed to change password');
         }
     }
 

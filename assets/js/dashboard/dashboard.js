@@ -212,6 +212,12 @@ class Dashboard {
             });
         }
 
+        // Change password
+        document.getElementById('changePassword')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.showChangePasswordModal();
+        });
+
         // Logout
         document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2389,7 +2395,35 @@ class Dashboard {
             ${pager}`;
     }
 
+    /**
+     * Not every dashboard page ships the #modalContainer markup (acl,
+     * activity-log, racks). Without it showModal() used to log to the console
+     * and do nothing, so shared dialogs like Change Password looked dead.
+     * Create the container on demand instead.
+     */
+    ensureModalContainer() {
+        if (document.getElementById('modalContainer')) return;
+
+        const container = document.createElement('div');
+        container.id = 'modalContainer';
+        container.className = 'modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden';
+        container.innerHTML = `
+            <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                    <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
+                    <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody"></div>
+            </div>
+        `;
+        document.body.appendChild(container);
+    }
+
     showModal(title, content) {
+        this.ensureModalContainer();
+
         const modal = document.getElementById('modalContainer');
         const modalTitle = document.getElementById('modalTitle');
         const modalBody = document.getElementById('modalBody');
@@ -2458,10 +2492,14 @@ class Dashboard {
     }
 
     async showChangePasswordModal() {
+        // The trigger lives inside the user dropdown; leaving it open would
+        // float it above the modal backdrop.
+        document.querySelector('.dropdown')?.classList.remove('active');
+
         const modalContent = `
             <form id="changePasswordForm" style="max-width: 400px;">
                 <div class="form-group"><label class="form-label required">Current Password</label><input type="password" id="currentPassword" class="form-input" required></div>
-                <div class="form-group"><label class="form-label required">New Password</label><input type="password" id="newPassword" class="form-input" required minlength="8"></div>
+                <div class="form-group"><label class="form-label required">New Password</label><input type="password" id="newPassword" class="form-input" required minlength="8"><div class="form-help">At least 8 characters, with an uppercase letter, a number and a special character.</div></div>
                 <div class="form-group"><label class="form-label required">Confirm New Password</label><input type="password" id="confirmPassword" class="form-input" required></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button type="button" class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Change Password</button></div>
             </form>
@@ -2478,16 +2516,34 @@ class Dashboard {
             utils.showAlert('New passwords do not match', 'error');
             return;
         }
+        // Mirrors the backend rules in auth_api.php assertPasswordStrength()
         if (newPassword.length < 8) {
             utils.showAlert('New password must be at least 8 characters long', 'error');
+            return;
+        }
+        if (!/[A-Z]/.test(newPassword)) {
+            utils.showAlert('New password must contain at least one uppercase letter', 'error');
+            return;
+        }
+        if (!/[0-9]/.test(newPassword)) {
+            utils.showAlert('New password must contain at least one number', 'error');
+            return;
+        }
+        if (!/[^A-Za-z0-9]/.test(newPassword)) {
+            utils.showAlert('New password must contain at least one special character', 'error');
             return;
         }
         try {
             utils.showLoading(true, 'Changing password...');
             const result = await api.auth.changePassword(currentPassword, newPassword, confirmPassword);
             if (result.success) {
-                utils.showAlert('Password changed successfully', 'success');
                 this.closeModal();
+                // Changing the password invalidates every session, including this
+                // one — the current token stops working immediately, so send the
+                // user back to login rather than leaving a dead tab open.
+                utils.showAlert('Password changed successfully. Please login again.', 'success');
+                api.clearAuth();
+                setTimeout(() => { window.location.href = api.loginURL; }, 2000);
             }
         } catch (error) {
             console.error('Error changing password:', error);
