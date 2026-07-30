@@ -372,7 +372,9 @@ window.api = {
     },
 
     servers: {
-        async createConfig(serverName, description, startWith, isVirtual, location, rackPosition) {
+        // rack_position is NOT passed here: it is derived server-side from the real
+        // rack_servers placement (see rack-assign-server), never typed by hand.
+        async createConfig(serverName, description, startWith, isVirtual, location) {
             const requestData = {
                 server_name: serverName,
                 description: description,
@@ -384,12 +386,9 @@ window.api = {
                 requestData.start_with = startWith;
             }
 
-            // Only include location and rack_position if provided
+            // Only include location if provided
             if (location) {
                 requestData.location = location;
-            }
-            if (rackPosition) {
-                requestData.rack_position = rackPosition;
             }
 
             utils.logger.log('API createConfig called with:', {
@@ -398,7 +397,6 @@ window.api = {
                 startWith,
                 isVirtual,
                 location,
-                rackPosition,
                 requestData
             });
 
@@ -464,6 +462,27 @@ window.api = {
                 component_type: componentType,
                 include_in_use: includeInUse.toString(),
                 limit: limit.toString()
+            });
+        }
+    },
+
+    // Rack endpoints — used by the Create Server form to place a new server.
+    // (The Rack View page has its own axios wrapper, rack/rack-api.js; this is the
+    // same API through the dashboard's fetch layer, not a second layer.)
+    racks: {
+        async list() {
+            return await api.request('rack-list');
+        },
+
+        async get(rackUuid) {
+            return await api.request('rack-get', { rack_uuid: rackUuid });
+        },
+
+        async assignServer(rackUuid, configUuid, startU) {
+            return await api.request('rack-assign-server', {
+                rack_uuid: rackUuid,
+                config_uuid: configUuid,
+                start_u: startU.toString()
             });
         }
     },

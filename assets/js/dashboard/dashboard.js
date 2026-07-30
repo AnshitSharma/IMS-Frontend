@@ -896,7 +896,7 @@ class Dashboard {
                         <i class="fas fa-cog text-teal-600 text-sm"></i>
                     </div>
                     <div>
-                        <span class="text-sm font-medium text-slate-700">Advanced Configuration</span>
+                        <span class="text-sm font-medium text-slate-700">Server Template</span>
                         <p class="text-xs text-slate-500">Show additional options</p>
                     </div>
                 </div>
@@ -939,13 +939,27 @@ class Dashboard {
                         <option value="Sonipat Office">Sonipat Office</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="rackPosition" class="form-label flex items-center gap-2">
+                <div class="form-group" id="rackFieldGroup">
+                    <label for="serverRack" class="form-label flex items-center gap-2">
                         <i class="fas fa-th-large text-teal-600 text-sm"></i>
-                        Rack Position
+                        Rack
                     </label>
-                    <input type="text" class="form-input" id="rackPosition"
-                           placeholder="e.g., U12">
+                    <select class="form-select" id="serverRack" disabled>
+                        <option value="">Loading racks…</option>
+                    </select>
+                    <div id="rackFieldHint" class="hidden items-start gap-2 mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <i class="fas fa-info-circle text-slate-500 text-sm mt-0.5"></i>
+                        <p class="text-xs text-slate-500" id="rackFieldHintText"></p>
+                    </div>
+                </div>
+                <div class="form-group" id="rackPositionGroup">
+                    <label for="rackPosition" class="form-label flex items-center gap-2">
+                        <i class="fas fa-layer-group text-teal-600 text-sm"></i>
+                        Position
+                    </label>
+                    <select class="form-select" id="rackPosition" disabled>
+                        <option value="">-- Select a rack first --</option>
+                    </select>
                 </div>
             </div>
             
@@ -992,6 +1006,20 @@ class Dashboard {
         const advancedForm = document.getElementById('advancedForm');
 
 
+        // Rack placement fields. Rack View is admin/super_admin only (the backend
+        // gates the rack module on top of ACL), so anyone else creates the server
+        // unracked and an admin places it from Rack View.
+        const rackGroup = document.getElementById('rackFieldGroup');
+        const positionGroup = document.getElementById('rackPositionGroup');
+        const canPlaceInRack = api.utils.hasRole(['admin', 'super_admin']);
+
+        if (!canPlaceInRack) {
+            rackGroup?.remove();
+            positionGroup?.remove();
+        } else {
+            this.initRackFields();
+        }
+
         if (toggle) {
             toggle.addEventListener('change', function () {
                 if (this.checked) {
@@ -1000,6 +1028,14 @@ class Dashboard {
                 } else {
                     // Hide only advanced fields, keep standard visible
                     advancedForm.classList.add('hidden');
+                }
+
+                // Advanced view creates a VIRTUAL config, and virtual configs cannot
+                // occupy a physical rack — hide the placement fields rather than let
+                // the user pick a slot the backend will refuse.
+                if (rackGroup && positionGroup) {
+                    rackGroup.classList.toggle('hidden', this.checked);
+                    positionGroup.classList.toggle('hidden', this.checked);
                 }
             });
         }
@@ -1014,10 +1050,19 @@ class Dashboard {
                 const serverName = document.getElementById('serverName').value.trim();
                 const description = document.getElementById('description').value.trim();
                 const location = document.getElementById('serverLocation').value.trim();
-                const rackPosition = document.getElementById('rackPosition').value.trim();
 
                 // Determine is_virtual based on toggle state
                 const isVirtual = isAdvancedView;
+
+                // Rack placement is a separate step after the config exists (and is
+                // never offered for virtual configs).
+                const rackUuid = !isVirtual ? (document.getElementById('serverRack')?.value || '') : '';
+                const startU = !isVirtual ? parseInt(document.getElementById('rackPosition')?.value || '', 10) : NaN;
+
+                if (rackUuid && !startU) {
+                    utils.showAlert('Please choose a position in the rack, or clear the rack selection', 'warning');
+                    return;
+                }
 
                 // Only get startWith if advanced view is enabled
                 let startWith = null;
@@ -1032,9 +1077,23 @@ class Dashboard {
 
                 try {
                     utils.showLoading(true, 'Creating server...');
-                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location, rackPosition);
+                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location);
                     if (result.success) {
-                        utils.showAlert('Server created successfully!', 'success');
+                        // Place it in the rack. The server exists either way, so a failed
+                        // placement is reported as such instead of a false success.
+                        let placementWarning = null;
+                        if (rackUuid && startU && result.data?.config_uuid) {
+                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU);
+                            if (!placement?.success) {
+                                placementWarning = placement?.message || 'Could not place the server in the rack';
+                            }
+                        }
+
+                        if (placementWarning) {
+                            utils.showAlert(`Server created, but not placed in the rack: ${placementWarning}`, 'warning');
+                        } else {
+                            utils.showAlert('Server created successfully!', 'success');
+                        }
                         this.closeModal();
                         await this.loadServerList(true);
                         await this.loadDashboard();
@@ -1056,6 +1115,101 @@ class Dashboard {
             });
         }
     }
+    /**
+     * Populate the Create Server form's Rack + Position dropdowns from the real
+     * racks / rack_servers data. Position lists only the FREE U slots of the chosen
+     * rack. A new server has no chassis yet, so it is placed as 1U and the placement
+     * resizes itself when the chassis is added.
+     */
+    async initRackFields() {
+        const rackSelect = document.getElementById('serverRack');
+        const positionSelect = document.getElementById('rackPosition');
+        const hint = document.getElementById('rackFieldHint');
+        const hintText = document.getElementById('rackFieldHintText');
+        if (!rackSelect || !positionSelect) return;
+
+        const showHint = (message) => {
+            if (!hint || !hintText) return;
+            hintText.textContent = message;
+            hint.classList.remove('hidden');
+            hint.classList.add('flex');
+        };
+        const clearHint = () => {
+            hint?.classList.add('hidden');
+            hint?.classList.remove('flex');
+        };
+        const resetPositions = (label) => {
+            positionSelect.innerHTML = `<option value="">${utils.escapeHtml(label)}</option>`;
+            positionSelect.disabled = true;
+        };
+
+        const res = await api.racks.list();
+
+        if (!res?.success) {
+            rackSelect.innerHTML = '<option value="">Racks unavailable</option>';
+            rackSelect.disabled = true;
+            resetPositions('—');
+            showHint(res?.message || 'Could not load racks. The server can still be created and placed later.');
+            return;
+        }
+
+        const racks = res.data?.racks || [];
+        if (racks.length === 0) {
+            rackSelect.innerHTML = '<option value="">No racks available</option>';
+            rackSelect.disabled = true;
+            resetPositions('—');
+            showHint('No racks exist yet — create one in Rack View before placing servers.');
+            return;
+        }
+
+        rackSelect.innerHTML = '<option value="">-- Not racked --</option>' + racks.map(r => {
+            const loc = r.location ? ` — ${utils.escapeHtml(r.location)}` : '';
+            return `<option value="${utils.escapeHtml(r.rack_uuid)}">${utils.escapeHtml(r.name)}${loc} (${r.free_u}U free of ${r.total_u}U)</option>`;
+        }).join('');
+        rackSelect.disabled = false;
+        resetPositions('-- Select a rack first --');
+        clearHint();
+
+        rackSelect.addEventListener('change', async () => {
+            const rackUuid = rackSelect.value;
+            if (!rackUuid) {
+                resetPositions('-- Select a rack first --');
+                clearHint();
+                return;
+            }
+
+            resetPositions('Loading positions…');
+            const detail = await api.racks.get(rackUuid);
+            if (!detail?.success) {
+                resetPositions('—');
+                showHint(detail?.message || 'Could not load the rack layout.');
+                return;
+            }
+
+            const rack = detail.data?.rack || {};
+            const occupied = new Set();
+            (detail.data?.servers || []).forEach(s => {
+                for (let u = s.start_u; u <= s.end_u; u++) occupied.add(u);
+            });
+
+            const free = [];
+            for (let u = 1; u <= (rack.total_u || 0); u++) {
+                if (!occupied.has(u)) free.push(u);
+            }
+
+            if (free.length === 0) {
+                resetPositions('Rack is full');
+                showHint(`${rack.name} has no free U left — pick another rack.`);
+                return;
+            }
+
+            positionSelect.innerHTML = '<option value="">-- Select position --</option>' +
+                free.map(u => `<option value="${u}">U${u}</option>`).join('');
+            positionSelect.disabled = false;
+            showHint('Placed as 1U — the placement resizes automatically when you add the chassis.');
+        });
+    }
+
     async showServerBuilder(configUuid, serverName) {
 
         // Switch to server builder view
