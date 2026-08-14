@@ -207,6 +207,7 @@ class AddComponentForm {
                 'nic': '/ims-data/nic/nic-level-3.json',
                 'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
                 'pciecard': '/ims-data/pciecard/pci-level-3.json',
+                'risercard': '/ims-data/risercard/riser-level-3.json',
                 'chassis': '/ims-data/chassis/chasis-level-3.json',
                 'caddy': '/ims-data/caddy/caddy_details.json',
                 'sfp': '/ims-data/sfp/sfp-level-3.json'
@@ -1202,8 +1203,9 @@ class AddComponentForm {
                     });
                 }
             });
-        } else if (this.currentComponentType === 'hbacard' || this.currentComponentType === 'pciecard') {
-            // HBA/PCI cards have series field directly
+        } else if (this.currentComponentType === 'hbacard' || this.currentComponentType === 'pciecard'
+                   || this.currentComponentType === 'risercard') {
+            // HBA/PCI/riser cards have series field directly
             series = [...new Set(brandItems.map(item => item.series).filter(Boolean))];
         } else if (this.currentComponentType === 'chassis') {
             // Chassis has series array with series_name
@@ -1496,6 +1498,17 @@ class AddComponentForm {
                 'Internal Ports': { value: modelData.internal_ports || 'N/A', icon: 'fas fa-ethernet' },
                 'External Ports': { value: modelData.external_ports || 'N/A', icon: 'fas fa-ethernet' },
                 'Max Devices': { value: modelData.max_devices || 'N/A', icon: 'fas fa-hdd' }
+            };
+        } else if (this.currentComponentType === 'risercard') {
+            // Riser cards are their own component type since 2026-08-14; there is
+            // only one shape of riser spec, so no subtype branching is needed here.
+            details = {
+                'Model': { value: modelData.model || 'N/A', icon: 'fas fa-layer-group' },
+                'Interface': { value: modelData.interface || 'N/A', icon: 'fas fa-server' },
+                'Form Factor': { value: modelData.form_factor || 'N/A', icon: 'fas fa-ruler' },
+                'PCIe Slots': { value: modelData.pcie_slots || 'N/A', icon: 'fas fa-th' },
+                'Slot Type': { value: modelData.slot_type || 'N/A', icon: 'fas fa-plug' },
+                'Cable Type': { value: modelData.cable_type || 'N/A', icon: 'fas fa-plug' }
             };
         } else if (this.currentComponentType === 'pciecard') {
             // Get the component subtype to display appropriate fields

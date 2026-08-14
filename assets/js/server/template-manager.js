@@ -73,6 +73,7 @@ class TemplateManager {
                 'nic',
                 'hbacard',
                 'caddy',
+                'risercard',
                 'pciecard',
                 'sfp'
             ];

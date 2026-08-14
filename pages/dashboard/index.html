@@ -54,6 +54,7 @@
         #dashboardView .dash-card:nth-child(9)  { animation-delay: 0.27s; }
         #dashboardView .dash-card:nth-child(10) { animation-delay: 0.30s; }
         #dashboardView .dash-card:nth-child(11) { animation-delay: 0.33s; }
+        #dashboardView .dash-card:nth-child(12) { animation-delay: 0.36s; }
 
         #dashboardView .dash-card {
             transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
@@ -411,6 +412,37 @@
                                 <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashPciecardAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
                                 <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashPciecardInUse" class="dash-num text-text-primary font-semibold">0</b></span>
                                 <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashPciecardFailed" class="dash-num text-danger font-semibold">0</b></span>
+                            </div>
+                        </div>
+
+                        <!-- Riser Card -->
+                        <div class="stat-card risercard-card dash-card group bg-surface-card rounded-2xl border border-border-light p-5 cursor-pointer"
+                            role="link" tabindex="0" aria-label="View riser card inventory">
+                            <div class="flex items-center justify-between mb-5">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                                        <i class="fas fa-layer-group"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-text-primary leading-tight">Riser Cards</h3>
+                                        <p class="text-[11px] uppercase tracking-wider text-text-muted">PCIe riser bridges</p>
+                                    </div>
+                                </div>
+                                <i class="fas fa-arrow-right text-xs text-primary opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all"></i>
+                            </div>
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span id="dashRisercardTotal" class="dash-num text-4xl font-bold text-text-primary">0</span>
+                                <span class="text-xs text-text-muted font-medium">total units</span>
+                            </div>
+                            <div class="flex h-1.5 rounded-full overflow-hidden bg-surface-hover mb-3.5" aria-hidden="true">
+                                <div id="dashRisercardBarAvailable" class="bg-emerald-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashRisercardBarInUse" class="bg-sky-500 transition-all duration-700" style="width:0%"></div>
+                                <div id="dashRisercardBarFailed" class="bg-rose-500 transition-all duration-700" style="width:0%"></div>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Avail <b id="dashRisercardAvailable" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-sky-500"></span>In Use <b id="dashRisercardInUse" class="dash-num text-text-primary font-semibold">0</b></span>
+                                <span class="flex items-center gap-1.5 text-text-muted"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Failed <b id="dashRisercardFailed" class="dash-num text-danger font-semibold">0</b></span>
                             </div>
                         </div>
 

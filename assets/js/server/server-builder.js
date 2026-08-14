@@ -33,6 +33,7 @@ class ServerBuilder {
             chassis: [],
             caddy: [],
             pciecard: [],
+            risercard: [],
             nic: [],
             hbacard: [],
             sfp: []
@@ -84,6 +85,14 @@ class ServerBuilder {
                 name: 'Caddy',
                 description: 'Drive Mounting',
                 icon: 'fas fa-box',
+                multiple: true,
+                required: false
+            },
+            {
+                type: 'risercard',
+                name: 'Riser Cards',
+                description: 'PCIe Riser Bridges',
+                icon: 'fas fa-layer-group',
                 multiple: true,
                 required: false
             },
@@ -326,6 +335,7 @@ class ServerBuilder {
             chassis: [],
             caddy: [],
             pciecard: [],
+            risercard: [],
             nic: [],
             hbacard: [],
             sfp: []
@@ -387,6 +397,7 @@ class ServerBuilder {
             'caddy': document.getElementById('caddyCount'),
             'chassis': document.getElementById('chassisCount'),
             'pciecard': document.getElementById('pciecardCount'),
+            'risercard': document.getElementById('risercardCount'),
             'sfp': document.getElementById('sfpCount'),
             'hbacard': document.getElementById('hbacardCount'),
             'servers': document.getElementById('serversCount')
@@ -796,6 +807,7 @@ class ServerBuilder {
             'storage': '/ims-data/storage/storage-level-3.json',
             'nic': '/ims-data/nic/nic-level-3.json',
             'pciecard': '/ims-data/pciecard/pci-level-3.json',
+            'risercard': '/ims-data/risercard/riser-level-3.json',
             'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
             'sfp': '/ims-data/sfp/sfp-level-3.json',
             'caddy': '/ims-data/caddy/caddy_details.json'
@@ -904,6 +916,7 @@ class ServerBuilder {
             { key: 'chassis', icon: 'fas fa-server', label: 'Chassis' },
             { key: 'nic', icon: 'fas fa-network-wired', label: 'Network' },
             { key: 'pciecard', icon: 'fas fa-plug', label: 'PCIe Card' },
+            { key: 'risercard', icon: 'fas fa-layer-group', label: 'Riser Card' },
             { key: 'hbacard', icon: 'fas fa-plug', label: 'HBA Card' },
             { key: 'sfp', icon: 'fas fa-ethernet', label: 'SFP' },
             { key: 'caddy', icon: 'fas fa-box', label: 'Caddy' }
@@ -1784,7 +1797,7 @@ class ServerBuilder {
 
         const sectionMap = {
             cpu: 'cpu', ram: 'memory', nic: 'network', sfp: 'network',
-            pciecard: 'expansion', hbacard: 'expansion', storage: 'drivebays',
+            pciecard: 'expansion', risercard: 'expansion', hbacard: 'expansion', storage: 'drivebays',
             caddy: 'caddy', chassis: 'chassis', motherboard: 'board'
         };
         const target = document.querySelector(`[data-hw-section="${sectionMap[type]}"]`)
@@ -2498,6 +2511,7 @@ class ServerBuilder {
      */
     renderExpansionSlots() {
         const pcieComponents = this.selectedComponents.pciecard || [];
+        const riserComponents = this.selectedComponents.risercard || [];
         const hbaComponents = this.selectedComponents.hbacard || [];
         // Filter out onboard NICs - they render in renderAllNICs()
         const nicComponents = (this.selectedComponents.nic || []).filter(n => !n.uuid?.startsWith('onboard-'));
@@ -2505,6 +2519,9 @@ class ServerBuilder {
         // Build UUID → component lookup map with type metadata
         const componentMap = new Map();
         pcieComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card', compType: 'pciecard' }));
+        // Risers sit in riser bays, rendered by the Riser Slots block below — but they
+        // resolve through this same map, so they must be in it or those rows read empty.
+        riserComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'Riser Card', typeIcon: 'fas fa-layer-group', compType: 'risercard' }));
         hbaComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd', compType: 'hbacard' }));
         nicComponents.forEach(c => componentMap.set(c.uuid, { ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired', compType: 'nic' }));
 
@@ -2563,7 +2580,7 @@ class ServerBuilder {
                                 label: `Riser ${type.toUpperCase()} ${idx + 1}`,
                                 badge: slotName.replace(/_/g, ' '),
                                 component,
-                                emptyType: 'pciecard',
+                                emptyType: 'risercard',
                                 icon: component?.typeIcon || ''
                             });
                         });
@@ -2577,6 +2594,7 @@ class ServerBuilder {
         // Fallback: no slot assignment data — sequential placement
         const allExpansionComponents = [
             ...pcieComponents.map(c => ({ ...c, type: 'PCIe Card', typeIcon: 'fas fa-credit-card', compType: 'pciecard' })),
+            ...riserComponents.map(c => ({ ...c, type: 'Riser Card', typeIcon: 'fas fa-layer-group', compType: 'risercard' })),
             ...hbaComponents.map(c => ({ ...c, type: 'HBA Card', typeIcon: 'fas fa-hdd', compType: 'hbacard' })),
             ...nicComponents.map(c => ({ ...c, type: 'Network Card', typeIcon: 'fas fa-network-wired', compType: 'nic' }))
         ];
@@ -3160,6 +3178,7 @@ class ServerBuilder {
                         chassis: 0,
                         caddy: 0,
                         pciecard: 75,
+                        risercard: 0,
                         nic: 25
                     };
                     totalPower += powerMap[type] || 0;

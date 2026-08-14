@@ -268,7 +268,7 @@ class Dashboard {
     }
 
     updateDashboardStats(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard', 'sfp'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp'];
         components.forEach(component => {
             if (stats[component]) {
                 const stat = stats[component];
@@ -326,7 +326,7 @@ class Dashboard {
     }
 
     updateSidebarCounts(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard', 'servers'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'servers'];
         components.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);
             if (countElement && stats[component]) {
@@ -1282,13 +1282,14 @@ class Dashboard {
                 { type: 'chassis', name: 'Chassis', description: 'Server Cabinet/Case', icon: 'fas fa-server', multiple: false },
                 { type: 'caddy', name: 'Caddy', description: 'Drive Mounting Hardware', icon: 'fas fa-box', multiple: true },
                 { type: 'pciecard', name: 'PCI Cards', description: 'Expansion Cards (GPU, RAID)', icon: 'fas fa-credit-card', multiple: true },
+                { type: 'risercard', name: 'Riser Cards', description: 'PCIe Riser / Expansion Bridges', icon: 'fas fa-layer-group', multiple: true },
                 { type: 'hbacard', name: 'HBA Cards', description: 'Host Bus Adapter Cards', icon: 'fas fa-plug', multiple: true },
                 { type: 'nic', name: 'Network Cards', description: 'Network Interface Cards', icon: 'fas fa-network-wired', multiple: true }
             ];
 
             this.componentLimits = {
                 cpu: 2, motherboard: 1, ram: 24, storage: 24,
-                chassis: 1, caddy: 24, pciecard: 8, hbacard: 4, nic: 4
+                chassis: 1, caddy: 24, pciecard: 8, risercard: 4, hbacard: 4, nic: 4
             };
 
             // Load existing components directly from the config data (no second API call)
@@ -1469,6 +1470,7 @@ class Dashboard {
             chassis: [],
             caddy: [],
             pciecard: [],
+            risercard: [],
             hbacard: [],
             nic: []
         };
@@ -1930,6 +1932,7 @@ class Dashboard {
             'nic': '/ims-data/nic/nic-level-3.json',
             'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
             'pciecard': '/ims-data/pciecard/pci-level-3.json',
+            'risercard': '/ims-data/risercard/riser-level-3.json',
             'chassis': '/ims-data/chassis/chasis-level-3.json',
             'caddy': '/ims-data/caddy/caddy_details.json',
             'sfp': '/ims-data/sfp/sfp-level-3.json',
@@ -2077,6 +2080,11 @@ class Dashboard {
             pciecard: [
                 ['_brand', 'Brand'], ['_series', 'Series'], ['_component_subtype', 'Subtype'],
                 ['model', 'Model'], ['interface', 'Interface'], ['form_factor', 'Form Factor'],
+            ],
+            risercard: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['interface', 'Interface'], ['pcie_slots', 'PCIe Slots'], ['slot_type', 'Slot Type'],
+                ['form_factor', 'Form Factor'],
             ],
             hbacard: [
                 ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
@@ -2555,30 +2563,70 @@ class Dashboard {
 
     async handleDeleteServer(configUuid) {
         const confirmed = await utils.confirm('Are you sure you want to delete this server configuration? This action cannot be undone.', 'Delete Server');
-        if (confirmed) {
-            try {
-                utils.showLoading(true, 'Deleting server...');
-                const result = await api.servers.deleteConfig(configUuid);
-                if (result.success) {
-                    utils.showAlert('Server deleted successfully', 'success');
-                    await this.loadServerList(true);
-                    await this.loadDashboard();
-                }
-            } catch (error) {
-                console.error('Error deleting server:', error);
-                // 409 = the server still has components installed. That's a state
-                // the user can fix, so show it as an actionable warning (and give
-                // it longer on screen — it lists what has to be removed) instead
-                // of a red failure.
-                if (error.code === 409) {
-                    utils.showAlert(error.message, 'warning', 'Components Still Installed', 10000);
-                } else {
-                    utils.showAlert(error.message || 'Failed to delete server', 'error');
-                }
-            } finally {
-                utils.showLoading(false);
+        if (!confirmed) return;
+        await this.deleteServerConfig(configUuid, false);
+    }
+
+    /**
+     * Delete a server configuration, releasing its components.
+     *
+     * The backend refuses (409) to delete a server that still holds components,
+     * because that delete is also a bulk inventory release. Rather than making
+     * the user empty the server by hand, we turn the refusal into a second
+     * confirmation that names exactly what will be freed, then re-issue the
+     * delete with force — so one extra click both releases the components and
+     * removes the server.
+     */
+    async deleteServerConfig(configUuid, force) {
+        try {
+            utils.showLoading(true, 'Deleting server...');
+            const result = await api.servers.deleteConfig(configUuid, force);
+            if (result.success) {
+                const released = result.data?.components_released ?? 0;
+                utils.showAlert(
+                    released > 0
+                        ? `Server deleted. ${released} component${released === 1 ? '' : 's'} released back to available.`
+                        : 'Server deleted successfully',
+                    'success'
+                );
+                await this.loadServerList(true);
+                await this.loadDashboard();
             }
+        } catch (error) {
+            console.error('Error deleting server:', error);
+            // 409 = components still installed. Not a failure — ask whether to
+            // release them, and retry the delete with force if the user agrees.
+            if (error.code === 409 && !force) {
+                utils.showLoading(false);
+                const total = error.data?.installed_total ?? 0;
+                const releaseConfirmed = await utils.confirm(
+                    `This server still has ${total} component${total === 1 ? '' : 's'} installed`
+                    + `${this.formatInstalledComponents(error.data?.installed_components)}. `
+                    + 'Deleting it will release them back to available inventory. Continue?',
+                    'Release Components & Delete'
+                );
+                if (releaseConfirmed) {
+                    await this.deleteServerConfig(configUuid, true);
+                }
+                return;
+            }
+            utils.showAlert(error.message || 'Failed to delete server', 'error');
+        } finally {
+            utils.showLoading(false);
         }
+    }
+
+    /** " (1 RAM, 1 motherboard, 1 network card)" — empty string when unknown. */
+    formatInstalledComponents(byType) {
+        const labels = {
+            cpu: 'CPU', ram: 'RAM', storage: 'storage', motherboard: 'motherboard',
+            nic: 'network card', caddy: 'caddy', chassis: 'chassis',
+            pciecard: 'PCIe card', risercard: 'riser card', hbacard: 'HBA card', sfp: 'SFP module'
+        };
+        const parts = Object.entries(byType || {})
+            .filter(([, count]) => count > 0)
+            .map(([type, count]) => `${count} ${labels[type] || type}`);
+        return parts.length ? ` (${parts.join(', ')})` : '';
     }
 
     async handleLogout() {
@@ -2764,6 +2812,7 @@ class Dashboard {
             'chassis': 'server',
             'caddy': 'box',
             'pciecard': 'credit-card',
+            'risercard': 'layer-group',
             'hbacard': 'plug',
             'nic': 'network-wired'
         };
@@ -3034,6 +3083,7 @@ class Dashboard {
             { key: 'caddy', label: 'Caddies' },
             { key: 'chassis', label: 'Chassis' },
             { key: 'pciecard', label: 'PCIe Cards' },
+            { key: 'risercard', label: 'Riser Cards' },
             { key: 'hbacard', label: 'HBA Cards' },
             { key: 'sfp', label: 'SFP Modules' }
         ];

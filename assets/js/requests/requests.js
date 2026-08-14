@@ -621,7 +621,7 @@ class RequestsManager {
     // ----- Component item picker --------------------------------------------
     async loadComponentData() {
         if (this.componentData) return;
-        this.componentData = { cpu: [], ram: [], storage: [], motherboard: [], nic: [], caddy: [], chassis: [], pciecard: [], hbacard: [] };
+        this.componentData = { cpu: [], ram: [], storage: [], motherboard: [], nic: [], caddy: [], chassis: [], pciecard: [], risercard: [], hbacard: [] };
         const paths = {
             cpu: '/ims-data/cpu/Cpu-details-level-3.json',
             ram: '/ims-data/ram/ram_detail.json',
@@ -631,6 +631,7 @@ class RequestsManager {
             caddy: '/ims-data/caddy/caddy_details.json',
             chassis: '/ims-data/chassis/chasis-level-3.json',
             pciecard: '/ims-data/pciecard/pci-level-3.json',
+            risercard: '/ims-data/risercard/riser-level-3.json',
             hbacard: '/ims-data/hbacard/hbacard-level-3.json'
         };
         for (const [type, path] of Object.entries(paths)) {
@@ -658,7 +659,7 @@ class RequestsManager {
     addComponentItem() {
         const container = document.getElementById('plComponents');
         if (!container) return;
-        const types = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'hbacard'];
+        const types = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard'];
         const row = document.createElement('div');
         row.className = 'component-item bg-surface-secondary/30 border border-border rounded-lg p-3';
         row.innerHTML = `

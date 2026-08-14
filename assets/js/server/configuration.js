@@ -356,10 +356,16 @@ class ConfigurationPage {
                 interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'SATA', 'SAS', 'NVMe'] }
             },
             'pciecard': {
-                subtype: { type: 'radio', label: 'TYPE', options: ['All', 'NVMe Adaptor', 'Riser Card'] },
+                subtype: { type: 'radio', label: 'TYPE', options: ['All', 'NVMe Adaptor'] },
                 manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Supermicro', 'ASUS', 'Dell', 'HPE', 'Lenovo'] },
                 interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe 3.0', 'PCIe 4.0', 'PCIe 5.0'] },
                 formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', 'HHHL', 'FHFL', '1U Low Profile', '2U Standard Height'] }
+            },
+            'risercard': {
+                manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Supermicro', 'Dell', 'HPE', 'Lenovo', 'ASUS', 'Cisco'] },
+                interface: { type: 'radio', label: 'INTERFACE', options: ['All', 'PCIe 3.0', 'PCIe 4.0'] },
+                slotType: { type: 'radio', label: 'SLOT TYPE', options: ['All', 'x8', 'x16'] },
+                formFactor: { type: 'radio', label: 'FORM FACTOR', options: ['All', '1U Low Profile', '2U Standard Height'] }
             },
             'hbacard': {
                 manufacturer: { type: 'radio', label: 'MANUFACTURER', options: ['All', 'Broadcom', 'Microchip', 'LSI'] },
@@ -1061,6 +1067,22 @@ class ConfigurationPage {
                 }
                 break;
 
+            case 'risercard':
+                // Risers became their own component type on 2026-08-14. A riser's
+                // "capacity" is the PCIe slots it PROVIDES downstream, not storage.
+                component.model = jsonComponent.model || 'N/A';
+                component.interface = jsonComponent.interface || 'PCIe';
+                component.formFactor = jsonComponent.form_factor || 'N/A';
+                component.slotType = jsonComponent.slot_type || 'N/A';
+                component.pcieSlots = jsonComponent.pcie_slots ?? 'N/A';
+                if (jsonComponent.pcie_slots !== undefined && jsonComponent.pcie_slots !== null) {
+                    component.max_capacity = `${jsonComponent.pcie_slots}x ${jsonComponent.slot_type || ''}`.trim();
+                } else {
+                    component.max_capacity = 'N/A';
+                }
+                component.total_max_capacity = component.max_capacity;
+                break;
+
             case 'hbacard':
                 component.model = jsonComponent.model || 'N/A';
                 component.interface = jsonComponent.interface || 'PCIe';
@@ -1123,6 +1145,7 @@ class ConfigurationPage {
             'chassis': ['/ims-data/chassis/chasis-level-3.json'],
             'caddy': ['/ims-data/caddy/caddy_details.json'],
             'pciecard': ['/ims-data/pciecard/pci-level-3.json'],
+            'risercard': ['/ims-data/risercard/riser-level-3.json'],
             'hbacard': ['/ims-data/hbacard/hbacard-level-3.json'],
             'sfp': ['/ims-data/sfp/sfp-level-3.json']
         };
@@ -1270,6 +1293,7 @@ class ConfigurationPage {
             'chassis': ['Brand', 'Form Factor', 'Action'],
             'caddy': ['Form Factor', 'Interface', 'Size', 'Action'],
             'pciecard': ['Interface', 'Max Capacity', 'Form Factor', 'Action'],
+            'risercard': ['Interface', 'Slots Provided', 'Form Factor', 'Action'],
             'hbacard': ['Interface', 'Protocol', 'Internal Ports', 'Action'],
             'sfp': ['Type', 'Speed', 'Connector', 'Action']
         };
@@ -1363,6 +1387,7 @@ class ConfigurationPage {
             'chassis': 'fas fa-server',
             'caddy': 'fas fa-server',
             'pciecard': 'fas fa-expand-arrows-alt',
+            'risercard': 'fas fa-layer-group',
             'hbacard': 'fas fa-hdd',
             'sfp': 'fas fa-plug'
         };
@@ -1480,6 +1505,14 @@ class ConfigurationPage {
                 <td class="${cellClass}"></td>
             `;
             case 'pciecard':
+                return `
+                <td class="${cellClass}">${this.formatValue(component.interface)}</td>
+                <td class="${cellClass}">${this.formatValue(component.total_max_capacity || component.max_capacity)}</td>
+                <td class="${cellClass}">${this.formatValue(component.formFactor)}</td>
+                <td class="${cellClass}"></td>
+                <td class="${cellClass}"></td>
+            `;
+            case 'risercard':
                 return `
                 <td class="${cellClass}">${this.formatValue(component.interface)}</td>
                 <td class="${cellClass}">${this.formatValue(component.total_max_capacity || component.max_capacity)}</td>
@@ -1612,6 +1645,14 @@ class ConfigurationPage {
                     // { label: 'Base Clock', value: component.baseClock || 'N/A', icon: 'fas fa-tachometer-alt' },
                     // { label: 'Boost Clock', value: component.boostClock || 'N/A', icon: 'fas fa-rocket' },
                     // { label: 'TDP', value: component.tdp || 'N/A', icon: 'fas fa-bolt' }
+                );
+                break;
+            case 'risercard':
+                specs.push(
+                    { label: 'Interface', value: component.interface || 'N/A', icon: 'fas fa-expand-arrows-alt' },
+                    { label: 'PCIe Slots', value: component.pcieSlots || 'N/A', icon: 'fas fa-th' },
+                    { label: 'Slot Type', value: component.slotType || 'N/A', icon: 'fas fa-plug' },
+                    { label: 'Form Factor', value: component.formFactor || 'N/A', icon: 'fas fa-ruler' }
                 );
                 break;
             case 'sfp':
@@ -2202,6 +2243,7 @@ class ConfigurationPage {
             'chassis': 'Chassis',
             'caddy': 'Caddy',
             'pciecard': 'PCIe Card',
+            'risercard': 'Riser Card',
             'hbacard': 'HBA Card'
         };
 

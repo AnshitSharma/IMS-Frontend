@@ -415,8 +415,12 @@ window.api = {
             return await api.request('server-get-config', { config_uuid: configUuid });
         },
 
-        async deleteConfig(configUuid) {
-            return await api.request('server-delete-config', { config_uuid: configUuid });
+        // force = the caller has already confirmed the bulk release of every
+        // component still installed. Without it the backend refuses with 409.
+        async deleteConfig(configUuid, force = false) {
+            const payload = { config_uuid: configUuid };
+            if (force) payload.force = '1';
+            return await api.request('server-delete-config', payload);
         },
 
         async finalizeConfig(configUuid, notes = '') {
