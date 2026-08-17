@@ -485,6 +485,13 @@ class ConfigurationPage {
             // Update the current component type
             this.currentComponentType = componentType;
 
+            // This page is reachable by typing the URL, so the builder's gating
+            // has to be re-checked here: listing SFP modules a copper-only build
+            // can never accept just moves the dead end further along.
+            if (configUuid && !(await this.isTypeInstallable(configUuid, componentType))) {
+                return;
+            }
+
             // Store parent NIC UUID for SFP modules and fetch NIC details
             if (parentNicUuid) {
                 this.parentNicUuid = parentNicUuid;
@@ -527,6 +534,46 @@ class ConfigurationPage {
             this.showAlert(error.message || 'Failed to load components', 'error');
         } finally {
             this.showLoading(false);
+        }
+    }
+
+    /**
+     * Can this build still take a component of this type?
+     *
+     * Asks the same backend verdict the builder renders from, so the two can't
+     * disagree. Fails OPEN on any error or on an older response without
+     * `component_options` — this is a UI guard, not authorization, and the
+     * add-time validation behind it is unchanged.
+     *
+     * @returns {Promise<boolean>} false once the user has been redirected away
+     */
+    async isTypeInstallable(configUuid, componentType) {
+        try {
+            const result = await serverAPI.getServerConfig(configUuid);
+            if (!result?.success || !result.data?.component_options) {
+                return true;
+            }
+
+            const state = new BuildState(result.data);
+            if (state.canAdd(componentType)) {
+                return true;
+            }
+
+            const label = BuildState.COMPONENT_CATALOG.find(c => c.type === componentType)?.name || componentType;
+            const detail = state.capacityLabel(componentType);
+            this.showAlert(
+                `This server can't take ${label} right now${detail ? ` — ${detail}` : ''}.`,
+                'warning'
+            );
+
+            setTimeout(() => {
+                window.location.href = `builder.html?config=${encodeURIComponent(configUuid)}`;
+            }, 2200);
+
+            return false;
+        } catch (error) {
+            console.error('Could not verify component availability:', error);
+            return true;
         }
     }
 
@@ -679,6 +726,9 @@ class ConfigurationPage {
                         compatible: apiComp.is_compatible === true,
                         compatibilityScore: apiComp.compatibility_score || 0,
                         compatibilityIssues: apiComp.compatibility_reason ? [apiComp.compatibility_reason] : [],
+                        // Compatible, but with caveats — e.g. a CPU sharing the installed
+                        // CPU's base SKU but a different processor line suffix (6338/6338N).
+                        compatibilityWarnings: apiComp.warnings || [],
                         // Add database info
                         serial_number: apiComp.serial_number || 'N/A',
                         status: apiComp.status || 1,
@@ -1357,6 +1407,13 @@ class ConfigurationPage {
                     ${component.serial_number && component.serial_number !== 'N/A' ? `
                         <div class="text-xs text-text-muted mt-1">S/N: ${this.escapeHtml(component.serial_number)}</div>
                     ` : ''}
+                    ${(component.compatibilityWarnings || []).length ? `
+                        <div class="text-xs text-amber-600 dark:text-amber-500 mt-1 flex items-center gap-1"
+                             title="${this.escapeHtml(component.compatibilityWarnings.join(' '))}">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Possible issues — hover for detail</span>
+                        </div>
+                    ` : ''}
                 </td>
                 ${this.renderComponentSpecsCells(component)}
                 <td class="px-4 py-3 text-center">
@@ -1767,6 +1824,12 @@ class ConfigurationPage {
 
                 if (result.success) {
                     this.showAlert(`${component.name} added successfully`, 'success');
+
+                    // Compatibility warnings the backend attached to the add (e.g. mixing
+                    // CPU SKU variants such as 6338 + 6338N — allowed, but flagged).
+                    const addWarnings = result.data?.warnings || [];
+                    addWarnings.forEach(warning => this.showAlert(warning, 'warning'));
+
                     this.updateCompatibilityBanner();
 
                     // If we came from a specific page, redirect back

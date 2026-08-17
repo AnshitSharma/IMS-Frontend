@@ -39,96 +39,13 @@ class ServerBuilder {
             sfp: []
         };
 
-        this.componentTypes = [
-            {
-                type: 'cpu',
-                name: 'CPU',
-                description: 'Processor',
-                icon: 'fas fa-microchip',
-                multiple: true,
-                required: true
-            },
-            {
-                type: 'motherboard',
-                name: 'Motherboard',
-                description: 'System Board',
-                icon: 'fas fa-th-large',
-                multiple: false,
-                required: true
-            },
-            {
-                type: 'ram',
-                name: 'Memory',
-                description: 'RAM Modules',
-                icon: 'fas fa-memory',
-                multiple: true,
-                required: true
-            },
-            {
-                type: 'storage',
-                name: 'Storage',
-                description: 'Hard Drives, SSDs',
-                icon: 'fas fa-hdd',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'chassis',
-                name: 'Chassis',
-                description: 'Server Case',
-                icon: 'fas fa-server',
-                multiple: false,
-                required: true
-            },
-            {
-                type: 'caddy',
-                name: 'Caddy',
-                description: 'Drive Mounting',
-                icon: 'fas fa-box',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'risercard',
-                name: 'Riser Cards',
-                description: 'PCIe Riser Bridges',
-                icon: 'fas fa-layer-group',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'pciecard',
-                name: 'PCI Cards',
-                description: 'Expansion Cards',
-                icon: 'fas fa-credit-card',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'nic',
-                name: 'Network Cards',
-                description: 'Network Interface',
-                icon: 'fas fa-network-wired',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'hbacard',
-                name: 'HBA Cards',
-                description: 'Host Bus Adapter',
-                icon: 'fas fa-hdd',
-                multiple: true,
-                required: false
-            },
-            {
-                type: 'sfp',
-                name: 'SFP Modules',
-                description: 'Fiber Transceivers',
-                icon: 'fas fa-plug',
-                multiple: true,
-                required: false
-            }
-        ];
+        // The catalog lives in BuildState, which also owns the question of which
+        // of these 11 types the current build can actually accept.
+        this.componentTypes = BuildState.COMPONENT_CATALOG;
+
+        // Replaced on every load with the server's view of this build. Until
+        // then, an empty state means "no opinion" — every type visible.
+        this.buildState = new BuildState({});
 
         this.compatibilityIssues = [];
         this.performanceWarnings = [];
@@ -223,12 +140,16 @@ class ServerBuilder {
                 // We prefer result.data if it has components, otherwise fall back
                 const dataWithComponents = result.data.components ? result.data : configData;
 
+                // Wrap the payload: owns which component types this build can
+                // accept, and which of those still have free capacity.
+                this.buildState = new BuildState(result.data);
+
                 // Store network config for onboard NIC details lookup
-                this.networkConfig = result.data.hardware?.network || null;
+                this.networkConfig = this.buildState.network;
                 // Store storage connectivity for drive bay display
-                this.storageConnectivity = result.data.hardware?.storage_connectivity || null;
+                this.storageConnectivity = this.buildState.storageConnectivity;
                 // Store slot assignments for correct PCIe/riser/M.2 mapping
-                this.slotAssignments = result.data.hardware?.slots || null;
+                this.slotAssignments = this.buildState.slots;
 
                 await this.parseExistingComponents(dataWithComponents);
                 this.renderServerBuilderInterface();
@@ -595,8 +516,11 @@ class ServerBuilder {
         this.compatibilityIssues = [];
         this.performanceWarnings = [];
 
-        // Check for missing required components
-        this.componentTypes.forEach(compType => {
+        // Check for missing required components. Only types the build can
+        // actually accept are raised: an issue whose fix button is hidden would
+        // be unresolvable. All four required types are base types today, so this
+        // changes nothing now — it just can't rot if one ever becomes gated.
+        this.buildState.visibleTypes().forEach(compType => {
             if (compType.required && this.selectedComponents[compType.type].length === 0) {
                 this.compatibilityIssues.push({
                     severity: 'critical',
@@ -1456,7 +1380,7 @@ class ServerBuilder {
                             </tr>
                         </thead>
                         <tbody>
-                            ${this.componentTypes.map(type => this.renderComponentRow(type)).join('')}
+                            ${this.buildState.visibleTypes().map(type => this.renderComponentRow(type)).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -2190,6 +2114,13 @@ class ServerBuilder {
         const hasComponents = components.length > 0;
         const isMultiple = componentType.multiple;
 
+        // Capacity exhausted: the row and its chips stay (installed hardware must
+        // remain visible and removable), only the add affordance is withheld.
+        const canAdd = this.buildState.canAdd(componentType.type);
+        const capacityBadge = canAdd
+            ? ''
+            : `<span class="comp-capacity-badge"><i class="fas fa-lock text-[9px]"></i>${this.escapeHtml(this.buildState.capacityLabel(componentType.type))}</span>`;
+
         const labelCell = `
             <td class="px-5 py-3 align-middle">
                 <div class="flex items-center gap-3.5">
@@ -2227,21 +2158,23 @@ class ServerBuilder {
             <td class="px-5 py-3 align-middle">
                 <div class="flex flex-wrap items-center gap-2">
                     ${chips}
-                    ${isMultiple ? `
+                    ${isMultiple && canAdd ? `
                     <button class="btn-ghost-add" onclick="window.serverBuilder.addComponent('${componentType.type}')">
                         <i class="fas fa-plus"></i>
                         Add More
                     </button>` : ''}
+                    ${capacityBadge}
                 </div>
             </td>`;
         } else {
             const buttonText = isMultiple ? `Choose ${componentType.name}` : `Add ${componentType.name}`;
             valueCell = `
             <td class="px-5 py-3 align-middle text-right">
+                ${canAdd ? `
                 <button class="${componentType.required ? 'btn-choose' : 'btn-ghost-add'}" onclick="window.serverBuilder.addComponent('${componentType.type}')">
                     <i class="fas fa-plus"></i>
                     ${buttonText}
-                </button>
+                </button>` : capacityBadge}
             </td>`;
         }
 
@@ -3197,6 +3130,15 @@ class ServerBuilder {
 
             if (!this.currentConfig || !this.currentConfig.config_uuid) {
                 this.showAlert('No server configuration loaded', 'error');
+                return;
+            }
+
+            // Single enforcement point: the component table, the empty-slot
+            // "Install" rows in the Server Usage tree and the issue-panel actions
+            // all arrive here, so the capacity check belongs here rather than at
+            // each call site.
+            if (!this.buildState.canAdd(type)) {
+                this.showAlert(this.buildState.capacityLabel(type) || `No capacity for ${type} in this build`, 'warning');
                 return;
             }
 

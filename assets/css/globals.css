@@ -1013,6 +1013,14 @@
   @apply inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-warning bg-warning/10 border border-warning/30 rounded px-1.5 py-0.5;
 }
 
+/* Capacity badge shown in place of the add button when a component type is
+   visible but full (all PCIe slots occupied, all SFP ports populated, ...).
+   Muted rather than warning-coloured: a full slot is a normal end state, not
+   a problem to fix. */
+.comp-capacity-badge {
+  @apply inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-text-muted bg-surface-hover border border-border-light rounded px-2 py-1;
+}
+
 /* Selected component chip */
 .comp-chip {
   @apply inline-flex items-stretch rounded border border-border bg-surface-card overflow-hidden transition-colors duration-150;
