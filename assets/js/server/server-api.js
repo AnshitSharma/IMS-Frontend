@@ -66,13 +66,19 @@ class ServerAPI {
     }
 
     // Server Configuration APIs
-    async createServerConfig(serverName, description, startWith, isVirtual, options = {}) {
+    // isSandbox creates a Compatibility Bench build: it implies is_virtual on the
+    // backend, so nothing it holds is ever reserved or flipped to in_use.
+    async createServerConfig(serverName, description, startWith, isVirtual, options = {}, isSandbox = false) {
         const requestData = {
             action: 'server-create-start',
             server_name: serverName,
             description: description,
             is_virtual: isVirtual
         };
+
+        if (isSandbox) {
+            requestData.is_sandbox = 'true';
+        }
 
         // Only include start_with if it's provided
         if (startWith) {
@@ -96,7 +102,24 @@ class ServerAPI {
             action: 'server-list-configs',
             limit: limit,
             offset: offset,
-            include_virtual: 'true'
+            include_virtual: 'true',
+            // Bench builds are virtual too, and would otherwise be offered as
+            // templates. The backend defaults to hiding them; stated here so the
+            // intent survives a future change to that default.
+            sandbox: 'false'
+        }, options);
+    }
+
+    // Compatibility Bench builds. The mirror of listTemplates(): the only listing
+    // that asks for sandbox rows, since every other caller must never see them.
+    async listSandboxConfigs(limit = 100, offset = 0, options = {}) {
+        return await this.makeRequest({
+            action: 'server-list-configs',
+            limit: limit,
+            offset: offset,
+            include_virtual: 'all',
+            status: '',
+            sandbox: 'true'
         }, options);
     }
 
@@ -198,6 +221,25 @@ class ServerAPI {
             component_type: componentType,
             include_in_use: includeInUse.toString(),
             limit: limit.toString()
+        }, options);
+    }
+
+    // Server Compute Platform APIs
+    // Platforms (HPE ProLiant DL360 Gen10 …) group the system boards a given server
+    // product accepts. Specs live in ims-data; the backend serves them with live stock.
+    async listServerPlatforms(options = {}) {
+        return await this.makeRequest({
+            action: 'server-list-platforms'
+        }, options);
+    }
+
+    // Records the platform on a configuration. The board must already be installed —
+    // the backend refuses a platform that does not own the installed board.
+    async setServerPlatform(configUuid, platformUuid, options = {}) {
+        return await this.makeRequest({
+            action: 'server-set-platform',
+            config_uuid: configUuid,
+            platform_uuid: platformUuid
         }, options);
     }
 

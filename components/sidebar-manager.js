@@ -75,6 +75,14 @@ class SidebarManager {
                 if (vendorMenuItem) vendorMenuItem.style.display = '';
             }
 
+            // Show Server Compatibility to anyone who may build a server — the bench is
+            // the same builder with nothing reserved, so it needs no wider grant than
+            // building itself (UI-only gate; the API enforces server.create server-side).
+            if (window.api && window.api.utils && window.api.utils.hasPermission('server.create')) {
+                const compatMenuItem = document.getElementById('serverCompatibilityMenuItem');
+                if (compatMenuItem) compatMenuItem.style.display = '';
+            }
+
             // Show Rack View for admin and super_admin (UI-only gate; API enforces server-side)
             if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const rackMenuItem = document.getElementById('rackMenuItem');

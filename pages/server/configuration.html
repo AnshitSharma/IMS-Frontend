@@ -166,9 +166,13 @@
     <!-- Sidebar Component and Manager (must load before navbar) -->
     <script src="../../components/sidebar-manager.js"></script>
     <script src="../../components/navbar.js"></script>
-    <script src="../../assets/js/server/server-api.js?v=3"></script>
+    <script src="../../assets/js/server/server-api.js?v=5"></script>
     <script src="../../assets/js/server/build-state.js?v=1"></script>
-    <script src="../../assets/js/server/configuration.js?v=2"></script>
+    <!-- Loaded for BenchResults only: an add verdict happens HERE, so this is where a
+         Compatibility Bench result gets recorded. The page controller inside this file
+         does not start without the bench page's markup. -->
+    <script src="../../assets/js/server/compatibility-bench.js?v=1"></script>
+    <script src="../../assets/js/server/configuration.js?v=3"></script>
 </body>
 
 </html>

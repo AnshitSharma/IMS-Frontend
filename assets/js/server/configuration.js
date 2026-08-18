@@ -27,7 +27,36 @@ class ConfigurationPage {
         this.components = [];
         this.filteredComponents = [];
 
+        // The builder sends return=bench for a Compatibility Bench build. That single
+        // flag is the whole signal: the bench never blocks a try, it records the
+        // engine's verdict either way, and it returns to Server Compatibility.
+        this.isBench = new URLSearchParams(window.location.search).get('return') === 'bench';
+
         this.init();
+    }
+
+    /**
+     * Where the picker goes back to. Bench builds live on their own page; everything
+     * else returns to the Servers page's embedded builder, as it always has.
+     */
+    returnUrl(configUuid) {
+        const page = this.isBench ? 'server-compatibility.html' : 'servers.html';
+        return `../../pages/dashboard/${page}?view=serverBuilder&config=${encodeURIComponent(configUuid)}`;
+    }
+
+    /**
+     * Record one add attempt against a bench build, with the engine's verdict.
+     * No-op off the bench, and never throws — logging must not break the add flow.
+     */
+    logBenchResult(configUuid, component, compatible, reason) {
+        if (!this.isBench || typeof BenchResults === 'undefined') return;
+        BenchResults.add(configUuid, {
+            type: this.currentComponentType,
+            uuid: component?.id || component?.uuid || '',
+            name: component?.name || 'Unknown component',
+            compatible,
+            reason
+        });
     }
 
     init() {
@@ -75,14 +104,14 @@ class ConfigurationPage {
     initBackButton() {
         const urlParams = new URLSearchParams(window.location.search);
         const configUuid = urlParams.get('config');
-        const returnTo = urlParams.get('return'); // 'builder' when from builder
+        const returnTo = urlParams.get('return'); // 'builder' from the server builder, 'bench' from the compatibility bench
 
-        if (configUuid && returnTo === 'builder') {
+        if (configUuid && (returnTo === 'builder' || returnTo === 'bench')) {
             const backButton = document.getElementById('backButton');
             if (backButton) {
                 backButton.classList.remove('hidden');
                 backButton.addEventListener('click', () => {
-                    window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
+                    window.location.href = this.returnUrl(configUuid);
                 });
             }
         }
@@ -548,6 +577,13 @@ class ConfigurationPage {
      * @returns {Promise<boolean>} false once the user has been redirected away
      */
     async isTypeInstallable(configUuid, componentType) {
+        // On the bench, "this build is full" is one of the answers the user came for.
+        // Redirecting them away before they can pick would hide it behind a client-side
+        // guard; let the backend answer and log the refusal as a result instead.
+        if (this.isBench) {
+            return true;
+        }
+
         try {
             const result = await serverAPI.getServerConfig(configUuid);
             if (!result?.success || !result.data?.component_options) {
@@ -1822,22 +1858,44 @@ class ConfigurationPage {
                     result = await this.createAndAddComponent(configUuid, component, slotPosition);
                 }
 
+                // Compatibility warnings the backend attached to the add (e.g. mixing
+                // CPU SKU variants such as 6338 + 6338N — allowed, but flagged).
+                const addWarnings = result.success ? (result.data?.warnings || []) : [];
+
+                // Bench: record the verdict either way BEFORE navigating, so the
+                // result survives the redirect back to the builder.
+                this.logBenchResult(
+                    configUuid,
+                    component,
+                    result.success,
+                    result.success
+                        ? addWarnings.join(' · ')
+                        : (result.message || 'The compatibility engine rejected this component')
+                );
+
                 if (result.success) {
                     this.showAlert(`${component.name} added successfully`, 'success');
-
-                    // Compatibility warnings the backend attached to the add (e.g. mixing
-                    // CPU SKU variants such as 6338 + 6338N — allowed, but flagged).
-                    const addWarnings = result.data?.warnings || [];
                     addWarnings.forEach(warning => this.showAlert(warning, 'warning'));
 
                     this.updateCompatibilityBanner();
 
                     // If we came from a specific page, redirect back
-                    if (returnPage === 'builder') {
+                    if (returnPage === 'builder' || returnPage === 'bench') {
                         setTimeout(() => {
-                            window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
+                            window.location.href = this.returnUrl(configUuid);
                         }, 1500);
                     }
+                } else if (this.isBench) {
+                    // Not an error on the bench — a refusal IS the result being sought.
+                    // The component is not in the build (the engine rejected it); it is
+                    // recorded under Tested parts with this exact reason.
+                    this.showAlert(
+                        `${component.name} is not compatible — logged to Tested parts`,
+                        'warning'
+                    );
+                    setTimeout(() => {
+                        window.location.href = this.returnUrl(configUuid);
+                    }, 1800);
                 } else {
                     this.showAlert(result.message || 'Failed to add component', 'error');
                 }
@@ -2348,9 +2406,9 @@ class ConfigurationPage {
         const returnPage = backButton.getAttribute('data-return-page');
         const configUuid = backButton.getAttribute('data-config-uuid');
 
-        if (returnPage === 'builder' && configUuid) {
-            // Always redirect to servers page with serverBuilder view
-            window.location.href = `../../pages/dashboard/servers.html?view=serverBuilder&config=${configUuid}`;
+        if ((returnPage === 'builder' || returnPage === 'bench') && configUuid) {
+            // Back to whichever builder sent us here
+            window.location.href = this.returnUrl(configUuid);
         } else {
             // Default fallback
             window.history.back();

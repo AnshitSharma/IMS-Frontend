@@ -374,12 +374,18 @@ window.api = {
     servers: {
         // rack_position is NOT passed here: it is derived server-side from the real
         // rack_servers placement (see rack-assign-server), never typed by hand.
-        async createConfig(serverName, description, startWith, isVirtual, location) {
+        // isSandbox creates a Compatibility Bench build instead of a server: it implies
+        // is_virtual server-side, so nothing it holds is reserved or marked in_use.
+        async createConfig(serverName, description, startWith, isVirtual, location, isSandbox = false) {
             const requestData = {
                 server_name: serverName,
                 description: description,
                 is_virtual: isVirtual
             };
+
+            if (isSandbox) {
+                requestData.is_sandbox = 'true';
+            }
 
             // Only include start_with if it's provided and not null
             if (startWith !== null && startWith !== undefined) {

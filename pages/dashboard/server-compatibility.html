@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>Server Compatibility - BDC Inventory</title>
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+
+<body class="bg-surface-main">
+    <!-- Shared Navigation Header (SharedNavbar injects components/navbar.html here) -->
+    <div id="navbar-placeholder"></div>
+
+    <!-- Main Container with Layout Wrapper -->
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <!-- Sidebar Content Area (injected here via sidebar-placeholder) -->
+            <div id="sidebar-placeholder"></div>
+
+            <!-- Main Content -->
+            <main class="main-content flex-1 p-4 sm:p-6 flex flex-col overflow-hidden h-full">
+                <!-- Bench List View -->
+                <div id="benchListView" class="content-section active overflow-y-auto overflow-x-hidden">
+                    <div class="content-header mb-6">
+                        <h2 class="text-2xl font-bold text-text-primary mb-2">Server Compatibility</h2>
+                        <p class="text-sm text-text-muted mb-4 max-w-3xl">
+                            Assemble a server exactly as you would in the Server Builder and see what the
+                            compatibility engine makes of it. Nothing here is reserved: no component changes
+                            status, parts already in use in other servers can be tested freely, and every
+                            part you try is recorded as compatible or incompatible with the reason.
+                        </p>
+                        <div class="header-actions flex flex-wrap items-center gap-3">
+                            <div class="search-filter flex flex-col sm:flex-row gap-3 w-full sm:w-auto sm:flex-1">
+                                <input type="text" id="benchSearch" placeholder="Search test builds..."
+                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
+                            </div>
+                            <button
+                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                                id="addBenchBtn">
+                                <i class="fas fa-plus"></i> New Test Build
+                            </button>
+                            <button
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                id="refreshBench">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Test Build Grid -->
+                    <div class="server-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive"
+                        id="benchCardsGrid">
+                        <!-- Test build cards will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Bench Builder View (server-builder.js renders into #serverBuilderContent) -->
+                <div id="serverBuilderView" class="content-section h-full overflow-hidden">
+                    <!-- Header Section -->
+                    <div class="content-header mb-6 pb-4 border-b border-border-light">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex-1 min-w-0">
+                                <h2 id="serverBuilderTitle"
+                                    class="text-2xl md:text-3xl font-bold text-text-primary mb-1">
+                                    <i class="fas fa-flask"></i> Compatibility Bench
+                                </h2>
+                                <p class="text-sm text-text-muted">Test parts against each other — nothing is
+                                    reserved and no component changes status</p>
+                            </div>
+                            <button
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2 whitespace-nowrap sm:ml-4"
+                                onclick="compatibilityBench.showListView()">
+                                <i class="fas fa-arrow-left"></i> Back to Test Builds
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Builder Content - Scrollable -->
+                    <div id="serverBuilderContent"
+                        class="flex-1 overflow-y-auto overflow-x-hidden bg-surface-card rounded-lg shadow-sm p-4 md:p-6 min-h-0">
+                        <!-- PC Part Picker builder will be loaded here -->
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modalContainer"
+        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody">
+                <!-- Modal content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js" integrity="sha384-VekiXfVDZuqx75T/YaGfn7/p6+e+D0f/G8UoZ5GBOCMZ89kMW4wTo8PSn6GSzOEl" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-ENjdO4Dr2bkBIFxQpeoTz1HIcje39Wm4jDKdf19U8gI4ddQ3GYNS7NTKfAdVzdl1" crossorigin="anonymous"></script>
+    <script src="../../components/global-loading.js"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../assets/js/server/server-api.js?v=5"></script>
+    <script src="../../assets/js/server/template-manager.js?v=3"></script>
+    <!-- Required by server-builder.js: its constructor reads BuildState.COMPONENT_CATALOG -->
+    <script src="../../assets/js/server/build-state.js?v=1"></script>
+    <!-- Required by server-builder.js: the compute-platform picker calls window.platformManager -->
+    <script src="../../assets/js/server/platform-manager.js?v=1"></script>
+    <script src="../../assets/js/server/server-builder.js?v=6"></script>
+    <!-- Sidebar + navbar components (self-initializing; must load before the page script) -->
+    <script src="../../components/sidebar-manager.js"></script>
+    <script src="../../components/navbar.js"></script>
+    <!-- Page script LAST. Deliberately NOT dashboard.js: the Dashboard class would fire a
+         full dashboard + server-list load this page has no use for. -->
+    <script src="../../assets/js/server/compatibility-bench.js?v=1"></script>
+</body>
+
+</html>
