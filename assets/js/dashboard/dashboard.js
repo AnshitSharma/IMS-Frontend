@@ -62,6 +62,12 @@ class Dashboard {
             await this.loadSidebarCounts();
         } else if (page === 'activity-log.html') {
             this.currentComponent = 'activity-log';
+        } else if (page === 'knowledge-base.html') {
+            // Help & Guide is static content with its own inline script (KnowledgeBase).
+            // Claim the page here so it doesn't fall through to the component-page
+            // branch below, which would fire an invalid `knowledge-base-list` action
+            // against the API. No data to load — the sidebar counts already ran above.
+            this.currentComponent = 'knowledge-base';
         } else if (page === 'requests.html') {
             // The unified Requests system is accessible to admin and super_admin.
             // RequestsManager (requests.js) loads its own data; only refresh the

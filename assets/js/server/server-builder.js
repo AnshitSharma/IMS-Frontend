@@ -699,7 +699,7 @@ class ServerBuilder {
                                 disabled
                                 onclick="window.serverBuilder.confirmPlatformSelection()">
                             <i class="fas fa-plus-circle"></i>
-                            <span>Add System Board</span>
+                            <span>Install Platform</span>
                         </button>
                     </div>
                 </div>
@@ -871,6 +871,10 @@ class ServerBuilder {
         const header = document.getElementById('platformBoardHeader');
         const container = document.getElementById('platformBoards');
         const boards = platform.system_boards || [];
+        const bundle = platform.default_components || [];
+        const bundleLine = (typeof ComponentInstaller !== 'undefined')
+            ? ComponentInstaller.summarize(bundle)
+            : '';
 
         // The header sits outside the scroll area: which platform you are looking at
         // stays put while its boards scroll.
@@ -887,6 +891,7 @@ class ServerBuilder {
                     <p class="text-xs text-text-secondary mt-0.5">
                         ${platform.form_factor ? `${this.escapeHtml(platform.form_factor)} · ` : ''}${boards.length} system board${boards.length === 1 ? '' : 's'}
                     </p>
+                    ${bundleLine ? `<p class="text-xs text-text-secondary mt-1">Ships with ${this.escapeHtml(bundleLine)}</p>` : ''}
                 </div>
             `;
         }
@@ -931,7 +936,9 @@ class ServerBuilder {
             ${boardHtml || '<p class="text-sm text-text-muted italic">No system boards defined for this platform.</p>'}
             <p class="text-xs text-text-secondary mt-3">
                 <i class="fas fa-info-circle me-1"></i>
-                Choosing a board installs it from available inventory and records the platform on this build.
+                ${bundle.length
+                    ? 'Choosing a board installs it together with everything this platform ships with, from available inventory. Anything out of stock is skipped and listed afterwards.'
+                    : 'Choosing a board installs it from available inventory and records the platform on this build.'}
             </p>
         `;
     }
@@ -994,14 +1001,31 @@ class ServerBuilder {
 
                 const platform = platformManager.getPlatform(this.selectedPlatformUuid);
                 const platformLabel = platform ? `${platform.brand} ${platform.platform}` : 'platform';
-                this.showAlert(`System board installed — this build is now a ${platformLabel}.`, 'success');
+                const units = result.unitsAdded || 1;
+                this.showAlert(
+                    `${platformLabel} installed — ${units} component${units === 1 ? '' : 's'} added.`,
+                    'success'
+                );
+
+                // What did not fit is named, not swallowed. The alert carries the
+                // count; the console carries every reason.
+                if (result.unitsSkipped > 0) {
+                    console.table(result.skipped);
+                    setTimeout(() => {
+                        this.showAlert(
+                            `${result.unitsSkipped} component${result.unitsSkipped === 1 ? '' : 's'} could not be installed ` +
+                            `(${result.skipped[0].reason}). Open the browser console (F12) for the full list.`,
+                            'warning'
+                        );
+                    }, 500);
+                }
 
                 // The board is in either way; only the stored label is missing, and
                 // the backend still infers the platform from the board for display.
                 if (!result.platformRecorded) {
                     setTimeout(() => {
                         this.showAlert('The platform label could not be saved, but the system board was installed.', 'warning');
-                    }, 500);
+                    }, result.unitsSkipped > 0 ? 1000 : 500);
                 }
             } else {
                 this.showAlert(result.message || 'Failed to install the system board', 'danger');
@@ -1031,7 +1055,7 @@ class ServerBuilder {
             if (closeBtn) closeBtn.classList.add('pointer-events-none', 'opacity-50');
         } else {
             btn.disabled = false;
-            btn.innerHTML = `<i class="fas fa-plus-circle"></i> <span>Add System Board</span>`;
+            btn.innerHTML = `<i class="fas fa-plus-circle"></i> <span>Install Platform</span>`;
             if (cancelBtn) cancelBtn.classList.remove('opacity-50', 'pointer-events-none');
             if (closeBtn) closeBtn.classList.remove('pointer-events-none', 'opacity-50');
         }

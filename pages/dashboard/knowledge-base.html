@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>Help &amp; Guide - BDC Inventory</title>
+    <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script>
+        (function () {
+            const theme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* Knowledge Base — page-scoped styling.
+           Driven entirely by the existing design-system custom properties so the page
+           needs no new Tailwind utilities (and therefore no CSS rebuild). */
+        .kb-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
+        @media (max-width: 1023px) { .kb-layout { grid-template-columns: 1fr; gap: 16px; } }
+
+        .kb-rail { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 10px; }
+        @media (max-width: 1023px) { .kb-rail { position: static; } }
+
+        .kb-rail-nav { display: flex; flex-direction: column; gap: 1px; }
+        .kb-rail-nav a {
+            font-size: 13px; padding: 6px 10px; border-radius: 6px; text-decoration: none;
+            color: var(--color-text-secondary); display: flex; gap: 9px; align-items: baseline;
+            border-left: 2px solid transparent; transition: background-color .15s, color .15s;
+        }
+        .kb-rail-nav a:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+        .kb-rail-nav a.is-active {
+            background: var(--color-surface-hover); color: var(--color-primary);
+            font-weight: 600; border-left-color: var(--color-primary);
+        }
+        .kb-rail-nav a .kb-idx {
+            font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 11px; color: var(--color-text-muted); min-width: 16px;
+        }
+        .kb-rail-nav a.is-hidden { display: none; }
+
+        .kb-section { margin-bottom: 44px; scroll-margin-top: 90px; max-width: 74ch; }
+        .kb-section > h3 {
+            font-size: 19px; font-weight: 700; color: var(--color-text-primary);
+            margin: 0 0 4px; padding-top: 18px; border-top: 1px solid var(--color-border-light);
+        }
+        .kb-section > h3 .kb-eyebrow {
+            display: block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 11px; letter-spacing: .1em; color: var(--color-primary);
+            font-weight: 600; margin-bottom: 6px;
+        }
+        .kb-section h4 {
+            font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin: 24px 0 6px;
+        }
+        .kb-section p { font-size: 14px; line-height: 1.65; color: var(--color-text-secondary); margin: 10px 0; }
+        .kb-section ul { margin: 10px 0; padding-left: 20px; }
+        .kb-section li { font-size: 14px; line-height: 1.6; color: var(--color-text-secondary); margin: 4px 0; }
+        .kb-section strong { color: var(--color-text-primary); font-weight: 600; }
+        .kb-section code {
+            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+            background: var(--color-surface-secondary); border: 1px solid var(--color-border-light);
+            border-radius: 4px; padding: 1px 5px; color: var(--color-text-primary);
+        }
+
+        .kb-table-wrap {
+            overflow-x: auto; margin: 14px 0; border: 1px solid var(--color-border);
+            border-radius: 8px; background: var(--color-surface-card);
+        }
+        .kb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .kb-table th, .kb-table td {
+            padding: 8px 12px; text-align: left; vertical-align: top;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+        .kb-table th {
+            font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+            color: var(--color-text-muted); background: var(--color-surface-secondary);
+            font-weight: 600; white-space: nowrap;
+        }
+        .kb-table td { color: var(--color-text-secondary); }
+        .kb-table tr:last-child td { border-bottom: none; }
+        .kb-num { font-variant-numeric: tabular-nums; text-align: right; }
+
+        .kb-note {
+            border-left: 3px solid var(--color-primary); background: var(--color-surface-card);
+            border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0;
+        }
+        .kb-note.is-warn { border-left-color: var(--color-warning); }
+        .kb-note.is-stop { border-left-color: var(--color-danger); }
+        .kb-note-title {
+            display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+            color: var(--color-text-muted); font-weight: 600; margin-bottom: 2px;
+        }
+        .kb-note p { margin: 4px 0; }
+
+        .kb-steps { display: flex; flex-direction: column; margin: 16px 0; }
+        .kb-step { display: grid; grid-template-columns: 30px 1fr; gap: 12px; position: relative; padding-bottom: 16px; }
+        .kb-step:not(:last-child)::before {
+            content: ""; position: absolute; left: 14.5px; top: 28px; bottom: 0;
+            width: 1px; background: var(--color-border);
+        }
+        .kb-step-dot {
+            width: 30px; height: 30px; border-radius: 50%; background: var(--color-surface-card);
+            border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center;
+            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; font-weight: 600;
+            color: var(--color-primary); z-index: 1;
+        }
+        .kb-step h5 { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 4px 0 2px; }
+        .kb-step p { margin: 0; }
+
+        /* Shape and type only — colour comes from the app's existing translucent-tint
+           utilities (bg-success/10 + text-success, as used elsewhere in the UI), which
+           read correctly on both the light and dark surfaces. */
+        .kb-chip {
+            display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
+            font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+        }
+
+        .kb-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0; }
+        .kb-flow .kb-state {
+            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+            padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 6px;
+            background: var(--color-surface-card); color: var(--color-text-secondary);
+        }
+        .kb-flow .kb-state.is-end { border-color: var(--color-success); color: var(--color-success-hover); }
+        .kb-flow .kb-arrow { color: var(--color-text-muted); font-size: 12px; }
+
+        .kb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 14px 0; }
+        .kb-card {
+            background: var(--color-surface-card); border: 1px solid var(--color-border);
+            border-radius: 8px; padding: 12px 14px;
+        }
+        .kb-card h5 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+        .kb-card p { margin: 0; font-size: 13px; }
+
+        .kb-empty {
+            display: none; padding: 28px 4px; font-size: 14px; color: var(--color-text-muted);
+        }
+        .kb-empty.is-shown { display: block; }
+    </style>
+</head>
+
+<body class="bg-surface-main">
+    <!-- Navigation Header -->
+    <nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+        <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button
+                    class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                    id="hamburgerBtn" aria-label="Toggle Menu">
+                    <i class="fas fa-bars text-base"></i>
+                </button>
+                <a href="./index.html" class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
+                    <i class="fas fa-server"></i>
+                    <span>BDC Inventory</span>
+                </a>
+            </div>
+
+            <div class="nav-menu flex items-center gap-4">
+                <div class="nav-user flex items-center gap-3">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme"
+                        title="Toggle dark mode">
+                        <i class="fas fa-moon" id="themeToggleIcon"></i>
+                    </button>
+
+                    <div class="user-info text-right hidden md:block">
+                        <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                        <span id="userRole" class="block text-xs text-text-muted">User</span>
+                    </div>
+                    <div
+                        class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown relative">
+                        <button class="dropdown-btn text-text-secondary hover:text-text-primary">
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div
+                            class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                            <a href="#" id="changePassword"
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-key"></i> Change Password
+                            </a>
+                            <a href="#" id="logoutBtn"
+                                class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- IMS v2 Migration Notice Banner -->
+    <div class="ims-v2-banner bg-warning-100 border-b border-warning text-warning-900 text-sm text-center px-4 py-2">
+        <i class="fas fa-triangle-exclamation mr-1"></i>
+        We are moving to <strong>version 2 of IMS</strong>, so some things may be buggy. Please report any issues to <strong>Anshit</strong> on Teams. Thank you!
+    </div>
+
+    <!-- Main Container with Layout Wrapper -->
+    <div class="layout-wrapper">
+        <div class="main-container flex">
+            <div id="sidebar-placeholder"></div>
+
+            <!-- Main Content -->
+            <main class="main-content flex-1 p-4 sm:p-6">
+                <div id="componentView" class="content-section active">
+                    <!-- Page Header -->
+                    <div class="content-header mb-5">
+                        <div class="flex items-baseline gap-3">
+                            <h2 class="text-2xl font-bold text-text-primary tracking-tight">Help &amp; Guide</h2>
+                        </div>
+                        <p class="text-sm text-text-secondary mt-1">
+                            How to track hardware, build server configurations that fit together, and move work through Requests.
+                        </p>
+                    </div>
+
+                    <div class="kb-layout">
+                        <!-- Contents rail -->
+                        <aside class="kb-rail">
+                            <label for="kbFilter" class="sr-only">Filter sections</label>
+                            <div class="relative">
+                                <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-text-muted"></i>
+                                <input type="search" id="kbFilter" placeholder="Filter topics"
+                                    class="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-surface-card border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary">
+                            </div>
+                            <nav class="kb-rail-nav" id="kbRailNav">
+                                <a href="#kb-start"><span class="kb-idx">01</span>Getting Started</a>
+                                <a href="#kb-dash"><span class="kb-idx">02</span>Dashboard</a>
+                                <a href="#kb-inventory"><span class="kb-idx">03</span>Inventory</a>
+                                <a href="#kb-build"><span class="kb-idx">04</span>Building a Server</a>
+                                <a href="#kb-compat"><span class="kb-idx">05</span>Compatibility</a>
+                                <a href="#kb-racks"><span class="kb-idx">06</span>Rack View</a>
+                                <a href="#kb-requests"><span class="kb-idx">07</span>Requests</a>
+                                <a href="#kb-admin"><span class="kb-idx">08</span>Types &amp; Vendors</a>
+                                <a href="#kb-reference"><span class="kb-idx">09</span>Reference</a>
+                                <a href="#kb-trouble"><span class="kb-idx">10</span>Troubleshooting</a>
+                            </nav>
+                        </aside>
+
+                        <!-- Content -->
+                        <div id="kbContent">
+                            <p class="kb-empty" id="kbEmpty">No topics match that search.</p>
+
+                            <!-- 01 -->
+                            <section class="kb-section" id="kb-start">
+                                <h3><span class="kb-eyebrow">01</span>Getting Started</h3>
+
+                                <h4>Signing in</h4>
+                                <p>Enter your username and password. Tick <strong>Remember me</strong> only on your own machine — it keeps you signed in between browser sessions. On a shared workstation leave it unticked, and your session ends when the browser closes.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Sessions last 30 minutes</span>
+                                    <p>After thirty minutes you are signed out and returned to the login screen. The system renews your session quietly in the background, so you rarely notice — but save long forms as you go rather than leaving them open.</p>
+                                </div>
+
+                                <h4>Forgotten password</h4>
+                                <p>Use the reset link on the login screen. You will be emailed a single-use link to set a new password.</p>
+
+                                <h4>What you can see</h4>
+                                <p>The system shows only what your role allows. A missing page or a greyed-out button is a permissions matter, not a fault — ask an administrator to review your role.</p>
+                            </section>
+
+                            <!-- 02 -->
+                            <section class="kb-section" id="kb-dash">
+                                <h3><span class="kb-eyebrow">02</span>Dashboard</h3>
+                                <p>The dashboard answers one question: <em>what do we have, and how much of it is free?</em> Each hardware type gets a tile showing total, available, in use, and failed. The sidebar repeats those totals as counters, so you can watch stock without leaving the page you are on.</p>
+                                <p>Below the tiles, a recent activity strip shows the latest changes across the system.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Reading the numbers</span>
+                                    <p><strong>Available</strong> is in stock and free to assign. <strong>In use</strong> is installed in a server. <strong>Failed</strong> is marked faulty and excluded when building. The three always add up to the total.</p>
+                                </div>
+                            </section>
+
+                            <!-- 03 -->
+                            <section class="kb-section" id="kb-inventory">
+                                <h3><span class="kb-eyebrow">03</span>Managing Inventory</h3>
+                                <p>Eleven kinds of hardware are tracked, each with its own page:</p>
+
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Page</th><th>What it holds</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>CPUs</td><td>Processors. The socket type drives most compatibility rules.</td></tr>
+                                            <tr><td>RAM</td><td>Memory modules, with ECC and registered distinctions.</td></tr>
+                                            <tr><td>Storage</td><td>Drives of all form factors — 2.5-inch, 3.5-inch, M.2, U.2.</td></tr>
+                                            <tr><td>Motherboards</td><td>System boards. Define socket, memory slots, and PCIe layout.</td></tr>
+                                            <tr><td>Network Cards</td><td>NICs, including their port types.</td></tr>
+                                            <tr><td>Caddies</td><td>Drive trays. Must match the drive form factor and the chassis.</td></tr>
+                                            <tr><td>Chassis</td><td>The enclosure, with its rack height in U.</td></tr>
+                                            <tr><td>PCIe Cards</td><td>Expansion cards that consume lanes and slots.</td></tr>
+                                            <tr><td>Riser Cards</td><td>Adapters that redirect PCIe slots within a chassis.</td></tr>
+                                            <tr><td>HBA Cards</td><td>Host bus adapters for storage connectivity.</td></tr>
+                                            <tr><td>SFP Modules</td><td>Optical and direct-attach network transceivers.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <h4>Adding a component</h4>
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div>
+                                        <h5>Pick the model</h5>
+                                        <p>Cascading dropdowns narrow from brand, to series, to model. You are choosing from the hardware catalogue, not typing freehand.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div>
+                                        <h5>Identify the physical unit</h5>
+                                        <p>Enter the serial number. An asset tag such as <code>BDC-CPU-000128</code> is generated for you. The serial is what tells two identical units apart.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div>
+                                        <h5>Set status and location</h5>
+                                        <p>Status is Available, In Use, or Failed. Location is free text — a site or store room.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">4</div><div>
+                                        <h5>Add dates and notes</h5>
+                                        <p>Purchase, installation, and warranty-end dates are optional but make warranty reporting useful.</p>
+                                    </div></div>
+                                </div>
+
+                                <div class="kb-note is-stop">
+                                    <span class="kb-note-title">The model must exist in the catalogue</span>
+                                    <p>Every component is checked against the catalogue before saving. If your model is not in the dropdowns it must be added there first. Do not pick the nearest match — compatibility checking would then run against the wrong specification.</p>
+                                </div>
+
+                                <h4>Editing, deleting, and bulk actions</h4>
+                                <p>Rows can be edited or deleted individually, and several rows can be selected for a bulk update or delete — useful when a shipment arrives or a batch is retired.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Components in use cannot be deleted outright</span>
+                                    <p>Remove the unit from its server configuration first. Otherwise a server record would refer to hardware that no longer exists.</p>
+                                </div>
+                            </section>
+
+                            <!-- 04 -->
+                            <section class="kb-section" id="kb-build">
+                                <h3><span class="kb-eyebrow">04</span>Building a Server</h3>
+                                <p>The Server Builder assembles a configuration from units already in inventory, checking at each step that the parts fit together.</p>
+
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div>
+                                        <h5>Start the configuration</h5>
+                                        <p>Name it, optionally add a description and location. It opens as a draft.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div>
+                                        <h5>Choose the motherboard first</h5>
+                                        <p>Nearly every later rule derives from the board — its socket, memory slots, and PCIe layout. Picking it first lets the builder filter everything else for you.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div>
+                                        <h5>Add components, guided by the fit lists</h5>
+                                        <p>For each type the builder shows what fits and what does not, with a reason on every entry — and separates parts that fit <em>and</em> are in stock from those already in use elsewhere.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">4</div><div>
+                                        <h5>Validate</h5>
+                                        <p>Validation lists missing required components and shows how much of each resource you have consumed.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">5</div><div>
+                                        <h5>Finalise and place it</h5>
+                                        <p>A finalised configuration can be assigned to a rack and moved through its deployment states.</p>
+                                    </div></div>
+                                </div>
+
+                                <h4>Six components are required</h4>
+                                <p>A configuration is not complete until it has all of: <strong>chassis</strong>, <strong>motherboard</strong>, <strong>CPU</strong>, <strong>RAM</strong>, <strong>storage</strong>, and a <strong>network card</strong>.</p>
+
+                                <h4>The resource budget</h4>
+                                <p>Validation shows where you stand against the board's limits. A single-socket board with a 128-lane CPU reports something like:</p>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Resource</th><th class="kb-num">Max</th><th class="kb-num">Used</th><th class="kb-num">Free</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>CPU sockets</td><td class="kb-num">1</td><td class="kb-num">1</td><td class="kb-num">0</td></tr>
+                                            <tr><td>Memory slots</td><td class="kb-num">8</td><td class="kb-num">0</td><td class="kb-num">8</td></tr>
+                                            <tr><td>Memory capacity (GB)</td><td class="kb-num">2048</td><td class="kb-num">0</td><td class="kb-num">2048</td></tr>
+                                            <tr><td>PCIe lanes</td><td class="kb-num">128</td><td class="kb-num">0</td><td class="kb-num">128</td></tr>
+                                            <tr><td>PCIe slots &times;16</td><td class="kb-num">5</td><td class="kb-num">0</td><td class="kb-num">5</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p>PCIe lanes are attributed to their source, so you can see the budget comes from the CPU rather than the board.</p>
+
+                                <h4>Trying things out safely</h4>
+                                <p>The <strong>Server Compatibility</strong> page is a bench for experimenting. Builds made there are sandboxes and never reserve real stock, so you can test a combination without taking parts out of circulation.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Sandbox builds are kept separate</span>
+                                    <p>A sandbox build does not appear in the ordinary server list — it belongs to the Server Compatibility bench. If a test build seems to have vanished, that is why; it has not been deleted.</p>
+                                </div>
+                            </section>
+
+                            <!-- 05 -->
+                            <section class="kb-section" id="kb-compat">
+                                <h3><span class="kb-eyebrow">05</span>Understanding Compatibility</h3>
+                                <p>Every check returns findings in three buckets. Which bucket you are looking at tells you what to do next.</p>
+
+                                <div class="kb-cards">
+                                    <div class="kb-card"><h5><span class="kb-chip bg-danger/10 text-danger">Issues</span></h5><p>Hard stops. The combination will not work and cannot be saved.</p></div>
+                                    <div class="kb-card"><h5><span class="kb-chip bg-warning/10 text-warning">Warnings</span></h5><p>It will work, but something is compromised or unnecessary.</p></div>
+                                    <div class="kb-card"><h5><span class="kb-chip bg-success/10 text-success">Recommendations</span></h5><p>How to resolve it — often naming the parts that would fit.</p></div>
+                                </div>
+
+                                <h4>Issues you will actually meet</h4>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Message</th><th>What it means</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><code>CPU socket LGA3647 incompatible with motherboard socket SP3</code></td><td>Intel processor, AMD board. Sockets must match exactly.</td></tr>
+                                            <tr><td><code>CPU limit exceeded: motherboard supports maximum 1 CPUs</code></td><td>You are adding a second processor to a single-socket board.</td></tr>
+                                            <tr><td><code>Incompatible CPU pairing</code></td><td>Two different processor models in one machine. See the note below.</td></tr>
+                                            <tr><td><code>SFP type QSFP+ not compatible with NIC port type SFP+</code></td><td>The transceiver does not fit that port — different physical formats.</td></tr>
+                                            <tr><td><code>Storage form factor (2.5-inch) not supported by caddy</code></td><td>The drive tray is for a different drive size.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="kb-note is-stop">
+                                    <span class="kb-note-title">A matching socket is not enough for two CPUs</span>
+                                    <p>Multi-socket machines need <em>identical</em> processor models. Two CPUs can share a socket type and still be rejected — the system says so explicitly: <em>"Multi-socket configurations require the same CPU model — a matching socket is not sufficient."</em> This catches people out regularly.</p>
+                                </div>
+
+                                <h4>Warnings worth reading</h4>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Message</th><th>What to do</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><code>ECC memory used with non-ECC motherboard</code></td><td>The RAM works but error correction is disabled. Fine for a lab machine, usually wrong for production.</td></tr>
+                                            <tr><td><code>M.2/U.2 storage does not require caddy</code></td><td>You have added a tray that is not needed — these drives connect directly.</td></tr>
+                                            <tr><td><code>NIC compatibility check skipped — specifications pending</code></td><td>The catalogue entry for that card is incomplete, so it could not be checked. Verify by hand.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <h4>Why a part was rejected</h4>
+                                <p>When a component is blocked, every failing rule is named — not just the first. Adding an Intel processor to a board that already had an AMD one returns three findings at once: the socket does not match, the socket count is exceeded, and the models cannot be mixed. Work through them together; fixing only the first would still leave the part rejected.</p>
+                            </section>
+
+                            <!-- 06 -->
+                            <section class="kb-section" id="kb-racks">
+                                <h3><span class="kb-eyebrow">06</span>Rack View</h3>
+                                <p>Rack View maps physical space. A rack records its name, site, and height in rack units, and shows how many U are used and how many remain.</p>
+
+                                <h4>Creating a rack</h4>
+                                <p>Give it a name and location and set its height in U. The setting worth pausing over is <strong>U numbering direction</strong> — racks can be numbered top-down or bottom-up. Match what is physically labelled on the rack in the hall, or every position you record afterwards will be off.</p>
+
+                                <h4>Placing servers</h4>
+                                <p>Finalised configurations can be assigned to a rack at a starting U position. Unassigned servers are listed alongside the rack map so you can see what is waiting to be placed. Unassigning returns a server to that pool without altering its configuration.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Free space is calculated, not typed</span>
+                                    <p>Used and free U are derived from the servers placed in the rack and the height of their chassis. You do not maintain them by hand.</p>
+                                </div>
+                            </section>
+
+                            <!-- 07 -->
+                            <section class="kb-section" id="kb-requests">
+                                <h3><span class="kb-eyebrow">07</span>Requests</h3>
+                                <p>A Request is a piece of work that moves through people — a memory upgrade, a decommission, a new build. Each follows a <strong>Request Type</strong>, which defines the ordered <strong>Steps</strong> it passes through.</p>
+                                <p>Requests are numbered <code>TKT-YYYYMMDD-NNNN</code> and carry a priority of <span class="kb-chip bg-surface-secondary text-text-muted">low</span> <span class="kb-chip bg-surface-secondary text-text-muted">medium</span> <span class="kb-chip bg-surface-secondary text-text-muted">high</span> or <span class="kb-chip bg-danger/10 text-danger">urgent</span>.</p>
+
+                                <h4>General Request</h4>
+                                <p>The built-in type, with three steps:</p>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th class="kb-num">#</th><th>Step</th><th>What happens</th></tr></thead>
+                                        <tbody>
+                                            <tr><td class="kb-num">1</td><td>Approval</td><td>Review the request and approve it to proceed.</td></tr>
+                                            <tr><td class="kb-num">2</td><td>Execution</td><td>Carry out the approved work.</td></tr>
+                                            <tr><td class="kb-num">3</td><td>Deployment</td><td>Deploy or finalise, and close the request.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <h4>Working a step</h4>
+                                <p>Each step has an owner — usually a role rather than a named person, so anyone holding that role can pick it up. <strong>Claim</strong> a step to signal you are working on it, then complete it to advance the Request. A step can be skipped where it does not apply, or rejected, which sends the Request back.</p>
+
+                                <h4>Lifecycle</h4>
+                                <div class="kb-flow">
+                                    <span class="kb-state">draft</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state">in_progress</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state is-end">completed</span>
+                                </div>
+                                <p>Two endings stop a Request early: <span class="kb-chip bg-danger/10 text-danger">rejected</span> when the work is declined, and <span class="kb-chip bg-surface-secondary text-text-muted">cancelled</span> when it is withdrawn. Neither can be resumed — raise a fresh Request instead.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Access</span>
+                                    <p>Requests and Request Types are available to administrators. If you cannot see them in the sidebar, that is why.</p>
+                                </div>
+                            </section>
+
+                            <!-- 08 -->
+                            <section class="kb-section" id="kb-admin">
+                                <h3><span class="kb-eyebrow">08</span>Request Types &amp; Vendors</h3>
+                                <p>These are administrator sections. They are described here so everyone understands what the system can do, even if the pages are not available to you.</p>
+
+                                <h4>Request Types</h4>
+                                <p>A Request Type is a named, ordered list of Steps. For each step you set a name, a position, instructions for whoever performs it, and a default owner — normally a role. Write the instructions as if for someone who has not done the task before; they are the only guidance the person working the step receives.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">General Request cannot be changed</span>
+                                    <p>It is built in and cannot be renamed, archived, or deleted — only its steps edited. Build a new type rather than repurposing it.</p>
+                                </div>
+
+                                <p>Types can be deactivated when a process is retired. Requests already using a type keep their steps; deactivating only stops new Requests from choosing it.</p>
+
+                                <h4>Vendors</h4>
+                                <p>Vendors record who supplied hardware — name, contact details, what they sell, and notes. Components link to a vendor, which is what makes "everything we bought from this supplier" answerable.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Vendor records hold sensitive data</span>
+                                    <p>The vendor form includes banking details. Do not screenshot or share that page outside the team.</p>
+                                </div>
+
+                                <h4>Activity Log</h4>
+                                <p>The Activity Log records who did what and when — components added and removed, servers changed, roles assigned. It is the first place to look when something changed and nobody remembers changing it.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">The log records IP addresses</span>
+                                    <p>Entries include the client IP of whoever performed the action. Redact before sharing screenshots outside the team.</p>
+                                </div>
+                            </section>
+
+                            <!-- 09 -->
+                            <section class="kb-section" id="kb-reference">
+                                <h3><span class="kb-eyebrow">09</span>Reference</h3>
+
+                                <h4>Component status</h4>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><span class="kb-chip bg-success/10 text-success">Available</span></td><td>In stock and free to assign to a server.</td></tr>
+                                            <tr><td><span class="kb-chip bg-surface-secondary text-text-muted">In Use</span></td><td>Installed in a server configuration.</td></tr>
+                                            <tr><td><span class="kb-chip bg-danger/10 text-danger">Failed</span></td><td>Faulty. Excluded from the fit lists when building.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p>You may occasionally see finer-grained states such as <code>installed</code> or <code>reserved</code> on records created by automated processes. Treat <code>installed</code> as In Use.</p>
+
+                                <h4>Server configuration status</h4>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><code>draft</code></td><td>Being assembled. Incomplete configurations are expected here.</td></tr>
+                                            <tr><td><code>validated</code></td><td>Passed the compatibility and completeness checks.</td></tr>
+                                            <tr><td><code>built</code></td><td>Physically assembled.</td></tr>
+                                            <tr><td><code>deployed</code></td><td>In service.</td></tr>
+                                            <tr><td><code>retired</code></td><td>Taken out of service.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <h4>Glossary</h4>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>U</td><td>Rack unit — 1.75 inches of vertical rack space. A 2U server occupies two.</td></tr>
+                                            <tr><td>Socket</td><td>The physical processor mount. <code>SP3</code> is AMD; <code>LGA3647</code> and <code>LGA2011-3</code> are Intel. Not interchangeable.</td></tr>
+                                            <tr><td>ECC</td><td>Error-correcting memory. Needs board support, otherwise correction is simply disabled.</td></tr>
+                                            <tr><td>PCIe lane</td><td>The bandwidth budget for expansion cards, supplied mostly by the CPU. Cards consume lanes; you can run out.</td></tr>
+                                            <tr><td>Caddy</td><td>The tray holding a drive in a chassis. Must match the drive size and the chassis.</td></tr>
+                                            <tr><td>SFP / QSFP+</td><td>Pluggable network transceiver formats. QSFP+ is larger and will not fit an SFP+ port.</td></tr>
+                                            <tr><td>HBA</td><td>Host bus adapter — a card connecting storage devices to the system.</td></tr>
+                                            <tr><td>Asset tag</td><td>The generated identifier for a physical unit, such as <code>BDC-CPU-000128</code>.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+
+                            <!-- 10 -->
+                            <section class="kb-section" id="kb-trouble">
+                                <h3><span class="kb-eyebrow">10</span>Troubleshooting</h3>
+
+                                <h4>I was signed out unexpectedly</h4>
+                                <p>Sessions last thirty minutes. Sign in again — unsaved form data is lost, so save long entries as you go.</p>
+
+                                <h4>A page or button is missing</h4>
+                                <p>Your role does not include it. Rack View, Requests, Request Types, and Vendors are restricted to administrators. Ask an administrator to review your role rather than working around it.</p>
+
+                                <h4>The model I need is not in the dropdown</h4>
+                                <p>The hardware catalogue does not have it yet; it must be added there first. Do not substitute a similar model — compatibility checking would then run against the wrong specification.</p>
+
+                                <h4>I cannot delete a server configuration</h4>
+                                <p>Configurations with components still attached refuse to delete and say so — for example, <em>"This server still has 2 components installed (1 CPU, 1 motherboard). Remove all components from the server before deleting it."</em> Remove the components, then delete.</p>
+
+                                <h4>A component will not add to my build</h4>
+                                <p>Read every finding, not just the first. Common causes: socket mismatch, full CPU or memory slots, mixed processor models, or a transceiver that does not match the port. The fit lists tell you what <em>would</em> work.</p>
+
+                                <h4>My test build has vanished</h4>
+                                <p>Builds made on the Server Compatibility bench are sandboxes and do not appear in the ordinary server list. Look for it there.</p>
+
+                                <h4>The numbers look wrong after a change</h4>
+                                <p>Dashboard counts are derived from inventory. Refresh the page; if they still look wrong, check the Activity Log to see what actually changed.</p>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertContainer" class="alert-container"></div>
+
+    <!-- Scripts -->
+    <script src="../../components/global-loading.js"></script>
+    <script src="../../assets/js/config.js"></script>
+    <script src="../../assets/js/toast.js"></script>
+    <script src="../../assets/js/dashboard/utils.js"></script>
+    <script src="../../assets/js/dashboard/api.js"></script>
+    <script src="../../components/sidebar-manager.js"></script>
+    <script src="../../assets/js/dashboard/dashboard.js"></script>
+    <script>
+        // Theme Toggle Handler
+        (function () {
+            function initTheme() {
+                if (typeof utils !== 'undefined' && utils.theme) {
+                    utils.theme.init();
+                    updateThemeIcon(utils.theme.get());
+                }
+            }
+
+            function updateThemeIcon(theme) {
+                const icon = document.getElementById('themeToggleIcon');
+                if (!icon) return;
+                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+            }
+
+            function handleThemeToggle() {
+                if (typeof utils === 'undefined' || !utils.theme) return;
+                const toggleBtn = document.getElementById('themeToggleBtn');
+                if (toggleBtn) {
+                    toggleBtn.classList.add('toggling');
+                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
+                }
+                const newTheme = utils.theme.toggle();
+                updateThemeIcon(newTheme);
+                if (typeof toast !== 'undefined') {
+                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initTheme);
+            } else {
+                initTheme();
+            }
+
+            const themeToggleBtn = document.getElementById('themeToggleBtn');
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', handleThemeToggle);
+            }
+        })();
+    </script>
+    <script>
+        /**
+         * KnowledgeBase — contents rail filtering and scroll-spy for the Help & Guide page.
+         * Static content only: no API calls, and nothing is interpolated into innerHTML.
+         */
+        class KnowledgeBase {
+            constructor() {
+                this.filterInput = document.getElementById('kbFilter');
+                this.railLinks = Array.from(document.querySelectorAll('#kbRailNav a'));
+                this.sections = Array.from(document.querySelectorAll('.kb-section'));
+                this.emptyState = document.getElementById('kbEmpty');
+                this.observer = null;
+                this.init();
+            }
+
+            init() {
+                if (this.filterInput) {
+                    this.filterInput.addEventListener('input', () => this.applyFilter());
+                }
+                this.initScrollSpy();
+            }
+
+            applyFilter() {
+                const query = this.filterInput.value.trim().toLowerCase();
+
+                if (!query) {
+                    this.sections.forEach(section => { section.style.display = ''; });
+                    this.railLinks.forEach(link => link.classList.remove('is-hidden'));
+                    if (this.emptyState) this.emptyState.classList.remove('is-shown');
+                    return;
+                }
+
+                let matches = 0;
+                this.sections.forEach(section => {
+                    const hit = section.textContent.toLowerCase().indexOf(query) > -1;
+                    section.style.display = hit ? '' : 'none';
+                    if (hit) matches++;
+
+                    const link = this.railLinks.find(a => a.getAttribute('href') === `#${section.id}`);
+                    if (link) link.classList.toggle('is-hidden', !hit);
+                });
+
+                if (this.emptyState) this.emptyState.classList.toggle('is-shown', matches === 0);
+            }
+
+            initScrollSpy() {
+                if (!('IntersectionObserver' in window) || this.sections.length === 0) return;
+
+                this.observer = new IntersectionObserver(entries => {
+                    entries.forEach(entry => {
+                        if (!entry.isIntersecting) return;
+                        this.railLinks.forEach(link => {
+                            link.classList.toggle('is-active', link.getAttribute('href') === `#${entry.target.id}`);
+                        });
+                    });
+                }, { rootMargin: '-15% 0px -70% 0px' });
+
+                this.sections.forEach(section => this.observer.observe(section));
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => { window.knowledgeBase = new KnowledgeBase(); });
+        } else {
+            window.knowledgeBase = new KnowledgeBase();
+        }
+    </script>
+</body>
+
+</html>
