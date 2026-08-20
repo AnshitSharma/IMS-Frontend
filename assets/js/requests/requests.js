@@ -57,6 +57,15 @@ class RequestsManager {
         // Reveal manager-only affordances
         if (this.perms.viewAll || this.perms.manage) {
             document.getElementById('scopeAllTab')?.classList.remove('hidden');
+        } else {
+            // "My Queue" means "requests waiting on MY step". A request you raised
+            // is normally waiting on somebody else, so for a non-privileged user
+            // that tab is empty and their own request looks lost. Start them on
+            // "Created by me" instead.
+            this.scope = 'created';
+            document.querySelectorAll('.scope-tab').forEach((t) => {
+                t.classList.toggle('active', t.dataset.scope === 'created');
+            });
         }
         if (this.perms.templateManage || this.perms.manage) {
             const link = document.getElementById('typesLink');
@@ -301,7 +310,12 @@ class RequestsManager {
                     <label class="block text-sm font-semibold text-text-primary mb-1.5">Target server UUID <span class="text-text-muted text-xs">(optional)</span></label>
                     <input type="text" id="plServer" placeholder="Server configuration UUID"
                         class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    <p class="text-xs text-text-muted mt-1">Naming a server limits any server access you are granted to that one configuration.</p>
                 </div>
+
+                <!-- Only rendered for request types whose approval step grants access.
+                     Populated by renderAccessPicker() when the type is chosen. -->
+                <div id="plAccessBlock" class="hidden border-t border-border pt-4"></div>
 
                 <div class="border-t border-border pt-4">
                     <div class="flex items-center justify-between mb-3">
@@ -331,10 +345,104 @@ class RequestsManager {
         document.getElementById('pipelineForm').addEventListener('submit', (e) => { e.preventDefault(); this.submitCreate(); });
     }
 
+    /**
+     * Human labels for the permissions a request can ask for. Anything not listed
+     * still works — it just shows its raw name — so a new grantable permission on
+     * the backend never breaks this screen.
+     */
+    static get ACCESS_LABELS() {
+        return {
+            'server.create': 'Build a server, or add parts to one',
+            'server.view': 'View server configurations',
+            'server.edit': 'Change a server configuration (add / remove parts)',
+            'server.replace': 'Swap a component in a server',
+            'server.transition': 'Change a server\u2019s status'
+        };
+    }
+
+    componentTypeLabel(type) {
+        const names = {
+            cpu: 'CPU', ram: 'RAM', storage: 'Storage', motherboard: 'Motherboard',
+            nic: 'NIC', caddy: 'Caddy', chassis: 'Chassis', pciecard: 'PCIe card',
+            risercard: 'Riser card', hbacard: 'HBA card', sfp: 'SFP'
+        };
+        return names[type] || type;
+    }
+
+    accessLabel(permission) {
+        const direct = RequestsManager.ACCESS_LABELS[permission];
+        if (direct) return direct;
+        const [type, action] = permission.split('.');
+        const verb = action === 'create' ? 'Add' : (action === 'edit' ? 'Edit' : action);
+        return `${verb} ${this.componentTypeLabel(type)} inventory`;
+    }
+
+    /**
+     * Let the requester pick WHICH access they need, from the ceiling the chosen
+     * request type is able to grant (its approval step's effect_config).
+     *
+     * A type with no access effect renders nothing, so ordinary request types are
+     * completely unchanged. Ticking nothing means "whatever this type grants",
+     * which is also the pre-2026_08_21 behaviour.
+     */
+    renderAccessPicker(type) {
+        const box = document.getElementById('plAccessBlock');
+        if (!box) return;
+
+        const stage = (type?.stages || []).find((st) => st.effect_type === 'grant_temporary_permission');
+        let ceiling = [];
+        if (stage) {
+            try {
+                const cfg = typeof stage.effect_config === 'string'
+                    ? JSON.parse(stage.effect_config)
+                    : (stage.effect_config || {});
+                ceiling = Array.isArray(cfg.permissions) ? cfg.permissions : [];
+            } catch (e) {
+                ceiling = [];
+            }
+        }
+
+        if (!ceiling.length) {
+            box.classList.add('hidden');
+            box.innerHTML = '';
+            return;
+        }
+
+        // Group so a 27-entry list reads as two short lists rather than one wall.
+        const serverPerms = ceiling.filter((p) => p.startsWith('server.'));
+        const inventoryPerms = ceiling.filter((p) => !p.startsWith('server.'));
+
+        const checkbox = (p) => `
+            <label class="flex items-start gap-2 py-1 cursor-pointer">
+                <input type="checkbox" class="pl-access mt-0.5" value="${this.esc(p)}">
+                <span class="text-sm text-text-secondary">${this.esc(this.accessLabel(p))}
+                    <code class="ml-1 text-xs text-text-muted">${this.esc(p)}</code></span>
+            </label>`;
+
+        box.classList.remove('hidden');
+        box.innerHTML = `
+            <h4 class="text-sm font-semibold text-text-primary">What access do you need?</h4>
+            <p class="text-xs text-text-muted mb-3">Approved access lasts 24 hours and then expires on its own. Leave everything unticked to ask for all of it.</p>
+            ${serverPerms.length ? `<div class="mb-3">
+                <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Servers</div>
+                ${serverPerms.map(checkbox).join('')}
+            </div>` : ''}
+            ${inventoryPerms.length ? `<div>
+                <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Inventory</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">${inventoryPerms.map(checkbox).join('')}</div>
+            </div>` : ''}`;
+    }
+
+    collectRequestedAccess() {
+        return Array.from(document.querySelectorAll('.pl-access:checked')).map((c) => c.value);
+    }
+
     previewType(typeId) {
+        const type = this.types.find((t) => String(t.id) === String(typeId));
+        this.renderAccessPicker(type);
+
         const box = document.getElementById('plStagePreview');
         if (!box) return;
-        const type = this.types.find((t) => String(t.id) === String(typeId));
         if (!type || !type.stages || !type.stages.length) { box.classList.add('hidden'); return; }
         box.classList.remove('hidden');
         box.innerHTML = `<span class="text-text-muted font-medium">Flow:</span> ` + type.stages.map((s, i) =>
@@ -348,6 +456,7 @@ class RequestsManager {
         const description = document.getElementById('plDescription').value.trim();
         const priority = document.getElementById('plPriority').value;
         const target_server_uuid = document.getElementById('plServer').value.trim();
+        const requested_access = this.collectRequestedAccess();
         const items = this.collectComponentItems();
 
         if (!pipeline_template_id) return this.toast('Choose a request type', 'error');
@@ -356,6 +465,9 @@ class RequestsManager {
 
         const fields = { pipeline_template_id, title, description, priority, items: JSON.stringify(items) };
         if (target_server_uuid) fields.target_server_uuid = target_server_uuid;
+        // Omitted entirely when nothing was ticked, which the backend reads as
+        // "grant whatever this request type grants".
+        if (requested_access.length) fields.requested_access = JSON.stringify(requested_access);
 
         try {
             const result = await this.apiPost('pipeline-create', fields);
@@ -410,6 +522,42 @@ class RequestsManager {
                 </div>
             </div>` : '';
 
+        // What this request is ASKING for, shown while it is still pending so the
+        // approver can see it without reading the description.
+        const asked = Array.isArray(p.requested_access) ? p.requested_access : [];
+        const askedBlock = asked.length ? `
+            <div class="mt-4 px-4 py-3 rounded-lg border border-border bg-surface-secondary/40">
+                <div class="text-sm font-medium text-text-primary mb-1.5">
+                    <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested
+                </div>
+                <ul class="text-xs text-text-secondary space-y-0.5">
+                    ${asked.map((a) => `<li>&bull; ${this.esc(this.accessLabel(a))} <code class="text-text-muted">${this.esc(a)}</code></li>`).join('')}
+                </ul>
+                ${p.target_server_uuid ? `<div class="text-xs text-text-muted mt-2">
+                    Server access limited to <code>${this.esc(p.target_server_uuid)}</code>
+                </div>` : ''}
+            </div>` : '';
+
+        // If approving this request granted temporary access, say so plainly rather
+        // than leaving it buried in the activity list. new_value holds the expiry.
+        const grantEntry = (p.history || []).find((h) => h.action === 'access_granted');
+        let accessBanner = '';
+        if (grantEntry) {
+            const expires = new Date(String(grantEntry.new_value || '').replace(' ', 'T'));
+            const valid = !isNaN(expires.getTime());
+            const live = valid && expires.getTime() > Date.now();
+            accessBanner = `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border ${live ? 'border-primary/30 bg-primary/5' : 'border-border bg-surface-hover'}">
+                <i class="fas ${live ? 'fa-unlock text-primary' : 'fa-lock text-text-muted'} mt-0.5"></i>
+                <div class="text-sm">
+                    <div class="font-medium text-text-primary">${live ? 'Temporary access granted' : 'Temporary access has expired'}</div>
+                    <div class="text-xs text-text-secondary mt-0.5">
+                        ${this.esc(grantEntry.notes || '')}${valid ? ` · ${this.esc(expires.toLocaleString())}` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }
+
         const history = (p.history && p.history.length) ? `
             <div class="mt-5">
                 <h4 class="text-sm font-semibold text-text-primary mb-2">Activity</h4>
@@ -433,6 +581,8 @@ class RequestsManager {
                 ${p.target_server_uuid ? `<span><i class="fas fa-server mr-1"></i>${this.esc(p.target_server_uuid)}</span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
             </div>
+            ${askedBlock}
+            ${accessBanner}
 
             <div class="mt-5">
                 <h4 class="text-sm font-semibold text-text-primary mb-3">Steps</h4>

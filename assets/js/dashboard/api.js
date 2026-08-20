@@ -220,10 +220,27 @@ window.api = {
 
             const result = await response.json();
 
-            if (result.success && result.data && result.data.tokens) {
-                this.setToken(result.data.tokens.access_token);
-                this.setRefreshToken(result.data.tokens.refresh_token);
-                this.setUser(result.data.user);
+            // auth-refresh returns access_token FLAT in data — there is no `tokens`
+            // wrapper here (unlike auth-login, which does have one). Reading
+            // data.tokens.access_token meant this branch never ran, so refresh
+            // always reported failure and the session was dropped at token expiry
+            // instead of being renewed.
+            if (result.success && result.data && result.data.access_token) {
+                this.setToken(result.data.access_token);
+
+                // The endpoint does not rotate the refresh token, so keep the
+                // existing one unless a new one is actually sent.
+                if (result.data.refresh_token) {
+                    this.setRefreshToken(result.data.refresh_token);
+                }
+
+                // MERGE, don't replace: this payload carries no `roles`, and
+                // overwriting the stored user would wipe them and break every
+                // hasRole() gate in the UI.
+                if (result.data.user) {
+                    const stored = this.getUser() || {};
+                    this.setUser({ ...stored, ...result.data.user });
+                }
                 return true;
             }
 
@@ -282,6 +299,25 @@ window.api = {
         async verifyToken() {
             try {
                 const result = await api.request('auth-verify_token');
+
+                // Effective permissions can change without a new login — a
+                // temporary grant starts when an admin approves a request and
+                // lapses on its own hours later. This call runs on every dashboard
+                // page load, so it is where the cached bdc_user is brought back
+                // into step. UI-only: the backend is still the enforcement point.
+                if (result.success && result.data && result.data.user) {
+                    const fresh = result.data.user;
+                    const stored = api.getUser() || {};
+                    api.setUser({
+                        ...stored,
+                        ...fresh,
+                        // Never let a stale cached list survive a fresh answer.
+                        permissions: fresh.permissions || [],
+                        roles: fresh.roles || stored.roles || [],
+                        temporary_access: fresh.temporary_access || []
+                    });
+                }
+
                 return result.success;
             } catch (error) {
                 console.error('Token verification error:', error);

@@ -44,6 +44,7 @@ class Dashboard {
             await this.loadDashboard();
         } else if (page === 'servers.html') {
             this.currentComponent = 'servers';
+            this.applyServerCreateGate();
             await this.loadServerList();
         } else if (page === 'acl.html') {
             this.currentComponent = 'acl';
@@ -69,15 +70,13 @@ class Dashboard {
             // against the API. No data to load — the sidebar counts already ran above.
             this.currentComponent = 'knowledge-base';
         } else if (page === 'requests.html') {
-            // The unified Requests system is accessible to admin and super_admin.
+            // The unified Requests system is open to every role — raising a request
+            // is how a user without a permission asks for it. What each role can DO
+            // with a request is gated per operation by the backend.
             // RequestsManager (requests.js) loads its own data; only refresh the
             // sidebar counts here — treating this as a component page would fire
             // an invalid inventory action against the API.
             this.currentComponent = 'requests';
-            if (!api.utils.hasRole(['admin', 'super_admin'])) {
-                window.location.href = 'index.html';
-                return;
-            }
             await this.loadSidebarCounts();
         } else if (page === 'request-types.html') {
             // Request Types (Settings) is accessible to admin and super_admin.
@@ -99,6 +98,7 @@ class Dashboard {
             // Assume it's a component page
             const component = page.replace('.html', '');
             this.currentComponent = component;
+            this.applyComponentCreateGate(component);
             await this.loadComponentList(component);
         }
     }
@@ -463,6 +463,93 @@ class Dashboard {
         }
     }
 
+    /**
+     * Show a write affordance only to users who can actually use it.
+     *
+     * UI-only, like every hasPermission() call in this codebase — the backend
+     * still rejects the action. The point is that a read-only user is offered the
+     * request flow instead of a button that only ever returns 403.
+     *
+     * A permission may be held permanently through a role, or temporarily through
+     * an approved access request; api.auth.verifyToken() refreshes both on every
+     * page load, so this always reads current data.
+     *
+     * @param permission e.g. 'server.create', 'cpu.create'
+     * @param btnId      the affordance to reveal when it is held
+     * @param requestId  the "request access" link to show instead when it is not
+     */
+    applyPermissionGate(permission, btnId, requestId) {
+        const allowed = api.utils.hasPermission(permission);
+
+        const btn = document.getElementById(btnId);
+        if (btn) btn.style.display = allowed ? '' : 'none';
+
+        const request = document.getElementById(requestId);
+        if (request) request.style.display = allowed ? 'none' : '';
+
+        return allowed;
+    }
+
+    /** Servers page: the Build Server button. */
+    applyServerCreateGate() {
+        this.applyPermissionGate('server.create', 'addServerBtn', 'requestBuildAccessBtn');
+        this.renderTemporaryAccessNotice();
+    }
+
+    /** Inventory page: the Add button for whichever component type is open. */
+    applyComponentCreateGate(componentType) {
+        if (!componentType) return;
+        this.applyPermissionGate(`${componentType}.create`, 'addComponentBtn', 'requestComponentAccessBtn');
+        this.renderTemporaryAccessNotice();
+    }
+
+    /**
+     * Every temporary grant currently live, with when it runs out and — for a
+     * grant limited to one server — which one. Silent when there are none, which
+     * is the normal case for a user whose access comes from their role.
+     */
+    renderTemporaryAccessNotice() {
+        const notice = document.getElementById('temporaryAccessNotice');
+        const text = document.getElementById('temporaryAccessNoticeText');
+        if (!notice || !text) return;
+
+        const hide = () => {
+            notice.classList.add('hidden');
+            notice.classList.remove('flex');
+        };
+
+        const grants = (api.getUser() || {}).temporary_access || [];
+        if (!grants.length) return hide();
+
+        // MySQL DATETIME ('YYYY-MM-DD HH:MM:SS') is not reliably parsed by Safari
+        // unless the space becomes 'T'.
+        const live = grants
+            .map((g) => ({ ...g, expires: new Date(String(g.expires_at || '').replace(' ', 'T')) }))
+            .filter((g) => !isNaN(g.expires.getTime()) && g.expires.getTime() > Date.now());
+
+        if (!live.length) return hide();
+
+        // They all come from one approval in practice, so the soonest expiry
+        // describes the window.
+        const soonest = live.reduce((a, b) => (a.expires < b.expires ? a : b));
+        const msLeft = soonest.expires.getTime() - Date.now();
+        const hoursLeft = Math.floor(msLeft / 3600000);
+        const minutesLeft = Math.floor((msLeft % 3600000) / 60000);
+        const remaining = hoursLeft > 0 ? `${hoursLeft}h ${minutesLeft}m` : `${minutesLeft}m`;
+
+        const scoped = live.filter((g) => g.scope_type === 'server_config' && g.scope_id);
+        const scopeNote = scoped.length
+            ? ` Server access applies to ${[...new Set(scoped.map((g) => g.scope_id))].join(', ')} only.`
+            : '';
+
+        const names = [...new Set(live.map((g) => g.permission))].join(', ');
+        text.textContent = `Temporary access (${names}) — expires in ${remaining} `
+            + `(${soonest.expires.toLocaleString()}).${scopeNote} Anything you create or change will remain after it ends.`;
+
+        notice.classList.remove('hidden');
+        notice.classList.add('flex');
+    }
+
     async loadServerList(forceRefresh = false) {
         if (this.loadingStates.servers && !forceRefresh) {
             return;
@@ -602,12 +689,12 @@ class Dashboard {
                         <button class="action-btn view w-9 h-9 rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary border border-transparent hover:border-border transition-colors flex items-center justify-center" onclick="dashboard.showComponentViewModal('${componentType}', ${component.ID})" title="View Details" aria-label="View component details">
                             <i class="fas fa-eye text-sm"></i>
                         </button>
-                        <button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors flex items-center" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
+                        ${api.utils.hasPermission(`${componentType}.edit`) ? `<button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors flex items-center" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
                             <i class="fas fa-pen text-xs"></i><span class="hidden sm:inline ml-1.5">Edit</span>
-                        </button>
-                        <button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-danger hover:text-danger transition-colors flex items-center" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
+                        </button>` : ''}
+                        ${api.utils.hasPermission(`${componentType}.delete`) ? `<button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-danger hover:text-danger transition-colors flex items-center" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
                             <i class="fas fa-trash text-xs"></i><span class="hidden sm:inline ml-1.5">Delete</span>
-                        </button>
+                        </button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -626,10 +713,16 @@ class Dashboard {
                         <i class="fas fa-server text-primary text-xl"></i>
                     </div>
                     <h3 class="text-lg font-semibold text-text-primary mb-1">No Servers Found</h3>
-                    <p class="text-sm text-text-secondary mb-6">Start building your first server configuration</p>
-                    <button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
+                    <p class="text-sm text-text-secondary mb-6">${api.utils.hasPermission('server.create')
+                        ? 'Start building your first server configuration'
+                        : 'You do not currently have permission to build a server'}</p>
+                    ${api.utils.hasPermission('server.create')
+                        ? `<button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
                         <i class="fas fa-plus text-xs"></i> Create New Server
-                    </button>
+                    </button>`
+                        : `<a href="requests.html" class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2">
+                        <i class="fas fa-unlock-alt text-xs"></i> Request build access
+                    </a>`}
                 </div>`;
             return;
         }

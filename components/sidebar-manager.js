@@ -89,11 +89,16 @@ class SidebarManager {
                 if (rackMenuItem) rackMenuItem.style.display = '';
             }
 
-            // Show Requests + the Settings section (Request Types) for admin and super_admin
+            // Requests is open to everyone: raising a request — including a request
+            // for temporary access — is the one thing every role must be able to do.
+            // The backend still restricts what each role can DO with a request
+            // (create/list/get are self-service; approving is admin/super_admin).
+            const requestsMenuItem = document.getElementById('requestsMenuItem');
+            if (requestsMenuItem) requestsMenuItem.style.display = '';
+
+            // Settings → Request Types (editing the blueprints) stays admin-only
             // (UI-only gate; the API enforces the role check server-side).
             if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
-                const requestsMenuItem = document.getElementById('requestsMenuItem');
-                if (requestsMenuItem) requestsMenuItem.style.display = '';
                 const settingsSection = document.getElementById('settingsSection');
                 if (settingsSection) settingsSection.style.display = '';
                 const requestTypesMenuItem = document.getElementById('requestTypesMenuItem');

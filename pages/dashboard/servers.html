@@ -102,17 +102,35 @@
                                     <option value="3">Finalized</option>
                                 </select>
                             </div>
+                            <!-- Hidden until server.create is confirmed, then revealed by
+                                 Dashboard.applyServerCreateGate(). Previously rendered
+                                 unconditionally, which showed every read-only user a
+                                 button that only ever produced a 403. -->
                             <button
                                 class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addServerBtn">
+                                id="addServerBtn" style="display: none;">
                                 <i class="fas fa-plus"></i> Build Server
                             </button>
+                            <!-- Shown instead, when the user cannot build today. -->
+                            <a href="requests.html"
+                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
+                                id="requestBuildAccessBtn" style="display: none;">
+                                <i class="fas fa-unlock-alt"></i> Request build access
+                            </a>
                             <button
                                 class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
                                 id="refreshServers">
                                 <i class="fas fa-sync-alt"></i> Refresh
                             </button>
                         </div>
+                    </div>
+
+                    <!-- Populated by Dashboard.applyServerCreateGate() when the user holds
+                         build access on a temporary grant rather than through their role. -->
+                    <div id="temporaryAccessNotice"
+                        class="hidden items-center gap-2 mb-4 px-4 py-2 rounded-lg border border-border bg-surface-hover text-sm text-text-secondary">
+                        <i class="fas fa-clock text-primary"></i>
+                        <span id="temporaryAccessNoticeText"></span>
                     </div>
 
                     <!-- Server Grid -->
