@@ -530,6 +530,17 @@ window.api = {
                 config_uuid: configUuid,
                 start_u: startU.toString()
             });
+        },
+
+        // Where a server sits right now, plus the U-height it needs today (re-derived
+        // from its chassis). The servers list only carries the derived "U12" text, so
+        // the Change Rack Position dialog asks here before offering slots.
+        async getPlacement(configUuid) {
+            return await api.request('rack-placement', { config_uuid: configUuid });
+        },
+
+        async unassignServer(configUuid) {
+            return await api.request('rack-unassign-server', { config_uuid: configUuid });
         }
     },
 

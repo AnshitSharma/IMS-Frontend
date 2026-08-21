@@ -738,6 +738,23 @@ class Dashboard {
             return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${s.textClass}"><span class="w-1.5 h-1.5 rounded-full ${s.dotClass}"></span>${s.label}</span>`;
         };
 
+        // Rack View (and therefore every placement action) is admin / super_admin only —
+        // api.php role-gates the whole rack module on top of ACL. Same gate the Create
+        // Server form uses; the backend is what actually enforces it.
+        const canManageRacks = api.utils.hasRole(['admin', 'super_admin']);
+
+        // "Rack 1 · U12-U13". Falls back to the derived rack_position text alone when the
+        // list response carries no placement (older backend, or the rack lookup failed).
+        const getRackLabel = (server) => {
+            const startU = parseInt(server.rack_start_u, 10);
+            const height = Math.max(1, parseInt(server.rack_u_height, 10) || 1);
+            const range = startU
+                ? (height > 1 ? `U${startU}-U${startU + height - 1}` : `U${startU}`)
+                : (server.rack_position || '');
+            const parts = [server.rack_name, range].filter(Boolean).map(part => utils.escapeHtml(part));
+            return parts.length ? parts.join(' · ') : '—';
+        };
+
         serverCardsGrid.innerHTML = servers.map(server => `
             <div class="bg-surface-card border border-border rounded-xl overflow-hidden flex flex-col cursor-pointer group transition-colors hover:border-primary-light" data-server-uuid="${server.config_uuid}">
                 <!-- Header -->
@@ -756,6 +773,11 @@ class Dashboard {
                             </div>
                         </div>
                         <div class="flex items-center gap-1 flex-shrink-0">
+                            ${canManageRacks ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
+                                    onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
+                                    title="Change rack position" aria-label="Change rack position">
+                                <i class="fas fa-th-large text-xs"></i>
+                            </button>` : ''}
                             <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
                                     onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                                     title="View change history" aria-label="View server change history">
@@ -784,7 +806,7 @@ class Dashboard {
                     <div class="divide-y divide-border-light">
                         <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
                             <span class="text-text-muted">Rack</span>
-                            <span class="text-text-primary font-medium truncate tabular-nums">${server.rack_position ? utils.escapeHtml(server.rack_position) : '—'}</span>
+                            <span class="text-text-primary font-medium truncate tabular-nums">${getRackLabel(server)}</span>
                         </div>
                         <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
                             <span class="text-text-muted">Created</span>
@@ -1313,6 +1335,307 @@ class Dashboard {
             positionSelect.disabled = false;
             showHint('Placed as 1U — the placement resizes automatically when you add the chassis.');
         });
+    }
+
+    /**
+     * Change where an EXISTING server sits: move it to another rack or another U
+     * position, or take it out of the rack entirely. Reached from the rack button on
+     * the server card, so a server that is already built and installed no longer has
+     * to be deleted and re-created just to correct its placement.
+     *
+     * The move is the same rack-assign-server call the Create Server form makes — it
+     * updates the existing rack_servers row and re-derives u_height from the chassis.
+     * This dialog only has to show the current truth and offer positions the server
+     * actually fits in, so the backend's bounds/overlap refusals stay a last line of
+     * defence rather than the normal experience.
+     */
+    async showRackPlacementModal(configUuid, serverName) {
+        this.rackPlacementContext = {
+            configUuid,
+            serverName,
+            height: 1,
+            placement: null,
+            racks: [],
+            rackDetails: {}
+        };
+
+        this.showModal(`Rack Position — ${serverName}`, `
+            <div id="rackPlacementPanel">
+                <div class="py-16 text-center text-text-muted">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
+                    <p class="text-sm">Loading rack placement…</p>
+                </div>
+            </div>`);
+
+        try {
+            const [placementResult, rackListResult] = await Promise.all([
+                api.racks.getPlacement(configUuid),
+                api.racks.list()
+            ]);
+
+            if (!placementResult?.success) {
+                throw new Error(placementResult?.message || 'Could not read the current rack placement');
+            }
+            if (!rackListResult?.success) {
+                throw new Error(rackListResult?.message || 'Could not load the rack list');
+            }
+
+            const ctx = this.rackPlacementContext;
+            // The dialog may have been closed or reopened for another server while
+            // these were in flight — only paint into the context we still own.
+            if (!ctx || ctx.configUuid !== configUuid) return;
+
+            ctx.placement = placementResult.data?.placement || null;
+            ctx.height = Math.max(1, parseInt(placementResult.data?.required_u_height, 10) || 1);
+            ctx.racks = rackListResult.data?.racks || [];
+
+            const panel = document.getElementById('rackPlacementPanel');
+            if (!panel) return;
+            panel.innerHTML = this._renderRackPlacementForm();
+            this._bindRackPlacementForm();
+        } catch (error) {
+            const panel = document.getElementById('rackPlacementPanel');
+            if (panel) {
+                panel.innerHTML = `
+                    <div class="py-16 text-center">
+                        <i class="fas fa-exclamation-circle text-2xl text-danger mb-3"></i>
+                        <p class="text-sm text-text-secondary">${utils.escapeHtml(error.message || 'Failed to load rack placement')}</p>
+                    </div>`;
+            }
+        }
+    }
+
+    _renderRackPlacementForm() {
+        const ctx = this.rackPlacementContext;
+        const placement = ctx.placement;
+
+        const currentText = placement
+            ? `${utils.escapeHtml(placement.rack_name || 'Unknown rack')} · U${placement.start_u}${placement.u_height > 1 ? `-U${placement.end_u}` : ''}`
+            : 'Not installed in any rack';
+
+        const rackOptions = ctx.racks.map(rack => {
+            const selected = placement && rack.rack_uuid === placement.rack_uuid ? ' selected' : '';
+            const location = rack.location ? ` — ${utils.escapeHtml(rack.location)}` : '';
+            return `<option value="${utils.escapeHtml(rack.rack_uuid)}"${selected}>${utils.escapeHtml(rack.name)}${location} (${rack.free_u}U free of ${rack.total_u}U)</option>`;
+        }).join('');
+
+        return `
+            <div class="space-y-5">
+                <div class="flex items-start gap-3 p-4 bg-surface-secondary border border-border-light rounded-lg">
+                    <i class="fas fa-map-marker-alt text-primary mt-0.5"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs uppercase tracking-wider text-text-muted font-semibold">Current position</p>
+                        <p class="text-sm text-text-primary font-medium mt-0.5">${currentText}</p>
+                        <p class="text-xs text-text-muted mt-1">Occupies ${ctx.height}U${ctx.height > 1 ? ' — only positions with that many free units in a row are offered' : ''}</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="rackPlacementRack" class="form-label flex items-center gap-2">
+                        <i class="fas fa-th-large text-primary text-sm"></i>
+                        Rack
+                    </label>
+                    ${ctx.racks.length
+                        ? `<select class="form-select" id="rackPlacementRack">
+                                <option value="">-- Select a rack --</option>
+                                ${rackOptions}
+                           </select>`
+                        : `<p class="text-sm text-text-secondary">No racks exist yet — create one in Rack View first.</p>`}
+                </div>
+
+                <div class="form-group">
+                    <label for="rackPlacementPosition" class="form-label flex items-center gap-2">
+                        <i class="fas fa-layer-group text-primary text-sm"></i>
+                        Position
+                    </label>
+                    <select class="form-select" id="rackPlacementPosition" disabled>
+                        <option value="">-- Select a rack first --</option>
+                    </select>
+                </div>
+
+                <div id="rackPlacementHint" class="hidden items-start gap-2 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <i class="fas fa-info-circle text-text-muted text-sm mt-0.5"></i>
+                    <p class="text-xs text-text-muted" id="rackPlacementHintText"></p>
+                </div>
+
+                <div class="flex items-center justify-between gap-3 pt-6 border-t border-border">
+                    ${placement
+                        ? `<button type="button" class="px-4 py-2.5 rounded-lg font-medium text-sm text-text-secondary border border-border hover:border-danger hover:text-danger transition-colors flex items-center gap-2" onclick="dashboard.removeRackPlacement()">
+                                <i class="fas fa-eject text-xs"></i> Remove from rack
+                           </button>`
+                        : '<span></span>'}
+                    <div class="flex items-center gap-3">
+                        <button type="button" class="px-5 py-2.5 bg-surface-secondary text-text-primary rounded-lg font-medium text-sm hover:bg-surface-hover transition-colors" onclick="dashboard.closeModal()">Cancel</button>
+                        <button type="button" class="px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary-hover transition-colors flex items-center gap-2" onclick="dashboard.saveRackPlacement()" ${ctx.racks.length ? '' : 'disabled'}>
+                            <i class="fas fa-save text-xs"></i> Save position
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    _bindRackPlacementForm() {
+        const rackSelect = document.getElementById('rackPlacementRack');
+        if (!rackSelect) return;
+        rackSelect.addEventListener('change', () => this._loadRackPlacementPositions());
+        // Preselected to the rack the server is already in — fill its positions now.
+        if (rackSelect.value) this._loadRackPlacementPositions();
+    }
+
+    _setRackPlacementHint(message) {
+        const hint = document.getElementById('rackPlacementHint');
+        const hintText = document.getElementById('rackPlacementHintText');
+        if (!hint || !hintText) return;
+        hintText.textContent = message || '';
+        hint.classList.toggle('hidden', !message);
+        hint.classList.toggle('flex', !!message);
+    }
+
+    /**
+     * Start-U values where the server's full height fits, treating its OWN current
+     * range as free — otherwise a racked server could never keep (or shift near) the
+     * position it already occupies.
+     */
+    _rackFreeStarts(rackDetail, height, ownConfigUuid) {
+        const totalU = parseInt(rackDetail?.rack?.total_u, 10) || 0;
+        const occupied = new Set();
+        (rackDetail?.servers || []).forEach(server => {
+            if (server.config_uuid === ownConfigUuid) return;
+            for (let u = server.start_u; u <= server.end_u; u++) occupied.add(u);
+        });
+
+        const starts = [];
+        for (let u = 1; u + height - 1 <= totalU; u++) {
+            let fits = true;
+            for (let unit = u; unit < u + height; unit++) {
+                if (occupied.has(unit)) { fits = false; break; }
+            }
+            if (fits) starts.push(u);
+        }
+        return starts;
+    }
+
+    async _loadRackPlacementPositions() {
+        const ctx = this.rackPlacementContext;
+        const rackSelect = document.getElementById('rackPlacementRack');
+        const positionSelect = document.getElementById('rackPlacementPosition');
+        if (!ctx || !rackSelect || !positionSelect) return;
+
+        const rackUuid = rackSelect.value;
+        if (!rackUuid) {
+            positionSelect.innerHTML = '<option value="">-- Select a rack first --</option>';
+            positionSelect.disabled = true;
+            this._setRackPlacementHint('');
+            return;
+        }
+
+        positionSelect.innerHTML = '<option value="">Loading positions…</option>';
+        positionSelect.disabled = true;
+
+        let detail = ctx.rackDetails[rackUuid];
+        if (!detail) {
+            const result = await api.racks.get(rackUuid);
+            if (!result?.success) {
+                positionSelect.innerHTML = '<option value="">—</option>';
+                this._setRackPlacementHint(result?.message || 'Could not load the rack layout.');
+                return;
+            }
+            detail = result.data;
+            ctx.rackDetails[rackUuid] = detail;
+        }
+
+        // The user may have picked a different rack while this was loading.
+        if (rackSelect.value !== rackUuid) return;
+
+        const starts = this._rackFreeStarts(detail, ctx.height, ctx.configUuid);
+        const rackName = detail?.rack?.name || 'This rack';
+
+        if (!starts.length) {
+            positionSelect.innerHTML = `<option value="">No ${ctx.height}U slot free</option>`;
+            positionSelect.disabled = true;
+            this._setRackPlacementHint(`${rackName} has no run of ${ctx.height} free unit${ctx.height === 1 ? '' : 's'} — pick another rack.`);
+            return;
+        }
+
+        const currentStart = (ctx.placement && ctx.placement.rack_uuid === rackUuid) ? parseInt(ctx.placement.start_u, 10) : null;
+        positionSelect.innerHTML = '<option value="">-- Select position --</option>' + starts.map(u => {
+            const label = ctx.height > 1 ? `U${u}-U${u + ctx.height - 1}` : `U${u}`;
+            const isCurrent = u === currentStart;
+            return `<option value="${u}"${isCurrent ? ' selected' : ''}>${label}${isCurrent ? ' (current)' : ''}</option>`;
+        }).join('');
+        positionSelect.disabled = false;
+
+        this._setRackPlacementHint(
+            ctx.placement && ctx.placement.rack_uuid !== rackUuid
+                ? `Saving moves this server out of ${ctx.placement.rack_name || 'its current rack'} and into ${rackName}.`
+                : ''
+        );
+    }
+
+    async saveRackPlacement() {
+        const ctx = this.rackPlacementContext;
+        if (!ctx) return;
+
+        const rackUuid = document.getElementById('rackPlacementRack')?.value || '';
+        const startU = parseInt(document.getElementById('rackPlacementPosition')?.value || '', 10);
+
+        if (!rackUuid) {
+            utils.showAlert('Choose a rack, or use "Remove from rack" to take this server out', 'warning');
+            return;
+        }
+        if (!startU) {
+            utils.showAlert('Choose a position in the rack', 'warning');
+            return;
+        }
+        if (ctx.placement && ctx.placement.rack_uuid === rackUuid && parseInt(ctx.placement.start_u, 10) === startU) {
+            utils.showAlert('That is already this server’s position', 'info');
+            return;
+        }
+
+        try {
+            utils.showLoading(true, 'Updating rack position...');
+            const result = await api.racks.assignServer(rackUuid, ctx.configUuid, startU);
+            if (!result?.success) {
+                utils.showAlert(result?.message || 'Failed to update the rack position', 'error');
+                return;
+            }
+            utils.showAlert(result.message || 'Rack position updated', 'success');
+            this.closeModal();
+            await this.loadServerList(true);
+        } catch (error) {
+            console.error('Update rack position error:', error);
+            utils.showAlert(error.message || 'An error occurred while updating the rack position', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    async removeRackPlacement() {
+        const ctx = this.rackPlacementContext;
+        if (!ctx) return;
+
+        const confirmed = await utils.confirm(
+            `Remove "${ctx.serverName}" from ${ctx.placement?.rack_name || 'its rack'}? The server and its components are not touched — it just stops occupying a slot.`,
+            'Remove from Rack'
+        );
+        if (!confirmed) return;
+
+        try {
+            utils.showLoading(true, 'Removing server from rack...');
+            const result = await api.racks.unassignServer(ctx.configUuid);
+            if (!result?.success) {
+                utils.showAlert(result?.message || 'Failed to remove the server from its rack', 'error');
+                return;
+            }
+            utils.showAlert(result.message || 'Server removed from rack', 'success');
+            this.closeModal();
+            await this.loadServerList(true);
+        } catch (error) {
+            console.error('Remove from rack error:', error);
+            utils.showAlert(error.message || 'An error occurred while removing the server from its rack', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
     }
 
     async showServerBuilder(configUuid, serverName) {

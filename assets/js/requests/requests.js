@@ -19,6 +19,13 @@ class RequestsManager {
         this.users = [];
         this.roles = [];
         this.componentData = null;
+        // Server list behind the create form's picker (pipeline-servers).
+        this.servers = [];
+        this.serversTotal = 0;
+        this.serversTruncated = false;
+        // The title is composed for the requester until they type their own.
+        this.titleTouched = false;
+        this.currentUsername = null;
 
         this.scope = 'my_queue';
         this.page = 1;
@@ -49,6 +56,7 @@ class RequestsManager {
         const user = (window.api && window.api.getUser) ? window.api.getUser() : null;
         if (user) {
             this.currentUserId = user.id;
+            this.currentUsername = user.username || null;
             const roles = Array.isArray(user.roles) ? user.roles : [];
             this.currentRoleIds = roles.map((r) => (typeof r === 'object' ? Number(r.id) : null)).filter((x) => x);
             this.currentRoleNames = roles.map((r) => (typeof r === 'string' ? r : (r.name || r.display_name || ''))).filter(Boolean);
@@ -269,76 +277,144 @@ class RequestsManager {
         if (activeTypes.length === 0) {
             return this.toast('No active request types. Ask an admin to create one first.', 'warning');
         }
-        await this.loadComponentData();
+        await Promise.all([this.loadComponentData(), this.loadServers()]);
 
         const body = document.getElementById('modalBody');
         document.getElementById('modalTitle').textContent = 'New Request';
+
+        // Layout rule for this form: anything the system can answer from a list is
+        // a dropdown that OVERLAYS the modal instead of expanding it, so the form
+        // stays about one screen tall however much a request type can grant — the
+        // access ceiling alone runs to 27 permissions. Left in the open is only the
+        // pair nobody else can write: what to call this, and why it is needed.
+        const TRIGGER = 'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left border border-border rounded-lg bg-surface-card text-text-primary hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary';
+        // NOTE: never add a display utility next to `hidden` — the compiled
+        // stylesheet emits .hidden BEFORE .flex/.grid, so flex would win and the
+        // panel would sit open.
+        const PANEL = 'hidden absolute left-0 right-0 z-30 mt-1 rounded-lg border border-border bg-surface-card shadow-lg overflow-hidden';
+        const EYEBROW = 'block text-xs font-semibold uppercase tracking-wide text-text-muted mb-1';
+        const SELECT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
+        const CHEVRON = '<i class="fas fa-chevron-down text-xs text-text-muted shrink-0"></i>';
+
         body.innerHTML = `
-            <form id="pipelineForm" class="space-y-5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-semibold text-text-primary mb-1.5">Request type <span class="text-danger">*</span></label>
-                        <select id="plType" required class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select a type...</option>
-                            ${activeTypes.map((t) => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-text-primary mb-1.5">Priority</label>
-                        <select id="plPriority" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div id="plStagePreview" class="hidden text-sm bg-surface-secondary/40 border border-border rounded-lg p-3"></div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-text-primary mb-1.5">Title <span class="text-danger">*</span></label>
-                    <input type="text" id="plTitle" required maxlength="255" placeholder="e.g. Add 64GB RAM to server NODE-12"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-text-primary mb-1.5">Description <span class="text-danger">*</span></label>
-                    <textarea id="plDescription" required rows="3" placeholder="What needs to happen, and why?"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm font-semibold text-text-primary mb-1.5">Target server UUID <span class="text-text-muted text-xs">(optional)</span></label>
-                    <input type="text" id="plServer" placeholder="Server configuration UUID"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                    <p class="text-xs text-text-muted mt-1">Naming a server limits any server access you are granted to that one configuration.</p>
-                </div>
-
-                <!-- Only rendered for request types whose approval step grants access.
-                     Populated by renderAccessPicker() when the type is chosen. -->
-                <div id="plAccessBlock" class="hidden border-t border-border pt-4"></div>
-
-                <div class="border-t border-border pt-4">
-                    <div class="flex items-center justify-between mb-3">
+            <form id="pipelineForm" class="space-y-4">
+                <!-- The ask. Five questions, four of them answered from a list. -->
+                <div class="rounded-lg border border-border bg-surface-secondary p-3 space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <h4 class="text-sm font-semibold text-text-primary">Components <span class="text-text-muted">(optional)</span></h4>
-                            <p class="text-xs text-text-muted">Hardware this request involves.</p>
+                            <label for="plType" class="${EYEBROW}">Request type <span class="text-danger">*</span></label>
+                            <select id="plType" required class="${SELECT}">
+                                <option value="">Select a type...</option>
+                                ${activeTypes.map((t) => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}
+                            </select>
                         </div>
-                        <button type="button" id="plAddComponent" class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
-                            <i class="fas fa-plus"></i> Add
-                        </button>
+                        <div>
+                            <label for="plPriority" class="${EYEBROW}">Priority</label>
+                            <select id="plPriority" class="${SELECT}">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
                     </div>
-                    <div id="plComponents" class="space-y-2"></div>
+
+                    <p id="plStagePreview" class="hidden text-xs"></p>
+
+                    <!-- Access. Hidden for request types whose approval grants nothing;
+                         filled in by applyRequestType() from the step's effect_config. -->
+                    <div id="plAccessRow" class="hidden">
+                        <label for="plAccessTrigger" class="${EYEBROW}">Access needed</label>
+                        <div class="relative" data-popover="access">
+                            <button type="button" id="plAccessTrigger" aria-haspopup="true" aria-expanded="false" class="${TRIGGER}">
+                                <span id="plAccessTriggerText" class="min-w-0 truncate"></span>
+                                ${CHEVRON}
+                            </button>
+                            <div id="plAccessPanel" class="${PANEL}">
+                                <div id="plAccessPanelBody" class="max-h-96 overflow-y-auto p-3"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Server. One control for the whole question, including
+                         "any server" — see renderServerPicker(). -->
+                    <div id="plServerRow">
+                        <label id="plServerLabel" for="plServerTrigger" class="${EYEBROW}"></label>
+                        <div id="plServerBlock"></div>
+                        <p id="plServerHint" class="text-xs text-text-muted mt-1"></p>
+                    </div>
+
+                    <div id="plItemsRow">
+                        <label for="plItemsTrigger" class="${EYEBROW}">Components</label>
+                        <div class="relative" data-popover="items">
+                            <button type="button" id="plItemsTrigger" aria-haspopup="true" aria-expanded="false" class="${TRIGGER}">
+                                <span id="plItemsTriggerText" class="min-w-0 truncate text-text-muted"></span>
+                                ${CHEVRON}
+                            </button>
+                            <div id="plItemsPanel" class="${PANEL}">
+                                <div class="p-3">
+                                    <div class="flex items-center justify-between gap-2 mb-2">
+                                        <p class="text-xs text-text-muted">Hardware this request involves. Optional.</p>
+                                        <button type="button" id="plAddComponent" data-autofocus class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2 shrink-0">
+                                            <i class="fas fa-plus"></i> Add
+                                        </button>
+                                    </div>
+                                    <div id="plComponents" class="space-y-2 max-h-96 overflow-y-auto"></div>
+                                    <p id="plItemsEmpty" class="text-xs text-text-muted">Nothing added yet.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- What you say about it. -->
+                <div>
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <label for="plTitle" class="text-sm font-medium text-text-primary">Title <span class="text-danger">*</span></label>
+                        <button type="button" id="plTitleAuto" class="text-xs text-text-muted"></button>
+                    </div>
+                    <input type="text" id="plTitle" required maxlength="255" placeholder="Choose a request type and this writes itself"
+                        class="w-full px-3 py-2 text-base font-medium border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <div>
+                    <label for="plDescription" class="block text-sm font-medium text-text-primary mb-1">Description <span class="text-danger">*</span></label>
+                    <textarea id="plDescription" required rows="3" placeholder="What needs to happen, and why?"
+                        class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
                 </div>
 
                 <div class="flex justify-end gap-3 pt-3 border-t border-border">
                     <button type="button" id="plCancel" class="px-5 py-2 border border-border rounded-lg hover:bg-surface-hover text-text-primary">Cancel</button>
                     <button type="submit" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
-                        <i class="fas fa-play"></i> Create Request
+                        <i class="fas fa-play"></i> Create request
                     </button>
                 </div>
             </form>`;
 
         document.getElementById('modalContainer').classList.remove('hidden');
+        this.titleTouched = false;
+        this.accessCeiling = [];
+        this.accessHours = 24;
+        this.serverAccessOffered = false;
+
+        this.renderServerPicker();
+        this.wirePopoverDismiss();
+        this.setServerPickerMode('standalone');
+        this.updateItemsSummary();
+        this.updateTitleChip();
+
+        const titleField = document.getElementById('plTitle');
+        titleField.addEventListener('input', () => {
+            // Emptying the box is how you ask for the suggestion back.
+            this.titleTouched = titleField.value.trim() !== '';
+            this.updateTitleChip();
+        });
+        document.getElementById('plTitleAuto').addEventListener('click', () => {
+            this.titleTouched = false;
+            this.autoTitle();
+            this.updateTitleChip();
+        });
+        document.getElementById('plAccessTrigger').addEventListener('click', () => this.togglePopover('access'));
+        document.getElementById('plItemsTrigger').addEventListener('click', () => this.togglePopover('items'));
         document.getElementById('plCancel').addEventListener('click', () => this.closeModal('modalContainer'));
         document.getElementById('plAddComponent').addEventListener('click', () => this.addComponentItem());
         document.getElementById('plType').addEventListener('change', (e) => this.previewType(e.target.value));
@@ -352,7 +428,7 @@ class RequestsManager {
      */
     static get ACCESS_LABELS() {
         return {
-            'server.create': 'Build a server, or add parts to one',
+            'server.create': 'Build a new server, or add parts to one',
             'server.view': 'View server configurations',
             'server.edit': 'Change a server configuration (add / remove parts)',
             'server.replace': 'Swap a component in a server',
@@ -369,84 +445,617 @@ class RequestsManager {
         return names[type] || type;
     }
 
-    accessLabel(permission) {
-        const direct = RequestsManager.ACCESS_LABELS[permission];
+    /**
+     * The same five permissions worded for access limited to ONE configuration.
+     *
+     * server.create is why this map has to exist: under a scoped grant
+     * `server-add-component` works (it carries a config_uuid) while
+     * `server-create-start` is refused by the coarse gate, so "Build a new server"
+     * would be a promise the grant cannot keep.
+     */
+    static get ACCESS_LABELS_SCOPED() {
+        return {
+            'server.create': 'Add parts to this server',
+            'server.view': 'View this server’s configuration',
+            'server.edit': 'Add or remove this server’s parts',
+            'server.replace': 'Swap a component in this server',
+            'server.transition': 'Change this server’s status'
+        };
+    }
+
+    accessLabel(permission, scoped = false) {
+        const direct = (scoped ? RequestsManager.ACCESS_LABELS_SCOPED[permission] : null)
+            || RequestsManager.ACCESS_LABELS[permission];
         if (direct) return direct;
         const [type, action] = permission.split('.');
         const verb = action === 'create' ? 'Add' : (action === 'edit' ? 'Edit' : action);
         return `${verb} ${this.componentTypeLabel(type)} inventory`;
     }
 
+    // ----- Popovers ----------------------------------------------------------
+    /**
+     * The three questions that used to stretch the create form: which access,
+     * which server, which components. Each is answered in a panel that overlays
+     * the form, and only one is open at a time.
+     */
+    static get POPOVERS() {
+        return ['access', 'server', 'items'];
+    }
+
+    popoverPart(name, part) {
+        return document.getElementById('pl' + name.charAt(0).toUpperCase() + name.slice(1) + part);
+    }
+
+    /**
+     * Open or close one panel; called with no second argument it toggles.
+     *
+     * The modal body is a scroll container, so the trigger is scrolled into view
+     * first — one sitting near the bottom edge would otherwise open into clipped
+     * space.
+     */
+    togglePopover(name, open) {
+        const panel = this.popoverPart(name, 'Panel');
+        const trigger = this.popoverPart(name, 'Trigger');
+        if (!panel || !trigger) return;
+
+        const next = (open === undefined) ? panel.classList.contains('hidden') : !!open;
+        if (next) this.closePopovers(name);
+        panel.classList.toggle('hidden', !next);
+        trigger.setAttribute('aria-expanded', next ? 'true' : 'false');
+        if (next) {
+            trigger.scrollIntoView?.({ block: 'nearest' });
+            panel.querySelector('[data-autofocus]')?.focus();
+        }
+    }
+
+    closePopovers(except) {
+        RequestsManager.POPOVERS.forEach((name) => {
+            if (name !== except) this.togglePopover(name, false);
+        });
+    }
+
+    /**
+     * Dismissal has to live on the document, and the modal body is rebuilt on
+     * every open — so replace the previous pair instead of stacking another.
+     */
+    wirePopoverDismiss() {
+        if (this.popoverDismiss) {
+            document.removeEventListener('click', this.popoverDismiss, true);
+            document.removeEventListener('keydown', this.popoverEscape, true);
+        }
+        this.popoverDismiss = (e) => {
+            RequestsManager.POPOVERS.forEach((name) => {
+                const panel = this.popoverPart(name, 'Panel');
+                if (!panel || panel.classList.contains('hidden')) return;
+                if (!panel.closest('[data-popover]')?.contains(e.target)) this.togglePopover(name, false);
+            });
+        };
+        this.popoverEscape = (e) => {
+            if (e.key === 'Escape') this.closePopovers();
+        };
+        document.addEventListener('click', this.popoverDismiss, true);
+        document.addEventListener('keydown', this.popoverEscape, true);
+    }
+
+    /** The server list is one of the three panels; this is the name it is opened by. */
+    toggleServerDropdown(open) {
+        this.togglePopover('server', open);
+    }
+
+    // ----- Server picker -----------------------------------------------------
+    /**
+     * The list of server configurations behind the picker.
+     *
+     * `pipeline-servers`, not `server-list-configs`: the latter is gated on
+     * server.view, which the typical requester does not hold — and that gap is
+     * exactly why this form used to ask for a hand-typed config_uuid, which in
+     * practice meant no server was named and the approval granted server access
+     * globally.
+     */
+    async loadServers(search = '') {
+        try {
+            const result = await this.apiPost('pipeline-servers', { search, limit: 100 });
+            this.servers = (result.success && result.data?.servers) ? result.data.servers : [];
+            this.serversTotal = result.data?.total ?? this.servers.length;
+            this.serversTruncated = !!result.data?.truncated;
+        } catch (e) {
+            this.servers = [];
+            this.serversTotal = 0;
+            this.serversTruncated = false;
+        }
+    }
+
+    /**
+     * One control answers the whole question.
+     *
+     * "Which server?" and "or every server?" used to be two controls — a pair of
+     * scope radios above a list — which meant the two could disagree and the
+     * picker had to be physically moved between two homes to sit next to them.
+     * Now "Any server" is simply the last row of the same radio group, in the
+     * panel footer where filtering cannot hide it: one question, one answer.
+     * Its value is deliberately empty, so selectedServerUuid() returning ''
+     * for a system-wide ask is true by construction rather than by a special case.
+     */
+    renderServerPicker() {
+        const block = document.getElementById('plServerBlock');
+        if (!block) return;
+
+        block.innerHTML = `
+            <div class="relative" data-popover="server">
+                <button type="button" id="plServerTrigger" aria-haspopup="listbox" aria-expanded="false"
+                    class="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left border border-border rounded-lg bg-surface-card hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-primary">
+                    <span id="plServerTriggerText" class="min-w-0 truncate text-text-muted"></span>
+                    <i class="fas fa-chevron-down text-xs text-text-muted shrink-0"></i>
+                </button>
+                <div id="plServerPanel" class="hidden absolute left-0 right-0 z-30 mt-1 rounded-lg border border-border bg-surface-card shadow-lg overflow-hidden">
+                    <div class="relative p-2 border-b border-border">
+                        <i class="fas fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs text-text-muted"></i>
+                        <input type="text" id="plServerSearch" data-autofocus autocomplete="off" placeholder="Search by name, location, rack or UUID"
+                            class="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-md bg-surface-main text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
+                    <div id="plServerList" class="max-h-96 overflow-y-auto divide-y divide-border"></div>
+                    <div id="plServerAnyOption" class="hidden border-t border-border">
+                        <label class="flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-hover">
+                            <input type="radio" name="plServerPick" value="" data-scope="any" class="mt-1 shrink-0">
+                            <span class="min-w-0">
+                                <span class="block text-sm font-medium text-text-primary">Any server</span>
+                                <span class="block text-xs text-text-muted">Every configuration in the system, including ones built later.</span>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="flex justify-end px-3 py-1.5 border-t border-border">
+                        <button type="button" id="plServerClear" class="text-xs text-text-muted hover:text-danger">Clear selection</button>
+                    </div>
+                </div>
+            </div>`;
+
+        this.renderServerRows();
+
+        const search = document.getElementById('plServerSearch');
+        document.getElementById('plServerTrigger').addEventListener('click', () => this.togglePopover('server'));
+        search.addEventListener('input', () => this.filterServerList(search.value));
+        document.getElementById('plServerAnyOption').querySelector('input').addEventListener('change', () => {
+            this.updateServerSelection();
+            this.togglePopover('server', false);
+        });
+        document.getElementById('plServerClear').addEventListener('click', () => {
+            const picked = document.querySelector('input[name="plServerPick"]:checked');
+            if (picked) picked.checked = false;
+            this.updateServerSelection();
+        });
+    }
+
+    /** Everything downstream of which server is picked, in one call. */
+    updateServerSelection() {
+        this.updateServerTrigger();
+        this.updateServerHint();
+        this.relabelAccess();
+        this.autoTitle();
+    }
+
+    /** A closed dropdown has to say what is selected, or it says nothing at all. */
+    updateServerTrigger() {
+        const text = document.getElementById('plServerTriggerText');
+        if (!text) return;
+
+        const input = document.querySelector('input[name="plServerPick"]:checked');
+        const muted = () => { text.classList.add('text-text-muted'); text.classList.remove('text-text-primary'); };
+        const solid = () => { text.classList.remove('text-text-muted'); text.classList.add('text-text-primary'); };
+
+        if (!input) {
+            text.textContent = this.servers.length || this.serverAccessOffered
+                ? 'Choose a server...'
+                : 'No server configurations found';
+            return muted();
+        }
+        if (input.dataset.scope === 'any') {
+            text.textContent = 'Any server in the system';
+            return solid();
+        }
+
+        const picked = this.servers.find((srv) => srv.config_uuid === input.value);
+        const bits = [picked?.status, picked?.location, picked?.rack_position].filter(Boolean).join(' · ');
+        text.textContent = (picked?.server_name || input.value) + (bits ? ' — ' + bits : '');
+        solid();
+    }
+
+    /**
+     * Rows only. Kept separate from renderServerPicker() so a server-side
+     * re-query can replace the list without stealing focus from the search box.
+     */
+    renderServerRows(keepUuid = '') {
+        const list = document.getElementById('plServerList');
+        if (!list) return;
+
+        if (!this.servers.length) {
+            list.innerHTML = `<p class="px-3 py-3 text-sm text-text-muted">No server configurations found.</p>`;
+            this.updateServerSelection();
+            return;
+        }
+
+        list.innerHTML = this.servers.map((srv) => this.serverRow(srv)).join('');
+        list.querySelectorAll('input[name="plServerPick"]').forEach((radio) => {
+            if (keepUuid && radio.value === keepUuid) radio.checked = true;
+            radio.addEventListener('change', () => {
+                this.updateServerSelection();
+                // Picking one is the whole reason the list was open.
+                this.togglePopover('server', false);
+            });
+        });
+        this.updateServerSelection();
+    }
+
+    serverRow(srv) {
+        const uuid = String(srv.config_uuid || '');
+        const tag = (text, tone) => `<span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${tone}">${this.esc(text)}</span>`;
+        const bits = [srv.location, srv.rack_position, srv.platform_name].filter(Boolean);
+        const haystack = [srv.server_name, uuid, srv.location, srv.rack_position, srv.platform_name]
+            .filter(Boolean).join(' ').toLowerCase();
+
+        return `
+            <label class="pl-server-row flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-hover" data-haystack="${this.esc(haystack)}">
+                <input type="radio" name="plServerPick" value="${this.esc(uuid)}" class="mt-1 shrink-0">
+                <span class="min-w-0 flex-1">
+                    <span class="flex items-center gap-1.5 flex-wrap">
+                        <span class="text-sm font-medium text-text-primary">${this.esc(srv.server_name || 'Unnamed server')}</span>
+                        ${srv.status ? tag(srv.status, 'border-border text-text-secondary') : ''}
+                        ${srv.is_sandbox ? tag('sandbox', 'border-border text-text-muted') : ''}
+                        ${(!srv.is_sandbox && srv.is_virtual) ? tag('virtual', 'border-border text-text-muted') : ''}
+                        ${srv.is_own ? tag('yours', 'border-primary/30 text-primary') : ''}
+                    </span>
+                    <span class="block text-xs text-text-muted mt-0.5 truncate">
+                        ${bits.map((b) => this.esc(b)).join(' · ')}${bits.length ? ' · ' : ''}<code title="${this.esc(uuid)}">${this.esc(uuid.slice(-8))}</code>
+                    </span>
+                </span>
+            </label>`;
+    }
+
+    /**
+     * Filter what is already loaded, and only go back to the API when the first
+     * page was capped — so a small installation never waits on the network to
+     * type, and a large one can still reach the hundredth server.
+     */
+    filterServerList(term) {
+        const t = String(term || '').trim().toLowerCase();
+        const list = document.getElementById('plServerList');
+        if (!list) return;
+
+        let shown = 0;
+        list.querySelectorAll('.pl-server-row').forEach((row) => {
+            const match = !t || (row.dataset.haystack || '').includes(t);
+            row.classList.toggle('hidden', !match);
+            if (match) shown += 1;
+        });
+
+        const note = list.querySelector('#plServerNoMatch');
+        if (shown === 0 && this.servers.length && !note) {
+            list.insertAdjacentHTML('beforeend', `<p id="plServerNoMatch" class="px-3 py-3 text-sm text-text-muted">Nothing matches that.</p>`);
+        } else if (shown > 0 && note) {
+            note.remove();
+        }
+
+        if (this.serversTruncated) {
+            clearTimeout(this.serverSearchTimer);
+            this.serverSearchTimer = setTimeout(async () => {
+                const keep = this.selectedServerUuid();
+                await this.loadServers(t);
+                this.renderServerRows(keep);
+            }, 350);
+        }
+    }
+
+    /** The line under the control: only what the closed trigger cannot say. */
+    updateServerHint() {
+        const hint = document.getElementById('plServerHint');
+        if (!hint) return;
+
+        const capped = this.serversTruncated
+            ? `Showing ${this.servers.length} of ${this.serversTotal} — search to narrow it down.`
+            : '';
+
+        if (!this.serverChoiceMade()) {
+            hint.textContent = this.serverAccessOffered
+                ? ('Pick the server this access is for, or choose Any server. ' + capped).trim()
+                : capped;
+            return;
+        }
+        if (this.serverScopeMode() === 'any') {
+            hint.textContent = ('Approving this unlocks every configuration in the system. ' + capped).trim();
+            return;
+        }
+
+        // Owners can always act on their own configuration, so asking for access
+        // to one is usually a wasted round-trip through an approver.
+        const picked = this.servers.find((srv) => srv.config_uuid === this.selectedServerUuid());
+        hint.textContent = ((picked?.is_own
+            ? 'You created this one — you can already change it without asking. '
+            : '') + capped).trim();
+    }
+
+    /**
+     * The picker asks a different question depending on whether the chosen type
+     * grants server access, so its label and its "any server" row follow.
+     */
+    setServerPickerMode(mode) {
+        const label = document.getElementById('plServerLabel');
+        if (label) {
+            label.innerHTML = mode === 'scoped'
+                ? 'Server this access is for <span class="text-danger">*</span>'
+                : 'Server this request is about';
+        }
+
+        const anyRow = document.getElementById('plServerAnyOption');
+        if (anyRow) {
+            anyRow.classList.toggle('hidden', mode !== 'scoped');
+            // A leftover system-wide ask must not survive into a request type that
+            // cannot grant it.
+            const anyInput = anyRow.querySelector('input');
+            if (mode !== 'scoped' && anyInput) anyInput.checked = false;
+        }
+        this.updateServerSelection();
+    }
+
+    /**
+     * Short verbs for a title. Deliberately not ACCESS_LABELS: those are checkbox
+     * copy ("Add or remove this server's parts") and read badly in a sentence.
+     */
+    static get TITLE_VERBS() {
+        return {
+            'server.create': 'add parts',
+            'server.view': 'view',
+            'server.edit': 'change parts',
+            'server.replace': 'swap a component',
+            'server.transition': 'change status'
+        };
+    }
+
+    /**
+     * Fill the Title in from the rest of the form, unless the requester has typed
+     * their own. A queue full of "test" and "need access" tells an approver
+     * nothing, and by this point the form knows who is asking, what they ticked
+     * and which server — so it can say it.
+     */
+    autoTitle() {
+        const field = document.getElementById('plTitle');
+        if (!field || this.titleTouched) return;
+        field.value = this.composeTitle().slice(0, 255);
+    }
+
+    /** The chip beside the Title: a status while it writes itself, a way back once you type. */
+    updateTitleChip() {
+        const chip = document.getElementById('plTitleAuto');
+        if (!chip) return;
+        chip.textContent = this.titleTouched ? 'Use the suggested title' : 'Written from your choices';
+        chip.disabled = !this.titleTouched;
+        chip.classList.toggle('text-primary', this.titleTouched);
+        chip.classList.toggle('text-text-muted', !this.titleTouched);
+    }
+
+    composeTitle() {
+        const typeId = document.getElementById('plType')?.value || '';
+        const type = this.types.find((t) => String(t.id) === String(typeId));
+        if (!type) return '';
+
+        const who = this.currentUsername ? ` — ${this.currentUsername}` : '';
+        const uuid = this.selectedServerUuid();
+        const picked = this.servers.find((srv) => srv.config_uuid === uuid);
+        const serverName = uuid ? (picked?.server_name || uuid) : '';
+        const scope = this.serverScopeMode();
+
+        // An ordinary request type grants nothing, so its name is the subject.
+        // Keyed off the ceiling, NOT off the server scope: a type that grants
+        // inventory access only has no scope to speak of but is still an access
+        // request, and its title should say what was ticked.
+        if (!(this.accessCeiling || []).length) {
+            return `${type.name}${serverName ? ` for ${serverName}` : ''}${who}`;
+        }
+
+        const asked = this.collectRequestedAccess();
+        const serverAsks = asked.filter((perm) => perm.startsWith('server.'));
+        const inventoryAsks = asked.filter((perm) => !perm.startsWith('server.'));
+
+        const parts = [];
+        if (!asked.length) {
+            // Nothing ticked means "everything this type grants" (see the picker).
+            parts.push('Full access this request type allows');
+        } else {
+            if (serverAsks.length) {
+                parts.push(serverAsks.map((perm) => RequestsManager.TITLE_VERBS[perm] || perm).join(', '));
+            }
+            if (inventoryAsks.length) {
+                const invTypes = Array.from(new Set(inventoryAsks.map((perm) => this.componentTypeLabel(perm.split('.')[0]))));
+                parts.push(`add/edit ${this.joinList(invTypes)} inventory`);
+            }
+        }
+
+        // "Where" only means something when server access is in play; inventory is
+        // never per-server.
+        // With nothing ticked the ask covers the whole ceiling, so it only
+        // reaches servers if this type can grant server access at all.
+        const wantsServers = serverAsks.length > 0 || (!asked.length && scope !== null);
+        const where = wantsServers
+            ? (scope === 'specific' ? (serverName ? ` on ${serverName}` : '') : ' on any server')
+            : '';
+
+        const what = parts.join(' + ');
+        return (what.charAt(0).toUpperCase() + what.slice(1)) + where + who;
+    }
+
+    /** ['CPU','RAM','SFP'] -> 'CPU, RAM and SFP' */
+    joinList(items) {
+        if (items.length <= 1) return items.join('');
+        return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+
+    /** 'specific' | 'any' | null when the chosen type grants no server access. */
+    serverScopeMode() {
+        if (!this.serverAccessOffered) return null;
+        return document.querySelector('input[name="plServerPick"]:checked')?.dataset.scope === 'any'
+            ? 'any'
+            : 'specific';
+    }
+
+    /** Has the requester answered the server question at all — either way? */
+    serverChoiceMade() {
+        return !!document.querySelector('input[name="plServerPick"]:checked');
+    }
+
+    /**
+     * The picked configuration. The "Any server" row carries an empty value, so
+     * this is '' for a system-wide ask by construction — a leftover selection can
+     * never quietly scope a grant the requester asked to be system-wide.
+     */
+    selectedServerUuid() {
+        return document.querySelector('input[name="plServerPick"]:checked')?.value || '';
+    }
+
+    // ----- Access picker -----------------------------------------------------
+    /**
+     * A per-configuration grant really does allow something different from a
+     * system-wide one, so the permission labels say which they are — but only
+     * once a specific server has actually been chosen, rather than guessing.
+     */
+    relabelAccess() {
+        const scoped = this.serverScopeMode() === 'specific' && !!this.selectedServerUuid();
+        document.querySelectorAll('[data-access-label]').forEach((el) => {
+            el.textContent = this.accessLabel(el.dataset.accessLabel, scoped);
+        });
+        document.getElementById('plScopeNote')?.classList.toggle('hidden', this.serverScopeMode() === 'any');
+        this.updateAccessTrigger();
+    }
+
+    /** The closed Access control reports how much of the ceiling is being asked for. */
+    updateAccessTrigger() {
+        const text = document.getElementById('plAccessTriggerText');
+        if (!text) return;
+        const total = (this.accessCeiling || []).length;
+        const picked = this.collectRequestedAccess().length;
+        const lasts = `${this.accessHours || 24}h`;
+        text.textContent = picked
+            ? `${picked} of ${total} permissions · ${lasts}`
+            : `Everything this type allows · ${lasts}`;
+    }
+
     /**
      * Let the requester pick WHICH access they need, from the ceiling the chosen
      * request type is able to grant (its approval step's effect_config).
      *
-     * A type with no access effect renders nothing, so ordinary request types are
-     * completely unchanged. Ticking nothing means "whatever this type grants",
-     * which is also the pre-2026_08_21 behaviour.
+     * A type with no access effect hides the Access control entirely and turns
+     * the server question back into optional context, so ordinary request types
+     * stay plain requests that happen to mention a machine.
+     *
+     * Ticking nothing still means "whatever this type grants".
      */
-    renderAccessPicker(type) {
-        const box = document.getElementById('plAccessBlock');
-        if (!box) return;
-
+    applyRequestType(type) {
         const stage = (type?.stages || []).find((st) => st.effect_type === 'grant_temporary_permission');
         let ceiling = [];
+        let hours = 24;
         if (stage) {
             try {
                 const cfg = typeof stage.effect_config === 'string'
                     ? JSON.parse(stage.effect_config)
                     : (stage.effect_config || {});
                 ceiling = Array.isArray(cfg.permissions) ? cfg.permissions : [];
+                if (cfg.duration_hours) hours = Number(cfg.duration_hours) || 24;
             } catch (e) {
                 ceiling = [];
             }
         }
 
+        this.accessCeiling = ceiling;
+        this.accessHours = hours;
+        this.serverAccessOffered = ceiling.some((perm) => perm.startsWith('server.'));
+
+        const row = document.getElementById('plAccessRow');
+        const panelBody = document.getElementById('plAccessPanelBody');
+        if (!row || !panelBody) return;
+
         if (!ceiling.length) {
-            box.classList.add('hidden');
-            box.innerHTML = '';
+            row.classList.add('hidden');
+            panelBody.innerHTML = '';
+            this.togglePopover('access', false);
+            this.setServerPickerMode('standalone');
             return;
         }
 
         // Group so a 27-entry list reads as two short lists rather than one wall.
-        const serverPerms = ceiling.filter((p) => p.startsWith('server.'));
-        const inventoryPerms = ceiling.filter((p) => !p.startsWith('server.'));
+        const serverPerms = ceiling.filter((perm) => perm.startsWith('server.'));
+        const inventoryPerms = ceiling.filter((perm) => !perm.startsWith('server.'));
 
-        const checkbox = (p) => `
+        const checkbox = (perm) => `
             <label class="flex items-start gap-2 py-1 cursor-pointer">
-                <input type="checkbox" class="pl-access mt-0.5" value="${this.esc(p)}">
-                <span class="text-sm text-text-secondary">${this.esc(this.accessLabel(p))}
-                    <code class="ml-1 text-xs text-text-muted">${this.esc(p)}</code></span>
+                <input type="checkbox" class="pl-access mt-0.5" value="${this.esc(perm)}">
+                <span class="text-sm text-text-secondary"><span data-access-label="${this.esc(perm)}">${this.esc(this.accessLabel(perm))}</span>
+                    <code class="ml-1 text-xs text-text-muted">${this.esc(perm)}</code></span>
             </label>`;
 
-        box.classList.remove('hidden');
-        box.innerHTML = `
-            <h4 class="text-sm font-semibold text-text-primary">What access do you need?</h4>
-            <p class="text-xs text-text-muted mb-3">Approved access lasts 24 hours and then expires on its own. Leave everything unticked to ask for all of it.</p>
-            ${serverPerms.length ? `<div class="mb-3">
+        panelBody.innerHTML = `
+            <p class="text-xs text-text-muted mb-3">Approved access lasts ${hours} hour${hours === 1 ? '' : 's'} and then expires on its own. Leave everything unticked to ask for all of it.</p>
+            ${serverPerms.length ? `
+            <div class="mb-3">
                 <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Servers</div>
                 ${serverPerms.map(checkbox).join('')}
+                <p id="plScopeNote" class="text-xs text-text-muted mt-2">
+                    <i class="fas fa-circle-info mr-1"></i>Access to one server lets you change that build. Starting a brand-new server needs <span class="font-medium text-text-secondary">Any server</span>.
+                </p>
             </div>` : ''}
-            ${inventoryPerms.length ? `<div>
+            ${inventoryPerms.length ? `
+            <div class="${serverPerms.length ? 'border-t border-border pt-3' : ''}">
                 <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Inventory</div>
+                <p class="text-xs text-text-muted mb-1">Inventory is not owned by a server, so this access always applies system-wide.</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">${inventoryPerms.map(checkbox).join('')}</div>
             </div>` : ''}`;
+
+        panelBody.querySelectorAll('.pl-access').forEach((tick) => {
+            tick.addEventListener('change', () => {
+                this.updateAccessTrigger();
+                this.autoTitle();
+            });
+        });
+
+        row.classList.remove('hidden');
+        this.setServerPickerMode(this.serverAccessOffered ? 'scoped' : 'standalone');
     }
 
     collectRequestedAccess() {
         return Array.from(document.querySelectorAll('.pl-access:checked')).map((c) => c.value);
     }
 
+    /** The closed Components control counts what will actually be sent. */
+    updateItemsSummary() {
+        const text = document.getElementById('plItemsTriggerText');
+        const empty = document.getElementById('plItemsEmpty');
+        const rows = document.querySelectorAll('#plComponents .component-item').length;
+        const ready = this.collectComponentItems().length;
+
+        if (empty) empty.classList.toggle('hidden', rows > 0);
+        if (!text) return;
+
+        if (!rows) {
+            text.textContent = 'No components';
+        } else if (ready === rows) {
+            text.textContent = `${ready} component${ready === 1 ? '' : 's'}`;
+        } else {
+            // Half-filled rows are dropped on submit; say so rather than silently
+            // sending fewer components than the form appears to hold.
+            text.textContent = `${ready} of ${rows} filled in`;
+        }
+        text.classList.toggle('text-text-muted', !ready);
+        text.classList.toggle('text-text-primary', ready > 0);
+    }
+
     previewType(typeId) {
         const type = this.types.find((t) => String(t.id) === String(typeId));
-        this.renderAccessPicker(type);
+        this.applyRequestType(type);
+        this.autoTitle();
+        this.updateTitleChip();
 
         const box = document.getElementById('plStagePreview');
         if (!box) return;
         if (!type || !type.stages || !type.stages.length) { box.classList.add('hidden'); return; }
         box.classList.remove('hidden');
-        box.innerHTML = `<span class="text-text-muted font-medium">Flow:</span> ` + type.stages.map((s, i) =>
-            `${i ? '<span class="text-text-muted mx-1">→</span>' : ''}<span class="text-text-primary font-medium">${this.esc(s.name)}</span> <span class="text-text-muted text-xs">(${this.esc(s.default_assignee?.name || 'unassigned')})</span>`
+        box.innerHTML = `<span class="text-text-muted">Approval path:</span> ` + type.stages.map((s, i) =>
+            `${i ? '<span class="text-text-muted mx-1">→</span>' : ''}<span class="text-text-primary font-medium">${this.esc(s.name)}</span> <span class="text-text-muted">(${this.esc(s.default_assignee?.name || 'unassigned')})</span>`
         ).join('');
     }
 
@@ -455,13 +1064,25 @@ class RequestsManager {
         const title = document.getElementById('plTitle').value.trim();
         const description = document.getElementById('plDescription').value.trim();
         const priority = document.getElementById('plPriority').value;
-        const target_server_uuid = document.getElementById('plServer').value.trim();
+        const target_server_uuid = this.selectedServerUuid();
         const requested_access = this.collectRequestedAccess();
         const items = this.collectComponentItems();
 
         if (!pipeline_template_id) return this.toast('Choose a request type', 'error');
         if (!title) return this.toast('Title is required', 'error');
         if (!description) return this.toast('Description is required', 'error');
+
+        // Leaving the server question unanswered would be approved as a GLOBAL
+        // server grant — the silent mistake the old free-text UUID field made
+        // easy — so a type that can grant server access needs an answer either
+        // way: a named configuration, or a deliberate "Any server". An empty tick
+        // list counts as asking for server access too, because it means
+        // "everything this type grants".
+        const asksServerAccess = requested_access.length === 0
+            || requested_access.some((perm) => perm.startsWith('server.'));
+        if (this.serverAccessOffered && asksServerAccess && !this.serverChoiceMade()) {
+            return this.toast('Choose which server this access is for, or pick "Any server"', 'error');
+        }
 
         const fields = { pipeline_template_id, title, description, priority, items: JSON.stringify(items) };
         if (target_server_uuid) fields.target_server_uuid = target_server_uuid;
@@ -531,11 +1152,9 @@ class RequestsManager {
                     <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested
                 </div>
                 <ul class="text-xs text-text-secondary space-y-0.5">
-                    ${asked.map((a) => `<li>&bull; ${this.esc(this.accessLabel(a))} <code class="text-text-muted">${this.esc(a)}</code></li>`).join('')}
+                    ${asked.map((a) => `<li>&bull; ${this.esc(this.accessLabel(a, !!p.target_server_uuid))} <code class="text-text-muted">${this.esc(a)}</code></li>`).join('')}
                 </ul>
-                ${p.target_server_uuid ? `<div class="text-xs text-text-muted mt-2">
-                    Server access limited to <code>${this.esc(p.target_server_uuid)}</code>
-                </div>` : ''}
+                ${asked.some((a) => a.startsWith('server.')) ? `<div class="text-xs mt-2">${this.accessScopeLine(p)}</div>` : ''}
             </div>` : '';
 
         // If approving this request granted temporary access, say so plainly rather
@@ -578,7 +1197,7 @@ class RequestsManager {
             <p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
                 <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
-                ${p.target_server_uuid ? `<span><i class="fas fa-server mr-1"></i>${this.esc(p.target_server_uuid)}</span>` : ''}
+                ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
             </div>
             ${askedBlock}
@@ -598,6 +1217,35 @@ class RequestsManager {
                 </div>` : ''}`;
 
         this.wireDetailActions(p);
+    }
+
+    /**
+     * How far the server half of a request reaches. This is the single most
+     * important line for an approver, and a bare config_uuid never told them:
+     * no server named means every configuration in the system.
+     */
+    accessScopeLine(p) {
+        if (!p.target_server_uuid) {
+            return `<span class="text-amber-600 dark:text-amber-400"><i class="fas fa-triangle-exclamation mr-1"></i>No server named — server access would apply to every configuration.</span>`;
+        }
+        // pipeline-get resolves the name; a row it could not find has been deleted
+        // since the request was raised. Older payloads omit target_server
+        // entirely, which is not the same thing as "deleted".
+        if (p.target_server && p.target_server.exists === false) {
+            return `<span class="text-danger"><i class="fas fa-triangle-exclamation mr-1"></i>The named configuration <code>${this.esc(p.target_server_uuid)}</code> no longer exists — server access granted now would apply to nothing.</span>`;
+        }
+        return `<span class="text-text-muted">Server access limited to ${this.serverIdentity(p)}</span>`;
+    }
+
+    /** Name plus uuid for a request's target server, with however much we know. */
+    serverIdentity(p) {
+        const ts = p.target_server;
+        const uuid = p.target_server_uuid || '';
+        if (!ts || !ts.name) return `<code>${this.esc(uuid)}</code>`;
+        const bits = [ts.status, ts.location, ts.rack_position].filter(Boolean).join(' · ');
+        return `<span class="font-medium text-text-primary">${this.esc(ts.name)}</span>`
+            + (bits ? ` <span class="text-text-muted">(${this.esc(bits)})</span>` : '')
+            + ` <code class="text-text-muted">${this.esc(uuid)}</code>`;
     }
 
     renderStep(stage, pipeline, terminal) {
@@ -667,13 +1315,15 @@ class RequestsManager {
                     ${showReassign ? `<button data-act="reassign-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary flex items-center gap-1.5"><i class="fas fa-user-gear"></i> Reassign</button>` : ''}
                 </div>
                 ${showReassign ? `
-                    <div data-reassign-form="${stage.id}" class="hidden flex flex-wrap items-center gap-2 pt-1">
-                        <select data-reassign-type="${stage.id}" class="px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary">
-                            <option value="role">Team (role)</option>
-                            <option value="user">Person</option>
-                        </select>
-                        <select data-reassign-id="${stage.id}" class="px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary flex-1 min-w-[160px]"></select>
-                        <button data-act="reassign-apply" data-stage="${stage.id}" class="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-600">Apply</button>
+                    <div data-reassign-form="${stage.id}" class="hidden pt-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select data-reassign-type="${stage.id}" class="px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary">
+                                <option value="role">Team (role)</option>
+                                <option value="user">Person</option>
+                            </select>
+                            <select data-reassign-id="${stage.id}" class="px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary flex-1"></select>
+                            <button data-act="reassign-apply" data-stage="${stage.id}" class="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-600">Apply</button>
+                        </div>
                     </div>` : ''}
             </div>`;
     }
@@ -831,8 +1481,16 @@ class RequestsManager {
 
         const typeSel = row.querySelector('.ci-type');
         const uuidSel = row.querySelector('.ci-uuid');
-        typeSel.addEventListener('change', () => this.fillComponentUUIDs(typeSel.value, uuidSel));
-        row.querySelector('.ci-remove').addEventListener('click', () => row.remove());
+        typeSel.addEventListener('change', () => {
+            this.fillComponentUUIDs(typeSel.value, uuidSel);
+            this.updateItemsSummary();
+        });
+        uuidSel.addEventListener('change', () => this.updateItemsSummary());
+        row.querySelector('.ci-remove').addEventListener('click', () => {
+            row.remove();
+            this.updateItemsSummary();
+        });
+        this.updateItemsSummary();
     }
 
     fillComponentUUIDs(type, select) {
