@@ -464,28 +464,40 @@ class Dashboard {
     }
 
     /**
-     * Show a write affordance only to users who can actually use it.
+     * Reveal a write affordance, and record whether using it will PERFORM the
+     * change or REQUEST it.
      *
-     * UI-only, like every hasPermission() call in this codebase — the backend
-     * still rejects the action. The point is that a read-only user is offered the
-     * request flow instead of a button that only ever returns 403.
+     * The button is now shown to everyone. Someone without the permission is not
+     * given a dead button and not offered a way to be handed the permission —
+     * they open the same form, and it submits a Request. An admin approves and
+     * the system performs the change on their behalf. Nobody is ever granted
+     * access to anything.
      *
-     * A permission may be held permanently through a role, or temporarily through
-     * an approved access request; api.auth.verifyToken() refreshes both on every
-     * page load, so this always reads current data.
+     * UI-only, like every hasPermission() call in this codebase: the backend
+     * still rejects a direct write from someone who cannot make it. All this
+     * decides is which of the two honest paths the form takes.
      *
      * @param permission e.g. 'server.create', 'cpu.create'
-     * @param btnId      the affordance to reveal when it is held
-     * @param requestId  the "request access" link to show instead when it is not
+     * @param btnId      the affordance to reveal
+     * @param requestId  RETIRED — the old "request access" link, now hidden
+     * @returns {boolean} true when the user can perform the change directly
      */
     applyPermissionGate(permission, btnId, requestId) {
         const allowed = api.utils.hasPermission(permission);
 
         const btn = document.getElementById(btnId);
-        if (btn) btn.style.display = allowed ? '' : 'none';
+        if (btn) {
+            btn.style.display = '';
+            // Read by the form to decide whether to act or to raise a request.
+            btn.dataset.requestMode = allowed ? '' : '1';
+            btn.title = allowed ? '' : 'You will be asked to submit this as a request for approval';
+        }
 
+        // The old link asked to BE GIVEN the permission for 24 hours. There is no
+        // such thing any more, so it is never shown. The markup itself goes with
+        // the rest of the temporary-access UI.
         const request = document.getElementById(requestId);
-        if (request) request.style.display = allowed ? 'none' : '';
+        if (request) request.style.display = 'none';
 
         return allowed;
     }
@@ -493,61 +505,12 @@ class Dashboard {
     /** Servers page: the Build Server button. */
     applyServerCreateGate() {
         this.applyPermissionGate('server.create', 'addServerBtn', 'requestBuildAccessBtn');
-        this.renderTemporaryAccessNotice();
     }
 
     /** Inventory page: the Add button for whichever component type is open. */
     applyComponentCreateGate(componentType) {
         if (!componentType) return;
         this.applyPermissionGate(`${componentType}.create`, 'addComponentBtn', 'requestComponentAccessBtn');
-        this.renderTemporaryAccessNotice();
-    }
-
-    /**
-     * Every temporary grant currently live, with when it runs out and — for a
-     * grant limited to one server — which one. Silent when there are none, which
-     * is the normal case for a user whose access comes from their role.
-     */
-    renderTemporaryAccessNotice() {
-        const notice = document.getElementById('temporaryAccessNotice');
-        const text = document.getElementById('temporaryAccessNoticeText');
-        if (!notice || !text) return;
-
-        const hide = () => {
-            notice.classList.add('hidden');
-            notice.classList.remove('flex');
-        };
-
-        const grants = (api.getUser() || {}).temporary_access || [];
-        if (!grants.length) return hide();
-
-        // MySQL DATETIME ('YYYY-MM-DD HH:MM:SS') is not reliably parsed by Safari
-        // unless the space becomes 'T'.
-        const live = grants
-            .map((g) => ({ ...g, expires: new Date(String(g.expires_at || '').replace(' ', 'T')) }))
-            .filter((g) => !isNaN(g.expires.getTime()) && g.expires.getTime() > Date.now());
-
-        if (!live.length) return hide();
-
-        // They all come from one approval in practice, so the soonest expiry
-        // describes the window.
-        const soonest = live.reduce((a, b) => (a.expires < b.expires ? a : b));
-        const msLeft = soonest.expires.getTime() - Date.now();
-        const hoursLeft = Math.floor(msLeft / 3600000);
-        const minutesLeft = Math.floor((msLeft % 3600000) / 60000);
-        const remaining = hoursLeft > 0 ? `${hoursLeft}h ${minutesLeft}m` : `${minutesLeft}m`;
-
-        const scoped = live.filter((g) => g.scope_type === 'server_config' && g.scope_id);
-        const scopeNote = scoped.length
-            ? ` Server access applies to ${[...new Set(scoped.map((g) => g.scope_id))].join(', ')} only.`
-            : '';
-
-        const names = [...new Set(live.map((g) => g.permission))].join(', ');
-        text.textContent = `Temporary access (${names}) — expires in ${remaining} `
-            + `(${soonest.expires.toLocaleString()}).${scopeNote} Anything you create or change will remain after it ends.`;
-
-        notice.classList.remove('hidden');
-        notice.classList.add('flex');
     }
 
     async loadServerList(forceRefresh = false) {

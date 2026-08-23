@@ -14,6 +14,7 @@ class RequestTypesManager {
     constructor() {
         this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
         this.types = [];
+        this.actionTypes = [];
         this.users = [];
         this.roles = [];
         this.canManage = true; // refined in init() once api utils are ready
@@ -88,6 +89,11 @@ class RequestTypesManager {
             });
             if (!result.success) throw new Error(result.message || 'Failed to load');
             this.types = result.data?.templates || [];
+            // The catalogue of work an approval can perform, served alongside the
+            // types from RequestActionExecutor's own registry — never a second
+            // copy kept here, which would drift silently the moment an action is
+            // added or renamed.
+            this.actionTypes = result.data?.action_types || [];
             this.render();
         } catch (e) {
             this.setState('error', e.message);
@@ -191,12 +197,21 @@ class RequestTypesManager {
         });
 
         // Seed steps (existing, or one empty row for a brand-new type)
+        //
+        // effect_type / effect_config MUST be carried through. updateTemplate()
+        // deletes every pipeline_stages row and re-inserts from what this form
+        // sends, so any field the editor does not round-trip is destroyed on
+        // save. Before this, opening any request type and pressing Save silently
+        // wiped its effect — the type went on looking normal while quietly doing
+        // nothing on approval.
         const stages = (type && type.stages && type.stages.length) ? type.stages : [null];
         stages.forEach((s) => this.addStageRow(s ? {
             name: s.name,
             assignee_type: s.default_assignee?.type || 'role',
             assignee_id: s.default_assignee?.id || '',
-            instructions: s.instructions || ''
+            instructions: s.instructions || '',
+            effect_type: s.effect_type || '',
+            effect_config: s.effect_config || null
         } : null));
     }
 
@@ -272,6 +287,7 @@ class RequestTypesManager {
                     <select class="stage-owner-id md:col-span-5 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></select>
                     <input type="text" class="stage-instructions md:col-span-12 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
                         placeholder="Instructions for this step (optional)" maxlength="1000" value="${stage && stage.instructions ? this.esc(stage.instructions) : ''}">
+                    <div class="stage-effect md:col-span-12"></div>
                 </div>
                 <div class="shrink-0 flex flex-col gap-1">
                     <button type="button" class="stage-up p-1.5 text-text-muted hover:text-primary hover:bg-surface-hover rounded" title="Move up"><i class="fas fa-chevron-up text-xs"></i></button>
@@ -302,6 +318,119 @@ class RequestTypesManager {
                 this.renumberStages();
             }
         });
+
+        this.renderStageEffect(row, stage);
+    }
+
+    /**
+     * "On approval, perform" — what completing this step actually does.
+     *
+     * The chosen set is a CEILING, not an instruction: a requester can only
+     * build actions from this list, and the list is snapshotted onto each
+     * request when it is raised, so editing it here never changes a request
+     * that is already open.
+     *
+     * State lives on `row._effect`, a plain JS property rather than a
+     * data-attribute: the config is JSON, and JSON inside an HTML attribute
+     * inside an innerHTML template literal is exactly the escaping hazard the
+     * project's rules exist to prevent.
+     */
+    renderStageEffect(row, stage) {
+        const host = row.querySelector('.stage-effect');
+        if (!host) return;
+
+        const type = (stage && stage.effect_type) || '';
+        let config = null;
+        if (stage && stage.effect_config) {
+            try {
+                config = typeof stage.effect_config === 'string'
+                    ? JSON.parse(stage.effect_config)
+                    : stage.effect_config;
+            } catch (e) {
+                config = null;
+            }
+        }
+        row._effect = { type, config };
+
+        // A retired effect from the temporary-access model. Shown read-only and
+        // preserved verbatim: an admin editing an unrelated step of an old type
+        // must not silently destroy it, and must not be able to author a new one.
+        if (type && type !== 'execute_request') {
+            host.innerHTML = `
+                <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
+                    <i class="fas fa-clock-rotate-left mr-1.5 text-text-muted"></i>
+                    <span class="font-medium text-text-primary">Legacy effect — grants temporary access.</span>
+                    This model was retired; approving this step no longer grants anything.
+                    Switch it to actions when you are ready.
+                </div>`;
+            return;
+        }
+
+        const chosen = (config && Array.isArray(config.action_types)) ? config.action_types : [];
+        const on = type === 'execute_request';
+
+        const groups = { server: [], inventory: [] };
+        (this.actionTypes || []).forEach((a) => {
+            (groups[a.scope] || (groups[a.scope] = [])).push(a);
+        });
+
+        const groupHtml = (key, heading) => {
+            const list = groups[key] || [];
+            if (!list.length) return '';
+            return `
+                <div class="mt-2">
+                    <div class="text-xs font-semibold text-text-secondary mb-1">${heading}</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                        ${list.map((a) => `
+                            <label class="flex items-start gap-2 text-xs text-text-primary">
+                                <input type="checkbox" class="stage-action mt-0.5" value="${this.esc(a.action_type)}"
+                                    ${chosen.includes(a.action_type) ? 'checked' : ''}>
+                                <span>${this.esc(a.label)}
+                                    <code class="text-text-muted">${this.esc(a.action_type)}</code></span>
+                            </label>`).join('')}
+                    </div>
+                </div>`;
+        };
+
+        host.innerHTML = `
+            <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover">
+                <label class="flex items-center gap-2 text-xs font-medium text-text-primary">
+                    <input type="checkbox" class="stage-effect-on" ${on ? 'checked' : ''}>
+                    On approval, perform the request's work
+                </label>
+                <div class="stage-effect-body ${on ? '' : 'hidden'}">
+                    <div class="text-xs text-text-muted mt-1">
+                        The ceiling for this type. A requester can only build actions from this list,
+                        and the list is copied onto each request when it is raised — editing it here
+                        never changes a request that is already open.
+                    </div>
+                    ${groupHtml('server', 'Server builds')}
+                    ${groupHtml('inventory', 'Component inventory')}
+                </div>
+            </div>`;
+
+        const toggle = host.querySelector('.stage-effect-on');
+        const body = host.querySelector('.stage-effect-body');
+        toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
+    }
+
+    /** Read one row's effect back out of the DOM, for collectStages(). */
+    readStageEffect(row) {
+        const host = row.querySelector('.stage-effect');
+        const stored = row._effect || { type: '', config: null };
+
+        // A legacy effect has no editor — preserve exactly what was loaded.
+        if (stored.type && stored.type !== 'execute_request') {
+            return stored;
+        }
+
+        const toggle = host && host.querySelector('.stage-effect-on');
+        if (!toggle || !toggle.checked) {
+            return { type: '', config: null };
+        }
+
+        const chosen = Array.from(host.querySelectorAll('.stage-action:checked')).map((c) => c.value);
+        return { type: 'execute_request', config: { action_types: chosen } };
     }
 
     populateOwnerOptions(select, ownerType, selectedId = null) {
@@ -333,7 +462,19 @@ class RequestTypesManager {
             const assignee_id = row.querySelector('.stage-owner-id').value;
             const instructions = row.querySelector('.stage-instructions').value.trim();
             if (!name && !assignee_id) continue; // skip fully-empty rows
-            stages.push({ name, assignee_type, assignee_id, instructions });
+
+            const stage = { name, assignee_type, assignee_id, instructions };
+
+            // Round-trip the effect. updateTemplate() re-inserts every step from
+            // exactly what is sent here, so omitting these two fields deletes
+            // them — which is what used to happen on every save.
+            const effect = this.readStageEffect(row);
+            if (effect.type) {
+                stage.effect_type = effect.type;
+                stage.effect_config = effect.config ? JSON.stringify(effect.config) : null;
+            }
+
+            stages.push(stage);
         }
         return stages;
     }
@@ -391,7 +532,20 @@ class RequestTypesManager {
     async remove(type) {
         if (!confirm(`Delete request type "${type.name}"? This can't be undone.`)) return;
         try {
-            const result = await this.apiPost('pipeline-template-delete', { template_id: type.id });
+            let result = await this.apiPost('pipeline-template-delete', { template_id: type.id });
+
+            // Requests were raised from this type. The backend refuses the first
+            // attempt and hands back how many, so the question can name the real
+            // number instead of asking "are you sure" twice.
+            const used = Number(result?.data?.request_count || 0);
+            if (!result.success && used > 0) {
+                const plural = used === 1 ? 'request' : 'requests';
+                if (!confirm(`${used} ${plural} ${used === 1 ? 'was' : 'were'} created from "${type.name}".\n\n`
+                    + `Those ${plural} are kept and will still show "${type.name}" as their type. `
+                    + `The type itself disappears from the New Request list.\n\nDelete it anyway?`)) return;
+                result = await this.apiPost('pipeline-template-delete', { template_id: type.id, force: '1' });
+            }
+
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Delete failed');
                 return this.toast(msg, 'error');

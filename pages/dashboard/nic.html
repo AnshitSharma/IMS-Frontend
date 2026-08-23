@@ -107,13 +107,6 @@
                                 id="addComponentBtn" style="display: none;">
                                 <i class="fas fa-plus"></i> Add Component
                             </button>
-                            <!-- Shown instead of Add when the user lacks {type}.create.
-                                 Revealed by Dashboard.applyComponentCreateGate(). -->
-                            <a href="requests.html"
-                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="requestComponentAccessBtn" style="display: none;">
-                                <i class="fas fa-unlock-alt"></i> Request access
-                            </a>
                             <button
                                 class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
                                 id="refreshComponents">
@@ -122,13 +115,6 @@
                         </div>
                     </div>
 
-                    <!-- Populated by Dashboard.renderTemporaryAccessNotice() when the
-                         user's write access came from an approved access request. -->
-                    <div id="temporaryAccessNotice"
-                        class="hidden items-center gap-2 mb-4 px-4 py-2 rounded-lg border border-border bg-surface-hover text-sm text-text-secondary">
-                        <i class="fas fa-clock text-primary"></i>
-                        <span id="temporaryAccessNoticeText"></span>
-                    </div>
 
                     <!-- Components Table -->
                     <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">

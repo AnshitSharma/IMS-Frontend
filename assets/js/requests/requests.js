@@ -38,6 +38,9 @@ class RequestsManager {
         this.currentRoleIds = [];
         this.currentRoleNames = [];
         this.currentDetail = null;
+        // A rolled-back approval, held so the detail view can show it as the
+        // state of the request rather than a toast that vanishes.
+        this.executionError = null;
     }
 
     init() {
@@ -321,19 +324,14 @@ class RequestsManager {
 
                     <p id="plStagePreview" class="hidden text-xs"></p>
 
-                    <!-- Access. Hidden for request types whose approval grants nothing;
-                         filled in by applyRequestType() from the step's effect_config. -->
-                    <div id="plAccessRow" class="hidden">
-                        <label for="plAccessTrigger" class="${EYEBROW}">Access needed</label>
-                        <div class="relative" data-popover="access">
-                            <button type="button" id="plAccessTrigger" aria-haspopup="true" aria-expanded="false" class="${TRIGGER}">
-                                <span id="plAccessTriggerText" class="min-w-0 truncate"></span>
-                                ${CHEVRON}
-                            </button>
-                            <div id="plAccessPanel" class="${PANEL}">
-                                <div id="plAccessPanelBody" class="max-h-96 overflow-y-auto p-3"></div>
-                            </div>
-                        </div>
+                    <!-- What this request will DO once approved. Populated by
+                         applyRequestType() from the chosen type's action ceiling.
+                         Hidden for a type whose approval performs nothing. -->
+                    <div id="plActionRow" class="hidden">
+                        <label for="plAction" class="${EYEBROW}">What should happen <span class="text-danger">*</span></label>
+                        <select id="plAction" class="${SELECT}"></select>
+                        <p id="plActionHint" class="text-xs text-text-muted mt-1"></p>
+                        <div id="plActionFields" class="space-y-3 mt-3"></div>
                     </div>
 
                     <!-- Server. One control for the whole question, including
@@ -354,7 +352,7 @@ class RequestsManager {
                             <div id="plItemsPanel" class="${PANEL}">
                                 <div class="p-3">
                                     <div class="flex items-center justify-between gap-2 mb-2">
-                                        <p class="text-xs text-text-muted">Hardware this request involves. Optional.</p>
+                                        <p id="plItemsHint" class="text-xs text-text-muted">Hardware this request involves. Optional.</p>
                                         <button type="button" id="plAddComponent" data-autofocus class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2 shrink-0">
                                             <i class="fas fa-plus"></i> Add
                                         </button>
@@ -377,8 +375,8 @@ class RequestsManager {
                         class="w-full px-3 py-2 text-base font-medium border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                 </div>
                 <div>
-                    <label for="plDescription" class="block text-sm font-medium text-text-primary mb-1">Description <span class="text-danger">*</span></label>
-                    <textarea id="plDescription" required rows="3" placeholder="What needs to happen, and why?"
+                    <label for="plDescription" class="block text-sm font-medium text-text-primary mb-1">Description</label>
+                    <textarea id="plDescription" rows="3" placeholder="What needs to happen, and why? (optional)"
                         class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
                 </div>
 
@@ -392,9 +390,10 @@ class RequestsManager {
 
         document.getElementById('modalContainer').classList.remove('hidden');
         this.titleTouched = false;
-        this.accessCeiling = [];
-        this.accessHours = 24;
-        this.serverAccessOffered = false;
+        // The action ceiling of the chosen request type, and which of its actions
+        // this request is building. A type usually allows exactly one.
+        this.actionCeiling = [];
+        this.actionType = '';
 
         this.renderServerPicker();
         this.wirePopoverDismiss();
@@ -413,63 +412,12 @@ class RequestsManager {
             this.autoTitle();
             this.updateTitleChip();
         });
-        document.getElementById('plAccessTrigger').addEventListener('click', () => this.togglePopover('access'));
         document.getElementById('plItemsTrigger').addEventListener('click', () => this.togglePopover('items'));
         document.getElementById('plCancel').addEventListener('click', () => this.closeModal('modalContainer'));
         document.getElementById('plAddComponent').addEventListener('click', () => this.addComponentItem());
         document.getElementById('plType').addEventListener('change', (e) => this.previewType(e.target.value));
+        document.getElementById('plAction').addEventListener('change', (e) => this.setActionType(e.target.value));
         document.getElementById('pipelineForm').addEventListener('submit', (e) => { e.preventDefault(); this.submitCreate(); });
-    }
-
-    /**
-     * Human labels for the permissions a request can ask for. Anything not listed
-     * still works — it just shows its raw name — so a new grantable permission on
-     * the backend never breaks this screen.
-     */
-    static get ACCESS_LABELS() {
-        return {
-            'server.create': 'Build a new server, or add parts to one',
-            'server.view': 'View server configurations',
-            'server.edit': 'Change a server configuration (add / remove parts)',
-            'server.replace': 'Swap a component in a server',
-            'server.transition': 'Change a server\u2019s status'
-        };
-    }
-
-    componentTypeLabel(type) {
-        const names = {
-            cpu: 'CPU', ram: 'RAM', storage: 'Storage', motherboard: 'Motherboard',
-            nic: 'NIC', caddy: 'Caddy', chassis: 'Chassis', pciecard: 'PCIe card',
-            risercard: 'Riser card', hbacard: 'HBA card', sfp: 'SFP'
-        };
-        return names[type] || type;
-    }
-
-    /**
-     * The same five permissions worded for access limited to ONE configuration.
-     *
-     * server.create is why this map has to exist: under a scoped grant
-     * `server-add-component` works (it carries a config_uuid) while
-     * `server-create-start` is refused by the coarse gate, so "Build a new server"
-     * would be a promise the grant cannot keep.
-     */
-    static get ACCESS_LABELS_SCOPED() {
-        return {
-            'server.create': 'Add parts to this server',
-            'server.view': 'View this server’s configuration',
-            'server.edit': 'Add or remove this server’s parts',
-            'server.replace': 'Swap a component in this server',
-            'server.transition': 'Change this server’s status'
-        };
-    }
-
-    accessLabel(permission, scoped = false) {
-        const direct = (scoped ? RequestsManager.ACCESS_LABELS_SCOPED[permission] : null)
-            || RequestsManager.ACCESS_LABELS[permission];
-        if (direct) return direct;
-        const [type, action] = permission.split('.');
-        const verb = action === 'create' ? 'Add' : (action === 'edit' ? 'Edit' : action);
-        return `${verb} ${this.componentTypeLabel(type)} inventory`;
     }
 
     // ----- Popovers ----------------------------------------------------------
@@ -479,7 +427,7 @@ class RequestsManager {
      * the form, and only one is open at a time.
      */
     static get POPOVERS() {
-        return ['access', 'server', 'items'];
+        return ['server', 'items'];
     }
 
     popoverPart(name, part) {
@@ -629,7 +577,6 @@ class RequestsManager {
     updateServerSelection() {
         this.updateServerTrigger();
         this.updateServerHint();
-        this.relabelAccess();
         this.autoTitle();
     }
 
@@ -643,7 +590,7 @@ class RequestsManager {
         const solid = () => { text.classList.remove('text-text-muted'); text.classList.add('text-text-primary'); };
 
         if (!input) {
-            text.textContent = this.servers.length || this.serverAccessOffered
+            text.textContent = this.servers.length
                 ? 'Choose a server...'
                 : 'No server configurations found';
             return muted();
@@ -754,22 +701,13 @@ class RequestsManager {
             : '';
 
         if (!this.serverChoiceMade()) {
-            hint.textContent = this.serverAccessOffered
-                ? ('Pick the server this access is for, or choose Any server. ' + capped).trim()
-                : capped;
+            hint.textContent = (this.actionNeedsServer(this.actionType)
+                ? 'Pick the server this should happen on. '
+                : '') + capped;
+            hint.textContent = hint.textContent.trim();
             return;
         }
-        if (this.serverScopeMode() === 'any') {
-            hint.textContent = ('Approving this unlocks every configuration in the system. ' + capped).trim();
-            return;
-        }
-
-        // Owners can always act on their own configuration, so asking for access
-        // to one is usually a wasted round-trip through an approver.
-        const picked = this.servers.find((srv) => srv.config_uuid === this.selectedServerUuid());
-        hint.textContent = ((picked?.is_own
-            ? 'You created this one — you can already change it without asking. '
-            : '') + capped).trim();
+        hint.textContent = capped;
     }
 
     /**
@@ -779,34 +717,22 @@ class RequestsManager {
     setServerPickerMode(mode) {
         const label = document.getElementById('plServerLabel');
         if (label) {
-            label.innerHTML = mode === 'scoped'
-                ? 'Server this access is for <span class="text-danger">*</span>'
+            label.innerHTML = mode === 'action'
+                ? 'Which server <span class="text-danger">*</span>'
                 : 'Server this request is about';
         }
 
         const anyRow = document.getElementById('plServerAnyOption');
         if (anyRow) {
-            anyRow.classList.toggle('hidden', mode !== 'scoped');
+            // "Any server" was a grant SCOPE — it never meant anything for a
+            // single action, which has to name the one machine it changes.
+            anyRow.classList.add('hidden');
             // A leftover system-wide ask must not survive into a request type that
             // cannot grant it.
             const anyInput = anyRow.querySelector('input');
-            if (mode !== 'scoped' && anyInput) anyInput.checked = false;
+            if (anyInput) anyInput.checked = false;
         }
         this.updateServerSelection();
-    }
-
-    /**
-     * Short verbs for a title. Deliberately not ACCESS_LABELS: those are checkbox
-     * copy ("Add or remove this server's parts") and read badly in a sentence.
-     */
-    static get TITLE_VERBS() {
-        return {
-            'server.create': 'add parts',
-            'server.view': 'view',
-            'server.edit': 'change parts',
-            'server.replace': 'swap a component',
-            'server.transition': 'change status'
-        };
     }
 
     /**
@@ -831,6 +757,14 @@ class RequestsManager {
         chip.classList.toggle('text-text-muted', !this.titleTouched);
     }
 
+    /**
+     * Write the Title from what the form now knows: the type, the action being
+     * built, and the server it names. A queue full of "test" and "need access"
+     * tells an approver nothing.
+     *
+     * Built from the action's own fields rather than a verb table — there is one
+     * phrasing per action type, and it belongs next to the action.
+     */
     composeTitle() {
         const typeId = document.getElementById('plType')?.value || '';
         const type = this.types.find((t) => String(t.id) === String(typeId));
@@ -840,59 +774,37 @@ class RequestsManager {
         const uuid = this.selectedServerUuid();
         const picked = this.servers.find((srv) => srv.config_uuid === uuid);
         const serverName = uuid ? (picked?.server_name || uuid) : '';
-        const scope = this.serverScopeMode();
 
-        // An ordinary request type grants nothing, so its name is the subject.
-        // Keyed off the ceiling, NOT off the server scope: a type that grants
-        // inventory access only has no scope to speak of but is still an access
-        // request, and its title should say what was ticked.
-        if (!(this.accessCeiling || []).length) {
+        // A plain tracking type performs nothing, so its name is the subject.
+        if (!this.actionType) {
             return `${type.name}${serverName ? ` for ${serverName}` : ''}${who}`;
         }
 
-        const asked = this.collectRequestedAccess();
-        const serverAsks = asked.filter((perm) => perm.startsWith('server.'));
-        const inventoryAsks = asked.filter((perm) => !perm.startsWith('server.'));
+        const action = this.collectAction();
+        const p = (action && action.payload) || {};
+        const where = serverName ? ` on ${serverName}` : '';
+        const model = p.component_type ? p.component_type.toUpperCase() : 'a component';
 
-        const parts = [];
-        if (!asked.length) {
-            // Nothing ticked means "everything this type grants" (see the picker).
-            parts.push('Full access this request type allows');
-        } else {
-            if (serverAsks.length) {
-                parts.push(serverAsks.map((perm) => RequestsManager.TITLE_VERBS[perm] || perm).join(', '));
-            }
-            if (inventoryAsks.length) {
-                const invTypes = Array.from(new Set(inventoryAsks.map((perm) => this.componentTypeLabel(perm.split('.')[0]))));
-                parts.push(`add/edit ${this.joinList(invTypes)} inventory`);
-            }
+        let what;
+        switch (this.actionType) {
+            case 'server.component.add':     what = `Fit ${model}${where}`; break;
+            case 'server.component.remove':  what = `Remove ${model}${where}`; break;
+            case 'server.component.replace': what = `Swap ${model}${where}`; break;
+            case 'server.config.create':     what = `New server${p.server_name ? ` "${p.server_name}"` : ''}`; break;
+            case 'server.config.update':     what = `Update details${where}`; break;
+            case 'server.config.transition': what = `Set${where || ' server'} to ${p.to_status || 'a new status'}`; break;
+            case 'inventory.component.add':  what = `Add ${model} to inventory`; break;
+            case 'inventory.component.edit': what = `Update ${model} inventory record`; break;
+            default:                         what = type.name;
         }
 
-        // "Where" only means something when server access is in play; inventory is
-        // never per-server.
-        // With nothing ticked the ask covers the whole ceiling, so it only
-        // reaches servers if this type can grant server access at all.
-        const wantsServers = serverAsks.length > 0 || (!asked.length && scope !== null);
-        const where = wantsServers
-            ? (scope === 'specific' ? (serverName ? ` on ${serverName}` : '') : ' on any server')
-            : '';
-
-        const what = parts.join(' + ');
-        return (what.charAt(0).toUpperCase() + what.slice(1)) + where + who;
+        return `${what}${who}`;
     }
 
     /** ['CPU','RAM','SFP'] -> 'CPU, RAM and SFP' */
     joinList(items) {
         if (items.length <= 1) return items.join('');
         return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
-    }
-
-    /** 'specific' | 'any' | null when the chosen type grants no server access. */
-    serverScopeMode() {
-        if (!this.serverAccessOffered) return null;
-        return document.querySelector('input[name="plServerPick"]:checked')?.dataset.scope === 'any'
-            ? 'any'
-            : 'specific';
     }
 
     /** Has the requester answered the server question at all — either way? */
@@ -909,116 +821,390 @@ class RequestsManager {
         return document.querySelector('input[name="plServerPick"]:checked')?.value || '';
     }
 
-    // ----- Access picker -----------------------------------------------------
     /**
-     * A per-configuration grant really does allow something different from a
-     * system-wide one, so the permission labels say which they are — but only
-     * once a specific server has actually been chosen, rather than guessing.
-     */
-    relabelAccess() {
-        const scoped = this.serverScopeMode() === 'specific' && !!this.selectedServerUuid();
-        document.querySelectorAll('[data-access-label]').forEach((el) => {
-            el.textContent = this.accessLabel(el.dataset.accessLabel, scoped);
-        });
-        document.getElementById('plScopeNote')?.classList.toggle('hidden', this.serverScopeMode() === 'any');
-        this.updateAccessTrigger();
-    }
-
-    /** The closed Access control reports how much of the ceiling is being asked for. */
-    updateAccessTrigger() {
-        const text = document.getElementById('plAccessTriggerText');
-        if (!text) return;
-        const total = (this.accessCeiling || []).length;
-        const picked = this.collectRequestedAccess().length;
-        const lasts = `${this.accessHours || 24}h`;
-        text.textContent = picked
-            ? `${picked} of ${total} permissions · ${lasts}`
-            : `Everything this type allows · ${lasts}`;
-    }
-
-    /**
-     * Let the requester pick WHICH access they need, from the ceiling the chosen
-     * request type is able to grant (its approval step's effect_config).
+     * Shape the form around what the chosen request type can actually DO.
      *
-     * A type with no access effect hides the Access control entirely and turns
-     * the server question back into optional context, so ordinary request types
-     * stay plain requests that happen to mention a machine.
+     * A type's approval step carries an `execute_request` effect whose
+     * `action_types` list is its ceiling. That list drives everything below: the
+     * action dropdown, which fields appear, and whether the server question is
+     * asked at all.
      *
-     * Ticking nothing still means "whatever this type grants".
+     * A type with no such effect is a plain tracking request — no action row, and
+     * the server question falls back to optional context.
      */
     applyRequestType(type) {
-        const stage = (type?.stages || []).find((st) => st.effect_type === 'grant_temporary_permission');
-        let ceiling = [];
-        let hours = 24;
-        if (stage) {
-            try {
-                const cfg = typeof stage.effect_config === 'string'
-                    ? JSON.parse(stage.effect_config)
-                    : (stage.effect_config || {});
-                ceiling = Array.isArray(cfg.permissions) ? cfg.permissions : [];
-                if (cfg.duration_hours) hours = Number(cfg.duration_hours) || 24;
-            } catch (e) {
-                ceiling = [];
-            }
-        }
+        this.actionCeiling = this.typeActionCeiling(type);
+        this.actionType = '';
 
-        this.accessCeiling = ceiling;
-        this.accessHours = hours;
-        this.serverAccessOffered = ceiling.some((perm) => perm.startsWith('server.'));
+        const row = document.getElementById('plActionRow');
+        const select = document.getElementById('plAction');
+        const fields = document.getElementById('plActionFields');
+        if (!row || !select || !fields) return;
 
-        const row = document.getElementById('plAccessRow');
-        const panelBody = document.getElementById('plAccessPanelBody');
-        if (!row || !panelBody) return;
-
-        if (!ceiling.length) {
+        if (!this.actionCeiling.length) {
             row.classList.add('hidden');
-            panelBody.innerHTML = '';
-            this.togglePopover('access', false);
+            select.innerHTML = '';
+            fields.innerHTML = '';
             this.setServerPickerMode('standalone');
+            this.autoTitle();
             return;
         }
 
-        // Group so a 27-entry list reads as two short lists rather than one wall.
-        const serverPerms = ceiling.filter((perm) => perm.startsWith('server.'));
-        const inventoryPerms = ceiling.filter((perm) => !perm.startsWith('server.'));
-
-        const checkbox = (perm) => `
-            <label class="flex items-start gap-2 py-1 cursor-pointer">
-                <input type="checkbox" class="pl-access mt-0.5" value="${this.esc(perm)}">
-                <span class="text-sm text-text-secondary"><span data-access-label="${this.esc(perm)}">${this.esc(this.accessLabel(perm))}</span>
-                    <code class="ml-1 text-xs text-text-muted">${this.esc(perm)}</code></span>
-            </label>`;
-
-        panelBody.innerHTML = `
-            <p class="text-xs text-text-muted mb-3">Approved access lasts ${hours} hour${hours === 1 ? '' : 's'} and then expires on its own. Leave everything unticked to ask for all of it.</p>
-            ${serverPerms.length ? `
-            <div class="mb-3">
-                <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Servers</div>
-                ${serverPerms.map(checkbox).join('')}
-                <p id="plScopeNote" class="text-xs text-text-muted mt-2">
-                    <i class="fas fa-circle-info mr-1"></i>Access to one server lets you change that build. Starting a brand-new server needs <span class="font-medium text-text-secondary">Any server</span>.
-                </p>
-            </div>` : ''}
-            ${inventoryPerms.length ? `
-            <div class="${serverPerms.length ? 'border-t border-border pt-3' : ''}">
-                <div class="text-xs font-semibold text-text-muted uppercase tracking-wide mb-1">Inventory</div>
-                <p class="text-xs text-text-muted mb-1">Inventory is not owned by a server, so this access always applies system-wide.</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4">${inventoryPerms.map(checkbox).join('')}</div>
-            </div>` : ''}`;
-
-        panelBody.querySelectorAll('.pl-access').forEach((tick) => {
-            tick.addEventListener('change', () => {
-                this.updateAccessTrigger();
-                this.autoTitle();
-            });
-        });
-
         row.classList.remove('hidden');
-        this.setServerPickerMode(this.serverAccessOffered ? 'scoped' : 'standalone');
+
+        // A type normally allows exactly one action, so there is nothing to
+        // choose — preselect it and let the dropdown just say what will happen.
+        const options = this.actionCeiling.map((a) =>
+            `<option value="${this.esc(a.action_type)}">${this.esc(a.label)}</option>`).join('');
+        select.innerHTML = this.actionCeiling.length === 1
+            ? options
+            : `<option value="">Choose what should happen...</option>${options}`;
+
+        this.setActionType(this.actionCeiling.length === 1 ? this.actionCeiling[0].action_type : '');
     }
 
-    collectRequestedAccess() {
-        return Array.from(document.querySelectorAll('.pl-access:checked')).map((c) => c.value);
+    /**
+     * The actions a request type may perform, resolved against the catalogue the
+     * backend serves from RequestActionExecutor's own registry.
+     *
+     * Anything in a type's ceiling that the catalogue does not recognise is
+     * dropped rather than offered: the executor would refuse it anyway, and a
+     * dropdown entry that always fails is worse than one that is missing.
+     */
+    typeActionCeiling(type) {
+        const stage = (type && type.stages || []).find((s) => s.effect_type === 'execute_request');
+        if (!stage || !stage.effect_config) return [];
+
+        let config;
+        try {
+            config = typeof stage.effect_config === 'string'
+                ? JSON.parse(stage.effect_config)
+                : stage.effect_config;
+        } catch (e) {
+            return [];
+        }
+        if (!config || !Array.isArray(config.action_types)) return [];
+
+        const catalogue = this.actionTypes || [];
+        return config.action_types
+            .map((t) => catalogue.find((a) => a.action_type === t))
+            .filter(Boolean);
+    }
+
+    /** Which action this request is building, and the fields it needs. */
+    setActionType(actionType) {
+        this.actionType = actionType || '';
+
+        const hint = document.getElementById('plActionHint');
+        const fields = document.getElementById('plActionFields');
+        if (!fields) return;
+
+        fields.innerHTML = this.actionType ? this.actionFieldsHTML(this.actionType) : '';
+        if (hint) {
+            hint.textContent = this.actionType
+                ? 'An admin approves, and the system does this for you. You are not given access to anything.'
+                : '';
+        }
+
+        // Server actions name a configuration; the rest do not, so the server
+        // question is asked only where it means something.
+        const needsServer = this.actionNeedsServer(this.actionType);
+        this.setServerPickerMode(needsServer ? 'action' : 'standalone');
+
+        fields.querySelectorAll('[data-action-field]').forEach((el) => {
+            el.addEventListener('change', () => {
+                if (el.dataset.actionField === 'component_type') this.fillActionModels();
+                this.autoTitle();
+            });
+            el.addEventListener('input', () => this.autoTitle());
+        });
+
+        this.fillActionModels();
+        this.autoTitle();
+    }
+
+    /** Does this action operate on an existing server configuration? */
+    actionNeedsServer(actionType) {
+        return [
+            'server.component.add',
+            'server.component.remove',
+            'server.component.replace',
+            'server.config.update',
+            'server.config.transition'
+        ].includes(actionType);
+    }
+
+    /**
+     * The parameters for one action.
+     *
+     * Inventory actions are deliberately absent: adding or correcting an
+     * inventory record needs the real Add / Edit Component form, whose four-level
+     * dropdowns know each component type's own shape. Those screens raise the
+     * request themselves when the user cannot write directly, so duplicating a
+     * cut-down copy of them here would be a second, worse form for the same job.
+     */
+    actionFieldsHTML(actionType) {
+        const INPUT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
+        const LABEL = 'block text-xs font-medium text-text-secondary mb-1';
+
+        const componentPair = (typeField, modelField, modelLabel) => `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="${LABEL}">Component type <span class="text-danger">*</span></label>
+                    <select data-action-field="${typeField}" class="${INPUT}">
+                        <option value="">Choose a type...</option>
+                        ${this.actionComponentTypeOptions()}
+                    </select>
+                </div>
+                <div>
+                    <label class="${LABEL}">${modelLabel} <span class="text-danger">*</span></label>
+                    <select data-action-field="${modelField}" class="${INPUT}">
+                        <option value="">Choose a type first</option>
+                    </select>
+                </div>
+            </div>`;
+
+        switch (actionType) {
+            case 'server.component.add':
+                return `
+                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Serial number</label>
+                            <input type="text" data-action-field="serial_number" maxlength="100" class="${INPUT}"
+                                placeholder="Leave blank to let the system pick a free unit">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Slot position</label>
+                            <input type="text" data-action-field="slot_position" maxlength="50" class="${INPUT}" placeholder="Optional">
+                        </div>
+                    </div>`;
+
+            case 'server.component.remove':
+                return `
+                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    <div>
+                        <label class="${LABEL}">Serial number</label>
+                        <input type="text" data-action-field="serial_number" maxlength="100" class="${INPUT}"
+                            placeholder="Which unit, when the build has more than one of this model">
+                    </div>`;
+
+            case 'server.component.replace':
+                return `
+                    ${componentPair('component_type', 'old_component_uuid', 'Model to take out')}
+                    <div>
+                        <label class="${LABEL}">Model to put in <span class="text-danger">*</span></label>
+                        <select data-action-field="new_component_uuid" class="${INPUT}">
+                            <option value="">Choose a type first</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Serial number of the unit coming out</label>
+                        <input type="text" data-action-field="old_serial_number" maxlength="100" class="${INPUT}" placeholder="Optional">
+                    </div>`;
+
+            case 'server.config.create':
+                return `
+                    <div>
+                        <label class="${LABEL}">Server name <span class="text-danger">*</span></label>
+                        <input type="text" data-action-field="server_name" maxlength="150" class="${INPUT}" placeholder="e.g. web-prod-04">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Location</label>
+                            <input type="text" data-action-field="location" maxlength="100" class="${INPUT}" placeholder="Optional">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Rack position</label>
+                            <input type="text" data-action-field="rack_position" maxlength="50" class="${INPUT}" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Description</label>
+                        <input type="text" data-action-field="description" maxlength="255" class="${INPUT}" placeholder="Optional">
+                    </div>`;
+
+            case 'server.config.update':
+                return `
+                    <p class="text-xs text-text-muted">Fill in only what should change. Anything left blank is left alone.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">New name</label>
+                            <input type="text" data-action-field="server_name" maxlength="150" class="${INPUT}">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Location</label>
+                            <input type="text" data-action-field="location" maxlength="100" class="${INPUT}">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Rack position</label>
+                            <input type="text" data-action-field="rack_position" maxlength="50" class="${INPUT}">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Description</label>
+                            <input type="text" data-action-field="description" maxlength="255" class="${INPUT}">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Notes</label>
+                        <input type="text" data-action-field="notes" maxlength="255" class="${INPUT}">
+                    </div>`;
+
+            case 'server.config.transition':
+                return `
+                    <div>
+                        <label class="${LABEL}">New status <span class="text-danger">*</span></label>
+                        <select data-action-field="to_status" class="${INPUT}">
+                            <option value="">Choose a status...</option>
+                            ${['draft', 'building', 'validating', 'validated', 'finalized', 'deployed', 'maintenance', 'retired']
+                                .map((v) => `<option value="${v}">${v.charAt(0).toUpperCase() + v.slice(1)}</option>`).join('')}
+                        </select>
+                        <p class="text-xs text-text-muted mt-1">
+                            The same lifecycle rules apply as when anyone makes the change directly —
+                            an illegal move is refused and the approval is rolled back.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Why</label>
+                        <input type="text" data-action-field="notes" maxlength="255" class="${INPUT}" placeholder="Optional">
+                    </div>`;
+
+            case 'inventory.component.add':
+            case 'inventory.component.edit':
+                return `
+                    <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
+                        <i class="fas fa-arrow-right-from-bracket mr-1.5 text-text-muted"></i>
+                        Raise this from the <span class="font-medium text-text-primary">Add Component</span> or
+                        <span class="font-medium text-text-primary">Edit Component</span> screen instead — that form
+                        knows each component type's own fields. If you cannot add or edit directly, it submits the
+                        request for you.
+                    </div>`;
+        }
+        return '';
+    }
+
+    /**
+     * The 11 component types, as options for an ACTION field.
+     *
+     * Named apart from componentTypeOptions(types), which serves the item picker
+     * and takes an explicit list — two same-named methods in one class body
+     * collapse into whichever is declared last, silently.
+     */
+    actionComponentTypeOptions() {
+        return Object.keys(this.componentSpecPaths())
+            .map((t) => `<option value="${t}">${this.esc(this.componentTypeLabel(t))}</option>`).join('');
+    }
+
+    /**
+     * Fill every model dropdown from the chosen component type's catalogue.
+     *
+     * Models come from the static ims-data files, which need no permission — the
+     * requester is naming a piece of hardware, not reading inventory.
+     */
+    fillActionModels() {
+        const fields = document.getElementById('plActionFields');
+        if (!fields) return;
+
+        const typeSel = fields.querySelector('[data-action-field="component_type"]');
+        const type = typeSel ? typeSel.value : '';
+        const models = (type && this.componentData && this.componentData[type]) || [];
+
+        fields.querySelectorAll('[data-action-field$="component_uuid"]').forEach((sel) => {
+            const keep = sel.value;
+            if (!type) {
+                sel.innerHTML = '<option value="">Choose a type first</option>';
+                return;
+            }
+            sel.innerHTML = '<option value="">Choose a model...</option>'
+                + models.map((m) => {
+                    const label = [m.brand, m.name].filter(Boolean).join(' ') || m.uuid;
+                    return `<option value="${this.esc(m.uuid)}">${this.esc(label)}</option>`;
+                }).join('');
+            if (keep) sel.value = keep;
+        });
+    }
+
+    /**
+     * The action this request will perform, as {action_type, payload}, or null.
+     *
+     * Blank optional fields are omitted rather than sent empty: the executor
+     * rejects an unexpected parameter outright, and for server.config.update an
+     * empty string would mean "set this field to nothing" rather than "leave it
+     * alone".
+     */
+    collectAction() {
+        if (!this.actionType) return null;
+
+        const fields = document.getElementById('plActionFields');
+        const payload = {};
+        if (fields) {
+            fields.querySelectorAll('[data-action-field]').forEach((el) => {
+                const value = (el.value || '').trim();
+                if (value !== '') payload[el.dataset.actionField] = value;
+            });
+        }
+
+        if (this.actionNeedsServer(this.actionType)) {
+            const uuid = this.selectedServerUuid();
+            if (uuid) payload.config_uuid = uuid;
+        }
+
+        // server.config.update carries its changes in a nested object, because
+        // "which fields did they mean to change" has to survive to the executor.
+        if (this.actionType === 'server.config.update') {
+            const editable = ['server_name', 'description', 'location', 'rack_position', 'notes'];
+            const changes = {};
+            editable.forEach((f) => {
+                if (payload[f] !== undefined) {
+                    changes[f] = payload[f];
+                    delete payload[f];
+                }
+            });
+            payload.fields = changes;
+        }
+
+        return { action_type: this.actionType, payload };
+    }
+
+    /**
+     * What is missing before this request can be submitted.
+     *
+     * Mirrors the executor's required-field list. It is a courtesy, not a
+     * boundary — the backend shape-checks and dry-runs every action regardless.
+     */
+    actionProblems() {
+        if (!this.actionCeiling.length) return [];
+        if (!this.actionType) return ['Choose what should happen'];
+
+        if (this.actionType.startsWith('inventory.')) {
+            return ['Raise this from the Add or Edit Component screen instead'];
+        }
+
+        const action = this.collectAction();
+        const p = action ? action.payload : {};
+        const problems = [];
+
+        if (this.actionNeedsServer(this.actionType) && !p.config_uuid) {
+            problems.push('Pick which server this is about');
+        }
+
+        const REQUIRED = {
+            'server.component.add': ['component_type', 'component_uuid'],
+            'server.component.remove': ['component_type', 'component_uuid'],
+            'server.component.replace': ['component_type', 'old_component_uuid', 'new_component_uuid'],
+            'server.config.create': ['server_name'],
+            'server.config.transition': ['to_status']
+        };
+        (REQUIRED[this.actionType] || []).forEach((f) => {
+            if (!p[f]) problems.push(`${f.replace(/_/g, ' ')} is required`);
+        });
+
+        if (this.actionType === 'server.config.update'
+            && (!p.fields || Object.keys(p.fields).length === 0)) {
+            problems.push('Change at least one detail');
+        }
+
+        return problems;
     }
 
     /** The closed Components control counts what will actually be sent. */
@@ -1065,30 +1251,23 @@ class RequestsManager {
         const description = document.getElementById('plDescription').value.trim();
         const priority = document.getElementById('plPriority').value;
         const target_server_uuid = this.selectedServerUuid();
-        const requested_access = this.collectRequestedAccess();
         const items = this.collectComponentItems();
 
         if (!pipeline_template_id) return this.toast('Choose a request type', 'error');
         if (!title) return this.toast('Title is required', 'error');
-        if (!description) return this.toast('Description is required', 'error');
 
-        // Leaving the server question unanswered would be approved as a GLOBAL
-        // server grant — the silent mistake the old free-text UUID field made
-        // easy — so a type that can grant server access needs an answer either
-        // way: a named configuration, or a deliberate "Any server". An empty tick
-        // list counts as asking for server access too, because it means
-        // "everything this type grants".
-        const asksServerAccess = requested_access.length === 0
-            || requested_access.some((perm) => perm.startsWith('server.'));
-        if (this.serverAccessOffered && asksServerAccess && !this.serverChoiceMade()) {
-            return this.toast('Choose which server this access is for, or pick "Any server"', 'error');
-        }
+        // A half-filled action would be refused by the backend anyway — it
+        // shape-checks every action and dry-runs the command-backed ones — but
+        // saying so here means the requester fixes it while still looking at the
+        // field rather than after a round trip.
+        const problems = this.actionProblems();
+        if (problems.length) return this.toast(problems[0], 'error');
 
         const fields = { pipeline_template_id, title, description, priority, items: JSON.stringify(items) };
         if (target_server_uuid) fields.target_server_uuid = target_server_uuid;
-        // Omitted entirely when nothing was ticked, which the backend reads as
-        // "grant whatever this request type grants".
-        if (requested_access.length) fields.requested_access = JSON.stringify(requested_access);
+
+        const action = this.collectAction();
+        if (action) fields.actions = JSON.stringify([action]);
 
         try {
             const result = await this.apiPost('pipeline-create', fields);
@@ -1110,6 +1289,8 @@ class RequestsManager {
         try {
             const result = await this.apiPost('pipeline-get', { pipeline_id: id });
             if (!result.success) return this.toast(result.message || 'Failed to load request', 'error');
+            // A failure banner belongs to the request that produced it.
+            this.executionError = null;
             this.currentDetail = result.data.pipeline;
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
@@ -1145,37 +1326,43 @@ class RequestsManager {
 
         // What this request is ASKING for, shown while it is still pending so the
         // approver can see it without reading the description.
+        // Historical only. A request raised before 2026-08-23 named the
+        // PERMISSIONS it wanted. Nothing asks for permissions any more, so the
+        // names are shown raw rather than dressed in labels describing a model
+        // no longer in use — the point here is the audit trail, not the pitch.
         const asked = Array.isArray(p.requested_access) ? p.requested_access : [];
         const askedBlock = asked.length ? `
-            <div class="mt-4 px-4 py-3 rounded-lg border border-border bg-surface-secondary/40">
+            <div class="mt-4 px-4 py-3 rounded-lg border border-border bg-surface-hover">
                 <div class="text-sm font-medium text-text-primary mb-1.5">
-                    <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested
+                    <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested (historical)
                 </div>
                 <ul class="text-xs text-text-secondary space-y-0.5">
-                    ${asked.map((a) => `<li>&bull; ${this.esc(this.accessLabel(a, !!p.target_server_uuid))} <code class="text-text-muted">${this.esc(a)}</code></li>`).join('')}
+                    ${asked.map((a) => `<li>&bull; <code class="font-mono">${this.esc(a)}</code></li>`).join('')}
                 </ul>
-                ${asked.some((a) => a.startsWith('server.')) ? `<div class="text-xs mt-2">${this.accessScopeLine(p)}</div>` : ''}
+                <div class="text-xs text-text-muted mt-2">
+                    Raised under the old model, where approval handed these permissions over for
+                    24 hours. Approval now performs the work instead.
+                </div>
             </div>` : '';
 
-        // If approving this request granted temporary access, say so plainly rather
-        // than leaving it buried in the activity list. new_value holds the expiry.
+        // Requests raised before 2026-08-23 were granted temporary access on
+        // approval. That model is retired — the grants have been removed and
+        // nothing re-issues them — so this says what HAPPENED, in the past
+        // tense, instead of implying anyone still holds anything.
         const grantEntry = (p.history || []).find((h) => h.action === 'access_granted');
-        let accessBanner = '';
-        if (grantEntry) {
-            const expires = new Date(String(grantEntry.new_value || '').replace(' ', 'T'));
-            const valid = !isNaN(expires.getTime());
-            const live = valid && expires.getTime() > Date.now();
-            accessBanner = `
-            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border ${live ? 'border-primary/30 bg-primary/5' : 'border-border bg-surface-hover'}">
-                <i class="fas ${live ? 'fa-unlock text-primary' : 'fa-lock text-text-muted'} mt-0.5"></i>
+        const accessBanner = grantEntry ? `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-border bg-surface-hover">
+                <i class="fas fa-clock-rotate-left text-text-muted mt-0.5"></i>
                 <div class="text-sm">
-                    <div class="font-medium text-text-primary">${live ? 'Temporary access granted' : 'Temporary access has expired'}</div>
+                    <div class="font-medium text-text-primary">Granted temporary access (retired)</div>
                     <div class="text-xs text-text-secondary mt-0.5">
-                        ${this.esc(grantEntry.notes || '')}${valid ? ` · ${this.esc(expires.toLocaleString())}` : ''}
+                        This request pre-dates the change to automation. Approval used to hand out
+                        permissions for 24 hours; it now performs the work instead. That access has ended.
                     </div>
                 </div>
-            </div>`;
-        }
+            </div>` : '';
+
+        const actionsBlock = this.renderActionsBlock(p);
 
         const history = (p.history && p.history.length) ? `
             <div class="mt-5">
@@ -1194,14 +1381,16 @@ class RequestsManager {
                 <span class="text-xs text-text-muted">${this.esc(p.pipeline_type?.name || 'Request')}</span>
             </div>
             <h3 class="text-lg font-semibold text-text-primary">${this.esc(p.title)}</h3>
-            <p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>
+            ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>` : ''}
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
                 <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
                 ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
             </div>
+            ${actionsBlock}
             ${askedBlock}
             ${accessBanner}
+            ${this.executionFailureBanner()}
 
             <div class="mt-5">
                 <h4 class="text-sm font-semibold text-text-primary mb-3">Steps</h4>
@@ -1220,21 +1409,125 @@ class RequestsManager {
     }
 
     /**
-     * How far the server half of a request reaches. This is the single most
-     * important line for an approver, and a bare config_uuid never told them:
-     * no server named means every configuration in the system.
+     * What this request will DO, in the order it will do it.
+     *
+     * This is the thing an approver is actually deciding about. It replaces the
+     * old "Access requested" list, which named permissions the requester wanted
+     * to be handed — a question nobody has to answer any more.
+     *
+     * `summary` is composed by the backend (RequestActionExecutor::summarise)
+     * rather than here, so the request list, this panel and the audit history
+     * all describe an action in exactly the same words.
      */
-    accessScopeLine(p) {
-        if (!p.target_server_uuid) {
-            return `<span class="text-amber-600 dark:text-amber-400"><i class="fas fa-triangle-exclamation mr-1"></i>No server named — server access would apply to every configuration.</span>`;
+    renderActionsBlock(p) {
+        const actions = Array.isArray(p.actions) ? p.actions : [];
+        if (!actions.length) return '';
+
+        const done = actions.every((a) => a.status === 'executed');
+
+        const rows = actions.map((a) => {
+            const failed = a.status === 'failed';
+            const executed = a.status === 'executed';
+
+            const border = failed ? 'border-danger' : 'border-border';
+            const bg = failed ? 'bg-danger-light' : (executed ? 'bg-success-light' : 'bg-surface-hover');
+            const icon = failed
+                ? '<i class="fas fa-triangle-exclamation text-danger"></i>'
+                : (executed
+                    ? '<i class="fas fa-check text-success"></i>'
+                    : '<i class="fas fa-hourglass-half text-text-muted"></i>');
+
+            return `
+                <li class="flex items-start gap-2 px-3 py-2 rounded-lg border ${border} ${bg}">
+                    <span class="mt-0.5">${icon}</span>
+                    <div class="min-w-0">
+                        <div class="text-sm text-text-primary">${this.esc(a.summary || a.action_type)}</div>
+                        <div class="text-xs text-text-muted mt-0.5">
+                            <code class="font-mono">${this.esc(a.action_type)}</code>
+                        </div>
+                        ${this.renderActionResult(a)}
+                    </div>
+                </li>`;
+        }).join('');
+
+        return `
+            <div class="mt-4 px-4 py-3 rounded-lg border border-border bg-surface-secondary">
+                <div class="text-sm font-medium text-text-primary mb-1">
+                    <i class="fas fa-bolt mr-1.5 text-text-muted"></i>${done ? 'What was performed' : 'What this will do'}
+                </div>
+                <div class="text-xs text-text-secondary mb-2.5">
+                    ${done
+                        ? 'Performed automatically when this was approved. Nobody was given access.'
+                        : 'Runs automatically when the final step is approved. Nobody is given access.'}
+                </div>
+                <ul class="space-y-1.5">${rows}</ul>
+            </div>`;
+    }
+
+    /** An action's outcome: what it created, or why it refused. */
+    renderActionResult(a) {
+        if (!a.result) return '';
+
+        if (a.status === 'failed') {
+            const code = a.result.error_code
+                ? `<code class="font-mono">${this.esc(a.result.error_code)}</code> — ` : '';
+            return `<div class="text-xs text-danger mt-1">${code}${this.esc(a.result.message || 'Failed')}</div>`;
         }
-        // pipeline-get resolves the name; a row it could not find has been deleted
-        // since the request was raised. Older payloads omit target_server
-        // entirely, which is not the same thing as "deleted".
-        if (p.target_server && p.target_server.exists === false) {
-            return `<span class="text-danger"><i class="fas fa-triangle-exclamation mr-1"></i>The named configuration <code>${this.esc(p.target_server_uuid)}</code> no longer exists — server access granted now would apply to nothing.</span>`;
-        }
-        return `<span class="text-text-muted">Server access limited to ${this.serverIdentity(p)}</span>`;
+
+        // Named facts, not raw JSON: an approver reading back what happened
+        // should not have to parse an object to find the asset tag.
+        const LABELS = {
+            asset_tag: 'Asset tag',
+            inventory_id: 'Inventory ID',
+            config_uuid: 'Server',
+            server_name: 'Name',
+            revision: 'Revision',
+            fields: 'Changed'
+        };
+        const facts = Object.keys(LABELS)
+            .filter((k) => a.result[k] !== undefined && a.result[k] !== null && a.result[k] !== '')
+            .map((k) => {
+                const raw = Array.isArray(a.result[k]) ? a.result[k].join(', ') : a.result[k];
+                return `${LABELS[k]}: ${this.esc(String(raw))}`;
+            });
+
+        return facts.length
+            ? `<div class="text-xs text-text-secondary mt-1">${facts.join(' · ')}</div>`
+            : '';
+    }
+
+    /**
+     * A rolled-back approval, shown as the state of the request rather than a
+     * toast that vanishes in four seconds.
+     *
+     * When execution fails, the whole approval is rolled back: the step is still
+     * active, the request is still open, and nothing was changed. The approver
+     * needs to see WHY, and that retrying is the expected next move — so this is
+     * a persistent banner and the Approve button stays enabled.
+     */
+    executionFailureBanner() {
+        const failure = this.executionError;
+        if (!failure) return '';
+
+        const where = failure.position
+            ? `Action ${failure.position}${failure.action_type ? ` (${this.esc(failure.action_type)})` : ''}`
+            : 'An action';
+        const code = failure.error_code
+            ? ` <code class="font-mono">${this.esc(failure.error_code)}</code>` : '';
+
+        return `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-danger bg-danger-light">
+                <i class="fas fa-rotate-left text-danger mt-0.5"></i>
+                <div class="text-sm">
+                    <div class="font-medium text-danger">Approval was rolled back — nothing was changed</div>
+                    <div class="text-xs text-text-secondary mt-1">
+                        ${where} failed:${code} ${this.esc(failure.message || 'no reason given')}
+                    </div>
+                    <div class="text-xs text-text-muted mt-1">
+                        The request is still open and the step is still active. Fix the cause and approve again.
+                    </div>
+                </div>
+            </div>`;
     }
 
     /** Name plus uuid for a request's target server, with however much we know. */
@@ -1304,16 +1597,37 @@ class RequestsManager {
             return `<p class="text-xs text-text-muted mt-2 italic">This step is with ${this.esc(stage.owner?.name || 'someone else')}.</p>`;
         }
 
+        // Does completing THIS step perform the request's work? Only the step
+        // carrying the effect does, and it is the one that gets an explicit
+        // Approve / Reject pair — "Complete & advance" is the wrong verb for a
+        // decision that fits hardware into a live machine.
+        const performs = stage.effect_type === 'execute_request'
+            && Array.isArray(pipeline.actions) && pipeline.actions.length > 0;
+        const count = performs ? pipeline.actions.length : 0;
+        const approveLabel = performs
+            ? `Approve &amp; run ${count} action${count === 1 ? '' : 's'}`
+            : 'Complete &amp; advance';
+
         return `
             <div class="mt-3 space-y-2" data-stage-actions="${stage.id}">
                 ${showComplete ? `
-                    <textarea data-complete-notes="${stage.id}" rows="2" placeholder="Notes about what you did (optional)"
+                    <textarea data-complete-notes="${stage.id}" rows="2" placeholder="${performs ? 'Approval note (optional)' : 'Notes about what you did (optional)'}"
                         class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>` : ''}
                 <div class="flex flex-wrap gap-2">
                     ${showAccept ? `<button data-act="claim" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"><i class="fas fa-hand"></i> Accept</button>` : ''}
-                    ${showComplete ? `<button data-act="complete" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5"><i class="fas fa-check"></i> Complete &amp; advance</button>` : ''}
+                    ${showComplete ? `<button data-act="complete" data-stage="${stage.id}" ${performs ? `data-performs="${count}"` : ''} class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5"><i class="fas fa-check"></i> ${approveLabel}</button>` : ''}
+                    ${showComplete ? `<button data-act="reject-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-danger rounded-lg text-danger hover:bg-danger-light flex items-center gap-1.5"><i class="fas fa-xmark"></i> Reject</button>` : ''}
                     ${showReassign ? `<button data-act="reassign-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary flex items-center gap-1.5"><i class="fas fa-user-gear"></i> Reassign</button>` : ''}
                 </div>
+                ${showComplete ? `
+                    <div data-reject-form="${stage.id}" class="hidden pt-1">
+                        <textarea data-reject-reason="${stage.id}" rows="2" placeholder="Why are you rejecting this? The requester will see it."
+                            class="w-full px-3 py-2 text-sm border border-danger rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <button data-act="reject" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-danger text-white rounded-lg flex items-center gap-1.5"><i class="fas fa-xmark"></i> Confirm rejection</button>
+                            <button data-act="reject-cancel" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary">Keep it open</button>
+                        </div>
+                    </div>` : ''}
                 ${showReassign ? `
                     <div data-reassign-form="${stage.id}" class="hidden pt-1">
                         <div class="flex flex-wrap items-center gap-2">
@@ -1339,9 +1653,39 @@ class RequestsManager {
             const act = btn.dataset.act;
             if (act === 'claim') btn.addEventListener('click', () => this.claimStage(p.id, stageId));
             else if (act === 'complete') {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
+                    // Approving is the one click in this app that changes real
+                    // hardware records, so when it will perform work, say what
+                    // work — by name — before it happens.
+                    const performs = parseInt(btn.dataset.performs || '0', 10);
+                    if (performs > 0) {
+                        // One line: utils.confirm() escapes into a <p> with no
+                        // pre-wrap, so newlines would silently collapse.
+                        const summaries = (p.actions || [])
+                            .map((a) => a.summary || a.action_type).join('; ');
+                        const ok = await this.confirm(
+                            `Approving runs ${performs} action${performs === 1 ? '' : 's'} now — ${summaries}. `
+                            + 'This happens immediately and cannot be undone from here.',
+                            'Approve and run?'
+                        );
+                        if (!ok) return;
+                    }
                     const notes = body.querySelector(`[data-complete-notes="${stageId}"]`)?.value || '';
                     this.completeStage(p.id, stageId, notes);
+                });
+            } else if (act === 'reject-toggle') {
+                btn.addEventListener('click', () => {
+                    body.querySelector(`[data-reject-form="${stageId}"]`)?.classList.toggle('hidden');
+                });
+            } else if (act === 'reject-cancel') {
+                btn.addEventListener('click', () => {
+                    body.querySelector(`[data-reject-form="${stageId}"]`)?.classList.add('hidden');
+                });
+            } else if (act === 'reject') {
+                btn.addEventListener('click', () => {
+                    const reason = body.querySelector(`[data-reject-reason="${stageId}"]`)?.value.trim() || '';
+                    if (!reason) return this.toast('Give a reason — the requester will see it', 'error');
+                    this.rejectStage(p.id, stageId, reason);
                 });
             } else if (act === 'reassign-toggle') {
                 btn.addEventListener('click', () => {
@@ -1394,19 +1738,59 @@ class RequestsManager {
     async reassignStage(pipelineId, stageId, type, id) {
         await this.stageAction('pipeline-reassign', { pipeline_id: pipelineId, stage_progress_id: stageId, assignee_type: type, assignee_id: id }, 'Step reassigned');
     }
+    async rejectStage(pipelineId, stageId, reason) {
+        await this.stageAction('pipeline-reject', { pipeline_id: pipelineId, stage_progress_id: stageId, reason }, 'Request rejected — nothing was performed');
+    }
     async cancelPipeline(pipelineId) {
-        if (!confirm('Cancel this request? Remaining steps will be skipped.')) return;
-        const reason = window.prompt('Reason for cancelling (optional):') || '';
-        await this.stageAction('pipeline-cancel', { pipeline_id: pipelineId, reason }, 'Request cancelled');
+        // In-app modal, not native confirm()/prompt(): this codebase is
+        // toast-and-modal only, and a native prompt cannot be styled, cannot be
+        // dismissed consistently, and is blocked outright by some browsers.
+        const ok = await this.confirm(
+            'Cancel this request? Remaining steps will be skipped and nothing will be performed.',
+            'Cancel request?'
+        );
+        if (!ok) return;
+        await this.stageAction('pipeline-cancel', { pipeline_id: pipelineId, reason: '' }, 'Request cancelled');
+    }
+
+    /**
+     * In-app confirmation. Falls back to the native dialog only if utils.js
+     * somehow did not load — never the other way round.
+     */
+    async confirm(message, title) {
+        if (window.utils && typeof utils.confirm === 'function') {
+            return await utils.confirm(message, title);
+        }
+        return window.confirm(`${title ? title + '\n\n' : ''}${message}`);
     }
 
     async stageAction(action, fields, successMsg) {
         try {
             const result = await this.apiPost(action, fields);
+
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Action failed');
+
+                // A rolled-back approval is the STATE of the request, not a
+                // passing error: the work was attempted, refused, and undone
+                // whole. A toast is gone in four seconds and the old code also
+                // returned without re-rendering, leaving a stale screen behind.
+                if (result.data?.execution) {
+                    this.executionError = result.data.execution;
+                    if (result.data.pipeline) {
+                        this.currentDetail = result.data.pipeline;
+                        this.renderDetail(this.currentDetail);
+                    }
+                    this.toast('Approval was rolled back — nothing was changed', 'error');
+                    return;
+                }
+
                 return this.toast(msg, 'error');
             }
+
+            // A successful action clears any previous failure banner: whatever
+            // it was complaining about no longer describes this request.
+            this.executionError = null;
             this.toast(successMsg || result.message || 'Done', 'success');
             if (result.data?.pipeline) {
                 this.currentDetail = result.data.pipeline;
@@ -1419,10 +1803,14 @@ class RequestsManager {
     }
 
     // ----- Component item picker --------------------------------------------
-    async loadComponentData() {
-        if (this.componentData) return;
-        this.componentData = { cpu: [], ram: [], storage: [], motherboard: [], nic: [], caddy: [], chassis: [], pciecard: [], risercard: [], hbacard: [] };
-        const paths = {
+
+    /**
+     * The 11 component types and their ims-data spec files, served from the shared
+     * /ims-data web alias. Filenames are irregular by design - never guess one;
+     * this mirrors ims-ftp/core/models/components/ComponentSpecPaths.php.
+     */
+    componentSpecPaths() {
+        return {
             cpu: '/ims-data/cpu/Cpu-details-level-3.json',
             ram: '/ims-data/ram/ram_detail.json',
             storage: '/ims-data/storage/storage-level-3.json',
@@ -1432,8 +1820,16 @@ class RequestsManager {
             chassis: '/ims-data/chassis/chasis-level-3.json',
             pciecard: '/ims-data/pciecard/pci-level-3.json',
             risercard: '/ims-data/risercard/riser-level-3.json',
-            hbacard: '/ims-data/hbacard/hbacard-level-3.json'
+            hbacard: '/ims-data/hbacard/hbacard-level-3.json',
+            sfp: '/ims-data/sfp/sfp-level-3.json'
         };
+    }
+
+    async loadComponentData() {
+        if (this.componentData) return;
+        const paths = this.componentSpecPaths();
+        this.componentData = {};
+        Object.keys(paths).forEach((type) => { this.componentData[type] = []; });
         for (const [type, path] of Object.entries(paths)) {
             try {
                 const res = await fetch(path);
@@ -1442,32 +1838,108 @@ class RequestsManager {
         }
     }
 
+    /**
+     * ims-data JSON shapes are NOT uniform: brand -> models[] (cpu, ram, storage,
+     * motherboard, pciecard, risercard, hbacard), brand -> series[] -> models[]
+     * (nic, sfp), { caddies: [] }, and chassis_specifications -> manufacturers[]
+     * -> series[] -> models[]. The UUID key is `UUID` in some files and `uuid` in
+     * others. Every UUID-bearing node is a leaf model in all of them, so walk the
+     * tree and accept either casing rather than assuming one depth and one key.
+     */
     flattenComponents(data) {
         const out = [];
-        if (Array.isArray(data)) {
-            data.forEach((brand) => {
-                (brand.models || []).forEach((model) => {
-                    if (model.uuid) {
-                        out.push({ uuid: model.uuid, brand: brand.brand || 'Unknown', name: model.model || model.memory_type || model.storage_type || model.name || 'Component' });
-                    }
-                });
-            });
-        }
+        const walk = (node, brand) => {
+            if (Array.isArray(node)) {
+                node.forEach((child) => walk(child, brand));
+                return;
+            }
+            if (!node || typeof node !== 'object') return;
+            const inheritedBrand = node.brand || node.manufacturer || brand;
+            const uuid = node.UUID || node.uuid;
+            if (uuid) {
+                out.push({ uuid, brand: inheritedBrand || '', name: this.componentModelName(node) });
+                return;
+            }
+            Object.values(node).forEach((child) => walk(child, inheritedBrand));
+        };
+        walk(data, '');
         return out;
+    }
+
+    /** Label for a spec model - RAM and storage models carry no `model` field. */
+    componentModelName(model) {
+        const direct = model.model || model.name || model.label || model.part_number;
+        if (direct) return String(direct);
+        const parts = [
+            model.memory_type || model.storage_type || model.type,
+            model.subtype,
+            model.capacity_GB ? `${model.capacity_GB}GB` : null,
+            model.frequency_MHz ? `${model.frequency_MHz}MHz` : null,
+            model.form_factor
+        ].filter(Boolean);
+        return parts.length ? parts.join(' ') : 'Component';
+    }
+
+    /**
+     * The component types this request is allowed to name. A hardware request
+     * whose access ask is `sfp.create` is a request about SFPs, so offering all
+     * 11 types invites an item list the approved grant could never cover.
+     * Ticking nothing means "everything this type grants", so the whole ceiling
+     * counts. Falls back to every type when the ceiling names no component type
+     * at all - server-scoped asks (`server.*`), and ordinary request types that
+     * grant no access, where the items are context rather than a scope.
+     */
+    allowedComponentTypes() {
+        // The items list is CONTEXT for the approver, not a scope: the action
+        // says what will actually be touched, and the backend validates that on
+        // its own. Narrowing this used to mirror the access ask, which no longer
+        // exists, and guessing a narrower list from the action would hide types a
+        // requester may legitimately want to mention.
+        return Object.keys(this.componentSpecPaths());
+    }
+
+    componentTypeOptions(types) {
+        return `<option value="">Type</option>`
+            + types.map((t) => `<option value="${t}">${this.esc(this.componentTypeLabel(t))}</option>`).join('');
+    }
+
+    /**
+     * Re-scope the type dropdowns after the access ask changes. A row naming a
+     * type the request no longer asks to touch is emptied rather than left to be
+     * submitted quietly outside the grant being requested.
+     */
+    refreshComponentTypeOptions() {
+        const types = this.allowedComponentTypes();
+        const options = this.componentTypeOptions(types);
+        document.querySelectorAll('#plComponents .component-item').forEach((row) => {
+            const typeSel = row.querySelector('.ci-type');
+            const uuidSel = row.querySelector('.ci-uuid');
+            const current = typeSel.value;
+            const keep = types.includes(current) ? current : '';
+            typeSel.innerHTML = options;
+            typeSel.value = keep;
+            if (keep !== current) this.fillComponentUUIDs(keep, uuidSel);
+        });
+
+        const hint = document.getElementById('plItemsHint');
+        if (hint) {
+            hint.textContent = types.length < Object.keys(this.componentSpecPaths()).length
+                ? `Limited to the access you asked for: ${types.map((t) => this.componentTypeLabel(t)).join(', ')}.`
+                : 'Hardware this request involves. Optional.';
+        }
+        this.updateItemsSummary();
     }
 
     addComponentItem() {
         const container = document.getElementById('plComponents');
         if (!container) return;
-        const types = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard'];
         const row = document.createElement('div');
         row.className = 'component-item bg-surface-secondary/30 border border-border rounded-lg p-3';
         row.innerHTML = `
             <div class="flex items-start gap-2">
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2">
                     <select class="ci-type md:col-span-3 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary">
-                        <option value="">Type</option>
-                        ${types.map((t) => `<option value="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('')}
+                        ${this.componentTypeOptions(this.allowedComponentTypes())}
                     </select>
                     <select class="ci-uuid md:col-span-5 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary"><option value="">Component</option></select>
                     <input type="number" min="1" max="99" value="1" class="ci-qty md:col-span-2 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary" placeholder="Qty">
@@ -1498,7 +1970,7 @@ class RequestsManager {
         (this.componentData[type] || []).forEach((c) => {
             const opt = document.createElement('option');
             opt.value = c.uuid;
-            opt.textContent = `${c.brand} - ${c.name}`;
+            opt.textContent = c.brand ? `${c.brand} - ${c.name}` : c.name;
             select.appendChild(opt);
         });
     }

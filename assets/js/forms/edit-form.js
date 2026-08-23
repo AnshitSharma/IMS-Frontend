@@ -189,9 +189,34 @@ class EditFormComponent {
         const data = Object.fromEntries(formData.entries());
 
         try {
-            const result = await window.api.components.update(this.componentType, this.componentId, data);
+            // Without the permission, the same form becomes a request for the
+            // work. The requester is not given edit access; an admin approves
+            // and the system applies exactly these fields on their behalf.
+            const canEditDirectly = !(window.api && api.utils && api.utils.hasPermission)
+                || api.utils.hasPermission(`${this.componentType}.edit`);
+
+            const result = canEditDirectly
+                ? await window.api.components.update(this.componentType, this.componentId, data)
+                : await api.requests.submitAction('inventory.component.edit', {
+                    component_type: this.componentType,
+                    inventory_id: this.componentId,
+                    data: data
+                }, {
+                    title: `Update ${this.componentType.toUpperCase()} inventory record #${this.componentId}`,
+                    description: 'Raised from the Edit Component form because I cannot edit inventory records directly.'
+                });
+
             if (result.success) {
-                utils.showAlert('Component updated successfully!', 'success');
+                // Say which of the two things actually happened. "Updated
+                // successfully" on a request would claim a change that has not
+                // been made and may yet be rejected.
+                const ticketNumber = result.data && result.data.ticket_number;
+                utils.showAlert(
+                    ticketNumber
+                        ? `Request ${ticketNumber} submitted. The record will be updated once an admin approves it.`
+                        : 'Component updated successfully!',
+                    'success'
+                );
                 if (window.dashboard && typeof window.dashboard.closeModal === 'function') {
                     window.dashboard.closeModal();
 

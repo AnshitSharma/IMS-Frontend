@@ -1721,16 +1721,29 @@ class AddComponentForm {
             const result = await this.submitComponent(formData);
 
             if (result.success || result.status === 1) {
-                // Lead with the asset tag: it is the identifier the operator has
-                // to write onto the physical unit, and for serial-less stock it is
-                // the only way to tell this unit from its identical siblings.
-                const assetTag = result.data && result.data.asset_tag;
-                if (typeof toast !== 'undefined') {
-                    // Longer than the default 4s: the form closes 1.5s from now and
-                    // the operator needs time to copy the tag down.
-                    toast.success(assetTag
-                        ? `Added as ${assetTag} — label the unit with this tag.`
-                        : 'Component added.', assetTag ? 8000 : 4000);
+                // A request was raised, not a component added. Saying "Component
+                // added" here would be a plain lie: nothing exists in inventory
+                // yet, and nothing will until an admin approves.
+                const ticketNumber = result.data && result.data.ticket_number;
+                if (ticketNumber) {
+                    if (typeof toast !== 'undefined') {
+                        toast.success(
+                            `Request ${ticketNumber} submitted. The component will be added once an admin approves it.`,
+                            8000
+                        );
+                    }
+                } else {
+                    // Lead with the asset tag: it is the identifier the operator has
+                    // to write onto the physical unit, and for serial-less stock it is
+                    // the only way to tell this unit from its identical siblings.
+                    const assetTag = result.data && result.data.asset_tag;
+                    if (typeof toast !== 'undefined') {
+                        // Longer than the default 4s: the form closes 1.5s from now and
+                        // the operator needs time to copy the tag down.
+                        toast.success(assetTag
+                            ? `Added as ${assetTag} — label the unit with this tag.`
+                            : 'Component added.', assetTag ? 8000 : 4000);
+                    }
                 }
 
                 // Reset form and close modal
@@ -1954,7 +1967,48 @@ class AddComponentForm {
         }
     }
 
+    /**
+     * Can this user add this component type themselves?
+     *
+     * UI-only — the backend decides for real. All it chooses here is which of
+     * two honest paths the form takes: perform the change, or ask for it.
+     */
+    canAddDirectly() {
+        if (!window.api || !api.utils || !api.utils.hasPermission) return true;
+        return api.utils.hasPermission(`${this.currentComponentType}.create`);
+    }
+
+    /**
+     * Submit the same form as a Request instead of performing it.
+     *
+     * The payload is exactly what a direct add would have sent — one form, one
+     * set of fields, one validation path. The requester is not given permission
+     * to add components; an admin approves and the system adds it for them,
+     * listing them as the person who added it.
+     */
+    async submitAsRequest(formData) {
+        const type = this.currentComponentType;
+        const data = Object.assign({}, formData);
+        delete data.action;   // the request names the action; the payload is fields only
+
+        const label = type.toUpperCase();
+        const serial = formData.SerialNumber ? ` (${formData.SerialNumber})` : '';
+
+        return await api.requests.submitAction('inventory.component.add', {
+            component_type: type,
+            data: data
+        }, {
+            title: `Add ${label}${serial} to inventory`,
+            description: 'Raised from the Add Component form because I cannot add inventory records directly.'
+        });
+    }
+
     async submitComponent(formData) {
+        // Without the permission, the same form becomes a request for the work.
+        if (!this.canAddDirectly()) {
+            return await this.submitAsRequest(formData);
+        }
+
         // Use the global api object if available
         if (window.api && window.api.components && window.api.components.add) {
             return await window.api.components.add(this.currentComponentType, {

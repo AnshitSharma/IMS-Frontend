@@ -386,6 +386,84 @@ window.api = {
         }
     },
 
+    /**
+     * Raising a change as a Request instead of performing it.
+     *
+     * A user without the permission for something does not ask to BE GIVEN that
+     * permission — they ask for the work to be DONE. They fill in the same form
+     * they would have used anyway; if they cannot perform it, it is submitted
+     * here, an admin approves, and the backend performs it on their behalf. They
+     * never gain access to anything.
+     *
+     * The backend is the authority on what a request may contain: every action
+     * is shape-checked against RequestActionExecutor's registry and the
+     * command-backed ones are dry-run through the real validation engine, so an
+     * impossible request is refused at submit time rather than after it has cost
+     * someone an approval.
+     */
+    requests: {
+        /** Cached type list — the create path needs the stages to find a host type. */
+        _types: null,
+
+        async types() {
+            if (this._types) return this._types;
+            const result = await api.request('pipeline-template-list', { include_stages: 'true' });
+            this._types = (result && result.data && result.data.templates) || [];
+            return this._types;
+        },
+
+        /**
+         * The active request type whose approval step is allowed to perform
+         * this action. Types are data, not code — nothing here looks one up by
+         * name, so an admin can rename or re-word them freely.
+         *
+         * @returns {object|null}
+         */
+        async typeForAction(actionType) {
+            const types = await this.types();
+            return types.find(t => (t.stages || []).some(s => {
+                if (s.effect_type !== 'execute_request' || !s.effect_config) return false;
+                try {
+                    const config = typeof s.effect_config === 'string'
+                        ? JSON.parse(s.effect_config)
+                        : s.effect_config;
+                    return Array.isArray(config.action_types) && config.action_types.includes(actionType);
+                } catch (e) {
+                    return false;
+                }
+            })) || null;
+        },
+
+        /**
+         * Submit one action as a request.
+         *
+         * @param {string} actionType  a RequestActionExecutor registry key
+         * @param {object} payload     that action's parameters
+         * @param {object} meta        { title, description, priority, target_server_uuid }
+         */
+        async submitAction(actionType, payload, meta = {}) {
+            const type = await this.typeForAction(actionType);
+            if (!type) {
+                throw new Error(
+                    'No active request type can perform this yet. Ask an administrator to add one.'
+                );
+            }
+
+            const fields = {
+                pipeline_template_id: type.id,
+                title: (meta.title || '').slice(0, 255),
+                description: meta.description || '',
+                priority: meta.priority || 'medium',
+                actions: JSON.stringify([{ action_type: actionType, payload: payload }])
+            };
+            if (meta.target_server_uuid) {
+                fields.target_server_uuid = meta.target_server_uuid;
+            }
+
+            return await api.request('pipeline-create', fields);
+        }
+    },
+
     vendors: {
         async list() {
             return await api.request('vendor-list');
