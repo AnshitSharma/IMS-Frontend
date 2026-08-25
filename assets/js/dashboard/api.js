@@ -535,6 +535,29 @@ window.api = {
             return await api.request('server-get-config', { config_uuid: configUuid });
         },
 
+        // Relocation history for one server -- where it has been, when, who moved
+        // it and how many components travelled with it. Backed by
+        // server_movements (seeder 2026_08_26_004); returns an empty list until
+        // that seeder has been applied.
+        async getMovements(configUuid, limit = 50) {
+            return await api.request('server-movements', {
+                config_uuid: configUuid,
+                limit: String(limit)
+            });
+        },
+
+        // Set the location of an UNRACKED server. A racked server takes its
+        // location from its rack, and the backend refuses this for one (409) --
+        // moving it is racks.assignServer().
+        //
+        // An empty locationUuid clears the location.
+        async updateLocation(configUuid, locationUuid) {
+            return await api.request('server-update-location', {
+                config_uuid: configUuid,
+                location_uuid: locationUuid || ''
+            });
+        },
+
         // force = the caller has already confirmed the bulk release of every
         // component still installed. Without it the backend refuses with 409.
         async deleteConfig(configUuid, force = false) {
@@ -602,12 +625,25 @@ window.api = {
             return await api.request('rack-get', { rack_uuid: rackUuid });
         },
 
-        async assignServer(rackUuid, configUuid, startU) {
-            return await api.request('rack-assign-server', {
+        // Place OR move a server. The backend treats both as the same upsert, and
+        // since 2026-08-26 it also re-stamps the location/rack/U onto every
+        // component installed in the server and writes a movement-history row.
+        //
+        // locationUuid is optional and only ever a CROSS-CHECK -- the rack already
+        // determines the site. Sending one that disagrees with the rack is refused
+        // rather than silently resolved, so what comes back can never describe a
+        // place the user did not pick.
+        //
+        // rack_position is still NOT passed: it stays derived server-side.
+        async assignServer(rackUuid, configUuid, startU, options = {}) {
+            const payload = {
                 rack_uuid: rackUuid,
                 config_uuid: configUuid,
                 start_u: startU.toString()
-            });
+            };
+            if (options.locationUuid) { payload.location_uuid = options.locationUuid; }
+            if (options.reason) { payload.reason = options.reason; }
+            return await api.request('rack-assign-server', payload);
         },
 
         // Where a server sits right now, plus the U-height it needs today (re-derived
@@ -617,8 +653,115 @@ window.api = {
             return await api.request('rack-placement', { config_uuid: configUuid });
         },
 
-        async unassignServer(configUuid) {
-            return await api.request('rack-unassign-server', { config_uuid: configUuid });
+        async unassignServer(configUuid, reason = '') {
+            const payload = { config_uuid: configUuid };
+            if (reason) { payload.reason = reason; }
+            return await api.request('rack-unassign-server', payload);
+        }
+    },
+
+    // Location endpoints — the physical sites racks stand in.
+    //
+    // list() is deliberately open to every signed-in role: the Add Component
+    // form, the Create Server form, the Bulk Update dialog and the location
+    // filter on every inventory page all render a dropdown from it. The writes
+    // are admin/super_admin and the backend enforces that.
+    locations: {
+        // includeCounts adds racks / servers / components per location for the
+        // Objects column on the Locations page. Skip it everywhere else — it is
+        // 14 extra grouped queries.
+        async list(options = {}) {
+            const payload = {};
+            if (options.includeCounts) { payload.include_counts = '1'; }
+            if (options.includeInactive) { payload.include_inactive = '1'; }
+            return await api.request('location-list', payload);
+        },
+
+        async get(locationUuid) {
+            return await api.request('location-get', { location_uuid: locationUuid });
+        },
+
+        // The racks at ONE location. This is what repopulates the Rack dropdown
+        // when the Location dropdown changes in the Move Server dialog.
+        async racks(locationUuid) {
+            return await api.request('location-racks', { location_uuid: locationUuid });
+        },
+
+        async create(fields) {
+            return await api.request('location-create', fields);
+        },
+
+        async update(locationUuid, fields) {
+            return await api.request('location-update', { location_uuid: locationUuid, ...fields });
+        },
+
+        // reassignTo moves every rack, server and loose component at this
+        // location to another one first. Without it the backend refuses the
+        // delete (409) and names what is still there.
+        async delete(locationUuid, reassignTo = '') {
+            const payload = { location_uuid: locationUuid };
+            if (reassignTo) { payload.reassign_to = reassignTo; }
+            return await api.request('location-delete', payload);
+        },
+
+        /**
+         * Fill a <select> with the active locations.
+         *
+         * Lives here rather than in three page scripts because four separate
+         * forms need exactly this — the Create Server form, the Bulk Update
+         * dialog, the Add Component form and the inventory location filter — and
+         * the six-site list they replace was hardcoded in three of them, which is
+         * how they drifted apart in the first place.
+         *
+         * Each option carries the NAME as its value and the uuid in data-uuid.
+         * That is deliberate: these forms post the free-text `Location` column
+         * that every existing reader uses, and the uuid rides alongside so the
+         * row also gets its real foreign key. Reading `selectedOptions[0].dataset.uuid`
+         * is how a caller picks it up.
+         *
+         * Fails quietly to a disabled select. A location list that cannot load
+         * must not stop someone filing a component — the field is optional.
+         *
+         * @returns {boolean} whether any location was loaded.
+         */
+        async populateSelect(selectEl, options = {}) {
+            if (!selectEl) return false;
+
+            const placeholder = options.placeholder || '-- Select Location --';
+            const selectedName = options.selectedName || '';
+
+            selectEl.innerHTML = `<option value="">Loading locations…</option>`;
+            selectEl.disabled = true;
+
+            let locations = [];
+            try {
+                const result = await api.locations.list();
+                locations = (result?.success && result.data?.locations) || [];
+            } catch (error) {
+                // 503 until the migration is applied; anything else is a real
+                // failure. Either way the form stays usable.
+                locations = [];
+            }
+
+            if (!locations.length) {
+                selectEl.innerHTML = `<option value="">No locations available</option>`;
+                selectEl.disabled = true;
+                return false;
+            }
+
+            const esc = (window.utils && utils.escapeHtml) ? utils.escapeHtml : (v => String(v));
+            selectEl.innerHTML = `<option value="">${esc(placeholder)}</option>` + locations.map(loc => {
+                const selected = selectedName && loc.name === selectedName ? ' selected' : '';
+                return `<option value="${esc(loc.name)}" data-uuid="${esc(loc.location_uuid)}"${selected}>${esc(loc.name)}</option>`;
+            }).join('');
+            selectEl.disabled = false;
+            return true;
+        },
+
+        /** The uuid behind the currently selected option, or ''. */
+        selectedUuid(selectEl) {
+            const option = selectEl && selectEl.selectedOptions && selectEl.selectedOptions[0];
+            return (option && option.dataset && option.dataset.uuid) || '';
         }
     },
 

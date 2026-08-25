@@ -176,21 +176,24 @@
                     <label class="block text-sm font-medium text-text-secondary mb-2">Location</label>
                     <select id="location"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="">-- Select Location --</option>
-                        <option value="Noida Yotta">Noida Yotta</option>
-                        <option value="Noida Ctrls">Noida Ctrls</option>
-                        <option value="Noida Office">Noida Office</option>
-                        <option value="Jaipur Office">Jaipur Office</option>
-                        <option value="Indore Office">Indore Office</option>
-                        <option value="Sonipat Office">Sonipat Office</option>
+                        <option value="">Loading locations…</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Rack Position</label>
-                    <input type="text" id="rackPosition"
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Store / Shelf</label>
+                    <input type="text" id="storeLocation" maxlength="100"
                         class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="e.g., Rack B4, Shelf A2">
+                        placeholder="e.g., Shelf B3, Bin 12">
+                    <p class="text-xs text-text-muted mt-1">Where the part sits while it is in stock. Once it is installed in a server, its address comes from that server's rack instead.</p>
+                </div>
+
+                <div class="form-group">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">Rack Position</label>
+                    <input type="text" id="rackPosition" readonly
+                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-muted focus:outline-none"
+                        placeholder="Set automatically when installed">
+                    <p class="text-xs text-text-muted mt-1">Derived from the server's rack placement — it updates on its own when the server moves.</p>
                 </div>
             </div>
         </div>

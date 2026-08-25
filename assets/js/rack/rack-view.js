@@ -271,10 +271,18 @@ class RackView {
                     <input id="rf_name" type="text" required maxlength="100" value="${isEdit ? this.esc(rack.name) : ''}"
                         placeholder="e.g. RACK 683" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-text-primary mb-1">Location</label>
-                    <input id="rf_location" type="text" maxlength="100" value="${isEdit ? this.esc(rack.location || '') : ''}"
-                        placeholder="e.g. Noida" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-1">Location</label>
+                        <select id="rf_location_uuid" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Loading locations\u2026</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-1">Floor / Room</label>
+                        <input id="rf_floor" type="text" maxlength="50" value="${isEdit ? this.esc(rack.floor || '') : ''}"
+                            placeholder="e.g. 2 or DC-1" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -302,6 +310,11 @@ class RackView {
             </form>`;
         this.openModal(title, body);
 
+        // Populated after the modal is in the DOM. Preselected by NAME rather
+        // than uuid so a rack backfilled from the old free-text column still
+        // opens on the right site even before it has a location_uuid.
+        this.populateRackLocations(isEdit ? rack : null);
+
         document.getElementById('rf_cancel').addEventListener('click', () => this.closeModal());
         document.getElementById('rackForm').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -309,9 +322,56 @@ class RackView {
         });
     }
 
+    /**
+     * Fill the rack form's Location dropdown.
+     *
+     * A rack's location used to be typed by hand, which is why production held
+     * both "Noida" and "Noida Yotta" as if they were different places. It is a
+     * real reference now.
+     *
+     * Falls back to a disabled notice when no locations exist yet (the seeders
+     * have not been run) so the rest of the form still works.
+     */
+    async populateRackLocations(rack) {
+        const select = document.getElementById('rf_location_uuid');
+        if (!select) return;
+
+        if (!(window.api && api.locations)) {
+            select.innerHTML = '<option value="">No locations available</option>';
+            select.disabled = true;
+            return;
+        }
+
+        let locations = [];
+        try {
+            const result = await api.locations.list();
+            locations = (result?.success && result.data?.locations) || [];
+        } catch (e) {
+            locations = [];
+        }
+
+        if (!locations.length) {
+            select.innerHTML = '<option value="">No locations available</option>';
+            select.disabled = true;
+            return;
+        }
+
+        // Match on uuid when the rack has one, else on the legacy text.
+        const currentUuid = rack?.location_uuid || '';
+        const currentName = rack?.location || '';
+
+        select.innerHTML = '<option value="">-- No location --</option>' + locations.map(loc => {
+            const selected = (currentUuid && loc.location_uuid === currentUuid)
+                || (!currentUuid && currentName && loc.name === currentName);
+            return `<option value="${this.esc(loc.location_uuid)}"${selected ? ' selected' : ''}>${this.esc(loc.name)}</option>`;
+        }).join('');
+        select.disabled = false;
+    }
+
     async submitRackForm(rackUuid) {
         const name = document.getElementById('rf_name').value.trim();
-        const location = document.getElementById('rf_location').value.trim();
+        const locationUuid = document.getElementById('rf_location_uuid')?.value || '';
+        const floor = document.getElementById('rf_floor')?.value.trim() || '';
         const totalU = parseInt(document.getElementById('rf_total_u').value, 10);
         const numberingTopDown = document.getElementById('rf_numbering').value === '1';
         const notes = document.getElementById('rf_notes').value.trim();
@@ -321,12 +381,23 @@ class RackView {
 
         let res;
         if (rackUuid) {
-            res = await rackAPI.updateRack(rackUuid, { name, location, totalU, numberingTopDown, notes });
+            res = await rackAPI.updateRack(rackUuid, { name, locationUuid, floor, totalU, numberingTopDown, notes });
         } else {
-            res = await rackAPI.createRack({ name, location, totalU, numberingTopDown, notes });
+            res = await rackAPI.createRack({ name, locationUuid, floor, totalU, numberingTopDown, notes });
         }
 
         if (!res || !res.success) { toast.error(res?.message || 'Could not save rack'); return; }
+
+        // Changing a rack's site re-stamps every server in it and every component
+        // in those servers. Say how much moved -- it is a far bigger change than
+        // editing a rack looks like.
+        const resynced = res.data?.resynced;
+        if (resynced && (resynced.configs > 0 || resynced.components > 0)) {
+            toast.success(`Rack updated \u00b7 re-stamped ${resynced.configs} server(s) and ${resynced.components} component(s)`);
+            this.closeModal();
+            await this.loadRacks();
+            return;
+        }
 
         toast.success(rackUuid ? 'Rack updated' : 'Rack created');
         this.closeModal();

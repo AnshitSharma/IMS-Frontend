@@ -87,6 +87,20 @@ class Dashboard {
                 return;
             }
             await this.loadSidebarCounts();
+        } else if (page === 'locations.html') {
+            // LocationsManager (locations.js) loads its own data. Claiming the
+            // page here is mandatory: the fall-through branch below would treat
+            // it as a component inventory page and fire an invalid
+            // `locations-list` action against the API.
+            //
+            // No role redirect — viewing locations is a basic permission, and the
+            // page's own writes are refused by the backend for anyone else. A
+            // user without location.view has no menu entry to get here.
+            this.currentComponent = 'locations';
+            await this.loadSidebarCounts();
+            if (window.locationsManager) {
+                await window.locationsManager.init();
+            }
         } else if (page === 'vendors.html') {
             this.currentComponent = 'vendors';
             if (!api.utils.hasRole(['admin', 'super_admin'])) {
@@ -392,6 +406,64 @@ class Dashboard {
         }
     }
 
+    /**
+     * Put a "filter by location" dropdown in the inventory toolbar, once.
+     *
+     * Injected rather than written into each of the twelve inventory pages: the
+     * six-site list that used to be hardcoded in three files is exactly the
+     * mistake this avoids repeating twelve times over.
+     *
+     * Silently does nothing when there are no locations (the seeders have not
+     * been run) — an empty filter is worse than no filter.
+     */
+    ensureLocationFilter(componentType) {
+        if (document.getElementById('componentLocationFilter')) return;
+
+        const search = document.getElementById('componentSearch');
+        const host = search?.parentElement;
+        if (!search || !host) return;
+
+        // The inventory toolbar holds its controls as direct flex siblings, so
+        // this goes in as one too — after the status filter when there is one.
+        const statusFilter = document.getElementById('statusFilter');
+        const anchor = (statusFilter && statusFilter.parentElement === host) ? statusFilter : search;
+
+        const select = document.createElement('select');
+        select.id = 'componentLocationFilter';
+        select.setAttribute('aria-label', 'Filter by location');
+        // Same classes as #statusFilter, so it lines up with the control beside
+        // it and needs no new compiled CSS.
+        select.className = statusFilter
+            ? statusFilter.className
+            : 'px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] bg-surface-card text-text-primary';
+        select.innerHTML = '<option value="">All locations</option>';
+        host.insertBefore(select, anchor.nextSibling);
+
+        api.locations.list().then(result => {
+            const locations = (result?.success && result.data?.locations) || [];
+            if (!locations.length) {
+                // Nothing to filter by — take the control back out rather than
+                // leaving a dropdown with one dead option in it.
+                select.remove();
+                return;
+            }
+            select.innerHTML = '<option value="">All locations</option>' + locations.map(loc =>
+                `<option value="${utils.escapeHtml(loc.location_uuid)}">${utils.escapeHtml(loc.name)}</option>`
+            ).join('');
+
+            select.addEventListener('change', () => {
+                // A filter change is a new result set, so go back to page 1 —
+                // staying on page 4 of a 2-page result shows nothing.
+                this.currentPage = 1;
+                this.loadComponentList(componentType, true);
+            });
+        }).catch(() => {
+            // 503 until the migration is applied. Remove the control; the page
+            // works exactly as it did before this feature.
+            select.remove();
+        });
+    }
+
     async loadComponentList(componentType, forceRefresh = false) {
         if (!componentType || componentType === 'dashboard') return;
         if (this.loadingStates.components && !forceRefresh) {
@@ -402,10 +474,20 @@ class Dashboard {
             this.loadingStates.components = true;
             utils.showLoading(true, `Loading ${componentType} components...`);
 
+            // The location filter is injected into the toolbar rather than added
+            // to all twelve inventory pages' markup — one place to change, and no
+            // twelve-file diff for one dropdown.
+            this.ensureLocationFilter(componentType);
+
             // Only send search parameter to API, not status
             const search = document.getElementById('componentSearch')?.value || '';
             const params = { limit: this.itemsPerPage, offset: (this.currentPage - 1) * this.itemsPerPage };
             if (search) params.search = search;
+
+            // Filtered server-side: it reads the indexed location_uuid column, so
+            // it filters the whole inventory rather than just the loaded page.
+            const locationFilter = document.getElementById('componentLocationFilter')?.value || '';
+            if (locationFilter) params.location_uuid = locationFilter;
 
             const result = await api.components.list(componentType, params);
 
@@ -633,7 +715,11 @@ class Dashboard {
         tbody.innerHTML = components.map(component => {
             const modelName = component.ModelName || null;
             const serialNumber = component.SerialNumber || component.UUID || 'N/A';
-            const location = component.Location || '—';
+            // The full physical address the backend resolved for this unit:
+            // "Yotta Noida · RACK 682 · U21" when it is installed in a racked
+            // server, "Yotta Noida · Shelf B3" when it is free stock. Falls back
+            // to the row's own Location text before the location seeders are run.
+            const location = component.address_text || component.Location || '—';
             const vendorName = component.VendorName || '';
             const primaryDisplay = modelName ? utils.escapeHtml(modelName) : utils.escapeHtml(serialNumber);
             const secondaryDisplay = modelName ? `<span class="block font-mono text-xs text-text-muted mt-0.5">${utils.escapeHtml(serialNumber)}</span>` : '';
@@ -706,15 +792,25 @@ class Dashboard {
         // Server form uses; the backend is what actually enforces it.
         const canManageRacks = api.utils.hasRole(['admin', 'super_admin']);
 
-        // "Rack 1 · U12-U13". Falls back to the derived rack_position text alone when the
-        // list response carries no placement (older backend, or the rack lookup failed).
+        // The full physical address: "Yotta Noida · Floor 2 · RACK 682 · U12-U13".
+        // Each part is omitted when absent, so an unracked server at a known site
+        // reads just "Yotta Noida" rather than a row of dashes.
+        //
+        // Falls back to the derived rack_position text alone when the list response
+        // carries no placement (rack lookup failed, or the location seeders have
+        // not been run yet).
         const getRackLabel = (server) => {
             const startU = parseInt(server.rack_start_u, 10);
             const height = Math.max(1, parseInt(server.rack_u_height, 10) || 1);
             const range = startU
                 ? (height > 1 ? `U${startU}-U${startU + height - 1}` : `U${startU}`)
                 : (server.rack_position || '');
-            const parts = [server.rack_name, range].filter(Boolean).map(part => utils.escapeHtml(part));
+            const parts = [
+                server.location_name || server.location,
+                server.floor ? `Floor ${server.floor}` : '',
+                server.rack_name,
+                range
+            ].filter(Boolean).map(part => utils.escapeHtml(String(part)));
             return parts.length ? parts.join(' · ') : '—';
         };
 
@@ -732,13 +828,13 @@ class Dashboard {
                             </h3>
                             <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5">
                                 ${getStatusBadge(server.configuration_status)}
-                                ${server.location || server.rack_position ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${utils.escapeHtml([server.location, server.rack_position].filter(Boolean).join(' / '))}</span></span>` : ''}
+                                ${getRackLabel(server) !== '—' ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${getRackLabel(server)}</span></span>` : ''}
                             </div>
                         </div>
                         <div class="flex items-center gap-1 flex-shrink-0">
                             ${canManageRacks ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
                                     onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
-                                    title="Change rack position" aria-label="Change rack position">
+                                    title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
                                 <i class="fas fa-th-large text-xs"></i>
                             </button>` : ''}
                             <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
@@ -768,7 +864,7 @@ class Dashboard {
                 <div class="px-5 py-4 flex-1">
                     <div class="divide-y divide-border-light">
                         <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
-                            <span class="text-text-muted">Rack</span>
+                            <span class="text-text-muted">Location</span>
                             <span class="text-text-primary font-medium truncate tabular-nums">${getRackLabel(server)}</span>
                         </div>
                         <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
@@ -1020,13 +1116,7 @@ class Dashboard {
                         Location
                     </label>
                     <select class="form-select" id="serverLocation">
-                        <option value="">-- Select Location --</option>
-                        <option value="Noida Yotta">Noida Yotta</option>
-                        <option value="Noida Ctrls">Noida Ctrls</option>
-                        <option value="Noida Office">Noida Office</option>
-                        <option value="Jaipur Office">Jaipur Office</option>
-                        <option value="Indore Office">Indore Office</option>
-                        <option value="Sonipat Office">Sonipat Office</option>
+                        <option value="">Loading locations…</option>
                     </select>
                 </div>
                 <div class="form-group" id="rackFieldGroup">
@@ -1110,6 +1200,11 @@ class Dashboard {
             this.initRackFields();
         }
 
+        // The six sites this dropdown used to hardcode are real `locations` rows
+        // now (seeder 2026_08_26_002), so the list is loaded rather than written
+        // into the markup in three different files.
+        api.locations.populateSelect(document.getElementById('serverLocation'));
+
         if (toggle) {
             toggle.addEventListener('change', function () {
                 if (this.checked) {
@@ -1139,7 +1234,9 @@ class Dashboard {
                 const isAdvancedView = toggle.checked;
                 const serverName = document.getElementById('serverName').value.trim();
                 const description = document.getElementById('description').value.trim();
-                const location = document.getElementById('serverLocation').value.trim();
+                const locationSelect = document.getElementById('serverLocation');
+                const location = locationSelect.value.trim();
+                const locationUuid = api.locations.selectedUuid(locationSelect);
 
                 // Determine is_virtual based on toggle state
                 const isVirtual = isAdvancedView;
@@ -1173,9 +1270,24 @@ class Dashboard {
                         // placement is reported as such instead of a false success.
                         let placementWarning = null;
                         if (rackUuid && startU && result.data?.config_uuid) {
-                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU);
+                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU, { locationUuid });
                             if (!placement?.success) {
                                 placementWarning = placement?.message || 'Could not place the server in the rack';
+                            }
+                        } else if (locationUuid && result.data?.config_uuid) {
+                            // No rack chosen, but a site was. A racked server takes
+                            // its location from the rack, so this branch is the only
+                            // one that needs to write it — and it is what links the
+                            // new server to a real location row rather than leaving
+                            // the free-text name as its only address.
+                            //
+                            // Non-fatal: the server exists and carries the location
+                            // TEXT regardless, so a failure here is not worth
+                            // interrupting the create flow for.
+                            try {
+                                await api.servers.updateLocation(result.data.config_uuid, locationUuid);
+                            } catch (locError) {
+                                console.warn('Could not set the server location:', locError);
                             }
                         }
 
@@ -1301,16 +1413,30 @@ class Dashboard {
     }
 
     /**
-     * Change where an EXISTING server sits: move it to another rack or another U
-     * position, or take it out of the rack entirely. Reached from the rack button on
-     * the server card, so a server that is already built and installed no longer has
-     * to be deleted and re-created just to correct its placement.
+     * MOVE A SERVER: change its location, its rack, its U position, or take it out
+     * of the rack entirely. Reached from the move button on the server card.
      *
-     * The move is the same rack-assign-server call the Create Server form makes — it
-     * updates the existing rack_servers row and re-derives u_height from the chassis.
-     * This dialog only has to show the current truth and offer positions the server
-     * actually fits in, so the backend's bounds/overlap refusals stay a last line of
-     * defence rather than the normal experience.
+     * WHAT CHANGED ON 2026-08-26
+     *   This dialog used to offer only rack + U, and a rack's location was free
+     *   text nobody could pick. Worse, the move updated the server and left every
+     *   component inside it still reporting the OLD location, rack and U — a
+     *   server moved from Noida U21 to Jaipur U8 kept 14 parts claiming Noida U21.
+     *
+     *   Now Location comes first and the Rack dropdown is repopulated from it, so
+     *   picking Jaipur offers Jaipur's racks and nothing else. The backend carries
+     *   every installed component with the server in the same transaction, and the
+     *   count is shown here BEFORE the move is committed — it is the part of the
+     *   change the user cannot see for themselves.
+     *
+     * The move is still rack-assign-server: one door, shared with Rack View and
+     * with an approved Move Server request. This dialog only shows the current
+     * truth and offers positions the server actually fits, so the backend's
+     * bounds/overlap refusals stay a last line of defence rather than the norm.
+     *
+     * PRE-MIGRATION FALLBACK. Until the location seeders are run there are no
+     * locations, so the Location field is hidden and the Rack dropdown lists every
+     * rack — exactly what this dialog did before. Nothing here requires the
+     * migration to have happened.
      */
     async showRackPlacementModal(configUuid, serverName) {
         this.rackPlacementContext = {
@@ -1318,26 +1444,34 @@ class Dashboard {
             serverName,
             height: 1,
             placement: null,
-            racks: [],
-            rackDetails: {}
+            racks: [],           // every rack, for the no-locations fallback
+            locations: [],
+            locationRacks: {},   // locationUuid -> rack[] (lazy, cached)
+            rackDetails: {},
+            componentCount: 0,
+            currentLocationUuid: null,
+            currentAddressText: null
         };
 
-        this.showModal(`Rack Position — ${serverName}`, `
+        this.showModal(`Move server — ${serverName}`, `
             <div id="rackPlacementPanel">
                 <div class="py-16 text-center text-text-muted">
                     <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
-                    <p class="text-sm">Loading rack placement…</p>
+                    <p class="text-sm">Loading current position…</p>
                 </div>
             </div>`);
 
         try {
-            const [placementResult, rackListResult] = await Promise.all([
+            // The location list is allowed to fail (503 before its seeder is run)
+            // without taking the dialog down — the fallback below covers it.
+            const [placementResult, rackListResult, locationResult] = await Promise.all([
                 api.racks.getPlacement(configUuid),
-                api.racks.list()
+                api.racks.list(),
+                api.locations.list().catch(() => null)
             ]);
 
             if (!placementResult?.success) {
-                throw new Error(placementResult?.message || 'Could not read the current rack placement');
+                throw new Error(placementResult?.message || 'Could not read the current position');
             }
             if (!rackListResult?.success) {
                 throw new Error(rackListResult?.message || 'Could not load the rack list');
@@ -1350,7 +1484,11 @@ class Dashboard {
 
             ctx.placement = placementResult.data?.placement || null;
             ctx.height = Math.max(1, parseInt(placementResult.data?.required_u_height, 10) || 1);
+            ctx.componentCount = parseInt(placementResult.data?.component_count, 10) || 0;
+            ctx.currentLocationUuid = placementResult.data?.location_uuid || null;
+            ctx.currentAddressText = placementResult.data?.address_text || null;
             ctx.racks = rackListResult.data?.racks || [];
+            ctx.locations = (locationResult?.success && locationResult.data?.locations) || [];
 
             const panel = document.getElementById('rackPlacementPanel');
             if (!panel) return;
@@ -1362,24 +1500,36 @@ class Dashboard {
                 panel.innerHTML = `
                     <div class="py-16 text-center">
                         <i class="fas fa-exclamation-circle text-2xl text-danger mb-3"></i>
-                        <p class="text-sm text-text-secondary">${utils.escapeHtml(error.message || 'Failed to load rack placement')}</p>
+                        <p class="text-sm text-text-secondary">${utils.escapeHtml(error.message || 'Failed to load the current position')}</p>
                     </div>`;
             }
         }
     }
 
+    /**
+     * Racks that belong to no location. Real during the migration window, and a
+     * legitimate state afterwards for a rack nobody has filed yet. Without this
+     * option those racks would be unreachable from a location-first dialog.
+     */
+    _unassignedRacks() {
+        return (this.rackPlacementContext?.racks || []).filter(r => !r.location_uuid);
+    }
+
     _renderRackPlacementForm() {
         const ctx = this.rackPlacementContext;
         const placement = ctx.placement;
+        const hasLocations = ctx.locations.length > 0;
 
-        const currentText = placement
-            ? `${utils.escapeHtml(placement.rack_name || 'Unknown rack')} · U${placement.start_u}${placement.u_height > 1 ? `-U${placement.end_u}` : ''}`
-            : 'Not installed in any rack';
+        const currentText = ctx.currentAddressText
+            ? utils.escapeHtml(ctx.currentAddressText)
+            : (placement
+                ? `${utils.escapeHtml(placement.rack_name || 'Unknown rack')} · U${placement.start_u}${placement.u_height > 1 ? `-U${placement.end_u}` : ''}`
+                : 'Not installed in any rack');
 
-        const rackOptions = ctx.racks.map(rack => {
-            const selected = placement && rack.rack_uuid === placement.rack_uuid ? ' selected' : '';
-            const location = rack.location ? ` — ${utils.escapeHtml(rack.location)}` : '';
-            return `<option value="${utils.escapeHtml(rack.rack_uuid)}"${selected}>${utils.escapeHtml(rack.name)}${location} (${rack.free_u}U free of ${rack.total_u}U)</option>`;
+        const unassigned = this._unassignedRacks();
+        const locationOptions = ctx.locations.map(loc => {
+            const selected = ctx.currentLocationUuid && loc.location_uuid === ctx.currentLocationUuid ? ' selected' : '';
+            return `<option value="${utils.escapeHtml(loc.location_uuid)}"${selected}>${utils.escapeHtml(loc.name)}</option>`;
         }).join('');
 
         return `
@@ -1393,6 +1543,19 @@ class Dashboard {
                     </div>
                 </div>
 
+                ${hasLocations ? `
+                <div class="form-group">
+                    <label for="rackPlacementLocation" class="form-label flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-primary text-sm"></i>
+                        Location
+                    </label>
+                    <select class="form-select" id="rackPlacementLocation">
+                        <option value="">-- Select a location --</option>
+                        ${locationOptions}
+                        ${unassigned.length ? `<option value="__none__">— Racks with no location (${unassigned.length}) —</option>` : ''}
+                    </select>
+                </div>` : ''}
+
                 <div class="form-group">
                     <label for="rackPlacementRack" class="form-label flex items-center gap-2">
                         <i class="fas fa-th-large text-primary text-sm"></i>
@@ -1400,8 +1563,7 @@ class Dashboard {
                     </label>
                     ${ctx.racks.length
                         ? `<select class="form-select" id="rackPlacementRack">
-                                <option value="">-- Select a rack --</option>
-                                ${rackOptions}
+                                <option value="">${hasLocations ? '-- Select a location first --' : '-- Select a rack --'}</option>
                            </select>`
                         : `<p class="text-sm text-text-secondary">No racks exist yet — create one in Rack View first.</p>`}
                 </div>
@@ -1415,6 +1577,25 @@ class Dashboard {
                         <option value="">-- Select a rack first --</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label for="rackPlacementReason" class="form-label flex items-center gap-2">
+                        <i class="fas fa-comment-dots text-primary text-sm"></i>
+                        Reason <span class="text-xs font-normal text-text-muted">(optional)</span>
+                    </label>
+                    <input type="text" class="form-input" id="rackPlacementReason" maxlength="255"
+                        placeholder="e.g. Site consolidation, ticket BDC-1421">
+                    <p class="text-xs text-text-muted mt-1">Recorded in this server's movement history.</p>
+                </div>
+
+                ${ctx.componentCount > 0 ? `
+                <div class="flex items-start gap-2 p-3 bg-surface-secondary rounded-lg border border-border-light">
+                    <i class="fas fa-boxes text-primary text-sm mt-0.5"></i>
+                    <p class="text-xs text-text-secondary">
+                        <strong class="text-text-primary">${ctx.componentCount} installed component${ctx.componentCount === 1 ? '' : 's'}</strong>
+                        move with this server. Their location, rack and U are updated in the same step.
+                    </p>
+                </div>` : ''}
 
                 <div id="rackPlacementHint" class="hidden items-start gap-2 p-3 bg-surface-secondary rounded-lg border border-border-light">
                     <i class="fas fa-info-circle text-text-muted text-sm mt-0.5"></i>
@@ -1430,7 +1611,7 @@ class Dashboard {
                     <div class="flex items-center gap-3">
                         <button type="button" class="px-5 py-2.5 bg-surface-secondary text-text-primary rounded-lg font-medium text-sm hover:bg-surface-hover transition-colors" onclick="dashboard.closeModal()">Cancel</button>
                         <button type="button" class="px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary-hover transition-colors flex items-center gap-2" onclick="dashboard.saveRackPlacement()" ${ctx.racks.length ? '' : 'disabled'}>
-                            <i class="fas fa-save text-xs"></i> Save position
+                            <i class="fas fa-truck-moving text-xs"></i> Move server
                         </button>
                     </div>
                 </div>
@@ -1438,11 +1619,139 @@ class Dashboard {
     }
 
     _bindRackPlacementForm() {
+        const locationSelect = document.getElementById('rackPlacementLocation');
         const rackSelect = document.getElementById('rackPlacementRack');
         if (!rackSelect) return;
+
         rackSelect.addEventListener('change', () => this._loadRackPlacementPositions());
-        // Preselected to the rack the server is already in — fill its positions now.
-        if (rackSelect.value) this._loadRackPlacementPositions();
+
+        if (locationSelect) {
+            // THE POINT OF THIS DIALOG: choosing a location reloads the rack list
+            // for that location, so a site with 2 racks offers 2 and a site with
+            // 10 offers 10.
+            locationSelect.addEventListener('change', () => this._loadRackPlacementRacks());
+            // Preselected to where the server already is — fill its racks now.
+            this._loadRackPlacementRacks();
+        } else {
+            // No locations yet: every rack, as this dialog always did.
+            this._fillRackOptions(this.rackPlacementContext.racks);
+        }
+    }
+
+    /**
+     * Paint the Rack dropdown, preselecting the rack the server is currently in
+     * when it is among them.
+     */
+    _fillRackOptions(racks) {
+        const ctx = this.rackPlacementContext;
+        const rackSelect = document.getElementById('rackPlacementRack');
+        if (!ctx || !rackSelect) return;
+
+        if (!racks.length) {
+            rackSelect.innerHTML = '<option value="">-- No racks at this location --</option>';
+            this._resetRackPlacementPositions('-- Select a rack first --');
+            return;
+        }
+
+        const currentRackUuid = ctx.placement?.rack_uuid || null;
+        rackSelect.innerHTML = '<option value="">-- Select a rack --</option>' + racks.map(rack => {
+            const selected = currentRackUuid && rack.rack_uuid === currentRackUuid ? ' selected' : '';
+            const floor = rack.floor ? ` · Floor ${utils.escapeHtml(rack.floor)}` : '';
+            return `<option value="${utils.escapeHtml(rack.rack_uuid)}"${selected}>${utils.escapeHtml(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U)</option>`;
+        }).join('');
+
+        if (rackSelect.value) {
+            this._loadRackPlacementPositions();
+        } else {
+            this._resetRackPlacementPositions('-- Select a rack first --');
+        }
+    }
+
+    _resetRackPlacementPositions(label) {
+        const positionSelect = document.getElementById('rackPlacementPosition');
+        if (!positionSelect) return;
+        positionSelect.innerHTML = `<option value="">${label}</option>`;
+        positionSelect.disabled = true;
+    }
+
+    /**
+     * Load the racks at the selected location.
+     *
+     * Cached per location, and guarded against the user changing the dropdown
+     * while a fetch is in flight — the same race the position loader guards.
+     */
+    async _loadRackPlacementRacks() {
+        const ctx = this.rackPlacementContext;
+        const locationSelect = document.getElementById('rackPlacementLocation');
+        const rackSelect = document.getElementById('rackPlacementRack');
+        if (!ctx || !locationSelect || !rackSelect) return;
+
+        const locationUuid = locationSelect.value;
+
+        if (!locationUuid) {
+            rackSelect.innerHTML = '<option value="">-- Select a location first --</option>';
+            this._resetRackPlacementPositions('-- Select a rack first --');
+            this._setRackPlacementHint('');
+            return;
+        }
+
+        if (locationUuid === '__none__') {
+            this._fillRackOptions(this._unassignedRacks());
+            this._setRackPlacementHint('These racks have no location on file. Give them one in Rack View so the servers in them report a site.');
+            return;
+        }
+
+        if (ctx.locationRacks[locationUuid]) {
+            this._fillRackOptions(ctx.locationRacks[locationUuid]);
+            this._setLocationMoveHint(locationUuid);
+            return;
+        }
+
+        rackSelect.innerHTML = '<option value="">Loading racks…</option>';
+        this._resetRackPlacementPositions('-- Select a rack first --');
+
+        let result;
+        try {
+            result = await api.locations.racks(locationUuid);
+        } catch (error) {
+            rackSelect.innerHTML = '<option value="">—</option>';
+            this._setRackPlacementHint(error.message || 'Could not load the racks at this location.');
+            return;
+        }
+
+        // The user may have picked a different location while this was loading.
+        if (locationSelect.value !== locationUuid) return;
+
+        if (!result?.success) {
+            rackSelect.innerHTML = '<option value="">—</option>';
+            this._setRackPlacementHint(result?.message || 'Could not load the racks at this location.');
+            return;
+        }
+
+        ctx.locationRacks[locationUuid] = result.data?.racks || [];
+        this._fillRackOptions(ctx.locationRacks[locationUuid]);
+        this._setLocationMoveHint(locationUuid);
+    }
+
+    _setLocationMoveHint(locationUuid) {
+        const ctx = this.rackPlacementContext;
+        if (!ctx) return;
+
+        const racks = ctx.locationRacks[locationUuid] || [];
+        const locationName = (ctx.locations.find(l => l.location_uuid === locationUuid) || {}).name || 'this location';
+
+        if (!racks.length) {
+            this._setRackPlacementHint(`${locationName} has no racks yet — create one in Rack View, or pick another location.`);
+            return;
+        }
+
+        if (ctx.currentLocationUuid && ctx.currentLocationUuid !== locationUuid) {
+            const from = (ctx.locations.find(l => l.location_uuid === ctx.currentLocationUuid) || {}).name || 'its current location';
+            this._setRackPlacementHint(`This moves the server from ${from} to ${locationName}.`);
+            return;
+        }
+
+        this._setRackPlacementHint('');
     }
 
     _setRackPlacementHint(message) {
@@ -1486,9 +1795,7 @@ class Dashboard {
 
         const rackUuid = rackSelect.value;
         if (!rackUuid) {
-            positionSelect.innerHTML = '<option value="">-- Select a rack first --</option>';
-            positionSelect.disabled = true;
-            this._setRackPlacementHint('');
+            this._resetRackPlacementPositions('-- Select a rack first --');
             return;
         }
 
@@ -1528,20 +1835,29 @@ class Dashboard {
         }).join('');
         positionSelect.disabled = false;
 
-        this._setRackPlacementHint(
-            ctx.placement && ctx.placement.rack_uuid !== rackUuid
-                ? `Saving moves this server out of ${ctx.placement.rack_name || 'its current rack'} and into ${rackName}.`
-                : ''
-        );
+        if (ctx.placement && ctx.placement.rack_uuid !== rackUuid) {
+            this._setRackPlacementHint(`Saving moves this server out of ${ctx.placement.rack_name || 'its current rack'} and into ${rackName}.`);
+        }
     }
 
     async saveRackPlacement() {
         const ctx = this.rackPlacementContext;
         if (!ctx) return;
 
+        const locationSelectEl = document.getElementById('rackPlacementLocation');
+        const rawLocation = locationSelectEl?.value || '';
+        // '__none__' is a client-side grouping for racks with no location on
+        // file; it is not a location and must never be sent as one.
+        const locationUuid = rawLocation === '__none__' ? '' : rawLocation;
+
         const rackUuid = document.getElementById('rackPlacementRack')?.value || '';
         const startU = parseInt(document.getElementById('rackPlacementPosition')?.value || '', 10);
+        const reason = (document.getElementById('rackPlacementReason')?.value || '').trim();
 
+        if (locationSelectEl && !rawLocation) {
+            utils.showAlert('Choose a location first', 'warning');
+            return;
+        }
         if (!rackUuid) {
             utils.showAlert('Choose a rack, or use "Remove from rack" to take this server out', 'warning');
             return;
@@ -1556,18 +1872,20 @@ class Dashboard {
         }
 
         try {
-            utils.showLoading(true, 'Updating rack position...');
-            const result = await api.racks.assignServer(rackUuid, ctx.configUuid, startU);
+            utils.showLoading(true, 'Moving server...');
+            const result = await api.racks.assignServer(rackUuid, ctx.configUuid, startU, { locationUuid, reason });
             if (!result?.success) {
-                utils.showAlert(result?.message || 'Failed to update the rack position', 'error');
+                utils.showAlert(result?.message || 'Failed to move the server', 'error');
                 return;
             }
-            utils.showAlert(result.message || 'Rack position updated', 'success');
+            // The API's own message names the destination and how many components
+            // travelled with it — more useful than anything composed here.
+            utils.showAlert(result.message || 'Server moved', 'success');
             this.closeModal();
             await this.loadServerList(true);
         } catch (error) {
-            console.error('Update rack position error:', error);
-            utils.showAlert(error.message || 'An error occurred while updating the rack position', 'error');
+            console.error('Move server error:', error);
+            utils.showAlert(error.message || 'An error occurred while moving the server', 'error');
         } finally {
             utils.showLoading(false);
         }
@@ -1577,15 +1895,24 @@ class Dashboard {
         const ctx = this.rackPlacementContext;
         if (!ctx) return;
 
+        // The copy is precise about what happens now: nothing is released from the
+        // build, but the components DO stop reporting a U, because they no longer
+        // occupy one. Saying "its components are not touched" would be wrong.
+        const componentNote = ctx.componentCount > 0
+            ? ` Its ${ctx.componentCount} installed component${ctx.componentCount === 1 ? '' : 's'} stay in the build and keep the location, but stop reporting a U position.`
+            : '';
+
         const confirmed = await utils.confirm(
-            `Remove "${ctx.serverName}" from ${ctx.placement?.rack_name || 'its rack'}? The server and its components are not touched — it just stops occupying a slot.`,
+            `Remove "${ctx.serverName}" from ${ctx.placement?.rack_name || 'its rack'}? The server stays at the same location and nothing is released from the build — it just stops occupying a slot.${componentNote}`,
             'Remove from Rack'
         );
         if (!confirmed) return;
 
+        const reason = (document.getElementById('rackPlacementReason')?.value || '').trim();
+
         try {
             utils.showLoading(true, 'Removing server from rack...');
-            const result = await api.racks.unassignServer(ctx.configUuid);
+            const result = await api.racks.unassignServer(ctx.configUuid, reason);
             if (!result?.success) {
                 utils.showAlert(result?.message || 'Failed to remove the server from its rack', 'error');
                 return;
@@ -2019,7 +2346,7 @@ class Dashboard {
         }
 
         if (component.location) {
-            specs += `<span class="spec-badge"><i class="fas fa-map-marker-alt"></i> ${component.location}</span>`;
+            specs += `<span class="spec-badge"><i class="fas fa-map-marker-alt"></i> ${utils.escapeHtml(component.location)}</span>`;
         }
 
         if (component.compatibility_score) {
@@ -2531,7 +2858,7 @@ class Dashboard {
         const serialNumber = utils.escapeHtml(component.SerialNumber || '—');
         const uuid = utils.escapeHtml(component.UUID || '—');
         const status = utils.createStatusBadge(component.Status);
-        const location = utils.escapeHtml(component.Location || '—');
+        const location = utils.escapeHtml(component.address_text || component.Location || '—');
         const purchaseDate = utils.formatDate(component.PurchaseDate);
         const serverUUID = component.ServerUUID
             ? `<code class="text-xs">${utils.escapeHtml(component.ServerUUID)}</code>`
@@ -2613,21 +2940,34 @@ class Dashboard {
         const modalContent = `
             <div style="max-width: 400px;">
                 <div class="form-group"><label class="form-label">Update Status</label><select id="bulkStatus" class="form-select"><option value="">Keep Current</option><option value="1">Available</option><option value="2">In Use</option><option value="0">Failed</option></select></div>
-                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Keep Current</option><option value="Noida Yotta">Noida Yotta</option><option value="Noida Ctrls">Noida Ctrls</option><option value="Noida Office">Noida Office</option><option value="Jaipur Office">Jaipur Office</option><option value="Indore Office">Indore Office</option><option value="Sonipat Office">Sonipat Office</option></select></div>
+                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Loading locations…</option></select></div>
                 <div class="form-group"><label class="form-label">Update Flag</label><select id="bulkFlag" class="form-select"><option value="">Keep Current</option><option value="Backup">Backup</option><option value="Critical">Critical</option><option value="Maintenance">Maintenance</option><option value="Testing">Testing</option><option value="Production">Production</option></select></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button class="btn btn-primary" onclick="dashboard.executeBulkUpdate()">Update ${this.selectedItems.size} Items</button></div>
             </div>
         `;
         this.showModal('Bulk Update Components', modalContent);
+
+        // "Keep Current" rather than "-- Select Location --": on a bulk edit an
+        // empty choice means "do not touch this field", not "clear it".
+        api.locations.populateSelect(document.getElementById('bulkLocation'), {
+            placeholder: 'Keep Current'
+        });
     }
 
     async executeBulkUpdate() {
         const status = document.getElementById('bulkStatus')?.value;
-        const location = document.getElementById('bulkLocation')?.value;
+        const locationSelect = document.getElementById('bulkLocation');
+        const location = locationSelect?.value;
         const flag = document.getElementById('bulkFlag')?.value;
         const updates = {};
         if (status) updates.Status = status;
-        if (location) updates.Location = location;
+        if (location) {
+            updates.Location = location;
+            // The display text alone would leave these rows unfilterable by site
+            // and invisible to the location join. Write the key too.
+            const locationUuid = api.locations.selectedUuid(locationSelect);
+            if (locationUuid) updates.location_uuid = locationUuid;
+        }
         if (flag) updates.Flag = flag;
         if (Object.keys(updates).length === 0) {
             utils.showAlert('Please select at least one field to update', 'warning');
@@ -2715,7 +3055,8 @@ class Dashboard {
                 throw new Error(result?.message || 'Failed to load change history');
             }
             ctx.total = result.data?.pagination?.total || 0;
-            panel.innerHTML = this._renderServerLogs(result.data?.logs || []);
+            panel.innerHTML = await this._renderMovementHistory(ctx.configUuid)
+                + this._renderServerLogs(result.data?.logs || []);
         } catch (err) {
             panel.innerHTML = `
                 <div class="py-16 text-center">
@@ -2732,6 +3073,68 @@ class Dashboard {
         if (next < 0 || next >= ctx.total) return;
         ctx.offset = next;
         this._loadServerLogs();
+    }
+
+    /**
+     * WHERE THIS SERVER HAS BEEN — the physical half of its history.
+     *
+     * The change log below it records what was done to the build (parts added,
+     * status changed). This records where the box itself went, which the change
+     * log has never covered: before server_movements existed, a server that
+     * crossed the country left nothing behind but a single activity-log line.
+     *
+     * Returns '' — no heading, no empty state — when there is nothing to show,
+     * so a server that has never moved does not gain a section saying so. Also
+     * returns '' when the seeder has not been run: the API answers with an empty
+     * list, which is indistinguishable from "never moved", and that is fine.
+     */
+    async _renderMovementHistory(configUuid) {
+        let movements = [];
+        try {
+            const result = await api.servers.getMovements(configUuid, 20);
+            movements = (result?.success && result.data?.movements) || [];
+        } catch (error) {
+            // The change history below is the main event; a failure here must not
+            // take the whole modal down.
+            console.warn('Could not load movement history:', error);
+            return '';
+        }
+
+        if (!movements.length) return '';
+
+        const addr = (side) => {
+            const parts = [
+                side.location_name,
+                side.floor ? `Floor ${side.floor}` : '',
+                side.rack_name,
+                side.u_text
+            ].filter(Boolean).map(p => utils.escapeHtml(String(p)));
+            return parts.length ? parts.join(' · ') : 'Not placed';
+        };
+
+        const rows = movements.map(m => `
+            <div class="py-3 flex flex-col gap-1">
+                <div class="flex flex-wrap items-center gap-2 text-sm">
+                    <span class="text-text-muted">${addr(m.from)}</span>
+                    <i class="fas fa-arrow-right text-xs text-primary"></i>
+                    <span class="text-text-primary font-medium">${addr(m.to)}</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
+                    <span class="tabular-nums">${utils.formatDate(m.moved_at)}</span>
+                    ${m.moved_by_username ? `<span><i class="fas fa-user text-[10px] mr-1"></i>${utils.escapeHtml(m.moved_by_username)}</span>` : ''}
+                    ${m.components_moved > 0 ? `<span><i class="fas fa-boxes text-[10px] mr-1"></i>${m.components_moved} component${m.components_moved === 1 ? '' : 's'}</span>` : ''}
+                    ${m.ticket_id ? `<span><i class="fas fa-inbox text-[10px] mr-1"></i>Request #${m.ticket_id}</span>` : ''}
+                </div>
+                ${m.reason ? `<p class="text-xs text-text-secondary italic">${utils.escapeHtml(m.reason)}</p>` : ''}
+            </div>`).join('');
+
+        return `
+            <div class="mb-6">
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-2 border-b border-border-light">
+                    <i class="fas fa-truck-moving mr-1.5"></i>Movement history
+                </h4>
+                <div class="divide-y divide-border-light">${rows}</div>
+            </div>`;
     }
 
     _serverLogBadge(action) {
@@ -3175,7 +3578,7 @@ class Dashboard {
                     </div>
                 </div>
                 <div class="component-card-details">
-                    ${component.location ? `<div class="detail-item"><i class="fas fa-map-marker-alt"></i> ${component.location}</div>` : ''}
+                    ${component.location ? `<div class="detail-item"><i class="fas fa-map-marker-alt"></i> ${utils.escapeHtml(component.location)}</div>` : ''}
                     ${component.compatibility_score ? `<div class="detail-item"><i class="fas fa-check-circle"></i> ${Math.round(component.compatibility_score * 100)}% Compatible</div>` : ''}
                     ${component.compatibility_reason ? `<div class="detail-item"><i class="fas fa-info-circle"></i> ${component.compatibility_reason}</div>` : ''}
                 </div>

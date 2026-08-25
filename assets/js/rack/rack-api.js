@@ -48,11 +48,16 @@ class RackAPI {
         return this.makeRequest({ action: 'rack-get', rack_uuid: rackUuid }, options);
     }
 
-    createRack({ name, location = '', totalU = 42, numberingTopDown = false, notes = '' }, options = {}) {
+    // locationUuid supersedes the free-text `location`: the backend writes the
+    // location's own name into that column, so a rack cannot claim a site its
+    // location does not name. Passing neither leaves the rack unassigned.
+    createRack({ name, location = '', locationUuid = '', floor = '', totalU = 42, numberingTopDown = false, notes = '' }, options = {}) {
         return this.makeRequest({
             action: 'rack-create',
             name,
             location,
+            location_uuid: locationUuid,
+            floor,
             total_u: totalU,
             numbering_top_down: numberingTopDown ? 'true' : 'false',
             notes
@@ -63,6 +68,11 @@ class RackAPI {
         const data = { action: 'rack-update', rack_uuid: rackUuid };
         if (fields.name !== undefined) data.name = fields.name;
         if (fields.location !== undefined) data.location = fields.location;
+        // Sending location_uuid makes the backend re-stamp every server in this
+        // rack, and every component in those servers, with the new site. That is
+        // the point: moving a rack moves everything standing in it.
+        if (fields.locationUuid !== undefined) data.location_uuid = fields.locationUuid;
+        if (fields.floor !== undefined) data.floor = fields.floor;
         if (fields.totalU !== undefined) data.total_u = fields.totalU;
         if (fields.numberingTopDown !== undefined) data.numbering_top_down = fields.numberingTopDown ? 'true' : 'false';
         if (fields.notes !== undefined) data.notes = fields.notes;

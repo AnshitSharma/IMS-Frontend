@@ -1671,6 +1671,14 @@ class AddComponentForm {
 
         this.loadVendors();
 
+        // The six sites this dropdown used to hardcode are real `locations` rows
+        // now, so it is loaded like the vendor list rather than written into the
+        // markup. Fire-and-forget: the field is optional and populateSelect
+        // degrades to a disabled "No locations available" on its own.
+        if (window.api && api.locations) {
+            api.locations.populateSelect(document.getElementById('location'));
+        }
+
         sections.forEach(sectionId => {
             const section = document.getElementById(sectionId);
             if (section) {
@@ -1976,6 +1984,17 @@ class AddComponentForm {
             Status: document.getElementById('status').value,
             VendorID: document.getElementById('vendorSelect')?.value || null,
             Location: document.getElementById('location').value || null,
+            // The display text alone leaves the row unfilterable by site and
+            // invisible to the location join. `location_uuid` is a real column
+            // (seeder 2026_08_26_003) and passes addComponent's column whitelist
+            // on its own, so no backend field mapping is needed for it.
+            location_uuid: api.locations.selectedUuid(document.getElementById('location')) || null,
+            // Where a LOOSE part sits. An installed part's address comes from its
+            // server's rack, so this is ignored for one.
+            StoreLocation: document.getElementById('storeLocation')?.value.trim() || null,
+            // Read-only in the form: RackPosition is derived from the real rack
+            // placement and re-stamped on every move. Kept in the payload so an
+            // existing value survives an edit rather than being blanked.
             RackPosition: document.getElementById('rackPosition').value || null,
             PurchaseDate: document.getElementById('purchaseDate').value || null,
             InstallationDate: document.getElementById('installationDate').value || null,

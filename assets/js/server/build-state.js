@@ -47,6 +47,11 @@ class BuildState {
         this.network = this.hardware.network || null;
         this.storageConnectivity = this.hardware.storage_connectivity || null;
 
+        // The installed board's spec, resolved by the backend. Null for a build with
+        // no board — and on a backend that predates this field, which is why every
+        // reader still has to tolerate null.
+        this.motherboardSpec = this.hardware.motherboard_spec || null;
+
         // Absent when the backend predates this feature, or during the ~20s
         // window where one stack is deployed and the other isn't. Null means
         // "no opinion", and every accessor below then falls back to today's

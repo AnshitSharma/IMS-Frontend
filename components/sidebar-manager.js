@@ -83,6 +83,16 @@ class SidebarManager {
                 if (compatMenuItem) compatMenuItem.style.display = '';
             }
 
+            // Locations is gated on the PERMISSION, not the role, unlike Rack
+            // View. location.view is a basic permission every role that can see
+            // anything holds, because the location dropdown on every component
+            // form depends on it. Only creating and deleting sites is
+            // admin/super_admin, and the backend enforces that.
+            if (window.api && window.api.utils && window.api.utils.hasPermission('location.view')) {
+                const locationsMenuItem = document.getElementById('locationsMenuItem');
+                if (locationsMenuItem) locationsMenuItem.style.display = '';
+            }
+
             // Show Rack View for admin and super_admin (UI-only gate; API enforces server-side)
             if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const rackMenuItem = document.getElementById('rackMenuItem');

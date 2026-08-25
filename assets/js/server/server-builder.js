@@ -305,10 +305,8 @@ class ServerBuilder {
             });
         }
 
-        // Load motherboard details from JSON if motherboard is selected
-        if (this.selectedComponents.motherboard.length > 0) {
-            await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
-        }
+        // The board's spec comes with the payload, already resolved -- no lookup here.
+        this.adoptMotherboardSpec(this.buildState.motherboardSpec);
 
         // Load chassis details from JSON if chassis is selected
         if (this.selectedComponents.chassis.length > 0) {
@@ -455,35 +453,56 @@ class ServerBuilder {
     //     }
     // }
     /**
-     * Load motherboard details from JSON
+     * Adopt the board spec the backend resolved for this build.
+     *
+     * This used to fetch ims-data/motherboard/motherboard-level-3.json and search it
+     * by UUID -- a third spec resolver, alongside the backend's two. A board that
+     * comes inside a server compute platform is described in serverplatform/, not in
+     * that catalog, so the search found nothing, `motherboardDetails` stayed null,
+     * and every board figure below silently fell back to a literal: 4 DIMM slots on
+     * a 24-slot R630, 1 socket on a 2-socket board, "288-pin DIMM" for DDR4 ECC.
+     *
+     * The backend resolves platform-owned and catalog boards through one call and
+     * now publishes the result as hardware.motherboard_spec, so the UI no longer
+     * parses ims-data at all and cannot disagree with the engine about the board.
+     *
+     * Shape is unchanged for every consumer: the spec body, plus the two derived
+     * keys they read (`chassisSocket`, `caddySockets`).
      */
-    async loadMotherboardDetails(uuid) {
-        try {
-            // Fetch motherboard JSON (cached)
-            const motherboardData = await ServerBuilder.fetchJSON('/ims-data/motherboard/motherboard-level-3.json');
+    /**
+     * How many DIMM slots to draw, and what the section meter counts against.
+     *
+     * ONE total for both. They used to differ — the meter said
+     * `memory.slots || Math.max(ramUsed, 4)` while the grid said
+     * `memory.slots || 4` — so an unresolved board with 5 DIMMs installed read
+     * "5/5" above a grid of 4 cells, with the 5th module rendered nowhere at all
+     * (the grid indexes `ramComponents[i]` up to its own total).
+     *
+     * Never below what is installed, for the same reason: a slot figure the UI
+     * cannot substantiate must not make real, removable hardware invisible.
+     */
+    memorySlotTotal() {
+        const declared = Number(this.motherboardDetails?.memory?.slots) || 0;
+        return Math.max(declared, this.selectedComponents.ram.length, 4);
+    }
 
-            // Search for the motherboard by UUID
-            for (const brand of motherboardData) {
-                if (brand.models) {
-                    for (const model of brand.models) {
-                        if (model.uuid === uuid) {
-                            this.motherboardDetails = {
-                                brand: brand.brand,
-                                series: brand.series,
-                                family: brand.family,
-                                chassisSocket: model.form_factor || 'ATX',
-                                caddySockets: model.caddy_sockets || [], // Add caddy sockets
-                                ...model
-                            };
-                            return;
-                        }
-                    }
-                }
-            }
+    /** CPU sockets to draw. Same contract as memorySlotTotal(). */
+    cpuSocketTotal() {
+        const declared = Number(this.motherboardDetails?.socket?.count) || 0;
+        return Math.max(declared, this.selectedComponents.cpu.length, 1);
+    }
 
-        } catch (error) {
-            console.error('Error loading motherboard details:', error);
+    adoptMotherboardSpec(spec) {
+        if (!spec) {
+            this.motherboardDetails = null;
+            return;
         }
+
+        this.motherboardDetails = {
+            chassisSocket: spec.form_factor || 'ATX',
+            caddySockets: spec.caddy_sockets || [],
+            ...spec
+        };
     }
 
     /**
@@ -2120,11 +2139,11 @@ class ServerBuilder {
 
         // Section meters
         const cpuUsed = this.selectedComponents.cpu.length;
-        const socketTotal = this.motherboardDetails?.socket?.count || Math.max(cpuUsed, 1);
+        const socketTotal = this.cpuSocketTotal();
         const socketType = this.motherboardDetails?.socket?.type || '';
 
         const ramUsed = this.selectedComponents.ram.length;
-        const memTotal = this.motherboardDetails?.memory?.slots || Math.max(ramUsed, 4);
+        const memTotal = this.memorySlotTotal();
         const memType = this.motherboardDetails?.memory?.type || 'DIMM';
 
         const nicCount = (this.networkConfig?.nics || []).length;
@@ -2840,7 +2859,7 @@ class ServerBuilder {
         const cpuComponents = this.selectedComponents.cpu;
         const motherboardData = this.motherboardDetails;
 
-        const socketCount = motherboardData?.socket?.count || Math.max(cpuComponents.length, 1);
+        const socketCount = this.cpuSocketTotal();
         const socketType = motherboardData?.socket?.type || '';
         const noneInstalled = cpuComponents.length === 0;
 
@@ -2921,7 +2940,7 @@ class ServerBuilder {
         const ramComponents = this.selectedComponents.ram;
         const motherboardData = this.motherboardDetails;
 
-        const memorySlots = motherboardData?.memory?.slots || 4;
+        const memorySlots = this.memorySlotTotal();
         const memoryType = motherboardData?.memory?.type || '288-pin DIMM';
         const noneInstalled = ramComponents.length === 0;
 

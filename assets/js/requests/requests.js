@@ -921,8 +921,10 @@ class RequestsManager {
      * action dropdown, which fields appear, and whether the server question is
      * asked at all.
      *
-     * A type with no such effect is a plain tracking request — no action row, and
-     * the server question falls back to optional context.
+     * A type with no such effect performs nothing, so there is no ceiling to
+     * shape it and the type's own asks_for_server / asks_for_components settle
+     * the two optional questions. They apply ONLY here: a type that performs an
+     * action asks whatever that action needs, which is the stronger signal.
      */
     applyRequestType(type) {
         this.actionCeiling = this.typeActionCeiling(type);
@@ -938,8 +940,13 @@ class RequestsManager {
             row.classList.add('hidden');
             select.innerHTML = '';
             fields.innerHTML = '';
-            this.setServerPickerMode('standalone');
-            this.setItemsRowVisible(true);
+            // Nothing is performed, so there is no action to shape the form and
+            // the TYPE answers instead: a request to be let through a door is
+            // about neither a server nor a parts list, while a general one is
+            // about both. Absent — before seeder 2026_08_25_009, or with no type
+            // chosen yet — reads as 1, which is what this branch always did.
+            this.setServerPickerMode(type?.asks_for_server === 0 ? 'none' : 'standalone');
+            this.setItemsRowVisible(type?.asks_for_components !== 0);
             this.autoTitle();
             return;
         }
@@ -985,6 +992,74 @@ class RequestsManager {
             .filter(Boolean);
     }
 
+    /**
+     * Fill the relocate form's Location dropdown, and wire it to the Rack one.
+     *
+     * This is the cascade: choose Jaipur and the Rack dropdown lists Jaipur's
+     * racks and nothing else. Without it a requester could name a rack at one
+     * site and a location at another, and the backend would (correctly) refuse
+     * the whole request at approval time — after an admin had already looked at
+     * it. Better to make the impossible unpickable.
+     */
+    async fillRelocateLocations() {
+        const locationSelect = document.getElementById('plRelocateLocation');
+        const rackSelect = document.getElementById('plRelocateRack');
+        if (!locationSelect) return;
+
+        let locations = [];
+        try {
+            const result = await api.locations.list();
+            locations = (result?.success && result.data?.locations) || [];
+        } catch (error) {
+            locations = [];
+        }
+
+        if (!locations.length) {
+            locationSelect.innerHTML = '<option value="">No locations available</option>';
+            locationSelect.disabled = true;
+            return;
+        }
+
+        locationSelect.innerHTML = '<option value="">Choose a location...</option>' + locations.map(loc =>
+            `<option value="${this.esc(loc.location_uuid)}" data-name="${this.esc(loc.name)}">${this.esc(loc.name)}</option>`
+        ).join('');
+        locationSelect.disabled = false;
+
+        locationSelect.addEventListener('change', async () => {
+            if (!rackSelect) return;
+            const locationUuid = locationSelect.value;
+
+            if (!locationUuid) {
+                rackSelect.innerHTML = '<option value="">Choose a location first</option>';
+                return;
+            }
+
+            rackSelect.innerHTML = '<option value="">Loading racks\u2026</option>';
+            let racks = [];
+            try {
+                const result = await api.locations.racks(locationUuid);
+                racks = (result?.success && result.data?.racks) || [];
+            } catch (error) {
+                racks = [];
+            }
+
+            // The user may have changed the location while this was loading.
+            if (locationSelect.value !== locationUuid) return;
+
+            if (!racks.length) {
+                rackSelect.innerHTML = '<option value="">No racks at this location</option>';
+                return;
+            }
+
+            // Blank stays available on purpose: "move it to the site, leave it
+            // out of a rack" is a real request.
+            rackSelect.innerHTML = '<option value="">-- No rack --</option>' + racks.map(rack => {
+                const floor = rack.floor ? ` \u00b7 Floor ${this.esc(rack.floor)}` : '';
+                return `<option value="${this.esc(rack.rack_uuid)}" data-name="${this.esc(rack.name)}">${this.esc(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U)</option>`;
+            }).join('');
+        });
+    }
+
     /** Which action this request is building, and the fields it needs. */
     setActionType(actionType) {
         this.actionType = actionType || '';
@@ -1002,6 +1077,14 @@ class RequestsManager {
         if (this.actionType === 'inventory.component.add') {
             this.mountInventoryForm();
         }
+        if (this.actionType === 'server.relocate') {
+            this.fillRelocateLocations();
+        }
+        // The create/update forms ask for a location by NAME (that is the column
+        // they write), so they get the same list rendered with names as values.
+        fields.querySelectorAll('[data-location-name-select]').forEach((el) => {
+            api.locations.populateSelect(el, { placeholder: el.options[0]?.text || 'Optional' });
+        });
         if (hint) {
             hint.textContent = this.actionType
                 ? 'An admin approves, and the system does this for you. You are not given access to anything.'
@@ -1095,7 +1178,8 @@ class RequestsManager {
             'server.component.remove',
             'server.component.replace',
             'server.config.update',
-            'server.config.transition'
+            'server.config.transition',
+            'server.relocate'
         ].includes(actionType);
     }
 
@@ -1177,20 +1261,17 @@ class RequestsManager {
                         <label class="${LABEL}">Server name <span class="text-danger">*</span></label>
                         <input type="text" data-action-field="server_name" maxlength="150" class="${INPUT}" placeholder="e.g. web-prod-04">
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label class="${LABEL}">Location</label>
-                            <input type="text" data-action-field="location" maxlength="100" class="${INPUT}" placeholder="Optional">
-                        </div>
-                        <div>
-                            <label class="${LABEL}">Rack position</label>
-                            <input type="text" data-action-field="rack_position" maxlength="50" class="${INPUT}" placeholder="Optional">
-                        </div>
+                    <div>
+                        <label class="${LABEL}">Location</label>
+                        <select data-action-field="location" class="${INPUT}" data-location-name-select>
+                            <option value="">Optional</option>
+                        </select>
                     </div>
                     <div>
                         <label class="${LABEL}">Description</label>
                         <input type="text" data-action-field="description" maxlength="255" class="${INPUT}" placeholder="Optional">
-                    </div>`;
+                    </div>
+                    <p class="text-xs text-text-muted">The rack and U position are set when the server is placed in a rack \u2014 ask for a move once it exists.</p>`;
 
             case 'server.config.update':
                 return `
@@ -1202,11 +1283,9 @@ class RequestsManager {
                         </div>
                         <div>
                             <label class="${LABEL}">Location</label>
-                            <input type="text" data-action-field="location" maxlength="100" class="${INPUT}">
-                        </div>
-                        <div>
-                            <label class="${LABEL}">Rack position</label>
-                            <input type="text" data-action-field="rack_position" maxlength="50" class="${INPUT}">
+                            <select data-action-field="location" class="${INPUT}" data-location-name-select>
+                                <option value="">Leave unchanged</option>
+                            </select>
                         </div>
                         <div>
                             <label class="${LABEL}">Description</label>
@@ -1217,6 +1296,37 @@ class RequestsManager {
                         <label class="${LABEL}">Notes</label>
                         <input type="text" data-action-field="notes" maxlength="255" class="${INPUT}">
                     </div>`;
+
+            case 'server.relocate':
+                // Location first, then the racks AT that location, then the U.
+                // The same order as the Move server dialog on the server card,
+                // because it is the same decision.
+                return `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Location <span class="text-danger">*</span></label>
+                            <select data-action-field="location_uuid" class="${INPUT}" id="plRelocateLocation">
+                                <option value="">Loading locations\u2026</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Rack</label>
+                            <select data-action-field="rack_uuid" class="${INPUT}" id="plRelocateRack">
+                                <option value="">Choose a location first</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Start U</label>
+                            <input type="number" min="1" max="100" data-action-field="start_u" class="${INPUT}" placeholder="e.g. 21">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Reason</label>
+                            <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-muted">Every component installed in the server moves with it. Leave the rack blank to ask for it to be moved to the site but left out of a rack. The position is checked against the rack when the request is approved, so a slot that fills up in the meantime means the move is refused rather than forced.</p>`;
 
             case 'server.config.transition':
                 return `
@@ -1340,8 +1450,22 @@ class RequestsManager {
 
         // server.config.update carries its changes in a nested object, because
         // "which fields did they mean to change" has to survive to the executor.
+        // The names ride along so the request list and the approver's
+        // confirmation can read "move to Jaipur Office - RACK 12 - U8" without a
+        // join. They are display-only: the executor moves by uuid.
+        if (this.actionType === 'server.relocate') {
+            const locationSelect = document.getElementById('plRelocateLocation');
+            const rackSelect = document.getElementById('plRelocateRack');
+            const locName = locationSelect?.selectedOptions?.[0]?.dataset?.name;
+            const rackName = rackSelect?.selectedOptions?.[0]?.dataset?.name;
+            if (locName) payload.location_name = locName;
+            if (rackName) payload.rack_name = rackName;
+        }
+
         if (this.actionType === 'server.config.update') {
-            const editable = ['server_name', 'description', 'location', 'rack_position', 'notes'];
+            // rack_position removed 2026-08-26: it is derived from the real rack
+            // placement, and the executor no longer writes it.
+            const editable = ['server_name', 'description', 'location', 'notes'];
             const changes = {};
             editable.forEach((f) => {
                 if (payload[f] !== undefined) {

@@ -42,6 +42,7 @@ class EditFormComponent {
 
         this.formContainer.innerHTML = fieldsHtml;
         this.loadVendors();
+        this.loadLocations();
 
         // Show/hide Fail Date based on the Status select, then sync to the
         // current value so an already-failed component shows its date.
@@ -94,8 +95,23 @@ class EditFormComponent {
                             <option value="">-- No Vendor --</option>
                         </select>
                     </div>
-                    ${this.renderSelectField('Location', 'Location', this.componentData.Location, [{ value: '', text: '-- Select Location --' }, { value: 'Noida Yotta', text: 'Noida Yotta' }, { value: 'Noida Ctrls', text: 'Noida Ctrls' }, { value: 'Noida Office', text: 'Noida Office' }, { value: 'Jaipur Office', text: 'Jaipur Office' }, { value: 'Indore Office', text: 'Indore Office' }, { value: 'Sonipat Office', text: 'Sonipat Office' }])}
-                    ${this.renderTextField('RackPosition', 'Rack Position', this.componentData.RackPosition)}
+                    <div class="form-group">
+                        <label for="Location" class="form-label">Location</label>
+                        <select id="Location" name="Location" class="form-select">
+                            <option value="">Loading locations\u2026</option>
+                        </select>
+                        <!-- The display name goes in Location for every existing
+                             reader; this carries the real foreign key alongside it,
+                             kept in sync by the change handler in loadLocations(). -->
+                        <input type="hidden" id="location_uuid" name="location_uuid" value="${this.escapeHtml(this.componentData.location_uuid || '')}">
+                    </div>
+                    ${this.renderTextField('StoreLocation', 'Store / Shelf', this.componentData.StoreLocation)}
+                    <div class="form-group">
+                        <label for="RackPosition" class="form-label">Rack Position</label>
+                        <input type="text" id="RackPosition" name="RackPosition" class="form-input" readonly
+                               value="${this.escapeHtml(this.componentData.RackPosition || '')}">
+                        <small class="form-hint">Derived from the server's rack placement \u2014 it updates on its own when the server moves.</small>
+                    </div>
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
                     ${this.renderDateField('InstallationDate', 'Installation Date', this.componentData.InstallationDate)}
                     ${this.renderDateField('WarrantyEndDate', 'Warranty End Date', this.componentData.WarrantyEndDate)}
@@ -108,6 +124,40 @@ class EditFormComponent {
                 </div>
             </div>
         `;
+    }
+
+    /**
+     * Fill the Location dropdown from the real `locations` rows, preselecting
+     * whatever this component currently reports.
+     *
+     * The hidden location_uuid input is updated on every change: the visible
+     * select posts the NAME (which every existing reader of the Location column
+     * expects) while the key travels with it, so an edit leaves the row both
+     * readable and filterable by site.
+     */
+    async loadLocations() {
+        const select = document.getElementById('Location');
+        const hidden = document.getElementById('location_uuid');
+        if (!select) return;
+
+        if (!(window.api && api.locations)) {
+            select.innerHTML = '<option value="">No locations available</option>';
+            select.disabled = true;
+            return;
+        }
+
+        await api.locations.populateSelect(select, {
+            selectedName: this.componentData.Location || ''
+        });
+
+        // Keep the key in step with the name, including the empty choice, so
+        // clearing the location clears both halves rather than leaving a
+        // dangling key behind.
+        const sync = () => {
+            if (hidden) hidden.value = api.locations.selectedUuid(select) || '';
+        };
+        select.addEventListener('change', sync);
+        sync();
     }
 
     async loadVendors() {

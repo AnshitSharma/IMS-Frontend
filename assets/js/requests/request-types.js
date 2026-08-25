@@ -244,6 +244,23 @@ class RequestTypesManager {
                         class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${type && type.description ? this.esc(type.description) : ''}</textarea>
                 </div>
 
+                <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover">
+                    <h4 class="text-sm font-semibold text-text-primary">What the form asks for</h4>
+                    <p class="text-xs text-text-muted mb-2">
+                        Used only when no step performs the request's work — a type that
+                        does asks for whatever its action needs. Turn both off for a
+                        request that is about neither, such as being let into a room.
+                    </p>
+                    <label class="flex items-center gap-2 text-sm text-text-primary">
+                        <input type="checkbox" id="typeAsksServer" ${!type || type.asks_for_server !== 0 ? 'checked' : ''}>
+                        Which server this request is about
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-text-primary mt-1">
+                        <input type="checkbox" id="typeAsksComponents" ${!type || type.asks_for_components !== 0 ? 'checked' : ''}>
+                        A list of components
+                    </label>
+                </div>
+
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <div>
@@ -496,6 +513,8 @@ class RequestTypesManager {
             name,
             description,
             is_active,
+            asks_for_server: document.getElementById('typeAsksServer').checked ? '1' : '0',
+            asks_for_components: document.getElementById('typeAsksComponents').checked ? '1' : '0',
             stages: JSON.stringify(stages)
         };
         const action = this.editingId ? 'pipeline-template-update' : 'pipeline-template-create';
