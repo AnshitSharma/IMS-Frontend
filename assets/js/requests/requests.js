@@ -45,6 +45,9 @@ class RequestsManager {
         this.currentRoleIds = [];
         this.currentRoleNames = [];
         this.currentDetail = null;
+        // The request a new one is being raised as a PREREQUISITE for, while the
+        // create form is open. Set by showCreate(parent), read by submitCreate().
+        this.parentContext = null;
     }
 
     init() {
@@ -251,6 +254,16 @@ class RequestsManager {
                                 title="The last approval was rolled back. Open the request for the reason.">
                                 <i class="fas fa-rotate-left"></i> Last attempt failed
                             </span>` : ''}
+                            ${p.is_blocked ? `
+                            <span class="text-[11px] text-amber-600 dark:text-amber-400 bg-surface-secondary border border-border rounded px-2 py-0.5"
+                                title="Waiting on a prerequisite request. Open it to see which.">
+                                <i class="fas fa-lock"></i> Blocked
+                            </span>` : ''}
+                            ${p.parent_ticket_number ? `
+                            <span class="text-[11px] text-text-muted bg-surface-secondary border border-border rounded px-2 py-0.5"
+                                title="Raised as a prerequisite for #${this.esc(p.parent_ticket_number)}">
+                                <i class="fas fa-link"></i> for #${this.esc(p.parent_ticket_number)}
+                            </span>` : ''}
                         </div>
                         <h3 class="text-base font-semibold text-text-primary mt-1 truncate">${this.esc(p.title)}</h3>
                     </div>
@@ -264,7 +277,7 @@ class RequestsManager {
                     <div class="flex-1 h-1.5 bg-surface-secondary rounded-full overflow-hidden">
                         <div class="h-full bg-primary rounded-full transition-all" style="width:${pct}%"></div>
                     </div>
-                    <span class="text-[11px] text-text-muted shrink-0">${p.progress ? `${p.progress.done}/${p.progress.total}` : ''} steps</span>
+                    <span class="text-[11px] ${p.is_blocked ? 'text-amber-600 dark:text-amber-400' : 'text-text-muted'} shrink-0">${p.progress ? `${p.progress.done}/${p.progress.total}` : ''} steps${p.is_blocked ? ' &middot; frozen' : ''}</span>
                 </div>
             </div>`;
     }
@@ -284,7 +297,7 @@ class RequestsManager {
     }
 
     // ----- Create ------------------------------------------------------------
-    async showCreate() {
+    async showCreate(parent = null) {
         if (!this.perms.create && !this.perms.manage) return;
         const activeTypes = this.types.filter((t) => t.is_active !== 0);
         if (activeTypes.length === 0) {
@@ -292,8 +305,30 @@ class RequestsManager {
         }
         await Promise.all([this.loadComponentData(), this.loadServers()]);
 
+        // Raised from inside another request. Both modals sit at the same
+        // z-index, so the detail one has to go before this one appears.
+        this.parentContext = parent;
+        if (parent) this.closeModal('detailModal');
+
         const body = document.getElementById('modalBody');
-        document.getElementById('modalTitle').textContent = 'New Request';
+        document.getElementById('modalTitle').textContent = parent ? 'New Prerequisite Request' : 'New Request';
+
+        // Said at the TOP of the form, because it changes what the request
+        // means rather than being a detail to discover after submitting it.
+        const parentChip = parent ? `
+            <div class="flex items-start gap-2 px-3 py-2.5 rounded-lg border border-border bg-surface-hover">
+                <i class="fas fa-link text-primary mt-0.5"></i>
+                <div class="text-sm min-w-0">
+                    <div class="text-text-primary">Prerequisite for
+                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(parent.ticket_number)}</span>
+                        &mdash; ${this.esc(parent.title)}
+                    </div>
+                    <div class="text-xs text-text-muted mt-1">
+                        That request stays frozen until this one is resolved, and still needs its own
+                        approval afterwards. Resolving this does not approve it.
+                    </div>
+                </div>
+            </div>` : '';
 
         // Layout rule for this form: anything the system can answer from a list is
         // a dropdown that OVERLAYS the modal instead of expanding it, so the form
@@ -316,6 +351,7 @@ class RequestsManager {
         // native form validation is not doing any work here.
         body.innerHTML = `
             <div id="pipelineForm" class="space-y-4">
+                ${parentChip}
                 <!-- The ask. Five questions, four of them answered from a list. -->
                 <div class="rounded-lg border border-border bg-surface-secondary p-3 space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1439,16 +1475,24 @@ class RequestsManager {
         const action = this.collectAction();
         if (action) fields.actions = JSON.stringify([action]);
 
+        const parent = this.parentContext;
+        if (parent) fields.parent_ticket_id = parent.id;
+
         try {
             const result = await this.apiPost('pipeline-create', fields);
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed to create');
                 return this.toast(msg, 'error');
             }
-            this.toast('Request created', 'success');
+            this.toast(parent ? 'Prerequisite raised' : 'Request created', 'success');
             this.closeModal('modalContainer');
+            this.parentContext = null;
             this.load();
-            if (result.data?.pipeline_id) this.openDetail(result.data.pipeline_id);
+            // Back to the PARENT, not the new child: the frozen request is where
+            // the user came from, and it now shows the prerequisite it is
+            // waiting on. The child is one click away from there.
+            if (parent) this.openDetail(parent.id);
+            else if (result.data?.pipeline_id) this.openDetail(result.data.pipeline_id);
         } catch (e) {
             this.toast('Failed to create request: ' + e.message, 'error');
         }
@@ -1553,12 +1597,15 @@ class RequestsManager {
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
                 <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
                 ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
+                ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${this.esc(p.parent.ticket_number)}</button></span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
             </div>
+            ${this.blockedBanner(p)}
             ${actionsBlock}
             ${askedBlock}
             ${accessBanner}
             ${this.executionFailureBanner()}
+            ${this.prerequisitesBlock(p)}
 
             <div class="mt-5">
                 <h4 class="text-sm font-semibold text-text-primary mb-3">Steps</h4>
@@ -1574,6 +1621,113 @@ class RequestsManager {
                 </div>` : ''}`;
 
         this.wireDetailActions(p);
+    }
+
+    /**
+     * Why this request cannot move.
+     *
+     * Rendered from `blocked_by`, which the backend derives from the child rows
+     * on every read rather than storing — so this banner, the list's Blocked
+     * chip and the engine's own refusal can never disagree.
+     *
+     * A REJECTED prerequisite gets its own line because waiting will not fix it.
+     * Without saying so, an approver comes back tomorrow and clicks the same
+     * button.
+     */
+    blockedBanner(p) {
+        const blockers = Array.isArray(p.blocked_by) ? p.blocked_by : [];
+        if (!blockers.length) return '';
+
+        const refused = blockers.filter((b) => b.status === 'rejected');
+        const tone = refused.length ? 'border-danger bg-danger-light' : 'border-border bg-surface-secondary';
+        const icon = refused.length ? 'text-danger' : 'text-amber-600 dark:text-amber-400';
+
+        const rows = blockers.map((b) => `
+            <li class="flex items-center gap-2 flex-wrap">
+                <button type="button" data-open-request="${b.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${this.esc(b.ticket_number)}</button>
+                <span class="text-xs text-text-secondary">${this.esc(b.pipeline_type_name || 'Request')}</span>
+                ${this.statusBadge(b.status)}
+                ${(b.status === 'rejected' && this.perms.manage) ? `
+                    <button type="button" data-unlink-child="${b.id}"
+                        class="px-2 py-0.5 text-xs border border-border rounded text-text-muted hover:bg-surface-hover transition-colors">
+                        <i class="fas fa-link-slash mr-1"></i>Detach
+                    </button>` : ''}
+            </li>`).join('');
+
+        const explain = refused.length
+            ? 'A rejected prerequisite does not clear by itself. Reject or cancel this request, or detach the refused one so a replacement can be raised.'
+            : 'No step can be completed until it is resolved. Rejecting or cancelling this request is still possible.';
+
+        return `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border ${tone}">
+                <i class="fas fa-lock ${icon} mt-0.5"></i>
+                <div class="min-w-0">
+                    <div class="text-sm font-medium text-text-primary">
+                        Frozen &mdash; waiting on ${blockers.length === 1 ? 'a prerequisite' : blockers.length + ' prerequisites'}
+                    </div>
+                    <ul class="mt-1.5 space-y-1">${rows}</ul>
+                    <div class="text-xs text-text-secondary mt-2">${explain}</div>
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Every prerequisite ever raised on this request, resolved ones included,
+     * plus the button that raises another.
+     *
+     * Resolved ones stay listed on purpose: "this was approved because the room
+     * access came through first" is the part of the story an audit needs, and it
+     * disappears if the list only shows what is still outstanding.
+     */
+    prerequisitesBlock(p) {
+        const children = Array.isArray(p.children) ? p.children : [];
+        const canRaise = this.canRaisePrerequisite(p);
+        if (!children.length && !canRaise) return '';
+
+        const rows = children.map((c) => `
+            <li class="flex items-start justify-between gap-3 px-3 py-2 rounded-lg border border-border ${c.blocks ? 'bg-surface-hover' : 'bg-surface-card'}">
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <button type="button" data-open-request="${c.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${this.esc(c.ticket_number)}</button>
+                        <span class="text-xs text-text-muted">${this.esc(c.pipeline_type_name || 'Request')}</span>
+                    </div>
+                    <div class="text-sm text-text-primary mt-0.5">${this.esc(c.title)}</div>
+                    ${(c.status === 'rejected' && c.rejection_reason)
+                        ? `<div class="text-xs text-danger mt-1"><i class="fas fa-xmark mr-1"></i>${this.esc(c.rejection_reason)}</div>`
+                        : ''}
+                </div>
+                <div class="shrink-0">${this.statusBadge(c.status)}</div>
+            </li>`).join('');
+
+        return `
+            <div class="mt-5">
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <h4 class="text-sm font-semibold text-text-primary">Prerequisites</h4>
+                    ${canRaise ? `
+                        <button type="button" id="plRaisePrerequisite"
+                            class="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover transition-colors flex items-center gap-1.5">
+                            <i class="fas fa-plus"></i> Raise a prerequisite
+                        </button>` : ''}
+                </div>
+                ${children.length
+                    ? `<ul class="space-y-1.5">${rows}</ul>`
+                    : `<p class="text-xs text-text-muted">Nothing is holding this request up. Raise a prerequisite if something has to happen first &mdash; physical room access, for example.</p>`}
+            </div>`;
+    }
+
+    /**
+     * Freezing somebody's request is a real imposition, so raising a
+     * prerequisite on one takes more than being logged in: you must already be
+     * part of it. Mirrors PipelineManager::validateParent(), which is the actual
+     * gate — this only decides whether to show the button. The depth cap is left
+     * to the backend, because the full chain is not in this response.
+     */
+    canRaisePrerequisite(p) {
+        if (['completed', 'cancelled', 'rejected'].includes(p.status)) return false;
+        if (!this.perms.create && !this.perms.manage) return false;
+        if (this.perms.manage) return true;
+        if (Number(p.created_by?.id) === Number(this.currentUserId)) return true;
+        return (p.stages || []).some((s) => this.eligibleForStage(s));
     }
 
     /**
@@ -1830,6 +1984,37 @@ class RequestsManager {
     }
 
     stepActions(stage, pipeline) {
+        // A frozen request gets no Approve/Complete/Accept button at all. A
+        // disabled-looking button that 400s is worse than no button: the
+        // engine refuses this anyway (PipelineManager::completeStage), so the
+        // only honest thing to render is why, and the ways out that DO work.
+        // Reject and Cancel stay available deliberately — they are the exits.
+        if (pipeline.blocked) {
+            const showReject = (this.perms.act || this.perms.manage)
+                && (this.perms.manage
+                    || (stage.owner && stage.owner.type === 'user' && Number(stage.owner.id) === Number(this.currentUserId))
+                    || (stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId)));
+
+            return `
+                <div class="mt-3 space-y-2" data-stage-actions="${stage.id}">
+                    <p class="text-xs text-text-muted italic">
+                        <i class="fas fa-lock mr-1"></i>This step is frozen until the prerequisite above is resolved.
+                    </p>
+                    ${showReject ? `
+                        <div class="flex flex-wrap gap-2">
+                            <button data-act="reject-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-danger rounded-lg text-danger hover:bg-danger-light flex items-center gap-1.5"><i class="fas fa-xmark"></i> Reject</button>
+                        </div>
+                        <div data-reject-form="${stage.id}" class="hidden pt-1">
+                            <textarea data-reject-reason="${stage.id}" rows="2" placeholder="Why are you rejecting this? The requester will see it."
+                                class="w-full px-3 py-2 text-sm border border-danger rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <button data-act="reject" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-danger text-white rounded-lg flex items-center gap-1.5"><i class="fas fa-xmark"></i> Confirm rejection</button>
+                                <button data-act="reject-cancel" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary">Keep it open</button>
+                            </div>
+                        </div>` : ''}
+                </div>`;
+        }
+
         const eligible = this.eligibleForStage(stage);
         const needsClaim = stage.owner && stage.owner.type === 'role' && !stage.claimed_by;
         const claimedByMe = stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId);
@@ -1894,6 +2079,18 @@ class RequestsManager {
         if (!body) return;
 
         body.querySelector('#plCancelPipeline')?.addEventListener('click', () => this.cancelPipeline(p.id));
+        body.querySelector('#plRaisePrerequisite')?.addEventListener('click', () => this.showCreate(p));
+
+        // Navigating up and down the chain. Re-entrant on purpose: openDetail()
+        // replaces the whole modal body, so this is the same one modal being
+        // repointed rather than a stack of them.
+        body.querySelectorAll('[data-open-request]').forEach((btn) => {
+            btn.addEventListener('click', () => this.openDetail(parseInt(btn.dataset.openRequest, 10)));
+        });
+
+        body.querySelectorAll('[data-unlink-child]').forEach((btn) => {
+            btn.addEventListener('click', () => this.unlinkChild(p.id, parseInt(btn.dataset.unlinkChild, 10)));
+        });
 
         body.querySelectorAll('[data-act]').forEach((btn) => {
             const stageId = parseInt(btn.dataset.stage, 10);
@@ -1988,6 +2185,28 @@ class RequestsManager {
     async rejectStage(pipelineId, stageId, reason) {
         await this.stageAction('pipeline-reject', { pipeline_id: pipelineId, stage_progress_id: stageId, reason }, 'Request rejected — nothing was performed');
     }
+    /**
+     * Detach a refused prerequisite so this request can move again.
+     *
+     * Confirmed first because it is the one action that lifts a freeze, and the
+     * freeze is the whole point: the request goes from "cannot be approved" to
+     * "can be approved" without the thing it was waiting for ever happening.
+     */
+    async unlinkChild(parentId, childId) {
+        const ok = await this.confirm(
+            'This request will stop waiting for that prerequisite and can be approved without it. '
+            + 'The prerequisite itself is unchanged — it stays rejected, and its own record is kept. '
+            + 'Detach it only if the requirement is being re-raised or no longer applies.',
+            'Detach this prerequisite?'
+        );
+        if (!ok) return;
+
+        await this.stageAction('pipeline-unlink-child', { child_id: childId }, null);
+        // stageAction re-renders from result.data.pipeline, which this endpoint
+        // does not return — it returns `parent`. Re-open explicitly instead.
+        this.openDetail(parentId);
+    }
+
     async cancelPipeline(pipelineId) {
         // In-app modal, not native confirm()/prompt(): this codebase is
         // toast-and-modal only, and a native prompt cannot be styled, cannot be
@@ -2036,6 +2255,14 @@ class RequestsManager {
                     return;
                 }
 
+                // Any refusal that came back with live state re-renders it.
+                // A block is the clearest case: the request really did change
+                // under the approver (somebody raised a prerequisite), and the
+                // screen has to show that, not just flash a message about it.
+                if (result.data?.pipeline) {
+                    this.currentDetail = result.data.pipeline;
+                    this.renderDetail(this.currentDetail);
+                }
                 return this.toast(msg, 'error');
             }
 
