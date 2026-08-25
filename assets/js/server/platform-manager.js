@@ -1,21 +1,20 @@
 /**
  * Platform Manager
  *
- * Server compute platforms — a shipped server product (HPE ProLiant DL360 Gen10,
- * Dell PowerEdge R740) and the system boards it can be built around. The builder
- * lets the user pick the platform first, then the board, instead of scrolling a flat
- * list of every motherboard in stock.
+ * Server compute platforms — a shipped server product (HPE ProLiant DL360 Gen9, Dell
+ * PowerEdge R740). A platform is a physical box we stock, and it ships in VERSIONS: the
+ * same product built around a different chassis, and therefore a different drive-bay
+ * layout (8 × 2.5" SFF vs 4 × 3.5" LFF). The version is the stocked SKU, so it is a
+ * version the user picks and a version we count units of.
  *
- * Applying a selection installs the whole product: the chosen system board first, then
- * the platform's `default_components` — CPUs, DIMMs, chassis, drives, caddies.
+ * The system board and the chassis are INSIDE the box. Installing a version consumes one
+ * unit and autofills them into the build; they are then locked, because they came out of
+ * this product and cannot be swapped for loose spares.
  *
- * The board is added on its own, before anything else, through the ordinary
- * `server-add-component` action — the single add path, the one that routes through the
- * backend's command/validation layers. Only then is the platform stamped, and only then
- * does the rest of the bundle go in through ComponentInstaller. That order is what makes
- * every later failure survivable: a stamp that fails costs the stored label (the backend
- * still infers the platform from the board UUID), and a bundle component that is out of
- * stock is reported and skipped. Neither can leave a wrong board installed.
+ * Install and remove are each ONE backend call. Both use the same handshake: the backend
+ * answers 409 `confirm_wipe_required`, naming what is currently installed, and the call
+ * is retried with confirmWipe once the user agrees. That refusal IS the confirmation
+ * prompt — the frontend never decides on its own what is safe to release.
  */
 
 class PlatformManager {
@@ -24,8 +23,8 @@ class PlatformManager {
     }
 
     /**
-     * All platforms with their system boards, each annotated with available_units
-     * and spec_exists.
+     * All platforms with their versions, each annotated with available_units,
+     * selectable and unavailable_reason.
      * @returns {Promise<Array>}
      */
     async getPlatforms(forceReload = false) {
@@ -48,88 +47,71 @@ class PlatformManager {
         return (this.platforms || []).find(p => p.platform_uuid === platformUuid) || null;
     }
 
-    /** What a platform ships with besides the board, as the catalog reported it. */
-    getBundle(platformUuid) {
-        const platform = this.getPlatform(platformUuid);
-        return (platform && platform.default_components) || [];
+    /** One version, with the platform it belongs to, from the cached catalog. */
+    getVersion(versionUuid) {
+        for (const platform of this.platforms || []) {
+            const version = (platform.versions || []).find(v => v.version_uuid === versionUuid);
+            if (version) {
+                return { platform, version };
+            }
+        }
+        return null;
     }
 
     /**
-     * Install the chosen system board, record the platform, then install everything
-     * else the platform ships with.
+     * Install a platform version into a configuration.
      *
-     * @param {string} configUuid   Server being built
-     * @param {string} platformUuid Selected platform
-     * @param {string} boardUuid    Selected system board (a motherboard spec UUID)
+     * Stock changes as soon as this succeeds, so the cached catalog is dropped — the
+     * next open of the picker re-reads availability rather than showing a count that is
+     * one unit stale.
+     *
+     * @param {string}  configUuid
+     * @param {string}  versionUuid
+     * @param {boolean} confirmWipe  true once the user has agreed to release the build
      * @returns {Promise<Object>} {
-     *   success, boardAdded, platformRecorded, message,
-     *   unitsAdded, unitsSkipped, skipped[]
+     *   success, needsConfirmation, installedSummary, installedTotal, message, data
      * }
      */
-    async applyPlatform(configUuid, platformUuid, boardUuid) {
-        const result = {
+    async installPlatform(configUuid, versionUuid, confirmWipe = false) {
+        const response = await serverAPI.setServerPlatform(configUuid, versionUuid, confirmWipe, { silent: true });
+        return this.interpret(response);
+    }
+
+    /**
+     * Remove the configuration's platform, releasing the whole build with it.
+     * Same confirmation handshake as installPlatform.
+     */
+    async removePlatform(configUuid, confirmWipe = false) {
+        const response = await serverAPI.removeServerPlatform(configUuid, confirmWipe, { silent: true });
+        return this.interpret(response);
+    }
+
+    /**
+     * Split a platform response into the three outcomes the UI acts on: done, needs the
+     * user's confirmation, or failed.
+     */
+    interpret(response) {
+        const data = (response && response.data) || {};
+
+        if (response && response.success) {
+            this.platforms = null; // stock moved
+            return {
+                success: true,
+                needsConfirmation: false,
+                message: response.message || '',
+                data
+            };
+        }
+
+        return {
             success: false,
-            boardAdded: false,
-            platformRecorded: false,
-            message: '',
-            unitsAdded: 0,
-            unitsSkipped: 0,
-            skipped: []
+            needsConfirmation: data.error_type === 'confirm_wipe_required',
+            installedSummary: data.installed_summary || '',
+            installedTotal: data.installed_total || 0,
+            installedComponents: data.installed_components || {},
+            message: (response && response.message) || 'The compute platform could not be changed',
+            data
         };
-
-        const addResponse = await serverAPI.addComponentToServer(
-            configUuid,
-            'motherboard',
-            boardUuid,
-            1,
-            '',
-            false,
-            { silent: true }
-        );
-
-        if (!addResponse || !addResponse.success) {
-            result.message = (addResponse && addResponse.message) || 'Failed to add the system board';
-            return result;
-        }
-
-        result.boardAdded = true;
-        result.success = true;
-        result.unitsAdded = 1;
-
-        // The board is in. A failure here costs the stored label, nothing else —
-        // the backend still infers the platform from the board for display.
-        try {
-            const stampResponse = await serverAPI.setServerPlatform(configUuid, platformUuid, { silent: true });
-            result.platformRecorded = !!(stampResponse && stampResponse.success);
-            if (!result.platformRecorded) {
-                result.message = (stampResponse && stampResponse.message) || '';
-            }
-        } catch (error) {
-            result.message = error.message || '';
-        }
-
-        // Everything else the product ships with. Anything unavailable is reported,
-        // never fatal — a platform whose DIMMs are out of stock still gets its board.
-        const bundle = this.getBundle(platformUuid);
-        if (bundle.length && typeof componentInstaller !== 'undefined') {
-            try {
-                const installed = await componentInstaller.install(configUuid, bundle);
-                result.unitsAdded += installed.unitsAdded;
-                result.unitsSkipped = installed.unitsSkipped;
-                result.skipped = installed.skipped;
-            } catch (error) {
-                console.error('PlatformManager: bundle install failed', error);
-                result.skipped = [{
-                    type: 'bundle',
-                    model: 'Platform components',
-                    count: bundle.reduce((sum, item) => sum + (parseInt(item.quantity, 10) || 1), 0),
-                    reason: error.message || 'Bundle install failed'
-                }];
-                result.unitsSkipped = result.skipped[0].count;
-            }
-        }
-
-        return result;
     }
 }
 

@@ -274,7 +274,7 @@ class Dashboard {
     }
 
     updateDashboardStats(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform'];
         components.forEach(component => {
             if (stats[component]) {
                 const stat = stats[component];
@@ -332,7 +332,7 @@ class Dashboard {
     }
 
     updateSidebarCounts(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'servers'];
+        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'serverplatform', 'servers'];
         components.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);
             if (countElement && stats[component]) {
@@ -2321,6 +2321,7 @@ class Dashboard {
             'chassis': '/ims-data/chassis/chasis-level-3.json',
             'caddy': '/ims-data/caddy/caddy_details.json',
             'sfp': '/ims-data/sfp/sfp-level-3.json',
+            'serverplatform': '/ims-data/serverplatform/server-platform-level-3.json',
         };
 
         const typeLower = componentType.toLowerCase();
@@ -2360,6 +2361,9 @@ class Dashboard {
                             ...model,
                             _brand: item.brand || item.manufacturer || '',
                             _series: item.series || '',
+                            // Server platforms put the product name in `family`; every
+                            // other file leaves it undefined and the field is dropped.
+                            _family: item.family || '',
                             _component_subtype: item.component_subtype || '',
                         };
                     }
@@ -2480,6 +2484,14 @@ class Dashboard {
                 ['brand', 'Brand'], ['model', 'Model'], ['type', 'Type'],
                 ['speed', 'Speed'], ['wavelength', 'Wavelength'],
                 ['reach', 'Reach'], ['fiber_type', 'Fiber Type'],
+            ],
+            // A stocked unit is a platform VERSION, so what matters here is which
+            // product it is and what is inside the box.
+            serverplatform: [
+                ['_brand', 'Brand'], ['_family', 'Platform'], ['version_name', 'Version'],
+                ['part_number', 'Part Number'], ['bay_summary', 'Drive Bays'],
+                ['system_board.model', 'System Board'], ['system_board.socket.type', 'Socket'],
+                ['chassis.model', 'Chassis'], ['chassis.form_factor', 'Form Factor'],
             ],
         };
 
@@ -3199,7 +3211,8 @@ class Dashboard {
             'pciecard': 'credit-card',
             'risercard': 'layer-group',
             'hbacard': 'plug',
-            'nic': 'network-wired'
+            'nic': 'network-wired',
+            'serverplatform': 'server'
         };
         return iconMap[componentType] || 'cog';
     }
@@ -3470,7 +3483,8 @@ class Dashboard {
             { key: 'pciecard', label: 'PCIe Cards' },
             { key: 'risercard', label: 'Riser Cards' },
             { key: 'hbacard', label: 'HBA Cards' },
-            { key: 'sfp', label: 'SFP Modules' }
+            { key: 'sfp', label: 'SFP Modules' },
+            { key: 'serverplatform', label: 'Server Compute Platforms' }
         ];
     }
 

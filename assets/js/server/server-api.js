@@ -233,14 +233,38 @@ class ServerAPI {
         }, options);
     }
 
-    // Records the platform on a configuration. The board must already be installed —
-    // the backend refuses a platform that does not own the installed board.
-    async setServerPlatform(configUuid, platformUuid, options = {}) {
+    // Both platform actions pass validateStatus so a 4xx comes back as a RESPONSE BODY
+    // rather than a thrown Error. makeRequest()'s default turns any non-2xx into
+    // `new Error(message)`, which discards `data` — and for these two actions `data` is
+    // the whole point of the refusal: installed_summary is what the confirmation dialog
+    // shows the user. 401 and 5xx still throw, so the token-refresh path is untouched.
+    static get PLATFORM_REQUEST_OPTIONS() {
+        return { validateStatus: status => status < 500 && status !== 401 };
+    }
+
+    // Installs a compute platform VERSION: consumes one stocked box and autofills the
+    // configuration's system board and chassis from the specs it carries.
+    //
+    // Installing over a build that already holds components releases all of them, so the
+    // backend answers 409 error_type='confirm_wipe_required' until confirmWipe is set.
+    // That refusal is the confirmation prompt — it carries installed_summary.
+    async setServerPlatform(configUuid, versionUuid, confirmWipe = false, options = {}) {
         return await this.makeRequest({
             action: 'server-set-platform',
             config_uuid: configUuid,
-            platform_uuid: platformUuid
-        }, options);
+            version_uuid: versionUuid,
+            confirm_wipe: confirmWipe ? 'true' : 'false'
+        }, { ...ServerAPI.PLATFORM_REQUEST_OPTIONS, ...options });
+    }
+
+    // Removes the compute platform and releases the whole build with it. Same 409
+    // confirmation handshake as setServerPlatform.
+    async removeServerPlatform(configUuid, confirmWipe = false, options = {}) {
+        return await this.makeRequest({
+            action: 'server-remove-platform',
+            config_uuid: configUuid,
+            confirm_wipe: confirmWipe ? 'true' : 'false'
+        }, { ...ServerAPI.PLATFORM_REQUEST_OPTIONS, ...options });
     }
 
     // Utility methods

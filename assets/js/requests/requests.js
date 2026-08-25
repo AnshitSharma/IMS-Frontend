@@ -16,9 +16,16 @@ class RequestsManager {
         this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
         this.pipelines = [];
         this.types = [];
+        // The catalogue of actions an approval can perform, served from the
+        // backend's own RequestActionExecutor registry. A request type's ceiling
+        // is resolved against this, so without it no type can offer any action.
+        this.actionTypes = [];
         this.users = [];
         this.roles = [];
         this.componentData = null;
+        // The embedded Add Component form, while an inventory action is being
+        // built. Its collectFormData() becomes the action payload.
+        this.inventoryForm = null;
         // Server list behind the create form's picker (pipeline-servers).
         this.servers = [];
         this.serversTotal = 0;
@@ -38,9 +45,6 @@ class RequestsManager {
         this.currentRoleIds = [];
         this.currentRoleNames = [];
         this.currentDetail = null;
-        // A rolled-back approval, held so the detail view can show it as the
-        // state of the request rather than a toast that vanishes.
-        this.executionError = null;
     }
 
     init() {
@@ -162,6 +166,7 @@ class RequestsManager {
                 this.apiGet('roles-list')
             ]);
             this.types = (t.success && t.data?.templates) ? t.data.templates : [];
+            this.actionTypes = (t.success && t.data?.action_types) ? t.data.action_types : [];
             this.users = (u.success && u.data?.users) ? u.data.users : [];
             this.roles = (r.success && r.data?.roles) ? r.data.roles : [];
 
@@ -241,6 +246,11 @@ class RequestsManager {
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="font-mono text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">#${this.esc(p.ticket_number)}</span>
                             <span class="text-xs text-text-muted">${this.esc(p.pipeline_type || 'Request')}</span>
+                            ${p.last_attempt_failed ? `
+                            <span class="text-[11px] text-danger bg-danger-light border border-danger rounded px-2 py-0.5"
+                                title="The last approval was rolled back. Open the request for the reason.">
+                                <i class="fas fa-rotate-left"></i> Last attempt failed
+                            </span>` : ''}
                         </div>
                         <h3 class="text-base font-semibold text-text-primary mt-1 truncate">${this.esc(p.title)}</h3>
                     </div>
@@ -299,8 +309,13 @@ class RequestsManager {
         const SELECT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
         const CHEVRON = '<i class="fas fa-chevron-down text-xs text-text-muted shrink-0"></i>';
 
+        // Deliberately a <div>, not a <form>: an inventory action mounts the real
+        // Add Component form inside it, and the HTML parser drops a nested <form>
+        // start tag — which would leave add-form.js with no #addComponentForm to
+        // bind to. submitCreate() already validates type and title itself, so
+        // native form validation is not doing any work here.
         body.innerHTML = `
-            <form id="pipelineForm" class="space-y-4">
+            <div id="pipelineForm" class="space-y-4">
                 <!-- The ask. Five questions, four of them answered from a list. -->
                 <div class="rounded-lg border border-border bg-surface-secondary p-3 space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -382,11 +397,11 @@ class RequestsManager {
 
                 <div class="flex justify-end gap-3 pt-3 border-t border-border">
                     <button type="button" id="plCancel" class="px-5 py-2 border border-border rounded-lg hover:bg-surface-hover text-text-primary">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
+                    <button type="button" id="plSubmit" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
                         <i class="fas fa-play"></i> Create request
                     </button>
                 </div>
-            </form>`;
+            </div>`;
 
         document.getElementById('modalContainer').classList.remove('hidden');
         this.titleTouched = false;
@@ -394,6 +409,7 @@ class RequestsManager {
         // this request is building. A type usually allows exactly one.
         this.actionCeiling = [];
         this.actionType = '';
+        this.inventoryForm = null;
 
         this.renderServerPicker();
         this.wirePopoverDismiss();
@@ -417,7 +433,7 @@ class RequestsManager {
         document.getElementById('plAddComponent').addEventListener('click', () => this.addComponentItem());
         document.getElementById('plType').addEventListener('change', (e) => this.previewType(e.target.value));
         document.getElementById('plAction').addEventListener('change', (e) => this.setActionType(e.target.value));
-        document.getElementById('pipelineForm').addEventListener('submit', (e) => { e.preventDefault(); this.submitCreate(); });
+        document.getElementById('plSubmit').addEventListener('click', () => this.submitCreate());
     }
 
     // ----- Popovers ----------------------------------------------------------
@@ -711,10 +727,50 @@ class RequestsManager {
     }
 
     /**
-     * The picker asks a different question depending on whether the chosen type
-     * grants server access, so its label and its "any server" row follow.
+     * Forget which server was picked.
+     *
+     * Not cosmetic: submitCreate() sends target_server_uuid whenever one is
+     * selected, so a choice made under a previous request type would otherwise
+     * ride along and name a server the request has nothing to do with.
+     */
+    clearServerSelection() {
+        document.querySelectorAll('input[name="plServerPick"]:checked')
+            .forEach((input) => { input.checked = false; });
+    }
+
+    /**
+     * The Components list is free-form context for a plain tracking request. An
+     * action carries its own component fields, so showing both would ask the same
+     * question twice, in two places, with only one of them reaching the executor.
+     */
+    setItemsRowVisible(visible) {
+        const row = document.getElementById('plItemsRow');
+        if (row) row.classList.toggle('hidden', !visible);
+
+        if (!visible) {
+            const list = document.getElementById('plComponents');
+            if (list) list.innerHTML = '';
+            this.updateItemsSummary();
+        }
+    }
+
+    /**
+     * The picker asks a different question depending on what the chosen type
+     * does, so its label and its "any server" row follow — and when the answer
+     * would mean nothing it is not asked at all.
+     *
+     * 'action'     — the action names one configuration; required.
+     * 'standalone' — a plain tracking request; optional context.
+     * 'none'       — the action has no server (an inventory record, a brand-new
+     *                build). Asking would invite an answer that is then silently
+     *                dropped, so the row goes away and the selection is cleared.
      */
     setServerPickerMode(mode) {
+        const row = document.getElementById('plServerRow');
+        if (row) row.classList.toggle('hidden', mode === 'none');
+
+        if (mode === 'none') this.clearServerSelection();
+
         const label = document.getElementById('plServerLabel');
         if (label) {
             label.innerHTML = mode === 'action'
@@ -835,6 +891,7 @@ class RequestsManager {
     applyRequestType(type) {
         this.actionCeiling = this.typeActionCeiling(type);
         this.actionType = '';
+        this.inventoryForm = null;
 
         const row = document.getElementById('plActionRow');
         const select = document.getElementById('plAction');
@@ -846,6 +903,7 @@ class RequestsManager {
             select.innerHTML = '';
             fields.innerHTML = '';
             this.setServerPickerMode('standalone');
+            this.setItemsRowVisible(true);
             this.autoTitle();
             return;
         }
@@ -894,12 +952,20 @@ class RequestsManager {
     /** Which action this request is building, and the fields it needs. */
     setActionType(actionType) {
         this.actionType = actionType || '';
+        this.inventoryForm = null;
 
         const hint = document.getElementById('plActionHint');
         const fields = document.getElementById('plActionFields');
         if (!fields) return;
 
         fields.innerHTML = this.actionType ? this.actionFieldsHTML(this.actionType) : '';
+
+        // Adding to inventory needs the real Add Component form — its cascading
+        // dropdowns are what produce a UUID the executor will accept. Mounted
+        // rather than reimplemented, so there is one such form, not two.
+        if (this.actionType === 'inventory.component.add') {
+            this.mountInventoryForm();
+        }
         if (hint) {
             hint.textContent = this.actionType
                 ? 'An admin approves, and the system does this for you. You are not given access to anything.'
@@ -907,9 +973,11 @@ class RequestsManager {
         }
 
         // Server actions name a configuration; the rest do not, so the server
-        // question is asked only where it means something.
+        // question is asked only where it means something — and where it means
+        // nothing it is removed rather than demoted to optional.
         const needsServer = this.actionNeedsServer(this.actionType);
-        this.setServerPickerMode(needsServer ? 'action' : 'standalone');
+        this.setServerPickerMode(needsServer ? 'action' : 'none');
+        this.setItemsRowVisible(false);
 
         fields.querySelectorAll('[data-action-field]').forEach((el) => {
             el.addEventListener('change', () => {
@@ -921,6 +989,67 @@ class RequestsManager {
 
         this.fillActionModels();
         this.autoTitle();
+    }
+
+    /**
+     * Mount the real Add Component form for an inventory action.
+     *
+     * The fragment and its script are the same pair the dashboard's Add
+     * Component modal loads (see dashboard.showAddForm()), initialised with no
+     * preselected type so its own component-type dropdown stays in play. It runs
+     * embedded: this modal owns submission, and collectAction() harvests the
+     * fields through the form's own collectFormData().
+     *
+     * Mounted rather than reimplemented because the cascading dropdowns are what
+     * produce a UUID that exists in ims-data — a hand-typed one is rejected.
+     */
+    async mountInventoryForm() {
+        if (!document.getElementById('plInventoryMount')) return;
+
+        try {
+            const response = await fetch('../../pages/forms/add-component.html');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = await response.text();
+
+            // The requester may have moved to another type while this was in
+            // flight; mounting now would leave a form nothing reads.
+            if (this.actionType !== 'inventory.component.add') return;
+            const mount = document.getElementById('plInventoryMount');
+            if (!mount) return;
+            mount.innerHTML = html;
+
+            await this.loadAddFormScript();
+            if (this.actionType !== 'inventory.component.add') return;
+            if (typeof initializeAddComponentForm !== 'function') {
+                throw new Error('initializeAddComponentForm is unavailable');
+            }
+
+            this.inventoryForm = initializeAddComponentForm(null, { embedded: true });
+
+            // The composed title names the component type, so it has to hear
+            // about it — the form's own fields are outside autoTitle()'s reach.
+            const typeSelect = document.getElementById('componentType');
+            if (typeSelect) typeSelect.addEventListener('change', () => this.autoTitle());
+        } catch (e) {
+            const mount = document.getElementById('plInventoryMount');
+            if (mount) {
+                mount.innerHTML = `<p class="text-xs text-danger">Could not load the component form. Close this and reopen the request to try again.</p>`;
+            }
+        }
+    }
+
+    /** Load add-form.js once, the same way the dashboard's Add modal does. */
+    loadAddFormScript() {
+        const src = '../../assets/js/forms/add-form.js';
+        if (document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load add-form.js'));
+            document.body.appendChild(script);
+        });
     }
 
     /** Does this action operate on an existing server configuration? */
@@ -937,11 +1066,14 @@ class RequestsManager {
     /**
      * The parameters for one action.
      *
-     * Inventory actions are deliberately absent: adding or correcting an
-     * inventory record needs the real Add / Edit Component form, whose four-level
-     * dropdowns know each component type's own shape. Those screens raise the
-     * request themselves when the user cannot write directly, so duplicating a
-     * cut-down copy of them here would be a second, worse form for the same job.
+     * Adding to inventory needs the real Add Component form, whose four-level
+     * dropdowns know each component type's own shape — so that form is mounted
+     * here rather than reimplemented, and this returns only its mount point.
+     * A cut-down copy would be a second, worse form for the same job.
+     *
+     * Correcting a record still starts from the record: Update Inventory Record
+     * points at the Edit Component screen, which already knows which row it is
+     * on and raises the request itself when the user cannot write directly.
      */
     actionFieldsHTML(actionType) {
         const INPUT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
@@ -1070,14 +1202,17 @@ class RequestsManager {
                     </div>`;
 
             case 'inventory.component.add':
+                // The real Add Component form is mounted here by
+                // mountInventoryForm() once its fragment has been fetched.
+                return `<div id="plInventoryMount"><p class="text-xs text-text-muted">Loading the component form...</p></div>`;
+
             case 'inventory.component.edit':
                 return `
                     <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
                         <i class="fas fa-arrow-right-from-bracket mr-1.5 text-text-muted"></i>
-                        Raise this from the <span class="font-medium text-text-primary">Add Component</span> or
-                        <span class="font-medium text-text-primary">Edit Component</span> screen instead — that form
-                        knows each component type's own fields. If you cannot add or edit directly, it submits the
-                        request for you.
+                        Raise this from the <span class="font-medium text-text-primary">Edit Component</span> screen
+                        instead — correcting a record starts from the record itself, and that form is already sitting
+                        on it. If you cannot edit directly, it submits the request for you.
                     </div>`;
         }
         return '';
@@ -1135,6 +1270,24 @@ class RequestsManager {
     collectAction() {
         if (!this.actionType) return null;
 
+        // The embedded Add Component form holds its own fields, so it reports
+        // them itself — the same payload a direct add would have sent, which is
+        // what makes one validation path serve both routes.
+        if (this.actionType === 'inventory.component.add') {
+            if (!this.inventoryForm || !this.inventoryForm.currentComponentType) return null;
+
+            const data = Object.assign({}, this.inventoryForm.collectFormData());
+            delete data.action;   // the request names the action; the payload is fields only
+
+            return {
+                action_type: this.actionType,
+                payload: {
+                    component_type: this.inventoryForm.currentComponentType,
+                    data: data
+                }
+            };
+        }
+
         const fields = document.getElementById('plActionFields');
         const payload = {};
         if (fields) {
@@ -1176,8 +1329,20 @@ class RequestsManager {
         if (!this.actionCeiling.length) return [];
         if (!this.actionType) return ['Choose what should happen'];
 
-        if (this.actionType.startsWith('inventory.')) {
-            return ['Raise this from the Add or Edit Component screen instead'];
+        // The embedded form already knows which of its fields are required for
+        // the chosen component type, and says which one is missing.
+        if (this.actionType === 'inventory.component.add') {
+            if (!this.inventoryForm || !this.inventoryForm.currentComponentType) {
+                return ['Choose a component type and fill in its details'];
+            }
+            // validateForm() focuses the offending field and names it in a toast
+            // of its own, so the blocker is reported — an empty string here says
+            // "stop, already explained" without stacking a second, vaguer toast.
+            return this.inventoryForm.validateForm() ? [] : [''];
+        }
+
+        if (this.actionType === 'inventory.component.edit') {
+            return ['Raise this from the Edit Component screen instead'];
         }
 
         const action = this.collectAction();
@@ -1261,7 +1426,12 @@ class RequestsManager {
         // saying so here means the requester fixes it while still looking at the
         // field rather than after a round trip.
         const problems = this.actionProblems();
-        if (problems.length) return this.toast(problems[0], 'error');
+        if (problems.length) {
+            // An empty message means the field's own form already said what is
+            // wrong and put the cursor in it.
+            if (problems[0]) this.toast(problems[0], 'error');
+            return;
+        }
 
         const fields = { pipeline_template_id, title, description, priority, items: JSON.stringify(items) };
         if (target_server_uuid) fields.target_server_uuid = target_server_uuid;
@@ -1289,8 +1459,6 @@ class RequestsManager {
         try {
             const result = await this.apiPost('pipeline-get', { pipeline_id: id });
             if (!result.success) return this.toast(result.message || 'Failed to load request', 'error');
-            // A failure banner belongs to the request that produced it.
-            this.executionError = null;
             this.currentDetail = result.data.pipeline;
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
@@ -1445,6 +1613,7 @@ class RequestsManager {
                         <div class="text-xs text-text-muted mt-0.5">
                             <code class="font-mono">${this.esc(a.action_type)}</code>
                         </div>
+                        ${this.renderActionPayload(a)}
                         ${this.renderActionResult(a)}
                     </div>
                 </li>`;
@@ -1462,6 +1631,46 @@ class RequestsManager {
                 </div>
                 <ul class="space-y-1.5">${rows}</ul>
             </div>`;
+    }
+
+    /**
+     * What the requester actually entered, where the one-line summary cannot
+     * carry it. "Add a cpu to inventory" is not something an approver can judge:
+     * deciding whether a component belongs in inventory means seeing the
+     * component. The model name arrives inside Notes, put there by the Add
+     * Component form's own buildNotesWithSpecification().
+     */
+    renderActionPayload(a) {
+        if (a.action_type !== 'inventory.component.add') return '';
+
+        const data = (a.payload && a.payload.data) || {};
+        const LABELS = {
+            UUID: 'Component UUID',
+            SerialNumber: 'Serial number',
+            Status: 'Status',
+            Location: 'Location',
+            RackPosition: 'Rack position',
+            PurchaseDate: 'Purchased',
+            InstallationDate: 'Installed',
+            WarrantyEndDate: 'Warranty ends',
+            FailDate: 'Failed on',
+            Flag: 'Flag',
+            Notes: 'Notes'
+        };
+        const STATUS = { '0': 'Failed', '1': 'Available', '2': 'In use' };
+
+        const rows = Object.keys(LABELS)
+            .filter((k) => data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== '')
+            .map((k) => {
+                const value = k === 'Status' ? (STATUS[String(data[k])] || data[k]) : data[k];
+                return `<div class="text-xs">
+                    <span class="text-text-muted">${this.esc(LABELS[k])}:</span>
+                    <span class="text-text-secondary">${this.esc(String(value))}</span>
+                </div>`;
+            }).join('');
+
+        if (!rows) return '';
+        return `<div class="mt-1.5 space-y-0.5">${rows}</div>`;
     }
 
     /** An action's outcome: what it created, or why it refused. */
@@ -1497,6 +1706,37 @@ class RequestsManager {
     }
 
     /**
+     * The most recent execution attempt, but only when it FAILED.
+     *
+     * History arrives newest-first, so the first execution event encountered is
+     * the current one. If that is `actions_executed` the request has since been
+     * performed successfully and any earlier failure no longer describes it —
+     * return nothing rather than leaving a red banner over a request that
+     * worked. This replaces the old "clear the field on success" bookkeeping,
+     * which could only ever be right within one page view.
+     */
+    latestExecutionFailure() {
+        const history = (this.currentDetail && this.currentDetail.history) || [];
+
+        for (const entry of history) {
+            if (entry.action === 'actions_executed') return null;
+            if (entry.action !== 'execution_failed') continue;
+
+            let detail = {};
+            try {
+                detail = JSON.parse(entry.new_value || '{}') || {};
+            } catch (e) {
+                detail = {};
+            }
+            // notes is the fallback: a row written before new_value carried
+            // structure, or one whose JSON did not survive the round trip.
+            if (!detail.message) detail.message = entry.notes || '';
+            return detail;
+        }
+        return null;
+    }
+
+    /**
      * A rolled-back approval, shown as the state of the request rather than a
      * toast that vanishes in four seconds.
      *
@@ -1504,9 +1744,16 @@ class RequestsManager {
      * active, the request is still open, and nothing was changed. The approver
      * needs to see WHY, and that retrying is the expected next move — so this is
      * a persistent banner and the Approve button stays enabled.
+     *
+     * Read from the request's HISTORY, not from the approve response. The
+     * response is seen once, by one person: the approver lost it on reload and
+     * the requester never saw it at all, leaving them watching a request that
+     * had been tried, had failed, and looked untouched. The backend writes the
+     * attempt after the rollback (PipelineManager::recordExecutionFailure), so
+     * the same banner now serves both of them, permanently.
      */
     executionFailureBanner() {
-        const failure = this.executionError;
+        const failure = this.latestExecutionFailure();
         if (!failure) return '';
 
         const where = failure.position
@@ -1776,7 +2023,11 @@ class RequestsManager {
                 // whole. A toast is gone in four seconds and the old code also
                 // returned without re-rendering, leaving a stale screen behind.
                 if (result.data?.execution) {
-                    this.executionError = result.data.execution;
+                    // The banner is rendered from the request's own history,
+                    // which the backend wrote after the rollback and before
+                    // building this response — so re-rendering the returned
+                    // pipeline is all it takes, and the same banner is still
+                    // there on reload and in the requester's own view.
                     if (result.data.pipeline) {
                         this.currentDetail = result.data.pipeline;
                         this.renderDetail(this.currentDetail);
@@ -1788,9 +2039,6 @@ class RequestsManager {
                 return this.toast(msg, 'error');
             }
 
-            // A successful action clears any previous failure banner: whatever
-            // it was complaining about no longer describes this request.
-            this.executionError = null;
             this.toast(successMsg || result.message || 'Done', 'success');
             if (result.data?.pipeline) {
                 this.currentDetail = result.data.pipeline;
@@ -1823,6 +2071,28 @@ class RequestsManager {
             hbacard: '/ims-data/hbacard/hbacard-level-3.json',
             sfp: '/ims-data/sfp/sfp-level-3.json'
         };
+    }
+
+    /**
+     * A component type as a person says it. The wording matches the Add
+     * Component form's own type dropdown, so the same hardware is not called two
+     * different things on two screens.
+     */
+    componentTypeLabel(type) {
+        const LABELS = {
+            cpu: 'CPU',
+            motherboard: 'Motherboard',
+            ram: 'RAM',
+            storage: 'Storage',
+            nic: 'Network Card',
+            hbacard: 'HBA Card',
+            pciecard: 'PCIe Card',
+            risercard: 'Riser Card',
+            chassis: 'Chassis',
+            caddy: 'Drive Caddy',
+            sfp: 'SFP Transceiver'
+        };
+        return LABELS[type] || String(type || '').toUpperCase();
     }
 
     async loadComponentData() {

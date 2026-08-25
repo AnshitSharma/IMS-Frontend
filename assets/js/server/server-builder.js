@@ -52,7 +52,7 @@ class ServerBuilder {
 
         // Server compute platform picker state (modal-scoped)
         this.selectedPlatformUuid = null;
-        this.selectedBoardUuid = null;
+        this.selectedVersionUuid = null;
         this.platformCatalog = null; // what the search filters over
 
         // UI state that must survive re-renders (collapsible sections, popover wiring)
@@ -572,34 +572,47 @@ class ServerBuilder {
     // ---------------------------------------------------------------------
 
     /**
-     * The button, or — once a board is installed — the badge naming the platform.
-     * A build's platform follows its system board, so it can only be chosen while
-     * no board is installed, and changing it means removing the board first.
+     * The compute platform control above the build.
+     *
+     * A platform is a physical box. Once one is installed, the board and chassis in this
+     * build came out of it and cannot be changed on their own — so the only two things
+     * offered here are changing the whole platform and removing it, and both say plainly
+     * that they release the build.
      */
     renderPlatformButton() {
         const platformName = this.currentConfig?.platform_name;
+        const hasPlatform = !!this.currentConfig?.platform_version_uuid;
 
-        if (this.buildState.hasMotherboard()) {
-            const label = platformName || 'Custom build';
-            const title = platformName
-                ? 'Remove the system board to change platform'
-                : 'This build\'s system board does not belong to a known platform';
-
+        if (hasPlatform) {
             return `
-                <div class="flex justify-end mb-4">
-                    <span class="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/10 text-primary rounded text-sm font-medium" title="${this.escapeHtml(title)}">
+                <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
+                    <span class="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/10 text-primary rounded text-sm font-medium">
                         <i class="fas fa-server"></i>
-                        ${this.escapeHtml(label)}
+                        ${this.escapeHtml(platformName || 'Compute platform')}
                     </span>
+                    <button class="inline-flex items-center gap-2 px-3 py-2 bg-surface-card border border-border text-text-secondary rounded text-sm font-medium hover:text-primary hover:border-primary/50 transition-colors duration-150"
+                            onclick="window.serverBuilder.openPlatformModal()"
+                            title="Install a different platform. This releases everything in this build.">
+                        <i class="fas fa-exchange-alt"></i>
+                        Change
+                    </button>
+                    <button class="inline-flex items-center gap-2 px-3 py-2 bg-surface-card border border-border text-text-secondary rounded text-sm font-medium hover:text-danger hover:border-danger/50 transition-colors duration-150"
+                            onclick="window.serverBuilder.removePlatform()"
+                            title="Remove the platform. This releases everything in this build.">
+                        <i class="fas fa-times"></i>
+                        Remove
+                    </button>
                 </div>
             `;
         }
 
+        // No platform: a custom build, assembled from loose inventory. Still a supported
+        // way to build, so this is an offer, not a demand.
         return `
             <div class="flex justify-end mb-4">
                 <button class="inline-flex items-center gap-2 px-4 py-2 bg-surface-card border border-border text-text-secondary rounded text-sm font-medium hover:text-primary hover:border-primary/50 transition-colors duration-150" onclick="window.serverBuilder.openPlatformModal()">
                     <i class="fas fa-server"></i>
-                    Select Server Platform
+                    Select Server Compute Platform
                 </button>
             </div>
         `;
@@ -621,7 +634,7 @@ class ServerBuilder {
         }
 
         this.selectedPlatformUuid = null;
-        this.selectedBoardUuid = null;
+        this.selectedVersionUuid = null;
 
         modalTitle.innerHTML = `<i class="fas fa-server text-primary me-2"></i> Select Server Compute Platform`;
         modalBody.innerHTML = this.renderPlatformModalContent();
@@ -637,7 +650,9 @@ class ServerBuilder {
             newClose.onclick = () => this.closePlatformModal();
         }
 
-        this.loadPlatforms();
+        // Stock moves whenever anyone installs a platform, and a count that is one unit
+        // stale is the difference between a version that installs and one that 409s.
+        this.loadPlatforms(true);
     }
 
     /**
@@ -645,12 +660,12 @@ class ServerBuilder {
      *
      * The height is fixed rather than driven by content. #modalBody is itself a
      * scroll container (max-h-[calc(90vh-120px)]), so content taller than that scrolls
-     * the dialog as a single page — which drags the board pane and the confirm button
+     * the dialog as a single page — which drags the version pane and the confirm button
      * out of view while the user is still reading the platform list. Bounding the
      * height here keeps each pane scrolling on its own and the footer always on screen.
      *
      * Below `md` there is no room for two panes side by side, so the same markup
-     * becomes a drill-down: platforms, then that platform's boards with a way back.
+     * becomes a drill-down: platforms, then that platform's versions with a way back.
      */
     renderPlatformModalContent() {
         return `
@@ -671,13 +686,13 @@ class ServerBuilder {
                         <div class="flex-1 overflow-y-auto p-2" id="platformList"></div>
                     </div>
 
-                    <!-- System boards of the selected platform -->
-                    <div class="hidden md:flex flex-col w-full md:w-[62%] min-h-0" id="platformBoardPane">
-                        <div class="flex-shrink-0" id="platformBoardHeader"></div>
-                        <div class="flex-1 overflow-y-auto p-4" id="platformBoards">
+                    <!-- Versions of the selected platform -->
+                    <div class="hidden md:flex flex-col w-full md:w-[62%] min-h-0" id="platformVersionPane">
+                        <div class="flex-shrink-0" id="platformVersionHeader"></div>
+                        <div class="flex-1 overflow-y-auto p-4" id="platformVersions">
                             <div class="h-full flex flex-col items-center justify-center text-center text-text-secondary">
                                 <i class="fas fa-server text-3xl mb-3 opacity-30"></i>
-                                <p class="text-sm">Select a platform to see its system boards</p>
+                                <p class="text-sm">Select a platform to see its versions</p>
                             </div>
                         </div>
                     </div>
@@ -685,7 +700,7 @@ class ServerBuilder {
 
                 <!-- Footer: always visible, so a selection never needs scrolling to confirm -->
                 <div class="flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 mt-4 border-t border-border-light">
-                    <p class="text-sm text-text-secondary truncate" id="platformSelectionSummary">No system board selected</p>
+                    <p class="text-sm text-text-secondary truncate" id="platformSelectionSummary">No version selected</p>
                     <div class="flex items-center justify-end gap-2 flex-shrink-0">
                         <button type="button"
                                 class="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-hover rounded-lg border border-transparent transition-colors"
@@ -713,17 +728,17 @@ class ServerBuilder {
      */
     setPlatformPaneView(view) {
         const listPane = document.getElementById('platformListPane');
-        const boardPane = document.getElementById('platformBoardPane');
-        if (!listPane || !boardPane) return;
+        const versionPane = document.getElementById('platformVersionPane');
+        if (!listPane || !versionPane) return;
 
         const showList = view === 'list';
         listPane.classList.toggle('hidden', !showList);
         listPane.classList.toggle('flex', showList);
-        boardPane.classList.toggle('hidden', showList);
-        boardPane.classList.toggle('flex', !showList);
+        versionPane.classList.toggle('hidden', showList);
+        versionPane.classList.toggle('flex', !showList);
     }
 
-    /** Back out of a platform's boards on narrow screens. */
+    /** Back out of a platform's versions on narrow screens. */
     backToPlatformList() {
         this.setPlatformPaneView('list');
     }
@@ -731,7 +746,7 @@ class ServerBuilder {
     /**
      * Load the platform catalog via PlatformManager
      */
-    async loadPlatforms() {
+    async loadPlatforms(forceReload = false) {
         const listContainer = document.getElementById('platformList');
 
         if (typeof platformManager === 'undefined') {
@@ -747,7 +762,7 @@ class ServerBuilder {
         `;
 
         try {
-            this.platformCatalog = await platformManager.getPlatforms();
+            this.platformCatalog = await platformManager.getPlatforms(forceReload);
             this.renderPlatformList(this.platformCatalog);
         } catch (error) {
             console.error('Builder: Error loading platforms', error);
@@ -756,8 +771,9 @@ class ServerBuilder {
     }
 
     /**
-     * Narrow the list by brand, platform or board model. Twenty-odd platforms is more
-     * than fits a pane, and scrolling for one you can already name is the slow way round.
+     * Narrow the list by brand, platform, version name, part number or bay layout.
+     * Twenty-odd platforms is more than fits a pane, and scrolling for one you can
+     * already name is the slow way round.
      */
     filterPlatforms(term) {
         const needle = (term || '').trim().toLowerCase();
@@ -769,12 +785,21 @@ class ServerBuilder {
         }
 
         const matches = catalog.filter(platform => {
+            const versionText = (platform.versions || []).flatMap(version => [
+                version.version_name,
+                version.model,
+                version.part_number,
+                version.bay_summary,
+                version.board && version.board.model,
+                version.chassis && version.chassis.model
+            ]);
+
             const haystack = [
                 platform.brand,
                 platform.platform,
                 platform.family,
                 platform.form_factor,
-                ...(platform.system_boards || []).map(board => board.model)
+                ...versionText
             ].filter(Boolean).join(' ').toLowerCase();
 
             return haystack.includes(needle);
@@ -821,8 +846,10 @@ class ServerBuilder {
                             <i class="fas fa-chevron-right text-[10px] text-text-muted md:hidden"></i>
                         </div>
                         <div class="text-xs text-text-secondary mt-0.5">
-                            ${platform.board_count} board${platform.board_count === 1 ? '' : 's'}
-                            · ${platform.available_units > 0 ? `${platform.available_units} in stock` : 'no stock'}
+                            ${platform.version_count
+                                ? `${platform.version_count} version${platform.version_count === 1 ? '' : 's'}
+                                   · ${platform.available_units > 0 ? `${platform.available_units} in stock` : 'no stock'}`
+                                : 'No versions defined'}
                         </div>
                     </button>
                 `).join('')}
@@ -831,7 +858,7 @@ class ServerBuilder {
     }
 
     /**
-     * Select a platform and list its system boards
+     * Select a platform and list its versions
      */
     selectPlatform(platformUuid) {
         // bg-primary/5, not the bg-surface-selected the template picker reaches for:
@@ -842,42 +869,38 @@ class ServerBuilder {
         if (selectedEl) selectedEl.classList.add('bg-primary/5', 'border-primary/20');
 
         this.selectedPlatformUuid = platformUuid;
-        this.selectedBoardUuid = null;
+        this.selectedVersionUuid = null;
 
         const applyBtn = document.getElementById('applyPlatformBtn');
         if (applyBtn) applyBtn.disabled = true;
         this.updatePlatformSummary();
-        this.setPlatformPaneView('boards');
+        this.setPlatformPaneView('versions');
 
         const platform = platformManager.getPlatform(platformUuid);
         if (!platform) {
-            document.getElementById('platformBoardHeader').innerHTML = '';
-            document.getElementById('platformBoards').innerHTML =
+            document.getElementById('platformVersionHeader').innerHTML = '';
+            document.getElementById('platformVersions').innerHTML =
                 '<p class="text-danger">Platform details unavailable</p>';
             return;
         }
 
-        this.renderBoardList(platform);
+        this.renderVersionList(platform);
     }
 
     /**
-     * The chosen platform's system boards.
+     * The chosen platform's versions.
      *
-     * Out-of-stock boards and boards whose spec is missing stay visible but
-     * unselectable — a board that silently disappears reads as "this platform has
-     * fewer boards", which is a different and wrong statement.
+     * A version out of stock stays visible but unselectable, carrying the reason the
+     * backend gave. A version that silently disappeared would read as "this platform has
+     * fewer versions", which is a different and wrong statement.
      */
-    renderBoardList(platform) {
-        const header = document.getElementById('platformBoardHeader');
-        const container = document.getElementById('platformBoards');
-        const boards = platform.system_boards || [];
-        const bundle = platform.default_components || [];
-        const bundleLine = (typeof ComponentInstaller !== 'undefined')
-            ? ComponentInstaller.summarize(bundle)
-            : '';
+    renderVersionList(platform) {
+        const header = document.getElementById('platformVersionHeader');
+        const container = document.getElementById('platformVersions');
+        const versions = platform.versions || [];
 
         // The header sits outside the scroll area: which platform you are looking at
-        // stays put while its boards scroll.
+        // stays put while its versions scroll.
         if (header) {
             header.innerHTML = `
                 <div class="px-4 py-3 border-b border-border-light">
@@ -889,42 +912,55 @@ class ServerBuilder {
                     </button>
                     <h4 class="text-base font-semibold text-text-primary truncate">${this.escapeHtml(platform.brand)} ${this.escapeHtml(platform.platform)}</h4>
                     <p class="text-xs text-text-secondary mt-0.5">
-                        ${platform.form_factor ? `${this.escapeHtml(platform.form_factor)} · ` : ''}${boards.length} system board${boards.length === 1 ? '' : 's'}
+                        ${platform.form_factor ? `${this.escapeHtml(platform.form_factor)} · ` : ''}${versions.length} version${versions.length === 1 ? '' : 's'}
                     </p>
-                    ${bundleLine ? `<p class="text-xs text-text-secondary mt-1">Ships with ${this.escapeHtml(bundleLine)}</p>` : ''}
                 </div>
             `;
         }
 
-        const boardHtml = boards.map(board => {
-            const specs = board.specs || {};
-            const selectable = board.spec_exists && board.available_units > 0;
+        if (!versions.length) {
+            container.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center text-center text-text-secondary px-6">
+                    <i class="fas fa-box-open text-3xl mb-3 opacity-30"></i>
+                    <p class="text-sm">No versions defined for this platform yet.</p>
+                    <p class="text-xs mt-2 text-text-muted">A version needs its system board and chassis described in the platform catalog before it can be stocked or installed.</p>
+                </div>
+            `;
+            return;
+        }
 
-            let status;
-            if (!board.spec_exists) {
-                status = '<span class="text-danger">Specification missing</span>';
-            } else if (board.available_units > 0) {
-                status = `<span class="text-primary">${board.available_units} in stock</span>`;
-            } else {
-                status = '<span class="text-text-muted">Out of stock</span>';
-            }
+        const versionHtml = versions.map(version => {
+            const board = version.board || {};
+            const chassis = version.chassis || {};
+            const selectable = version.selectable;
 
-            const specLine = [
-                specs.socket_type ? `${this.escapeHtml(specs.socket_type)} ×${specs.socket_count || 1}` : '',
-                specs.memory_type && specs.memory_slots ? `${this.escapeHtml(specs.memory_type)} ${specs.memory_slots} slots` : '',
-                specs.chipset ? this.escapeHtml(specs.chipset) : ''
+            const status = selectable
+                ? `<span class="text-primary">${version.available_units} in stock</span>`
+                : `<span class="text-text-muted">${this.escapeHtml(version.unavailable_reason || 'Unavailable')}</span>`;
+
+            const boardLine = [
+                board.model ? this.escapeHtml(board.model) : '',
+                board.socket_type ? `${this.escapeHtml(board.socket_type)} ×${board.socket_count || 1}` : '',
+                board.memory_type && board.memory_slots ? `${this.escapeHtml(board.memory_type)} ${board.memory_slots} slots` : ''
+            ].filter(Boolean).join(' · ');
+
+            const chassisLine = [
+                chassis.model ? this.escapeHtml(chassis.model) : '',
+                version.bay_summary ? `${this.escapeHtml(version.bay_summary)} bays` : ''
             ].filter(Boolean).join(' · ');
 
             return `
                 <button type="button"
-                        class="board-item w-full text-left p-3 rounded-lg mb-2 border border-border-light bg-surface-card ${selectable ? 'hover:border-primary/50 transition-colors' : 'opacity-60 cursor-not-allowed'}"
-                        ${selectable ? `onclick="window.serverBuilder.selectBoard(${this.jsArg(board.uuid)})"` : 'disabled'}
-                        data-board="${this.escapeHtml(board.uuid)}">
+                        class="version-item w-full text-left p-3 rounded-lg mb-2 border border-border-light bg-surface-card ${selectable ? 'hover:border-primary/50 transition-colors' : 'opacity-60 cursor-not-allowed'}"
+                        ${selectable ? `onclick="window.serverBuilder.selectVersion(${this.jsArg(version.version_uuid)})"` : 'disabled'}
+                        data-version="${this.escapeHtml(version.version_uuid || '')}">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
-                            <div class="text-sm font-medium text-text-primary">${this.escapeHtml(board.model)}</div>
-                            ${board.part_number ? `<div class="text-xs text-text-secondary mt-0.5">P/N ${this.escapeHtml(board.part_number)}</div>` : ''}
-                            ${specLine ? `<div class="text-xs text-text-secondary mt-1">${specLine}</div>` : ''}
+                            <div class="text-sm font-medium text-text-primary">${this.escapeHtml(version.version_name || version.model || 'Version')}</div>
+                            ${version.part_number ? `<div class="text-xs text-text-secondary mt-0.5">P/N ${this.escapeHtml(version.part_number)}</div>` : ''}
+                            ${boardLine ? `<div class="text-xs text-text-secondary mt-1"><i class="fas fa-microchip me-1 opacity-50"></i>${boardLine}</div>` : ''}
+                            ${chassisLine ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-server me-1 opacity-50"></i>${chassisLine}</div>` : ''}
+                            ${version.included_nic ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-network-wired me-1 opacity-50"></i>${this.escapeHtml(version.included_nic.model || 'Included network card')}</div>` : ''}
                         </div>
                         <div class="text-xs whitespace-nowrap">${status}</div>
                     </div>
@@ -933,25 +969,23 @@ class ServerBuilder {
         }).join('');
 
         container.innerHTML = `
-            ${boardHtml || '<p class="text-sm text-text-muted italic">No system boards defined for this platform.</p>'}
+            ${versionHtml}
             <p class="text-xs text-text-secondary mt-3">
                 <i class="fas fa-info-circle me-1"></i>
-                ${bundle.length
-                    ? 'Choosing a board installs it together with everything this platform ships with, from available inventory. Anything out of stock is skipped and listed afterwards.'
-                    : 'Choosing a board installs it from available inventory and records the platform on this build.'}
+                Installing a platform takes one unit from stock and fits its system board and chassis into this build. Both are then part of the platform and can only be changed by changing the platform.
             </p>
         `;
     }
 
     /**
-     * Select a system board
+     * Select a version
      */
-    selectBoard(boardUuid) {
-        document.querySelectorAll('.board-item').forEach(el => el.classList.remove('bg-primary/5', 'border-primary/20'));
-        const selectedEl = document.querySelector(`.board-item[data-board="${boardUuid}"]`);
+    selectVersion(versionUuid) {
+        document.querySelectorAll('.version-item').forEach(el => el.classList.remove('bg-primary/5', 'border-primary/20'));
+        const selectedEl = document.querySelector(`.version-item[data-version="${versionUuid}"]`);
         if (selectedEl) selectedEl.classList.add('bg-primary/5', 'border-primary/20');
 
-        this.selectedBoardUuid = boardUuid;
+        this.selectedVersionUuid = versionUuid;
         this.updatePlatformSummary();
 
         const applyBtn = document.getElementById('applyPlatformBtn');
@@ -969,73 +1003,124 @@ class ServerBuilder {
         const platform = this.selectedPlatformUuid ? platformManager.getPlatform(this.selectedPlatformUuid) : null;
 
         if (!platform) {
-            summary.textContent = 'No system board selected';
+            summary.textContent = 'No version selected';
             return;
         }
 
-        const board = (platform.system_boards || []).find(b => b.uuid === this.selectedBoardUuid);
+        const found = this.selectedVersionUuid ? platformManager.getVersion(this.selectedVersionUuid) : null;
 
-        summary.textContent = board
-            ? `${platform.brand} ${platform.platform} — ${board.model}`
-            : `${platform.brand} ${platform.platform} — choose a system board`;
+        summary.textContent = found
+            ? `${platform.brand} ${platform.platform} — ${found.version.version_name || found.version.model}`
+            : `${platform.brand} ${platform.platform} — choose a version`;
     }
 
     /**
-     * Install the selected board and record the platform
+     * Install the selected version.
+     *
+     * The backend refuses with 409 `confirm_wipe_required` when the build already holds
+     * components, naming them. That refusal is the confirmation prompt: the frontend
+     * never decides on its own that releasing someone's parts is fine.
      */
     async confirmPlatformSelection() {
-        if (!this.selectedPlatformUuid || !this.selectedBoardUuid) return;
+        if (!this.selectedVersionUuid) return;
 
         this.setPlatformBusy(true);
 
         try {
-            const result = await platformManager.applyPlatform(
+            let result = await platformManager.installPlatform(
                 this.currentConfig.config_uuid,
-                this.selectedPlatformUuid,
-                this.selectedBoardUuid
+                this.selectedVersionUuid,
+                false
             );
+
+            if (result.needsConfirmation) {
+                const agreed = confirm(
+                    `${result.message}\n\n` +
+                    `Currently installed: ${result.installedSummary}\n\n` +
+                    `These will be released back to available inventory. Continue?`
+                );
+
+                if (!agreed) {
+                    this.setPlatformBusy(false);
+                    return;
+                }
+
+                result = await platformManager.installPlatform(
+                    this.currentConfig.config_uuid,
+                    this.selectedVersionUuid,
+                    true
+                );
+            }
 
             if (result.success) {
                 this.closePlatformModal();
                 await this.loadExistingConfig(this.currentConfig.config_uuid);
 
-                const platform = platformManager.getPlatform(this.selectedPlatformUuid);
-                const platformLabel = platform ? `${platform.brand} ${platform.platform}` : 'platform';
-                const units = result.unitsAdded || 1;
+                const released = result.data.components_released || 0;
                 this.showAlert(
-                    `${platformLabel} installed — ${units} component${units === 1 ? '' : 's'} added.`,
+                    released > 0
+                        ? `${result.message}. ${released} component${released === 1 ? '' : 's'} released back to inventory.`
+                        : result.message,
                     'success'
                 );
-
-                // What did not fit is named, not swallowed. The alert carries the
-                // count; the console carries every reason.
-                if (result.unitsSkipped > 0) {
-                    console.table(result.skipped);
-                    setTimeout(() => {
-                        this.showAlert(
-                            `${result.unitsSkipped} component${result.unitsSkipped === 1 ? '' : 's'} could not be installed ` +
-                            `(${result.skipped[0].reason}). Open the browser console (F12) for the full list.`,
-                            'warning'
-                        );
-                    }, 500);
-                }
-
-                // The board is in either way; only the stored label is missing, and
-                // the backend still infers the platform from the board for display.
-                if (!result.platformRecorded) {
-                    setTimeout(() => {
-                        this.showAlert('The platform label could not be saved, but the system board was installed.', 'warning');
-                    }, result.unitsSkipped > 0 ? 1000 : 500);
-                }
             } else {
-                this.showAlert(result.message || 'Failed to install the system board', 'danger');
+                this.showAlert(result.message, 'danger');
             }
         } catch (error) {
             console.error('Platform selection error:', error);
-            this.showAlert(error.message || 'An unexpected error occurred while applying the platform.', 'danger');
+            this.showAlert(error.message || 'An unexpected error occurred while installing the platform.', 'danger');
         } finally {
             this.setPlatformBusy(false);
         }
+    }
+
+    /**
+     * Remove the compute platform, releasing the whole build with it. Same 409
+     * confirmation handshake as installing one.
+     */
+    async removePlatform() {
+        try {
+            this.showLoading('Removing compute platform...');
+
+            let result = await platformManager.removePlatform(this.currentConfig.config_uuid, false);
+
+            if (result.needsConfirmation) {
+                this.hideLoading();
+
+                const agreed = confirm(
+                    `${result.message}\n\n` +
+                    `Currently installed: ${result.installedSummary}\n\n` +
+                    `These will be released back to available inventory. Continue?`
+                );
+
+                if (!agreed) return;
+
+                this.showLoading('Removing compute platform...');
+                result = await platformManager.removePlatform(this.currentConfig.config_uuid, true);
+            }
+
+            if (result.success) {
+                await this.loadExistingConfig(this.currentConfig.config_uuid);
+                this.showAlert(result.message, 'success');
+            } else {
+                this.showAlert(result.message, 'danger');
+            }
+        } catch (error) {
+            console.error('Platform removal error:', error);
+            this.showAlert(error.message || 'An unexpected error occurred while removing the platform.', 'danger');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * Is this component type supplied by the installed compute platform, and therefore
+     * not removable on its own? The backend is the authority — it reports platform_locked
+     * on the configuration and refuses the action regardless of what the UI shows.
+     */
+    isPlatformLocked(componentType) {
+        const locked = this.currentConfig?.platform_locked;
+        return Array.isArray(locked) && locked.includes(componentType);
     }
 
     /**
@@ -2179,7 +2264,7 @@ class ServerBuilder {
             ${row('Slot', slotLabel)}
             ${comp.slot_position && comp.slot_position !== slotLabel ? row('Position', comp.slot_position) : ''}
             ${extraRows}
-            ${type && comp.uuid ? `
+            ${type && comp.uuid && !this.isPlatformLocked(type) ? `
             <div class="slot-popover-actions">
                 <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})">
                     <i class="fas fa-trash-alt"></i>
@@ -2673,12 +2758,19 @@ class ServerBuilder {
         const hasComponents = components.length > 0;
         const isMultiple = componentType.multiple;
 
+        // Supplied by the compute platform: it came inside the box, so it is neither
+        // removable nor addable on its own. The backend refuses either way; this is what
+        // stops the user finding that out by being told no.
+        const platformLocked = this.isPlatformLocked(componentType.type);
+
         // Capacity exhausted: the row and its chips stay (installed hardware must
         // remain visible and removable), only the add affordance is withheld.
-        const canAdd = this.buildState.canAdd(componentType.type);
-        const capacityBadge = canAdd
-            ? ''
-            : `<span class="comp-capacity-badge"><i class="fas fa-lock text-[9px]"></i>${this.escapeHtml(this.buildState.capacityLabel(componentType.type))}</span>`;
+        const canAdd = !platformLocked && this.buildState.canAdd(componentType.type);
+        const capacityBadge = platformLocked
+            ? `<span class="comp-capacity-badge" title="Comes with ${this.escapeHtml(this.currentConfig?.platform_name || 'the compute platform')}. Change or remove the platform to change it."><i class="fas fa-lock text-[9px]"></i>Compute platform</span>`
+            : (canAdd
+                ? ''
+                : `<span class="comp-capacity-badge"><i class="fas fa-lock text-[9px]"></i>${this.escapeHtml(this.buildState.capacityLabel(componentType.type))}</span>`);
 
         const labelCell = `
             <td class="px-5 py-3 align-middle">
@@ -2707,9 +2799,10 @@ class ServerBuilder {
                         <span class="comp-chip-name">${displayName}${position}</span>
                         ${subtitle ? `<span class="comp-chip-serial">${subtitle}</span>` : ''}
                     </span>
+                    ${platformLocked ? '' : `
                     <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})" title="Remove">
                         <i class="fas fa-times text-xs"></i>
-                    </button>
+                    </button>`}
                 </span>`;
             }).join('');
 

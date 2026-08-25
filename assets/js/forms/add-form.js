@@ -3,13 +3,35 @@
  * forms/js/add-form.js
  */
 
+// The 12 inventory component types, matching the #componentType dropdown in
+// add-component.html. Used to tell a real preselection from an unrelated page
+// context — see init().
+//
+// 'serverplatform' is a stocked SERVER PRODUCT, and the unit is one VERSION of it
+// (an 8 x 2.5" SFF build, say). Its spec file uses the standard brand → series →
+// models[] shape, so it needs no dropdown special case: Brand → Platform family →
+// Version.
+const ADD_FORM_COMPONENT_TYPES = [
+    'cpu', 'motherboard', 'ram', 'storage', 'nic',
+    'hbacard', 'pciecard', 'risercard', 'chassis', 'caddy', 'sfp', 'serverplatform'
+];
+
 class AddComponentForm {
-    constructor() {
+    /**
+     * @param {object} options
+     *   embedded — this form is mounted inside another modal that owns
+     *   submission and supplies its own footer (the create-Request modal). It
+     *   then collects the fields itself via collectFormData() rather than
+     *   letting this form add the component directly.
+     */
+    constructor(options = {}) {
         this.currentComponentType = null;
         this.jsonData = {};
         this.selectedComponent = null;
         this.componentSpecification = {};
         this.isSubmitting = false;
+        this.embedded = options.embedded === true;
+        this.listenersBound = false;
         this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
 
         this.init();
@@ -29,7 +51,24 @@ class AddComponentForm {
             componentType = window.dashboard.currentComponent;
         }
 
-        if (componentType && componentType !== 'dashboard') {
+        // The dashboard's current page is not always a component type — on
+        // requests.html it is 'requests'. Anything outside the 11 types means
+        // "nothing was preselected", so the type dropdown must stay visible
+        // rather than be hidden around a value it cannot hold.
+        if (!ADD_FORM_COMPONENT_TYPES.includes(componentType)) {
+            componentType = null;
+        }
+
+        // The host modal supplies its own footer, so the fragment's Cancel /
+        // Add Component pair would be a second, conflicting submit. Inline
+        // display, not the `hidden` class: .hidden is emitted before .flex in
+        // the compiled Tailwind, so it would not win against `flex` here.
+        if (this.embedded) {
+            const ownActions = document.querySelector('#addComponentForm .form-actions');
+            if (ownActions) ownActions.style.display = 'none';
+        }
+
+        if (componentType) {
             document.getElementById('componentType').value = componentType;
 
             // Hide the component type section when pre-selected
@@ -49,6 +88,13 @@ class AddComponentForm {
     }
 
     setupEventListeners() {
+        // One mount, one set of listeners. init() can legitimately run twice —
+        // the constructor calls it, then initializeAddComponentForm() calls it
+        // again with the preselected type — and a second bind would submit the
+        // form twice.
+        if (this.listenersBound) return;
+        this.listenersBound = true;
+
         // Component type selection
         document.getElementById('componentType').addEventListener('change', (e) => {
             this.handleComponentTypeChange(e.target.value);
@@ -73,10 +119,11 @@ class AddComponentForm {
             statusSelect.addEventListener('change', () => this.toggleFailDate());
         }
 
-        // Form submission
+        // Form submission. Embedded, the host modal owns it: an Enter keypress
+        // in a field must not add the component for real behind the host's back.
         document.getElementById('addComponentForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.handleFormSubmit();
+            if (!this.embedded) this.handleFormSubmit();
         });
 
         // Validation on input
@@ -209,6 +256,7 @@ class AddComponentForm {
                 'pciecard': '/ims-data/pciecard/pci-level-3.json',
                 'risercard': '/ims-data/risercard/riser-level-3.json',
                 'chassis': '/ims-data/chassis/chasis-level-3.json',
+                'serverplatform': '/ims-data/serverplatform/server-platform-level-3.json',
                 'caddy': '/ims-data/caddy/caddy_details.json',
                 'sfp': '/ims-data/sfp/sfp-level-3.json'
             };
@@ -2100,8 +2148,8 @@ class AddComponentForm {
 }
 
 // Global initialization function for dashboard integration
-function initializeAddComponentForm(componentType = null) {
-    const form = new AddComponentForm();
+function initializeAddComponentForm(componentType = null, options = {}) {
+    const form = new AddComponentForm(options);
     if (componentType) {
         form.init(componentType);
     }
