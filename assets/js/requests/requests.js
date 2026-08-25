@@ -48,6 +48,15 @@ class RequestsManager {
         // The request a new one is being raised as a PREREQUISITE for, while the
         // create form is open. Set by showCreate(parent), read by submitCreate().
         this.parentContext = null;
+        // The last answer from pipeline-component-location for the action being
+        // built. match === false is the only value that warns; null means the
+        // system cannot tell (seeders unrun, server unplaced, stock unlocated)
+        // and must stay silent.
+        this.locationWarn = null;
+        // Carried from the mismatch offer into the Hardware Handover form, so
+        // the child request arrives already describing the exact unit and the
+        // site it has to reach. Cleared once applied.
+        this.handoverPrefill = null;
     }
 
     init() {
@@ -470,6 +479,10 @@ class RequestsManager {
         document.getElementById('plType').addEventListener('change', (e) => this.previewType(e.target.value));
         document.getElementById('plAction').addEventListener('change', (e) => this.setActionType(e.target.value));
         document.getElementById('plSubmit').addEventListener('click', () => this.submitCreate());
+
+        // Arriving from the mismatch offer: fill the handover in rather than
+        // making the requester retype what the warning already knew.
+        if (this.handoverPrefill) this.applyHandoverPrefill();
     }
 
     // ----- Popovers ----------------------------------------------------------
@@ -677,6 +690,9 @@ class RequestsManager {
             if (keepUuid && radio.value === keepUuid) radio.checked = true;
             radio.addEventListener('change', () => {
                 this.updateServerSelection();
+                // Which server it is decides whether the part is in the right
+                // place, so the warning has to be re-asked, not just re-rendered.
+                this.checkComponentLocation();
                 // Picking one is the whole reason the list was open.
                 this.togglePopover('server', false);
             });
@@ -1080,6 +1096,14 @@ class RequestsManager {
         if (this.actionType === 'server.relocate') {
             this.fillRelocateLocations();
         }
+        if (this.actionType === 'inventory.component.relocate') {
+            this.fillHandoverLocations();
+            this.loadHandoverUsers();
+        }
+        // A new action means the previous answer is about a different question.
+        this.locationWarn = null;
+        this.pickedUnit = null;
+        this.handoverUnits = [];
         // The create/update forms ask for a location by NAME (that is the column
         // they write), so they get the same list rendered with names as values.
         fields.querySelectorAll('[data-location-name-select]').forEach((el) => {
@@ -1102,12 +1126,17 @@ class RequestsManager {
             el.addEventListener('change', () => {
                 if (el.dataset.actionField === 'component_type') this.fillActionModels();
                 this.autoTitle();
+                // Model, type or serial changed -- re-ask where the part is. Also
+                // fires for the handover form's own model select, which is what
+                // fills its unit list.
+                this.checkComponentLocation();
             });
             el.addEventListener('input', () => this.autoTitle());
         });
 
         this.fillActionModels();
         this.autoTitle();
+        this.checkComponentLocation();
     }
 
     /**
@@ -1230,7 +1259,8 @@ class RequestsManager {
                             <label class="${LABEL}">Slot position</label>
                             <input type="text" data-action-field="slot_position" maxlength="50" class="${INPUT}" placeholder="Optional">
                         </div>
-                    </div>`;
+                    </div>
+                    <div id="plLocationWarn"></div>`;
 
             case 'server.component.remove':
                 return `
@@ -1253,7 +1283,8 @@ class RequestsManager {
                     <div>
                         <label class="${LABEL}">Serial number of the unit coming out</label>
                         <input type="text" data-action-field="old_serial_number" maxlength="100" class="${INPUT}" placeholder="Optional">
-                    </div>`;
+                    </div>
+                    <div id="plLocationWarn"></div>`;
 
             case 'server.config.create':
                 return `
@@ -1352,6 +1383,44 @@ class RequestsManager {
                 // mountInventoryForm() once its fragment has been fetched.
                 return `<div id="plInventoryMount"><p class="text-xs text-text-muted">Loading the component form...</p></div>`;
 
+            case 'inventory.component.relocate':
+                // Type -> model -> the exact UNIT. The third step is the one that
+                // matters and the one no other action form has: a handover is
+                // about a physical object somebody picks up and carries, and two
+                // units of one model can be at two different sites.
+                return `
+                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    <div>
+                        <label class="${LABEL}">Which unit <span class="text-danger">*</span></label>
+                        <select data-action-field="inventory_id" id="plHandoverUnit" class="${INPUT}">
+                            <option value="">Choose a model first</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Move it to <span class="text-danger">*</span></label>
+                            <select data-action-field="location_uuid" id="plHandoverLocation" class="${INPUT}">
+                                <option value="">Loading locations\u2026</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Shelf or bin there</label>
+                            <input type="text" data-action-field="store_location" maxlength="100" class="${INPUT}" placeholder="Optional, e.g. Shelf B3">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Who is transferring it <span class="text-danger">*</span></label>
+                        <select data-action-field="handover_user_id" id="plHandoverUser" class="${INPUT}">
+                            <option value="">Loading people\u2026</option>
+                        </select>
+                        <p class="text-xs text-text-muted mt-1">They confirm the handover once the hardware has actually arrived, and only they can. That confirmation is what closes this request.</p>
+                    </div>
+                    <div>
+                        <label class="${LABEL}">Reason</label>
+                        <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                    </div>
+                    <p class="text-xs text-text-muted">Only loose stock can be handed over. A component installed in a server travels with that server, so ask for the server to be moved instead.</p>`;
+
             case 'inventory.component.edit':
                 return `
                     <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
@@ -1402,6 +1471,383 @@ class RequestsManager {
                     return `<option value="${this.esc(m.uuid)}">${this.esc(label)}</option>`;
                 }).join('');
             if (keep) sel.value = keep;
+        });
+    }
+
+    /* ----- Location awareness (2026-08-26) ------------------------------- */
+
+    /**
+     * Ask the backend where the named part actually is, and warn if it is not
+     * where the server is.
+     *
+     * WHY THIS IS ASKED AT ALL. A server racked in Jaipur cannot be fitted with
+     * a drive sitting in Noida. The approval refuses that outright; without this
+     * the requester would only find out after an admin had already looked at it.
+     *
+     * SILENCE IS THE DEFAULT. The endpoint answers true / false / null, and only
+     * false warns. null means it cannot tell -- the location seeders may not have
+     * been run, the server may not be placed, the stock may have no location yet
+     * -- and a warning on "cannot tell" would be noise on every request the day
+     * this ships. A failed call is treated the same way: this is a courtesy, and
+     * the executor's own gate is the boundary.
+     *
+     * It doubles as the handover form's unit loader: the same endpoint returns
+     * the model's units, which is what "which one are you carrying?" needs.
+     */
+    async checkComponentLocation() {
+        const relevant = ['server.component.add', 'server.component.replace', 'inventory.component.relocate'];
+        if (!relevant.includes(this.actionType)) return;
+
+        const fields = document.getElementById('plActionFields');
+        if (!fields) return;
+
+        const val = (name) => (fields.querySelector(`[data-action-field="${name}"]`)?.value || '').trim();
+
+        const componentType = val('component_type');
+        const componentUuid = this.actionType === 'server.component.replace'
+            ? val('new_component_uuid')
+            : val('component_uuid');
+
+        if (!componentType || !componentUuid) {
+            this.locationWarn = null;
+            this.renderLocationWarning(null);
+            if (this.actionType === 'inventory.component.relocate') this.fillHandoverUnits([]);
+            return;
+        }
+
+        const params = { component_type: componentType, component_uuid: componentUuid };
+        // The handover form is about a part, not a machine, so it names no
+        // server and asks only "where are the units?".
+        if (this.actionType !== 'inventory.component.relocate') {
+            const configUuid = this.selectedServerUuid();
+            if (!configUuid) {
+                this.locationWarn = null;
+                this.renderLocationWarning(null);
+                return;
+            }
+            params.config_uuid = configUuid;
+            const serial = val('serial_number');
+            if (serial) params.serial_number = serial;
+        }
+
+        let data = null;
+        try {
+            const result = await this.apiPost('pipeline-component-location', params);
+            if (result?.success) data = result.data;
+        } catch (e) {
+            data = null;   // a courtesy that failed is still only a courtesy
+        }
+
+        if (this.actionType === 'inventory.component.relocate') {
+            this.fillHandoverUnits(data?.units || []);
+            return;
+        }
+
+        this.locationWarn = (data && data.supported && data.match === false) ? data : null;
+        this.renderLocationWarning(this.locationWarn);
+    }
+
+    /**
+     * The amber banner, and the list of where the part actually is.
+     *
+     * Choosing one of the units fills the action's serial number field, so the
+     * request names the exact unit the requester is looking at rather than
+     * leaving the picker to guess -- and so the handover offer afterwards knows
+     * which object it is about.
+     */
+    renderLocationWarning(data) {
+        const box = document.getElementById('plLocationWarn');
+        if (!box) return;
+
+        if (!data) { box.innerHTML = ''; return; }
+
+        const serverWhere = data.server?.location_name || 'another site';
+        const units = Array.isArray(data.units_elsewhere) ? data.units_elsewhere : [];
+
+        const rows = units.map((u) => {
+            const id = String(u.inventory_id ?? '');
+            const name = u.serial_number || u.asset_tag || `#${id}`;
+            const where = u.address_text || u.location_name || 'location unknown';
+            return `
+                <label class="flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-surface-hover">
+                    <input type="radio" name="plUnitPick" value="${this.esc(id)}" class="mt-1 shrink-0">
+                    <span class="text-xs min-w-0">
+                        <span class="font-mono text-text-primary">${this.esc(name)}</span>
+                        <span class="text-text-muted"> \u00b7 ${this.esc(where)}</span>
+                    </span>
+                </label>`;
+        }).join('');
+
+        box.innerHTML = `
+            <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10">
+                <div class="text-sm font-medium text-text-primary">
+                    <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>This part is not at the server's site
+                </div>
+                <p class="text-xs text-text-secondary mt-1">
+                    The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                    Every free unit of this model is somewhere else. Approving this request would be refused,
+                    so raise a Hardware Handover to move the part first \u2014 you will be offered one when you submit.
+                </p>
+                ${rows ? `<div class="mt-2 pt-2 border-t border-warning/30 space-y-0.5">${rows}</div>` : ''}
+            </div>`;
+
+        box.querySelectorAll('input[name="plUnitPick"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                const unit = units.find((u) => String(u.inventory_id) === radio.value);
+                if (!unit) return;
+                this.pickedUnit = unit;
+                const serialField = document.querySelector('[data-action-field="serial_number"]');
+                if (serialField && unit.serial_number) serialField.value = unit.serial_number;
+            });
+        });
+    }
+
+    /**
+     * The destination dropdown on the Hardware Handover form.
+     *
+     * Built here rather than through api.locations.populateSelect(), which puts
+     * the location NAME in the option value -- right for the four forms that
+     * post the free-text Location column, wrong here: the executor moves by
+     * uuid. The name rides along in data-name as a display-only snapshot, the
+     * same shape fillRelocateLocations() uses.
+     */
+    async fillHandoverLocations() {
+        const select = document.getElementById('plHandoverLocation');
+        if (!select) return;
+
+        let locations = [];
+        try {
+            const result = await api.locations.list();
+            locations = (result?.success && result.data?.locations) || [];
+        } catch (e) {
+            locations = [];
+        }
+
+        if (!locations.length) {
+            select.innerHTML = '<option value="">No locations available</option>';
+            select.disabled = true;
+            return;
+        }
+
+        select.innerHTML = '<option value="">Choose a location...</option>' + locations.map((loc) =>
+            `<option value="${this.esc(loc.location_uuid)}" data-name="${this.esc(loc.name)}">${this.esc(loc.name)}</option>`
+        ).join('');
+        select.disabled = false;
+
+        if (this.handoverPrefill?.location_uuid) {
+            select.value = String(this.handoverPrefill.location_uuid);
+        }
+    }
+
+    /**
+     * The unit dropdown. Only free stock appears: a component installed in a
+     * server travels with that server, and the backend refuses to move one on
+     * its own.
+     */
+    fillHandoverUnits(units) {
+        const select = document.getElementById('plHandoverUnit');
+        if (!select) return;
+
+        this.handoverUnits = Array.isArray(units) ? units : [];
+
+        if (!this.handoverUnits.length) {
+            select.innerHTML = '<option value="">No free units of this model</option>';
+            return;
+        }
+
+        const keep = select.value;
+        select.innerHTML = '<option value="">Choose the unit being moved...</option>'
+            + this.handoverUnits.map((u) => {
+                const id = String(u.inventory_id ?? '');
+                const name = u.serial_number || u.asset_tag || `#${id}`;
+                const where = u.address_text || u.location_name || 'location unknown';
+                return `<option value="${this.esc(id)}" data-serial="${this.esc(u.serial_number || '')}"
+                                data-where="${this.esc(u.location_name || '')}">${this.esc(name)} \u00b7 ${this.esc(where)}</option>`;
+            }).join('');
+        if (keep) select.value = keep;
+    }
+
+    /**
+     * The "who is transferring it" dropdown.
+     *
+     * An empty list is a real answer, not a failure: it means nobody holds
+     * pipeline.act yet, and saying so is more use than an inexplicably empty
+     * dropdown. Seeder 2026_08_26_008 is what fixes it.
+     */
+    async loadHandoverUsers() {
+        const select = document.getElementById('plHandoverUser');
+        if (!select) return;
+
+        let users = [];
+        try {
+            const result = await this.apiPost('pipeline-users', { limit: 200 });
+            if (result?.success) users = result.data?.users || [];
+        } catch (e) {
+            users = [];
+        }
+
+        if (!users.length) {
+            select.innerHTML = '<option value="">Nobody is set up to confirm handovers yet</option>';
+            select.disabled = true;
+            return;
+        }
+
+        select.disabled = false;
+        select.innerHTML = '<option value="">Choose a person...</option>' + users.map((u) =>
+            `<option value="${this.esc(String(u.id))}">${this.esc(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
+        ).join('');
+
+        if (this.handoverPrefill?.handover_user_id) {
+            select.value = String(this.handoverPrefill.handover_user_id);
+        }
+    }
+
+    /**
+     * Fill the Hardware Handover form from the mismatch that prompted it.
+     *
+     * Runs after showCreate() has rebuilt the modal, so it walks the same
+     * controls a person would: pick the type, let its action render, then set the
+     * fields. Doing it any other way would mean a second code path for building
+     * the same request.
+     */
+    async applyHandoverPrefill() {
+        const pre = this.handoverPrefill;
+        if (!pre) return;
+
+        const typeSelect = document.getElementById('plType');
+        const type = this.types.find((t) => t.is_active !== 0 && /hardware handover/i.test(t.name || ''));
+        if (!typeSelect || !type) {
+            this.handoverPrefill = null;
+            // The type has not been seeded yet. The offer said what to raise;
+            // leaving the form blank is better than half-filling the wrong type.
+            this.toast('No "Hardware Handover" request type exists yet \u2014 ask an admin to add it', 'warning');
+            return;
+        }
+
+        typeSelect.value = String(type.id);
+        this.previewType(String(type.id));
+
+        // previewType -> applyRequestType -> setActionType renders the fields and
+        // kicks off the async unit/location/user loads. Wait for those before
+        // setting values into controls they are still filling.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const fields = document.getElementById('plActionFields');
+        if (!fields) return;
+
+        const set = (name, value) => {
+            const el = fields.querySelector(`[data-action-field="${name}"]`);
+            if (el && value) { el.value = String(value); el.dispatchEvent(new Event('change')); }
+        };
+
+        set('component_type', pre.component_type);
+        this.fillActionModels();
+        set('component_uuid', pre.component_uuid);
+
+        // The unit list arrives from the same endpoint the warning used, so it
+        // has to be refetched before the unit can be selected.
+        await this.checkComponentLocation();
+        const unitSelect = document.getElementById('plHandoverUnit');
+        if (unitSelect && pre.inventory_id) unitSelect.value = String(pre.inventory_id);
+
+        const locationSelect = document.getElementById('plHandoverLocation');
+        if (locationSelect && pre.location_uuid) locationSelect.value = String(pre.location_uuid);
+
+        const title = document.getElementById('plTitle');
+        if (title && !title.value) {
+            title.value = `Hand over ${pre.component_type} ${pre.serial_number || ''}`.trim()
+                + (pre.location_name ? ` to ${pre.location_name}` : '');
+            this.titleTouched = true;
+            this.updateTitleChip();
+        }
+
+        // Cleared only now: fillHandoverLocations() and loadHandoverUsers() read
+        // it when their own requests come back, which may be after this point in
+        // the source but not after this point in time.
+        this.handoverPrefill = null;
+    }
+
+    /**
+     * The offer, shown once the parent request exists.
+     *
+     * A purpose-built panel rather than utils.confirm(): that helper escapes its
+     * message into a single <p> with no pre-wrap, so a multi-line explanation
+     * collapses into one run-on line.
+     */
+    offerHandover(created) {
+        const warn = this.locationWarn;
+        const unit = this.pickedUnit
+            || (Array.isArray(warn?.units_elsewhere) ? warn.units_elsewhere[0] : null);
+
+        const fields = document.getElementById('plActionFields');
+        const val = (name) => (fields?.querySelector(`[data-action-field="${name}"]`)?.value || '').trim();
+        const componentType = val('component_type');
+        const componentUuid = this.actionType === 'server.component.replace'
+            ? val('new_component_uuid')
+            : val('component_uuid');
+
+        this.handoverPrefill = {
+            component_type: componentType,
+            component_uuid: componentUuid,
+            inventory_id: unit?.inventory_id || '',
+            serial_number: unit?.serial_number || '',
+            location_uuid: warn?.server?.location_uuid || '',
+            location_name: warn?.server?.location_name || ''
+        };
+
+        const partWhere = unit?.address_text || unit?.location_name || 'another site';
+        const serverWhere = warn?.server?.location_name || 'the server\'s site';
+        const what = unit?.serial_number ? `${componentType} SN ${unit.serial_number}` : componentType;
+
+        document.getElementById('modalTitle').textContent = 'Request created';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="space-y-4">
+                <div class="px-3 py-2.5 rounded-lg border border-border bg-surface-hover">
+                    <div class="text-sm text-text-primary">
+                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(created.ticket_number || '')}</span>
+                        was created.
+                    </div>
+                </div>
+                <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10 space-y-1.5">
+                    <div class="text-sm font-medium text-text-primary">
+                        <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>The part is not there yet
+                    </div>
+                    <p class="text-xs text-text-secondary">
+                        <span class="font-medium text-text-primary">${this.esc(what)}</span> is at
+                        <span class="font-medium text-text-primary">${this.esc(partWhere)}</span>,
+                        and the server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                    </p>
+                    <p class="text-xs text-text-secondary">
+                        Approving this request as it stands would be refused. Raise a Hardware Handover to move the
+                        part: an admin approves it, the person carrying it confirms it has arrived, and only then does
+                        this request unfreeze.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" id="plHandoverLater"
+                        class="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover">Later</button>
+                    <button type="button" id="plHandoverNow"
+                        class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
+                        <i class="fas fa-truck-fast"></i> Raise the Hardware Handover now
+                    </button>
+                </div>
+            </div>`;
+
+        const parentSummary = {
+            id: created.pipeline_id,
+            ticket_number: created.ticket_number,
+            title: created.title || ''
+        };
+
+        document.getElementById('plHandoverLater').addEventListener('click', () => {
+            this.handoverPrefill = null;
+            this.closeModal('modalContainer');
+            if (parentSummary.id) this.openDetail(parentSummary.id);
+        });
+        document.getElementById('plHandoverNow').addEventListener('click', () => {
+            // Straight back through showCreate(parent), so the child is created
+            // by the same parent_ticket_id path every other prerequisite uses.
+            this.showCreate(parentSummary);
         });
     }
 
@@ -1462,6 +1908,25 @@ class RequestsManager {
             if (rackName) payload.rack_name = rackName;
         }
 
+        // A handover names a UNIT, so the model select is a stepping stone to
+        // the unit list and never part of the payload -- the executor refuses an
+        // unexpected parameter outright. The names ride along as display-only
+        // snapshots, the same bargain server.relocate makes.
+        if (this.actionType === 'inventory.component.relocate') {
+            delete payload.component_uuid;
+
+            const unitSelect = document.getElementById('plHandoverUnit');
+            const locationSelect = document.getElementById('plHandoverLocation');
+            const unit = (this.handoverUnits || []).find(
+                (u) => String(u.inventory_id) === String(payload.inventory_id));
+
+            if (unit?.serial_number) payload.serial_number = unit.serial_number;
+            if (unit?.location_name) payload.from_location_name = unit.location_name;
+            const toName = locationSelect?.selectedOptions?.[0]?.dataset?.name;
+            if (toName) payload.to_location_name = toName;
+            if (unitSelect && !payload.inventory_id) delete payload.inventory_id;
+        }
+
         if (this.actionType === 'server.config.update') {
             // rack_position removed 2026-08-26: it is derived from the real rack
             // placement, and the executor no longer writes it.
@@ -1518,7 +1983,12 @@ class RequestsManager {
             'server.component.remove': ['component_type', 'component_uuid'],
             'server.component.replace': ['component_type', 'old_component_uuid', 'new_component_uuid'],
             'server.config.create': ['server_name'],
-            'server.config.transition': ['to_status']
+            'server.config.transition': ['to_status'],
+            // handover_user_id is required even though the executor treats it as
+            // optional: without a named carrier the confirmation step has no
+            // owner, so nobody could ever close the request and the parent would
+            // stay frozen with no visible cause.
+            'inventory.component.relocate': ['component_type', 'inventory_id', 'location_uuid', 'handover_user_id']
         };
         (REQUIRED[this.actionType] || []).forEach((f) => {
             if (!p[f]) problems.push(`${f.replace(/_/g, ' ')} is required`);
@@ -1609,8 +2079,27 @@ class RequestsManager {
                 return this.toast(msg, 'error');
             }
             this.toast(parent ? 'Prerequisite raised' : 'Request created', 'success');
+
+            // The part is at the wrong site. Offer the fix here, while the
+            // requester is still in the flow, rather than leaving them to
+            // discover it when an admin refuses the approval days later. Only on
+            // a top-level request: a prerequisite of a prerequisite is a rabbit
+            // hole nobody asked for.
+            if (!parent && this.locationWarn && result.data?.pipeline_id) {
+                this.parentContext = null;
+                this.load();
+                this.offerHandover({
+                    pipeline_id: result.data.pipeline_id,
+                    ticket_number: result.data.ticket_number,
+                    title: title
+                });
+                this.locationWarn = null;
+                return;
+            }
+
             this.closeModal('modalContainer');
             this.parentContext = null;
+            this.locationWarn = null;
             this.load();
             // Back to the PARENT, not the new child: the frozen request is where
             // the user came from, and it now shows the prerequisite it is
