@@ -100,6 +100,23 @@
                         <p class="text-text-secondary">Activity logs are only available to administrators.</p>
                     </div>
 
+                    <!-- Filters -->
+                    <div id="logFilterBar" class="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-5">
+                        <input type="text" id="logSearchInput" placeholder="Search logs..."
+                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] w-full sm:w-auto sm:flex-1 bg-surface-card text-text-primary">
+                        <input type="date" id="logDateFrom" title="From date"
+                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
+                        <input type="date" id="logDateTo" title="To date"
+                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
+                        <select id="logUserFilter" class="hidden px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
+                            <option value="">All Users</option>
+                        </select>
+                        <button id="logClearFiltersBtn"
+                            class="hidden px-4 py-2 text-sm bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors min-h-[44px]">
+                            <i class="fas fa-times mr-1"></i> Clear Filters
+                        </button>
+                    </div>
+
                     <!-- Log Table -->
                     <div id="logTableContainer" class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
                         <table class="w-full table-base table-responsive" id="activityLogTable">
@@ -157,6 +174,31 @@
             const LIMIT = 50;
             let currentOffset = 0;
             let totalLogs = 0;
+            let filters = { search: '', user_id: '', date_from: '', date_to: '' };
+
+            function hasActiveFilters() {
+                return !!(filters.search || filters.user_id || filters.date_from || filters.date_to);
+            }
+
+            function updateClearFiltersVisibility() {
+                document.getElementById('logClearFiltersBtn').classList.toggle('hidden', !hasActiveFilters());
+            }
+
+            async function loadUserFilterOptions() {
+                try {
+                    const result = await api.users.list();
+                    if (!result.success || !Array.isArray(result.data?.users)) return;
+                    const select = document.getElementById('logUserFilter');
+                    const options = result.data.users
+                        .map(u => `<option value="${u.id}">${utils.escapeHtml(u.username)}</option>`)
+                        .join('');
+                    select.insertAdjacentHTML('beforeend', options);
+                    select.classList.remove('hidden');
+                } catch {
+                    // No users.view permission (viewer has acl.manage only) — leave the
+                    // dropdown hidden rather than breaking the rest of the page.
+                }
+            }
 
             function formatDate(dateStr) {
                 if (!dateStr) return '-';
@@ -178,7 +220,8 @@
             function renderRows(logs) {
                 const tbody = document.getElementById('activityLogTableBody');
                 if (!logs || logs.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-text-muted">No activity logs found.</td></tr>`;
+                    const message = hasActiveFilters() ? 'No logs match your filters.' : 'No activity logs found.';
+                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-text-muted">${message}</td></tr>`;
                     return;
                 }
                 tbody.innerHTML = logs.map(log => `
@@ -209,9 +252,10 @@
                 const tbody = document.getElementById('activityLogTableBody');
                 tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-text-muted"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</td></tr>`;
                 try {
-                    const result = await api.dashboard.getLogs({ limit: LIMIT, offset: currentOffset });
+                    const result = await api.dashboard.getLogs({ limit: LIMIT, offset: currentOffset, ...filters });
                     if (!result.success) {
                         if (result.code === 403) {
+                            document.getElementById('logFilterBar').classList.add('hidden');
                             document.getElementById('logTableContainer').classList.add('hidden');
                             document.getElementById('logPagination').classList.add('hidden');
                             document.getElementById('accessDeniedMsg').classList.remove('hidden');
@@ -229,9 +273,49 @@
 
             document.addEventListener('DOMContentLoaded', () => {
                 loadLogs();
+                loadUserFilterOptions();
 
                 document.getElementById('refreshLogsBtn').addEventListener('click', () => {
                     currentOffset = 0;
+                    loadLogs();
+                });
+
+                document.getElementById('logSearchInput').addEventListener('input', utils.debounce((e) => {
+                    filters.search = e.target.value.trim();
+                    currentOffset = 0;
+                    updateClearFiltersVisibility();
+                    loadLogs();
+                }, 350));
+
+                document.getElementById('logDateFrom').addEventListener('change', (e) => {
+                    filters.date_from = e.target.value;
+                    currentOffset = 0;
+                    updateClearFiltersVisibility();
+                    loadLogs();
+                });
+
+                document.getElementById('logDateTo').addEventListener('change', (e) => {
+                    filters.date_to = e.target.value;
+                    currentOffset = 0;
+                    updateClearFiltersVisibility();
+                    loadLogs();
+                });
+
+                document.getElementById('logUserFilter').addEventListener('change', (e) => {
+                    filters.user_id = e.target.value;
+                    currentOffset = 0;
+                    updateClearFiltersVisibility();
+                    loadLogs();
+                });
+
+                document.getElementById('logClearFiltersBtn').addEventListener('click', () => {
+                    filters = { search: '', user_id: '', date_from: '', date_to: '' };
+                    document.getElementById('logSearchInput').value = '';
+                    document.getElementById('logDateFrom').value = '';
+                    document.getElementById('logDateTo').value = '';
+                    document.getElementById('logUserFilter').value = '';
+                    currentOffset = 0;
+                    updateClearFiltersVisibility();
                     loadLogs();
                 });
 
