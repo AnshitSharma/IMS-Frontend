@@ -1,10 +1,25 @@
 class EditFormComponent {
-    constructor(componentType, componentId) {
+    /**
+     * @param {object} options
+     *   embedded — this form is mounted inside another modal that owns
+     *     submission and supplies its own footer (the create-Request modal).
+     *     It then reads the changed fields itself via collectChangedFields()
+     *     rather than saving or raising anything on its own.
+     *   record   — the record's current values, already fetched by the host.
+     *     Supplied because the host route reaches this form through
+     *     pipeline-inventory-record: a requester raising Update Inventory
+     *     Record does not hold {type}.view, so {type}-get is closed to them.
+     */
+    constructor(componentType, componentId, options = {}) {
         this.componentType = componentType;
         this.componentId = componentId;
-        this.componentData = null;
+        this.embedded = options.embedded === true;
+        this.componentData = options.record || null;
+        // What the record said when the form was rendered. The diff against it
+        // is what a save or a request actually carries.
+        this.originalData = null;
         this.formContainer = document.getElementById('formFields');
-        this.init();
+        this.ready = this.init();
     }
 
     async init() {
@@ -12,10 +27,24 @@ class EditFormComponent {
         document.getElementById('formComponentType').textContent = this.componentType;
 
         document.getElementById('editComponentForm').addEventListener('submit', (e) => this.handleSubmit(e));
-        document.getElementById('cancelEditComponent').addEventListener('click', () => this.handleCancel());
+        const cancel = document.getElementById('cancelEditComponent');
+        if (cancel) cancel.addEventListener('click', () => this.handleCancel());
 
-        await this.fetchComponentData();
-        this.renderForm();
+        // The host modal supplies its own footer, so this fragment's Cancel /
+        // Save pair would be a second, conflicting submit. Inline display, not
+        // the `hidden` class: .hidden is emitted before .flex in the compiled
+        // Tailwind, so it would not win against `flex` here.
+        if (this.embedded) {
+            const ownActions = document.querySelector('#editComponentForm .form-actions');
+            if (ownActions) ownActions.style.display = 'none';
+        }
+
+        // Already supplied by the host — fetching again would only ask for a
+        // permission the requester does not have.
+        if (!this.componentData) {
+            await this.fetchComponentData();
+        }
+        await this.renderForm();
     }
 
     async fetchComponentData() {
@@ -32,7 +61,7 @@ class EditFormComponent {
         }
     }
 
-    renderForm() {
+    async renderForm() {
         if (!this.componentData) {
             this.formContainer.innerHTML = `<p>Component data not found.</p>`;
             return;
@@ -41,16 +70,60 @@ class EditFormComponent {
         let fieldsHtml = this.renderCommonFields();
 
         this.formContainer.innerHTML = fieldsHtml;
-        this.loadVendors();
-        this.loadLocations();
+
+        // Awaited so the snapshot below is taken with the Vendor and Location
+        // selects already on their current values. Snapshotting first would make
+        // every save report a vendor and a location change it is not making.
+        await Promise.all([this.loadVendors(), this.loadLocations()]);
+        this.snapshot();
 
         // Show/hide Fail Date based on the Status select, then sync to the
         // current value so an already-failed component shows its date.
+        //
+        // Deliberately AFTER the snapshot: toggleFailDate() auto-fills today on
+        // a failed record with no date and clears the date on a record that is
+        // no longer failed, and both of those ARE changes the save should carry.
         const statusSelect = document.getElementById('Status');
         if (statusSelect) {
             statusSelect.addEventListener('change', () => this.toggleFailDate());
         }
         this.toggleFailDate();
+    }
+
+    /** What the form said before the user touched it. */
+    snapshot() {
+        const form = document.getElementById('editComponentForm');
+        if (!form) return;
+        this.originalData = Object.fromEntries(new FormData(form).entries());
+    }
+
+    /**
+     * Only the fields the user actually changed.
+     *
+     * Both routes out of this form use it, for the same two reasons. A save that
+     * only writes what moved cannot stamp stale values over an edit somebody
+     * else made in the meantime; and a REQUEST that carries only what moved is
+     * one an approver can read — "Status, Location" rather than twenty fields
+     * of which eighteen are unchanged. RequestActionExecutor::summarise() prints
+     * exactly these keys.
+     */
+    collectChangedFields() {
+        const form = document.getElementById('editComponentForm');
+        if (!form) return {};
+
+        const current = Object.fromEntries(new FormData(form).entries());
+        // No snapshot means the form never finished rendering; sending the whole
+        // form is the honest fallback rather than silently sending nothing.
+        if (!this.originalData) return current;
+
+        const changed = {};
+        Object.keys(current).forEach((key) => {
+            const before = this.originalData[key] === undefined ? '' : this.originalData[key];
+            if (String(current[key]) !== String(before)) {
+                changed[key] = current[key];
+            }
+        });
+        return changed;
     }
 
     /**
@@ -163,17 +236,21 @@ class EditFormComponent {
     async loadVendors() {
         const vendorSelect = document.getElementById('VendorID');
         if (!vendorSelect) return;
+
+        const currentVendorId = this.componentData.VendorID;
+        let listed = false;
+
         try {
             if (window.api && window.api.vendors) {
                 const result = await window.api.vendors.list();
                 if (result.success && result.data.vendors) {
-                    const currentVendorId = this.componentData.VendorID;
                     result.data.vendors.forEach(vendor => {
                         const option = document.createElement('option');
                         option.value = vendor.id;
                         option.textContent = vendor.name;
                         if (currentVendorId && vendor.id == currentVendorId) {
                             option.selected = true;
+                            listed = true;
                         }
                         vendorSelect.appendChild(option);
                     });
@@ -181,6 +258,19 @@ class EditFormComponent {
             }
         } catch (e) {
             console.error('Error loading vendors:', e);
+        }
+
+        // The vendor list is gated; a requester raising Update Inventory Record
+        // typically cannot read it. Without this the dropdown would sit on
+        // "-- No Vendor --" for a record that HAS one, and the change submitted
+        // would read as "clear the vendor" — a correction nobody asked for.
+        // pipeline-inventory-record sends vendor_name for exactly this.
+        if (currentVendorId && !listed) {
+            const option = document.createElement('option');
+            option.value = currentVendorId;
+            option.textContent = this.componentData.vendor_name || `Vendor #${currentVendorId}`;
+            option.selected = true;
+            vendorSelect.appendChild(option);
         }
     }
 
@@ -234,9 +324,16 @@ class EditFormComponent {
 
     async handleSubmit(event) {
         event.preventDefault();
-        const form = event.target;
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
+
+        // Embedded, the host modal owns submission: an Enter keypress in a field
+        // must not save the record behind the host's back.
+        if (this.embedded) return;
+
+        const data = this.collectChangedFields();
+        if (!Object.keys(data).length) {
+            utils.showAlert('Nothing has changed yet.', 'info');
+            return;
+        }
 
         try {
             // Without the permission, the same form becomes a request for the
@@ -294,6 +391,11 @@ class EditFormComponent {
     }
 }
 
-function initializeEditFormComponent(componentType, componentId) {
-    new EditFormComponent(componentType, componentId);
+/**
+ * @returns {EditFormComponent} the instance, so an embedding modal can read its
+ *          changed fields when the host's own footer is submitted. Await its
+ *          `ready` promise to know the form has finished rendering.
+ */
+function initializeEditFormComponent(componentType, componentId, options = {}) {
+    return new EditFormComponent(componentType, componentId, options);
 }

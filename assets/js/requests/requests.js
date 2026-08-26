@@ -26,6 +26,13 @@ class RequestsManager {
         // The embedded Add Component form, while an inventory action is being
         // built. Its collectFormData() becomes the action payload.
         this.inventoryForm = null;
+        // The mounted Edit Component form for Update Inventory Record, the
+        // records it can be mounted on, and which one is showing. Its
+        // collectChangedFields() becomes that action's payload.
+        this.editForm = null;
+        this.editRecords = [];
+        this.editRecordId = '';
+        this.editRecordsSeq = 0;
         // Server list behind the create form's picker (pipeline-servers).
         this.servers = [];
         this.serversTotal = 0;
@@ -57,6 +64,12 @@ class RequestsManager {
         // the child request arrives already describing the exact unit and the
         // site it has to reach. Cleared once applied.
         this.handoverPrefill = null;
+        // Carried from the missing-stock offer into the Add Inventory Record
+        // form, so the prerequisite arrives already on the right component type.
+        // Cleared once applied — stockWanted outlives it because the mismatch
+        // check at submit still needs to know which model the parent asked for.
+        this.stockPrefill = null;
+        this.stockWanted = null;
     }
 
     init() {
@@ -455,6 +468,10 @@ class RequestsManager {
         this.actionCeiling = [];
         this.actionType = '';
         this.inventoryForm = null;
+        this.editForm = null;
+        this.editRecords = [];
+        this.editRecordId = '';
+        this.editRecordsSeq = 0;
 
         this.renderServerPicker();
         this.wirePopoverDismiss();
@@ -483,6 +500,11 @@ class RequestsManager {
         // Arriving from the mismatch offer: fill the handover in rather than
         // making the requester retype what the warning already knew.
         if (this.handoverPrefill) this.applyHandoverPrefill();
+        // Arriving from the missing-stock offer, same idea. Cleared first so a
+        // form opened any other way carries no leftover reference to a model some
+        // earlier request wanted.
+        this.stockWanted = null;
+        if (this.stockPrefill) this.applyStockPrefill();
     }
 
     // ----- Popovers ----------------------------------------------------------
@@ -902,7 +924,20 @@ class RequestsManager {
             case 'server.config.update':     what = `Update details${where}`; break;
             case 'server.config.transition': what = `Set${where || ' server'} to ${p.to_status || 'a new status'}`; break;
             case 'inventory.component.add':  what = `Add ${model} to inventory`; break;
-            case 'inventory.component.edit': what = `Update ${model} inventory record`; break;
+            case 'inventory.component.edit': {
+                // Named, not just typed: "Update STORAGE record SN-4471" is a
+                // title an approver can act on; "a storage record" is not.
+                const unit = (this.editRecords || []).find(
+                    (u) => String(u.inventory_id) === String(this.editRecordId));
+                const which = unit
+                    ? ` ${unit.serial_number || unit.asset_tag || `#${unit.inventory_id}`}`
+                    : '';
+                // collectAction() returns null until the form is mounted, so the
+                // type is read from the field rather than from the payload.
+                const chosen = (document.querySelector('[data-action-field="component_type"]')?.value || '').trim();
+                what = `Update ${chosen ? chosen.toUpperCase() : model} inventory record${which}`;
+                break;
+            }
             default:                         what = type.name;
         }
 
@@ -946,6 +981,10 @@ class RequestsManager {
         this.actionCeiling = this.typeActionCeiling(type);
         this.actionType = '';
         this.inventoryForm = null;
+        this.editForm = null;
+        this.editRecords = [];
+        this.editRecordId = '';
+        this.editRecordsSeq = 0;
 
         const row = document.getElementById('plActionRow');
         const select = document.getElementById('plAction');
@@ -1080,6 +1119,12 @@ class RequestsManager {
     setActionType(actionType) {
         this.actionType = actionType || '';
         this.inventoryForm = null;
+        // The mounted Edit Component form, the records it can be mounted on, and
+        // which one is showing. A new action means none of the three still holds.
+        this.editForm = null;
+        this.editRecords = [];
+        this.editRecordId = '';
+        this.editRecordsSeq = 0;
 
         const hint = document.getElementById('plActionHint');
         const fields = document.getElementById('plActionFields');
@@ -1099,6 +1144,17 @@ class RequestsManager {
         if (this.actionType === 'inventory.component.relocate') {
             this.fillHandoverLocations();
             this.loadHandoverUsers();
+        }
+        // Picking the record is what mounts the form it will be edited on.
+        if (this.actionType === 'inventory.component.edit') {
+            const record = document.getElementById('plEditRecord');
+            if (record) {
+                record.addEventListener('change', () => {
+                    this.editRecordId = record.value || '';
+                    this.mountEditForm(this.editRecordId);
+                    this.autoTitle();
+                });
+            }
         }
         // A new action means the previous answer is about a different question.
         this.locationWarn = null;
@@ -1154,6 +1210,11 @@ class RequestsManager {
     async mountInventoryForm() {
         if (!document.getElementById('plInventoryMount')) return;
 
+        // Read BEFORE the awaits below. applyStockPrefill() clears stockPrefill
+        // once it has finished, and it can finish first -- the form would then be
+        // mounted with no type at all, which is exactly what this is for.
+        const wantType = this.stockPrefill ? this.stockPrefill.component_type : null;
+
         try {
             const response = await fetch('../../pages/forms/add-component.html');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1172,7 +1233,10 @@ class RequestsManager {
                 throw new Error('initializeAddComponentForm is unavailable');
             }
 
-            this.inventoryForm = initializeAddComponentForm(null, { embedded: true });
+            // A type is passed only when the request this is a prerequisite for
+            // already named one; otherwise null keeps the form's own type
+            // dropdown in play, which is what a standalone request needs.
+            this.inventoryForm = initializeAddComponentForm(wantType, { embedded: true });
 
             // The composed title names the component type, so it has to hear
             // about it — the form's own fields are outside autoTitle()'s reach.
@@ -1186,16 +1250,163 @@ class RequestsManager {
         }
     }
 
+    /**
+     * Mount the real Edit Component form on one inventory record.
+     *
+     * The same fragment/script pair the dashboard's Edit modal loads, and for the
+     * same reason mountInventoryForm() mounts the Add form: the fields an edit
+     * offers, and the values they start from, belong to the record. A cut-down
+     * copy here would be a second, worse form for the same job — and it would
+     * drift from the one the Edit Component screen shows.
+     *
+     * The record is read through pipeline-inventory-record, not {type}-get: a
+     * requester raising this does not hold {type}.view, which is the whole
+     * reason they are asking rather than editing.
+     */
+    async mountEditForm(inventoryId) {
+        const mount = document.getElementById('plEditMount');
+        if (!mount) return;
+
+        this.editForm = null;
+
+        if (!inventoryId) {
+            mount.innerHTML = '';
+            return;
+        }
+
+        const componentType = (document.querySelector('[data-action-field="component_type"]')?.value || '').trim();
+        if (!componentType) {
+            mount.innerHTML = '';
+            return;
+        }
+
+        mount.innerHTML = `<p class="text-xs text-text-muted">Loading the record…</p>`;
+
+        try {
+            const result = await this.apiPost('pipeline-inventory-record', {
+                component_type: componentType,
+                inventory_id: inventoryId
+            });
+            if (!result?.success || !result.data?.record) {
+                throw new Error(result?.message || 'Could not load that record');
+            }
+
+            // The requester may have moved to another record, or another action,
+            // while this was in flight; mounting now would leave a form nothing
+            // reads — or worse, one the submit would read as the wrong record.
+            if (!this.stillEditing(inventoryId)) return;
+
+            const response = await fetch('../../pages/forms/edit-component.html');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = await response.text();
+            if (!this.stillEditing(inventoryId)) return;
+
+            mount.innerHTML = html;
+
+            await this.loadFormScript('../../assets/js/forms/edit-form.js');
+            if (!this.stillEditing(inventoryId)) return;
+            if (typeof initializeEditFormComponent !== 'function') {
+                throw new Error('initializeEditFormComponent is unavailable');
+            }
+
+            const form = initializeEditFormComponent(componentType, inventoryId, {
+                embedded: true,
+                record: result.data.record
+            });
+            await form.ready;
+            if (!this.stillEditing(inventoryId)) return;
+            this.editForm = form;
+        } catch (e) {
+            if (!this.stillEditing(inventoryId)) return;
+            mount.innerHTML = `<p class="text-xs text-danger">${this.esc(e.message || 'Could not load that record.')} Pick the record again to retry.</p>`;
+        }
+    }
+
+    /** Is this mount still the one the requester is looking at? */
+    stillEditing(inventoryId) {
+        return this.actionType === 'inventory.component.edit'
+            && String(this.editRecordId) === String(inventoryId)
+            && !!document.getElementById('plEditMount');
+    }
+
+    /**
+     * The record dropdown for an edit.
+     *
+     * Every unit of the model, whatever its status: a record with the wrong
+     * status is exactly the kind that needs correcting, so filtering by status
+     * here would hide the work. The label carries where the unit is and what
+     * state it is in, because that is how somebody tells three identical drives
+     * apart.
+     */
+    async loadEditRecords(componentType, componentUuid) {
+        const select = document.getElementById('plEditRecord');
+        if (!select) return;
+
+        this.editRecords = [];
+        this.editRecordId = '';
+        this.editForm = null;
+        const mount = document.getElementById('plEditMount');
+        if (mount) mount.innerHTML = '';
+
+        if (!componentType || !componentUuid) {
+            select.innerHTML = '<option value="">Choose a model first</option>';
+            return;
+        }
+
+        select.innerHTML = '<option value="">Loading records…</option>';
+
+        // Which lookup this is. Typing through the model dropdown starts several,
+        // and they can come back out of order — the dropdown must end up showing
+        // the model that was chosen LAST, not the answer that arrived last.
+        const seq = (this.editRecordsSeq || 0) + 1;
+        this.editRecordsSeq = seq;
+
+        let units = [];
+        try {
+            const result = await this.apiPost('pipeline-inventory-record', {
+                component_type: componentType,
+                component_uuid: componentUuid
+            });
+            units = (result?.success && result.data?.units) || [];
+        } catch (e) {
+            units = [];
+        }
+
+        if (this.editRecordsSeq !== seq) return;
+        if (this.actionType !== 'inventory.component.edit') return;
+        if (document.getElementById('plEditRecord') !== select) return;
+
+        this.editRecords = units;
+        if (!units.length) {
+            select.innerHTML = '<option value="">No records of this model yet</option>';
+            return;
+        }
+
+        const STATUS = { 0: 'Failed', 1: 'Available', 2: 'In use' };
+        select.innerHTML = '<option value="">Choose the record to correct...</option>'
+            + units.map((u) => {
+                const id = String(u.inventory_id ?? '');
+                const name = u.serial_number || u.asset_tag || `#${id}`;
+                const where = u.server_name || u.address_text || u.location_name || 'location unknown';
+                const state = STATUS[u.status] || 'status unknown';
+                return `<option value="${this.esc(id)}">${this.esc(name)} · ${this.esc(where)} · ${this.esc(state)}</option>`;
+            }).join('');
+    }
+
     /** Load add-form.js once, the same way the dashboard's Add modal does. */
     loadAddFormScript() {
-        const src = '../../assets/js/forms/add-form.js';
+        return this.loadFormScript('../../assets/js/forms/add-form.js');
+    }
+
+    /** Load one of the component form scripts once. */
+    loadFormScript(src) {
         if (document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
 
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = src;
             script.onload = () => resolve();
-            script.onerror = () => reject(new Error('Failed to load add-form.js'));
+            script.onerror = () => reject(new Error(`Failed to load ${src}`));
             document.body.appendChild(script);
         });
     }
@@ -1220,9 +1431,10 @@ class RequestsManager {
      * here rather than reimplemented, and this returns only its mount point.
      * A cut-down copy would be a second, worse form for the same job.
      *
-     * Correcting a record still starts from the record: Update Inventory Record
-     * points at the Edit Component screen, which already knows which row it is
-     * on and raises the request itself when the user cannot write directly.
+     * Correcting a record works the same way, one step later: the requester
+     * names the record here, and the real Edit Component form is mounted on it
+     * so the fields on offer, and the values they start from, are the record's
+     * own. Only what they change is submitted.
      */
     actionFieldsHTML(actionType) {
         const INPUT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
@@ -1422,13 +1634,21 @@ class RequestsManager {
                     <p class="text-xs text-text-muted">Only loose stock can be handed over. A component installed in a server travels with that server, so ask for the server to be moved instead.</p>`;
 
             case 'inventory.component.edit':
+                // Type -> model -> the exact RECORD, then the real Edit Component
+                // form for that record, mounted by mountEditForm(). Unlike the
+                // handover picker this one lists in-use and failed units too:
+                // those are precisely the records with a wrong status or a
+                // missing warranty date, which is what gets corrected.
                 return `
-                    <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
-                        <i class="fas fa-arrow-right-from-bracket mr-1.5 text-text-muted"></i>
-                        Raise this from the <span class="font-medium text-text-primary">Edit Component</span> screen
-                        instead — correcting a record starts from the record itself, and that form is already sitting
-                        on it. If you cannot edit directly, it submits the request for you.
-                    </div>`;
+                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    <div>
+                        <label class="${LABEL}">Which record <span class="text-danger">*</span></label>
+                        <select id="plEditRecord" class="${INPUT}">
+                            <option value="">Choose a model first</option>
+                        </select>
+                        <p class="text-xs text-text-muted mt-1">Only the fields you change are sent, and an admin sees exactly those before approving.</p>
+                    </div>
+                    <div id="plEditMount"></div>`;
         }
         return '';
     }
@@ -1492,10 +1712,14 @@ class RequestsManager {
      * the executor's own gate is the boundary.
      *
      * It doubles as the handover form's unit loader: the same endpoint returns
-     * the model's units, which is what "which one are you carrying?" needs.
+     * the model's units, which is what "which one are you carrying?" needs. And
+     * for an edit it is where the record picker is refilled -- the trigger is the
+     * same "the requester named a different model" event, so hanging a second
+     * listener off that would be two ways to hear one thing.
      */
     async checkComponentLocation() {
-        const relevant = ['server.component.add', 'server.component.replace', 'inventory.component.relocate'];
+        const relevant = ['server.component.add', 'server.component.replace',
+            'inventory.component.relocate', 'inventory.component.edit'];
         if (!relevant.includes(this.actionType)) return;
 
         const fields = document.getElementById('plActionFields');
@@ -1507,6 +1731,17 @@ class RequestsManager {
         const componentUuid = this.actionType === 'server.component.replace'
             ? val('new_component_uuid')
             : val('component_uuid');
+
+        // An edit is about a RECORD, not about where a part is relative to a
+        // server, so the model choice fills the record picker instead of asking
+        // the location question. Handled before the guard below because clearing
+        // the model must clear the picker too.
+        if (this.actionType === 'inventory.component.edit') {
+            this.locationWarn = null;
+            this.renderLocationWarning(null);
+            await this.loadEditRecords(componentType, componentUuid);
+            return;
+        }
 
         if (!componentType || !componentUuid) {
             this.locationWarn = null;
@@ -1851,6 +2086,184 @@ class RequestsManager {
         });
     }
 
+    /* ----- Missing stock (2026-08-26) ------------------------------------ */
+
+    /**
+     * A model's readable name, from the same ims-data catalogue the Model
+     * dropdown is built from. Falls back to the short uuid rather than an empty
+     * string: naming nothing is worse than naming it awkwardly.
+     */
+    modelLabel(type, uuid) {
+        const models = (this.componentData && this.componentData[type]) || [];
+        const hit = models.find((m) => m.uuid === uuid);
+        const label = hit ? [hit.brand, hit.name].filter(Boolean).join(' ') : '';
+        return label || String(uuid || '').slice(0, 8);
+    }
+
+    /**
+     * The offer, shown once the parent request exists: nobody has this part.
+     *
+     * WHY THE REQUEST WAS CREATED AT ALL. Until now this was refused outright,
+     * which left the requester nowhere: the Model dropdown lists every model in
+     * the hardware catalogue, in stock or not, so they could not have known. "Not
+     * in stock yet" is a thing a prerequisite can fix, unlike a part that is
+     * broken or already in another machine -- those are still refused at submit.
+     *
+     * A purpose-built panel rather than utils.confirm(), for the same reason
+     * offerHandover() is one: that helper collapses a multi-line explanation into
+     * a single run-on line.
+     */
+    async offerStockAdd(created) {
+        const gap = created.missing[0] || {};
+        await this.loadComponentData();
+        const label = this.modelLabel(gap.component_type, gap.component_uuid);
+        const typeLabel = this.componentTypeLabel(gap.component_type);
+        const others = created.missing.length - 1;
+        const extra = others > 0
+            ? `<p class="text-xs text-text-secondary">${others} other part${others === 1 ? '' : 's'} on this request ${others === 1 ? 'is' : 'are'} also missing from inventory. Each needs its own record.</p>`
+            : '';
+
+        const parentSummary = {
+            id: created.pipeline_id,
+            ticket_number: created.ticket_number,
+            title: created.title || ''
+        };
+
+        document.getElementById('modalTitle').textContent = 'Request created';
+        document.getElementById('modalBody').innerHTML = `
+            <div class="space-y-4">
+                <div class="px-3 py-2.5 rounded-lg border border-border bg-surface-hover">
+                    <div class="text-sm text-text-primary">
+                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(created.ticket_number || '')}</span>
+                        was created.
+                    </div>
+                </div>
+                <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10 space-y-1.5">
+                    <div class="text-sm font-medium text-text-primary">
+                        <i class="fas fa-box-open mr-1.5 text-warning"></i>This part is not in inventory yet
+                    </div>
+                    <p class="text-xs text-text-secondary">
+                        No <span class="font-medium text-text-primary">${this.esc(typeLabel)}</span> unit of
+                        <span class="font-medium text-text-primary">${this.esc(label)}</span> exists in stock, so
+                        approving this request as it stands would be refused.
+                    </p>
+                    <p class="text-xs text-text-secondary">
+                        Raise an inventory record for it: an admin approves that, the unit exists, and only then
+                        does this request unfreeze. Whether the part actually FITS this server is checked at that
+                        point &mdash; it could not be checked now, with nothing to check.
+                    </p>
+                    ${extra}
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" id="plStockLater"
+                        class="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover">Later</button>
+                    <button type="button" id="plStockNow"
+                        class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Add it to inventory now
+                    </button>
+                </div>
+            </div>`;
+
+        document.getElementById('plStockLater').addEventListener('click', () => {
+            this.stockPrefill = null;
+            this.closeModal('modalContainer');
+            // The gap stays on the request's own detail (stockMissingBlock), so
+            // "Later" postpones the record without losing the fact.
+            if (parentSummary.id) this.openDetail(parentSummary.id);
+        });
+        document.getElementById('plStockNow').addEventListener('click', () => {
+            this.stockPrefill = {
+                component_type: gap.component_type,
+                component_uuid: gap.component_uuid,
+                serial_number: gap.serial_number || '',
+                label: label,
+                ticket_number: created.ticket_number || ''
+            };
+            // Straight back through showCreate(parent), so the child is created
+            // by the same parent_ticket_id path every other prerequisite uses.
+            this.showCreate(parentSummary);
+        });
+    }
+
+    /**
+     * Fill the Add Inventory Record form from the gap that prompted it.
+     *
+     * Picks the request type by CAPABILITY, not by name -- the one whose approval
+     * step is allowed to perform inventory.component.add -- so renaming "Add
+     * Inventory Record" in Settings does not quietly break this.
+     *
+     * The MODEL is NAMED in a banner rather than pre-selected. The mounted form's
+     * cascading dropdowns differ per component type, and walking eleven of them
+     * backwards from a uuid would be a second, guessable copy of knowledge that
+     * already lives in add-form.js. The requester picks the model from the same
+     * dropdowns they need anyway for brand and series.
+     */
+    async applyStockPrefill() {
+        const pre = this.stockPrefill;
+        if (!pre) return;
+
+        const typeSelect = document.getElementById('plType');
+        const type = this.types.find((t) => t.is_active !== 0
+            && this.typeActionCeiling(t).some((a) => a.action_type === 'inventory.component.add'));
+        if (!typeSelect || !type) {
+            this.stockPrefill = null;
+            // Nothing seeded can perform it. The offer said what to raise;
+            // leaving the form blank beats half-filling the wrong type.
+            this.toast('No request type can add to inventory yet \u2014 ask an admin to add one', 'warning');
+            return;
+        }
+
+        typeSelect.value = String(type.id);
+        this.previewType(String(type.id));
+
+        // previewType -> applyRequestType -> setActionType renders the fields and
+        // mounts the Add Component form asynchronously. Wait before writing into
+        // the container it is still filling.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // Kept past this method, unlike stockPrefill: the mismatch check at
+        // submit still needs to know which model the parent asked for.
+        this.stockWanted = {
+            component_type: pre.component_type,
+            component_uuid: pre.component_uuid,
+            label: pre.label,
+            ticket_number: pre.ticket_number
+        };
+
+        const mount = document.getElementById('plInventoryMount');
+        if (mount && !document.getElementById('plStockWanted')) {
+            mount.insertAdjacentHTML('beforebegin', `
+                <div id="plStockWanted" class="mb-3 px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10">
+                    <div class="text-sm font-medium text-text-primary">
+                        <i class="fas fa-crosshairs mr-1.5 text-warning"></i>#${this.esc(pre.ticket_number)} needs this model
+                    </div>
+                    <p class="text-xs text-text-secondary mt-1">
+                        <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(pre.component_type))}</span>
+                        &mdash; <span class="font-medium text-text-primary">${this.esc(pre.label)}</span>${pre.serial_number ? `, serial <span class="font-mono">${this.esc(pre.serial_number)}</span>` : ''}.
+                        Pick it in the dropdowns below. A different model is allowed &mdash; that request will just
+                        still be short of the part it named.
+                    </p>
+                </div>`);
+        }
+
+        // The form is mounted by now, so its own serial field can be filled: a
+        // requester who named a serial on the parent named a physical unit, and
+        // this is the record for that unit.
+        const serialField = document.getElementById('serialNumber');
+        if (serialField && pre.serial_number && !serialField.value) {
+            serialField.value = pre.serial_number;
+        }
+
+        const title = document.getElementById('plTitle');
+        if (title && !title.value) {
+            title.value = `Add ${this.componentTypeLabel(pre.component_type)} ${pre.label} to inventory`.trim();
+            this.titleTouched = true;
+            this.updateTitleChip();
+        }
+
+        this.stockPrefill = null;
+    }
+
     /**
      * The action this request will perform, as {action_type, payload}, or null.
      *
@@ -1876,6 +2289,26 @@ class RequestsManager {
                 payload: {
                     component_type: this.inventoryForm.currentComponentType,
                     data: data
+                }
+            };
+        }
+
+        // The mounted Edit Component form holds the record's own fields and knows
+        // which of them moved, so it reports the diff itself — the same payload a
+        // direct edit would have sent, which is what makes one validation path
+        // serve both routes. Exactly three keys: the executor refuses a fourth.
+        if (this.actionType === 'inventory.component.edit') {
+            if (!this.editForm || !this.editRecordId) return null;
+
+            const componentType = (document.querySelector('[data-action-field="component_type"]')?.value || '').trim();
+            if (!componentType) return null;
+
+            return {
+                action_type: this.actionType,
+                payload: {
+                    component_type: componentType,
+                    inventory_id: this.editRecordId,
+                    data: this.editForm.collectChangedFields()
                 }
             };
         }
@@ -1966,8 +2399,19 @@ class RequestsManager {
             return this.inventoryForm.validateForm() ? [] : [''];
         }
 
+        // An edit needs a record and at least one changed field. The empty
+        // payload the executor would otherwise refuse ("data must not be empty")
+        // is worth catching here, while the requester is still on the form.
         if (this.actionType === 'inventory.component.edit') {
-            return ['Raise this from the Edit Component screen instead'];
+            const componentType = (document.querySelector('[data-action-field="component_type"]')?.value || '').trim();
+            const componentUuid = (document.querySelector('[data-action-field="component_uuid"]')?.value || '').trim();
+            if (!componentType || !componentUuid) return ['Choose a component type and model'];
+            if (!this.editRecordId) return ['Choose which record to correct'];
+            if (!this.editForm) return ['Wait for the record to finish loading'];
+            if (!Object.keys(this.editForm.collectChangedFields()).length) {
+                return ['Change at least one field before submitting'];
+            }
+            return [];
         }
 
         const action = this.collectAction();
@@ -2072,6 +2516,16 @@ class RequestsManager {
         const parent = this.parentContext;
         if (parent) fields.parent_ticket_id = parent.id;
 
+        // Raised from a missing-stock offer, but for a different model than the
+        // parent asked for. Said out loud and submitted anyway: substituting a
+        // part is a real decision somebody may have taken deliberately, and only
+        // they can know. Blocking it here would be this form overruling them.
+        const wanted = this.stockWanted;
+        if (wanted && action && action.action_type === 'inventory.component.add'
+            && action.payload?.data?.UUID && action.payload.data.UUID !== wanted.component_uuid) {
+            this.toast(`Note: this adds a different model from the one #${wanted.ticket_number} needs (${wanted.label}). Raising it anyway.`, 'warning');
+        }
+
         try {
             const result = await this.apiPost('pipeline-create', fields);
             if (!result.success) {
@@ -2079,6 +2533,25 @@ class RequestsManager {
                 return this.toast(msg, 'error');
             }
             this.toast(parent ? 'Prerequisite raised' : 'Request created', 'success');
+
+            // Nobody has the part at all. Checked BEFORE the wrong-site offer
+            // below: a model with no units cannot be at the wrong site, and if
+            // both somehow fire, "it does not exist yet" is the fact that
+            // actually stops this request.
+            const missing = Array.isArray(result.data?.stock_missing) ? result.data.stock_missing : [];
+            if (!parent && missing.length && result.data?.pipeline_id) {
+                this.parentContext = null;
+                this.locationWarn = null;
+                this.stockWanted = null;
+                this.load();
+                this.offerStockAdd({
+                    pipeline_id: result.data.pipeline_id,
+                    ticket_number: result.data.ticket_number,
+                    title: title,
+                    missing: missing
+                });
+                return;
+            }
 
             // The part is at the wrong site. Offer the fix here, while the
             // requester is still in the flow, rather than leaving them to
@@ -2100,6 +2573,7 @@ class RequestsManager {
             this.closeModal('modalContainer');
             this.parentContext = null;
             this.locationWarn = null;
+            this.stockWanted = null;
             this.load();
             // Back to the PARENT, not the new child: the frozen request is where
             // the user came from, and it now shows the prerequisite it is
@@ -2117,6 +2591,12 @@ class RequestsManager {
             const result = await this.apiPost('pipeline-get', { pipeline_id: id });
             if (!result.success) return this.toast(result.message || 'Failed to load request', 'error');
             this.currentDetail = result.data.pipeline;
+            // Only when there is a gap to name: loading the catalogue is eleven
+            // static fetches, and someone merely reading a request should not pay
+            // for them. Cached after the first call either way.
+            if (Array.isArray(this.currentDetail.stock_missing) && this.currentDetail.stock_missing.length) {
+                await this.loadComponentData();
+            }
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
         } catch (e) {
@@ -2218,6 +2698,7 @@ class RequestsManager {
             ${askedBlock}
             ${accessBanner}
             ${this.executionFailureBanner()}
+            ${this.stockMissingBlock(p)}
             ${this.prerequisitesBlock(p)}
 
             <div class="mt-5">
@@ -2280,6 +2761,56 @@ class RequestsManager {
                     </div>
                     <ul class="mt-1.5 space-y-1">${rows}</ul>
                     <div class="text-xs text-text-secondary mt-2">${explain}</div>
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Parts this request needs that nobody has yet.
+     *
+     * Rendered from `stock_missing`, which the backend re-derives from live
+     * inventory on every read rather than storing -- so this notice disappears by
+     * itself the moment the record exists, and comes back if the unit is deleted
+     * again. A stored flag would be a lie within the hour.
+     *
+     * It is a WARNING, not a freeze: only a prerequisite freezes a request
+     * (blockedBanner). This says why the approval will be refused if nothing
+     * changes, which is the part an approver cannot otherwise see.
+     */
+    stockMissingBlock(p) {
+        const gaps = Array.isArray(p.stock_missing) ? p.stock_missing : [];
+        if (!gaps.length) return '';
+
+        const rows = gaps.map((g) => `
+            <li class="text-xs text-text-secondary">
+                &bull; <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(g.component_type))}</span>
+                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>${g.serial_number ? `, serial <span class="font-mono">${this.esc(g.serial_number)}</span>` : ''}
+            </li>`).join('');
+
+        const canRaise = this.canRaisePrerequisite(p);
+        const first = gaps[0];
+
+        return `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-warning/30 bg-warning/10">
+                <i class="fas fa-box-open text-warning mt-0.5"></i>
+                <div class="min-w-0">
+                    <div class="text-sm font-medium text-text-primary">
+                        Not in inventory yet
+                    </div>
+                    <ul class="mt-1.5 space-y-0.5">${rows}</ul>
+                    <div class="text-xs text-text-secondary mt-2">
+                        Approving this will be refused while ${gaps.length === 1 ? 'that part is' : 'those parts are'} missing,
+                        and the approval is rolled back whole. Add the inventory record first &mdash; as a prerequisite,
+                        so this request unfreezes on its own once it is approved.
+                    </div>
+                    ${canRaise ? `
+                        <button type="button" id="plRaiseStockRecord"
+                            data-stock-type="${this.esc(first.component_type)}"
+                            data-stock-uuid="${this.esc(first.component_uuid)}"
+                            data-stock-serial="${this.esc(first.serial_number || '')}"
+                            class="mt-3 px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover transition-colors flex items-center gap-1.5">
+                            <i class="fas fa-plus"></i> Add it to inventory
+                        </button>` : ''}
                 </div>
             </div>`;
     }
@@ -2693,6 +3224,20 @@ class RequestsManager {
 
         body.querySelector('#plCancelPipeline')?.addEventListener('click', () => this.cancelPipeline(p.id));
         body.querySelector('#plRaisePrerequisite')?.addEventListener('click', () => this.showCreate(p));
+
+        // The same prefill the offer sets, so both routes into the Add Inventory
+        // Record form arrive with the identical context.
+        const stockBtn = body.querySelector('#plRaiseStockRecord');
+        stockBtn?.addEventListener('click', () => {
+            this.stockPrefill = {
+                component_type: stockBtn.dataset.stockType,
+                component_uuid: stockBtn.dataset.stockUuid,
+                serial_number: stockBtn.dataset.stockSerial || '',
+                label: this.modelLabel(stockBtn.dataset.stockType, stockBtn.dataset.stockUuid),
+                ticket_number: p.ticket_number || ''
+            };
+            this.showCreate(p);
+        });
 
         // Navigating up and down the chain. Re-entrant on purpose: openDetail()
         // replaces the whole modal body, so this is the same one modal being
