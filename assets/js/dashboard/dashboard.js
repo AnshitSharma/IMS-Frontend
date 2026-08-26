@@ -3,6 +3,41 @@
  * Mobile menu now handled by SidebarManager in sidebar-manager.js
  */
 
+/**
+ * The lifecycle vocabulary the state machine actually uses (status_v2), and how
+ * each value reads on a card.
+ *
+ * Colours are NOT new: each value keeps the colour its legacy
+ * configuration_status int already had (StatusMap::CONFIG_V2_TO_LEGACY -- draft
+ * 0, validated 1, building/validating 2, finalized/deployed/maintenance/retired
+ * 3), so nothing that is on screen today changes appearance. Only the LABEL gets
+ * more precise. That also keeps this to the four badge palettes actually
+ * compiled into tailwind.css -- a class missing from that file renders as
+ * nothing.
+ */
+const SERVER_STATUS_V2_PRESENTATION = {
+    draft:       { label: 'Draft',       dotClass: 'bg-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
+    building:    { label: 'Building',    dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
+    validating:  { label: 'Validating',  dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
+    validated:   { label: 'Validated',   dotClass: 'bg-sky-500',   textClass: 'text-sky-600 dark:text-sky-400' },
+    finalized:   { label: 'Finalized',   dotClass: 'bg-teal-500',  textClass: 'text-teal-600 dark:text-teal-400' },
+    deployed:    { label: 'Deployed',    dotClass: 'bg-teal-500',  textClass: 'text-teal-600 dark:text-teal-400' },
+    maintenance: { label: 'Maintenance', dotClass: 'bg-teal-500',  textClass: 'text-teal-600 dark:text-teal-400' },
+    retired:     { label: 'Retired',     dotClass: 'bg-teal-500',  textClass: 'text-teal-600 dark:text-teal-400' }
+};
+
+/**
+ * Legacy configuration_status int -> the same presentation, for a row that
+ * pre-dates the status_v2 backfill. Unchanged from what the cards showed before
+ * status_v2 was consulted at all.
+ */
+const SERVER_STATUS_LEGACY_PRESENTATION = {
+    '0': SERVER_STATUS_V2_PRESENTATION.draft,
+    '1': SERVER_STATUS_V2_PRESENTATION.validated,
+    '2': { label: 'Built', dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
+    '3': SERVER_STATUS_V2_PRESENTATION.finalized
+};
+
 class Dashboard {
     constructor() {
         this.currentComponent = 'dashboard';
@@ -776,16 +811,12 @@ class Dashboard {
             return;
         }
 
-        const getStatusBadge = (status) => {
-            const statusMap = {
-                '0': { label: 'Draft', dotClass: 'bg-amber-500', textClass: 'text-amber-600 dark:text-amber-400' },
-                '1': { label: 'Validated', dotClass: 'bg-sky-500', textClass: 'text-sky-600 dark:text-sky-400' },
-                '2': { label: 'Built', dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
-                '3': { label: 'Finalized', dotClass: 'bg-teal-500', textClass: 'text-teal-600 dark:text-teal-400' }
-            };
-            const s = statusMap[status] || statusMap['0'];
-            return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${s.textClass}"><span class="w-1.5 h-1.5 rounded-full ${s.dotClass}"></span>${s.label}</span>`;
-        };
+        // The badge now reads status_v2 first — see _serverStatusPresentation().
+        // Editing details and changing status are gated separately: the backend
+        // enforces both, this only decides whether the button is worth showing.
+        const canEditDetails = api.utils.hasPermission('server.edit_details');
+        const canTransition = api.utils.hasPermission('server.transition');
+        const canOpenEditDialog = canEditDetails || canTransition;
 
         // Rack View (and therefore every placement action) is admin / super_admin only —
         // api.php role-gates the whole rack module on top of ACL. Same gate the Create
@@ -827,11 +858,16 @@ class Dashboard {
                                 ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
                             </h3>
                             <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5">
-                                ${getStatusBadge(server.configuration_status)}
+                                ${this._serverStatusBadge(server)}
                                 ${getRackLabel(server) !== '—' ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${getRackLabel(server)}</span></span>` : ''}
                             </div>
                         </div>
                         <div class="flex items-center gap-1 flex-shrink-0">
+                            ${canOpenEditDialog ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
+                                    onclick="event.stopPropagation(); dashboard.showServerEditModal('${server.config_uuid}')"
+                                    title="Edit server — name, details, location and status" aria-label="Edit this server's details or change its status">
+                                <i class="fas fa-pen text-xs"></i>
+                            </button>` : ''}
                             ${canManageRacks ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
                                     onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
                                     title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
@@ -1926,6 +1962,406 @@ class Dashboard {
         } finally {
             utils.showLoading(false);
         }
+    }
+
+    // ---------------------------------------------------- edit server / status
+
+    /**
+     * Edit one server's own attributes, and move it along its lifecycle.
+     *
+     * TWO independent actions in one dialog, deliberately — they are two API
+     * calls with two different permissions and two different failure modes:
+     *
+     *   Details → server-update-config (server.edit_details), plus
+     *             server-update-location for the location field, which is the
+     *             canonical location writer: it sets location_uuid AND the
+     *             free-text column AND re-stamps every installed component.
+     *             server-update-config's own `location` field does not do the
+     *             first of those, so it is not used here.
+     *   Status  → server-transition-status (server.transition + whatever the
+     *             EDGE requires), the only path that writes status_v2 and the
+     *             mapped legacy int together.
+     *
+     * A finalized server's details are locked by the backend, so the details
+     * half renders read-only in that state while the status half stays live.
+     * That is the way back out of a Finalize clicked by mistake — which is the
+     * whole reason this dialog exists.
+     */
+    async showServerEditModal(configUuid) {
+        const server = (this.allServers || []).find(s => s.config_uuid === configUuid);
+        if (!server) {
+            utils.showAlert('Could not find that server in the current list — refresh and try again', 'error');
+            return;
+        }
+
+        this.serverEditContext = { configUuid, server, transitions: null };
+
+        this.showModal(`Edit server — ${server.server_name || 'Unnamed Server'}`, `
+            <div id="serverEditPanel">
+                <div class="py-16 text-center text-text-muted">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-3"></i>
+                    <p class="text-sm">Loading…</p>
+                </div>
+            </div>`);
+
+        // Allowed to fail without taking the dialog down: the details half does
+        // not depend on it, and the renderer says so when it is missing.
+        let transitions = null;
+        try {
+            const result = await api.servers.allowedTransitions(configUuid);
+            if (result?.success) { transitions = result.data || null; }
+        } catch (error) {
+            console.warn('Could not load the allowed status changes:', error);
+        }
+
+        // The dialog may have been closed, or reopened for another server, while
+        // that was in flight — only paint into the context we still own.
+        const ctx = this.serverEditContext;
+        if (!ctx || ctx.configUuid !== configUuid) return;
+        ctx.transitions = transitions;
+
+        const panel = document.getElementById('serverEditPanel');
+        if (!panel) return;
+        panel.innerHTML = this._renderServerEditForm();
+
+        // populateSelect() enables the element it fills, so it is only called for
+        // a server whose location this dialog may actually change.
+        const locationSelect = document.getElementById('serverEditLocation');
+        if (locationSelect) {
+            await api.locations.populateSelect(locationSelect, {
+                placeholder: '-- No location --',
+                selectedName: server.location_name || server.location || ''
+            });
+        }
+    }
+
+    _renderServerEditForm() {
+        const ctx = this.serverEditContext;
+        const server = ctx.server;
+        const status = this._serverStatusPresentation(server);
+
+        // The legacy int is the right thing to test here: it is what
+        // handleUpdateConfiguration's own finalized guard reads.
+        const isFinalized = (parseInt(server.configuration_status, 10) || 0) === 3;
+        const isRacked = !!server.rack_uuid;
+        const canEditDetails = api.utils.hasPermission('server.edit_details');
+        const detailsLocked = isFinalized || !canEditDetails;
+        // A racked server's location IS its rack's, and the backend refuses to set
+        // it directly (409). server-update-location is gated on server.edit_details
+        // like the rest of the details, but it is NOT blocked on a finalized
+        // config — a finalized machine still gets physically moved.
+        const canEditLocation = !isRacked && canEditDetails;
+
+        // Only moves the backend has already said this user may make. It computed
+        // that with the same ACL checker the command itself uses, so nothing here
+        // can be offered and then refused.
+        const moves = (ctx.transitions?.transitions || []).filter(move => move.allowed);
+        const blocked = (ctx.transitions?.transitions || []).filter(move => !move.allowed);
+
+        const statusOptions = moves.map(move => {
+            const label = this._serverStatusLabel(move.to_status);
+            const suffix = move.requires_validation ? ' — validates the build first' : '';
+            return `<option value="${utils.escapeHtml(move.to_status)}">${utils.escapeHtml(label + suffix)}</option>`;
+        }).join('');
+
+        let statusBody;
+        if (!ctx.transitions) {
+            statusBody = `<p class="text-sm text-text-secondary">The available status changes could not be loaded. Close this dialog and try again.</p>`;
+        } else if (moves.length) {
+            statusBody = `
+                <div class="form-group">
+                    <label for="serverEditStatus" class="form-label flex items-center gap-2">
+                        <i class="fas fa-exchange-alt text-primary text-sm"></i>
+                        Move to
+                    </label>
+                    <select class="form-select" id="serverEditStatus">
+                        <option value="">-- Select a status --</option>
+                        ${statusOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="serverEditStatusNotes" class="form-label flex items-center gap-2">
+                        <i class="fas fa-comment-dots text-primary text-sm"></i>
+                        Reason <span class="text-xs font-normal text-text-muted">(optional)</span>
+                    </label>
+                    <input type="text" class="form-input" id="serverEditStatusNotes" maxlength="255"
+                        placeholder="e.g. Finalized by mistake, reopening for a RAM swap">
+                    <p class="text-xs text-text-muted mt-1">Saved to this server's notes and recorded against the change.</p>
+                </div>
+                <div class="flex items-center justify-end pt-2">
+                    <button type="button" class="px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary-hover transition-colors flex items-center gap-2"
+                            onclick="dashboard.changeServerStatus()">
+                        <i class="fas fa-exchange-alt text-xs"></i> Change status
+                    </button>
+                </div>`;
+        } else {
+            // Naming the missing permission is the point: every edge out of
+            // 'finalized' needs server.unfinalize, and until its seeder is run
+            // that permission does not exist for anyone.
+            const needed = [...new Set(blocked.map(move => move.required_permission))];
+            statusBody = `
+                <p class="text-sm text-text-secondary">
+                    There is no status change you can make from <strong class="text-text-primary">${utils.escapeHtml(status.label)}</strong>.
+                    ${needed.length ? `It would need ${needed.map(p => `<code class="font-mono text-xs bg-surface-secondary border border-border-light rounded px-1.5 py-0.5">${utils.escapeHtml(p)}</code>`).join(' or ')}.` : ''}
+                </p>`;
+        }
+
+        const locationHint = isRacked
+            ? `This server is installed in rack <strong class="text-text-secondary">${utils.escapeHtml(server.rack_name || 'unknown')}</strong>, so its location is that rack's. Use <em>Move server</em> to put it somewhere else.`
+            : "You do not have permission to change this server's location.";
+
+        const locationField = canEditLocation
+            ? `<div class="form-group">
+                   <label for="serverEditLocation" class="form-label flex items-center gap-2">
+                       <i class="fas fa-map-marker-alt text-primary text-sm"></i>
+                       Location
+                   </label>
+                   <select class="form-select" id="serverEditLocation">
+                       <option value="">Loading locations…</option>
+                   </select>
+                   <p class="text-xs text-text-muted mt-1">Every component installed in this server moves with it.</p>
+               </div>`
+            : `<div class="form-group">
+                   <label class="form-label flex items-center gap-2">
+                       <i class="fas fa-map-marker-alt text-primary text-sm"></i>
+                       Location
+                   </label>
+                   <input type="text" class="form-input" value="${utils.escapeHtml(server.location_name || server.location || '—')}" disabled>
+                   <p class="text-xs text-text-muted mt-1">${locationHint}</p>
+               </div>`;
+
+        return `
+            <div class="space-y-5">
+                <div class="flex items-start gap-3 p-4 bg-surface-secondary border border-border-light rounded-lg">
+                    <i class="fas fa-server text-primary mt-0.5"></i>
+                    <div class="min-w-0">
+                        <p class="text-xs uppercase tracking-wider text-text-muted font-semibold">Current status</p>
+                        <div class="mt-1">${this._serverStatusBadge(server)}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4 pb-2 border-b border-border-light">Details</h4>
+                    ${detailsLocked ? `
+                    <div class="flex items-start gap-2 p-3 mb-4 bg-surface-secondary rounded-lg border border-border-light">
+                        <i class="fas fa-lock text-text-muted text-sm mt-0.5"></i>
+                        <p class="text-xs text-text-secondary">${isFinalized
+                            ? 'A finalized server\'s details are locked. Move it back to Building or Draft below, then edit it.'
+                            : 'You do not have permission to change this server\'s details.'}</p>
+                    </div>` : ''}
+                    <div class="space-y-5">
+                        <div class="form-group">
+                            <label for="serverEditName" class="form-label required flex items-center gap-2">
+                                <i class="fas fa-tag text-primary text-sm"></i>
+                                Server Name
+                            </label>
+                            <input type="text" class="form-input" id="serverEditName" maxlength="100"
+                                value="${utils.escapeHtml(server.server_name || '')}" ${detailsLocked ? 'disabled' : ''}>
+                        </div>
+                        <div class="form-group">
+                            <label for="serverEditDescription" class="form-label flex items-center gap-2">
+                                <i class="fas fa-align-left text-primary text-sm"></i>
+                                Description
+                            </label>
+                            <textarea class="form-textarea" id="serverEditDescription" rows="3"
+                                placeholder="What this server is for" ${detailsLocked ? 'disabled' : ''}>${utils.escapeHtml(server.description || '')}</textarea>
+                        </div>
+                        ${locationField}
+                        <div class="form-group">
+                            <label for="serverEditNotes" class="form-label flex items-center gap-2">
+                                <i class="fas fa-clipboard text-primary text-sm"></i>
+                                Notes
+                            </label>
+                            <textarea class="form-textarea" id="serverEditNotes" rows="2"
+                                placeholder="Anything worth recording about this build" ${detailsLocked ? 'disabled' : ''}>${utils.escapeHtml(server.notes || '')}</textarea>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-end gap-3 pt-4">
+                        <button type="button" class="px-5 py-2.5 bg-surface-secondary text-text-primary rounded-lg font-medium text-sm hover:bg-surface-hover transition-colors" onclick="dashboard.closeModal()">Cancel</button>
+                        <button type="button" class="px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary-hover transition-colors flex items-center gap-2"
+                                onclick="dashboard.saveServerDetails()" ${detailsLocked && !canEditLocation ? 'disabled' : ''}>
+                            <i class="fas fa-save text-xs"></i> Save changes
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4 pb-2 border-b border-border-light">Status</h4>
+                    ${statusBody}
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Save the details half of the edit dialog.
+     *
+     * Sends only what actually changed — server-update-config leaves an absent
+     * field alone, and this keeps the configuration change log free of no-op
+     * entries.
+     */
+    async saveServerDetails() {
+        const ctx = this.serverEditContext;
+        if (!ctx) return;
+        const server = ctx.server;
+
+        const nameEl = document.getElementById('serverEditName');
+        const name = (nameEl?.value || '').trim();
+        const locationSelect = document.getElementById('serverEditLocation');
+
+        // A locked details half still has a live location select for an unracked
+        // server only when the lock is the finalized one; in every other case the
+        // inputs are disabled and nothing below finds a change to send.
+        if (nameEl && !nameEl.disabled && !name) {
+            utils.showAlert('Server name cannot be empty', 'warning');
+            return;
+        }
+
+        const fields = {};
+        if (nameEl && !nameEl.disabled && name !== (server.server_name || '')) {
+            fields.server_name = name;
+        }
+        const descriptionEl = document.getElementById('serverEditDescription');
+        if (descriptionEl && !descriptionEl.disabled) {
+            const description = descriptionEl.value.trim();
+            if (description !== (server.description || '')) { fields.description = description; }
+        }
+        const notesEl = document.getElementById('serverEditNotes');
+        if (notesEl && !notesEl.disabled) {
+            const notes = notesEl.value.trim();
+            if (notes !== (server.notes || '')) { fields.notes = notes; }
+        }
+
+        const newLocationUuid = locationSelect && !locationSelect.disabled
+            ? api.locations.selectedUuid(locationSelect)
+            : null;
+        const locationChanged = newLocationUuid !== null && newLocationUuid !== (server.location_uuid || '');
+
+        if (!Object.keys(fields).length && !locationChanged) {
+            utils.showAlert('Nothing changed', 'info');
+            return;
+        }
+
+        try {
+            utils.showLoading(true, 'Saving server...');
+
+            if (Object.keys(fields).length) {
+                const result = await api.servers.updateConfig(ctx.configUuid, fields);
+                if (!result?.success) {
+                    utils.showAlert(result?.message || 'Failed to save the server details', 'error');
+                    return;
+                }
+            }
+
+            // Separate endpoint on purpose (see showServerEditModal). Reported
+            // rather than swallowed: the details are already saved by this point,
+            // so a bare "saved" would be a lie about the location.
+            if (locationChanged) {
+                const locationResult = await api.servers.updateLocation(ctx.configUuid, newLocationUuid);
+                if (!locationResult?.success) {
+                    utils.showAlert(locationResult?.message || 'Details saved, but the location could not be changed', 'warning');
+                    this.closeModal();
+                    await this.loadServerList(true);
+                    return;
+                }
+            }
+
+            utils.showAlert('Server updated', 'success');
+            this.closeModal();
+            await this.loadServerList(true);
+        } catch (error) {
+            console.error('Save server details error:', error);
+            utils.showAlert(error.message || 'An error occurred while saving the server', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    /**
+     * Walk one lifecycle edge.
+     *
+     * to_status is a status_v2 value; the command maps it onto the legacy int.
+     * This is also the way back out of finalized — the edges finalized →
+     * building and finalized → draft, both gated on server.unfinalize.
+     */
+    async changeServerStatus() {
+        const ctx = this.serverEditContext;
+        if (!ctx) return;
+
+        const toStatus = document.getElementById('serverEditStatus')?.value || '';
+        if (!toStatus) {
+            utils.showAlert('Choose the status to move this server to', 'warning');
+            return;
+        }
+
+        const move = (ctx.transitions?.transitions || []).find(t => t.to_status === toStatus);
+        const targetLabel = this._serverStatusLabel(toStatus);
+        const notes = (document.getElementById('serverEditStatusNotes')?.value || '').trim();
+
+        // requires_validation === 'full' is what makes a move fail late, so it is
+        // said before the click rather than reported as a surprise after it.
+        const validationNote = move?.requires_validation
+            ? ' The whole build is validated first, and the move is refused if it does not pass.'
+            : '';
+        // Leaving 'finalized' is the case this dialog was built for, and the
+        // consequence is worth stating: the build becomes editable again.
+        const unlockNote = (parseInt(ctx.server.configuration_status, 10) || 0) === 3
+            ? ' Its components become editable again.'
+            : '';
+
+        const confirmed = await utils.confirm(
+            `Move "${ctx.server.server_name || 'this server'}" to ${targetLabel}?${validationNote}${unlockNote}`,
+            'Change Server Status'
+        );
+        if (!confirmed) return;
+
+        try {
+            utils.showLoading(true, 'Changing server status...');
+            const result = await api.servers.transitionStatus(ctx.configUuid, toStatus, notes);
+            if (!result?.success) {
+                utils.showAlert(result?.message || 'Failed to change the server status', 'error');
+                return;
+            }
+            utils.showAlert(`Status changed to ${targetLabel}`, 'success');
+            this.closeModal();
+            await this.loadServerList(true);
+        } catch (error) {
+            console.error('Change server status error:', error);
+            utils.showAlert(error.message || 'An error occurred while changing the server status', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    /**
+     * How one server's status reads on screen.
+     *
+     * status_v2 is the authoritative lifecycle state — StateGuard consults it
+     * FIRST and STATE_MACHINE_ENABLED is enforce in production. The legacy
+     * configuration_status int is a lossy projection of it (draft→0, validated→1,
+     * building/validating→2, and finalized/deployed/maintenance/retired ALL →3),
+     * so labelling from the int alone calls a deployed or maintenance server
+     * "Finalized" — which would make the new status control look like it had
+     * done nothing.
+     *
+     * Falls back to the int for a row that pre-dates the status_v2 backfill.
+     */
+    _serverStatusPresentation(server) {
+        const v2 = server?.status_v2;
+        if (v2 && SERVER_STATUS_V2_PRESENTATION[v2]) {
+            return SERVER_STATUS_V2_PRESENTATION[v2];
+        }
+        return SERVER_STATUS_LEGACY_PRESENTATION[String(server?.configuration_status)]
+            || SERVER_STATUS_LEGACY_PRESENTATION['0'];
+    }
+
+    /** The display name for one status_v2 value. */
+    _serverStatusLabel(statusV2) {
+        return SERVER_STATUS_V2_PRESENTATION[statusV2]?.label || statusV2;
+    }
+
+    _serverStatusBadge(server) {
+        const s = this._serverStatusPresentation(server);
+        return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${s.textClass}"><span class="w-1.5 h-1.5 rounded-full ${s.dotClass}"></span>${s.label}</span>`;
     }
 
     async showServerBuilder(configUuid, serverName) {

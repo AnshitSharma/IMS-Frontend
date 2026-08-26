@@ -33,6 +33,9 @@ class RequestsManager {
         this.editRecords = [];
         this.editRecordId = '';
         this.editRecordsSeq = 0;
+        // Guards the async model-option fills the same way: a late answer
+        // must not land in a dropdown that has moved on to another question.
+        this.modelFillSeq = 0;
         // Server list behind the create form's picker (pipeline-servers).
         this.servers = [];
         this.serversTotal = 0;
@@ -404,7 +407,6 @@ class RequestsManager {
                         <label for="plAction" class="${EYEBROW}">What should happen <span class="text-danger">*</span></label>
                         <select id="plAction" class="${SELECT}"></select>
                         <p id="plActionHint" class="text-xs text-text-muted mt-1"></p>
-                        <div id="plActionFields" class="space-y-3 mt-3"></div>
                     </div>
 
                     <!-- Server. One control for the whole question, including
@@ -414,6 +416,14 @@ class RequestsManager {
                         <div id="plServerBlock"></div>
                         <p id="plServerHint" class="text-xs text-text-muted mt-1"></p>
                     </div>
+
+                    <!-- The action's own fields sit AFTER the server, because two
+                         of them cannot be answered without it: what is installed
+                         in a server, and whether its stock is at the right site.
+                         Outside #plActionRow rather than inside it, so the order
+                         reads server-then-fields; applyRequestType() empties it
+                         when a type performs nothing, so it renders as nothing. -->
+                    <div id="plActionFields" class="space-y-3"></div>
 
                     <div id="plItemsRow">
                         <label for="plItemsTrigger" class="${EYEBROW}">Components</label>
@@ -657,6 +667,11 @@ class RequestsManager {
             const picked = document.querySelector('input[name="plServerPick"]:checked');
             if (picked) picked.checked = false;
             this.updateServerSelection();
+            // Un-answering the server question un-answers what is installed in it.
+            // Without this the take-out list would keep offering the parts of a
+            // server that is no longer selected.
+            this.fillActionModels();
+            this.checkComponentLocation();
         });
     }
 
@@ -712,6 +727,10 @@ class RequestsManager {
             if (keepUuid && radio.value === keepUuid) radio.checked = true;
             radio.addEventListener('change', () => {
                 this.updateServerSelection();
+                // Which server it is decides WHICH PARTS EXIST to be taken out,
+                // and how much of the stock is at the right site -- so the option
+                // lists are re-fetched, not just re-rendered.
+                this.fillActionModels();
                 // Which server it is decides whether the part is in the right
                 // place, so the warning has to be re-asked, not just re-rendered.
                 this.checkComponentLocation();
@@ -995,6 +1014,7 @@ class RequestsManager {
             row.classList.add('hidden');
             select.innerHTML = '';
             fields.innerHTML = '';
+            fields.classList.add('hidden');
             // Nothing is performed, so there is no action to shape the form and
             // the TYPE answers instead: a request to be let through a door is
             // about neither a server nor a parts list, while a general one is
@@ -1125,12 +1145,18 @@ class RequestsManager {
         this.editRecords = [];
         this.editRecordId = '';
         this.editRecordsSeq = 0;
+        // A different action asks different questions of the same dropdowns, so
+        // any fill still in flight is answering the wrong one.
+        this.modelFillSeq = (this.modelFillSeq || 0) + 1;
 
         const hint = document.getElementById('plActionHint');
         const fields = document.getElementById('plActionFields');
         if (!fields) return;
 
         fields.innerHTML = this.actionType ? this.actionFieldsHTML(this.actionType) : '';
+        // Empty means no gap: the container sits in a space-y-3 stack, so an
+        // empty one would still push the rows around it apart.
+        fields.classList.toggle('hidden', !this.actionType);
 
         // Adding to inventory needs the real Add Component form — its cascading
         // dropdowns are what produce a UUID the executor will accept. Mounted
@@ -1181,6 +1207,8 @@ class RequestsManager {
         fields.querySelectorAll('[data-action-field]').forEach((el) => {
             el.addEventListener('change', () => {
                 if (el.dataset.actionField === 'component_type') this.fillActionModels();
+                // Picking a unit is picking its serial number too.
+                this.syncUnitSerial();
                 this.autoTitle();
                 // Model, type or serial changed -- re-ask where the part is. Also
                 // fires for the handover form's own model select, which is what
@@ -1475,26 +1503,31 @@ class RequestsManager {
                     <div id="plLocationWarn"></div>`;
 
             case 'server.component.remove':
+                // Same unit-level list as a swap's take-out side. The serial box
+                // stays, filled in from the unit chosen above: it is what the
+                // executor actually sends, so hiding it would hide which physical
+                // part the request names.
                 return `
-                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    ${componentPair('component_type', 'component_uuid', 'Unit to remove')}
                     <div>
                         <label class="${LABEL}">Serial number</label>
                         <input type="text" data-action-field="serial_number" maxlength="100" class="${INPUT}"
-                            placeholder="Which unit, when the build has more than one of this model">
+                            placeholder="Filled in from the unit you pick above">
                     </div>`;
 
             case 'server.component.replace':
+                // The take-out control lists the UNITS actually in the chosen
+                // server, so the serial is no longer typed -- it is a property of
+                // the unit picked, and collectAction() reads it (plus the
+                // inventory row id) off the option. A typed serial could name a
+                // unit that is not in this server at all; a picked one cannot.
                 return `
-                    ${componentPair('component_type', 'old_component_uuid', 'Model to take out')}
+                    ${componentPair('component_type', 'old_component_uuid', 'Unit to take out')}
                     <div>
                         <label class="${LABEL}">Model to put in <span class="text-danger">*</span></label>
                         <select data-action-field="new_component_uuid" class="${INPUT}">
                             <option value="">Choose a type first</option>
                         </select>
-                    </div>
-                    <div>
-                        <label class="${LABEL}">Serial number of the unit coming out</label>
-                        <input type="text" data-action-field="old_serial_number" maxlength="100" class="${INPUT}" placeholder="Optional">
                     </div>
                     <div id="plLocationWarn"></div>`;
 
@@ -1666,32 +1699,265 @@ class RequestsManager {
     }
 
     /**
-     * Fill every model dropdown from the chosen component type's catalogue.
+     * Where each action's model dropdowns get their options.
      *
-     * Models come from the static ims-data files, which need no permission — the
-     * requester is naming a piece of hardware, not reading inventory.
+     * THE ONE PIECE OF SCHEMA THIS FILE WAS MISSING. Every model dropdown used to
+     * be filled from the ims-data spec CATALOGUE -- every model ever described,
+     * whether or not we own one -- through a single suffix selector
+     * ([data-action-field$="component_uuid"]) that could not tell two fields
+     * apart. On a swap that meant BOTH halves received the identical list: it
+     * offered hardware we do not stock as the replacement, AND every model in
+     * existence as the part supposedly already installed.
+     *
+     * A model dropdown means something different in each action, and this is that
+     * difference written down:
+     *
+     *   stock      models we hold a FREE unit of  -> can be fitted
+     *   installed  the units in the chosen SERVER -> can be taken out
+     *   records    every unit we hold, any status -> can be corrected
+     *
+     * The catalogue is still right for exactly one action, inventory.component.add,
+     * and that one is absent here on purpose: it mounts the real Add Component
+     * form, whose own cascading dropdowns ARE the catalogue.
      */
-    fillActionModels() {
+    actionModelSources() {
+        return {
+            'server.component.add':         { component_uuid: 'stock' },
+            'server.component.remove':      { component_uuid: 'installed' },
+            'server.component.replace':     { old_component_uuid: 'installed', new_component_uuid: 'stock' },
+            'inventory.component.relocate': { component_uuid: 'stock' },
+            'inventory.component.edit':     { component_uuid: 'records' }
+        };
+    }
+
+    /**
+     * Fill this action's model dropdowns, each from its own source.
+     *
+     * Async, so it carries the sequence guard loadEditRecords() uses: the
+     * requester can change the type or the server while a fetch is in flight, and
+     * a late answer must not overwrite the list for a question nobody is asking
+     * any more. The two halves of a swap are fetched together rather than in
+     * turn -- they are independent questions, and one should not wait on the other.
+     */
+    async fillActionModels() {
         const fields = document.getElementById('plActionFields');
         if (!fields) return;
 
+        const sources = this.actionModelSources()[this.actionType] || {};
         const typeSel = fields.querySelector('[data-action-field="component_type"]');
         const type = typeSel ? typeSel.value : '';
-        const models = (type && this.componentData && this.componentData[type]) || [];
+        const configUuid = this.selectedServerUuid();
+        const seq = ++this.modelFillSeq;
 
-        fields.querySelectorAll('[data-action-field$="component_uuid"]').forEach((sel) => {
-            const keep = sel.value;
+        const jobs = [];
+        Object.keys(sources).forEach((field) => {
+            const source = sources[field];
+            const sel = fields.querySelector(`[data-action-field="${field}"]`);
+            if (!sel) return;
+
             if (!type) {
-                sel.innerHTML = '<option value="">Choose a type first</option>';
+                this.setSelectNotice(sel, 'Choose a type first');
                 return;
             }
-            sel.innerHTML = '<option value="">Choose a model...</option>'
-                + models.map((m) => {
-                    const label = [m.brand, m.name].filter(Boolean).join(' ') || m.uuid;
-                    return `<option value="${this.esc(m.uuid)}">${this.esc(label)}</option>`;
-                }).join('');
-            if (keep) sel.value = keep;
+            // The answer does not exist until the server is named, so the control
+            // names the outstanding question instead of showing an empty list.
+            if (source === 'installed' && !configUuid) {
+                this.setSelectNotice(sel, 'Choose a server first');
+                return;
+            }
+
+            this.setSelectNotice(sel, 'Loading\u2026');
+            jobs.push({ field, source, params: this.modelOptionParams(type, source, configUuid) });
         });
+
+        if (!jobs.length) return;
+
+        await Promise.all(jobs.map(async (job) => {
+            let data = null;
+            try {
+                const result = await this.apiPost('pipeline-component-options', job.params);
+                if (result?.success) data = result.data;
+            } catch (e) {
+                data = null;
+            }
+
+            // Stale: a newer fill has started, or the fields were re-rendered.
+            if (seq !== this.modelFillSeq) return;
+            const live = document.getElementById('plActionFields')
+                ?.querySelector(`[data-action-field="${job.field}"]`);
+            if (!live) return;
+
+            if (!data) {
+                // Deliberately NOT a fall back to the catalogue. A silent
+                // fallback would quietly restore the exact bug this replaces --
+                // a dropdown full of hardware that cannot be used -- and it would
+                // look like it had worked.
+                this.setSelectNotice(live, 'Could not load \u2014 reopen the form to retry');
+                return;
+            }
+
+            if (job.source === 'installed') {
+                this.fillInstalledUnits(live, data.units || []);
+            } else {
+                this.fillStockModels(live, data.models || [], job.source, !!data.location_aware);
+            }
+        }));
+
+        // The serial box on a remove belongs to whichever unit is now selected.
+        this.syncUnitSerial();
+    }
+
+    /** The endpoint parameters for one dropdown's source. */
+    modelOptionParams(type, source, configUuid) {
+        const params = { component_type: type, source };
+        // Sent for 'stock' too, where it is optional and buys the "how much of
+        // this is at the server's own site?" annotation. Never for 'records':
+        // correcting a row is not about carrying anything anywhere.
+        if (configUuid && source !== 'records') params.config_uuid = configUuid;
+        return params;
+    }
+
+    /**
+     * A dropdown with nothing to choose yet, and the reason why.
+     *
+     * Disabled on purpose: an enabled select holding one unselectable line
+     * invites a click that does nothing. Empty and failed are both stated -- the
+     * failure mode to avoid is an empty dropdown with no explanation.
+     */
+    setSelectNotice(select, text) {
+        select.innerHTML = `<option value="">${this.esc(text)}</option>`;
+        select.value = '';
+        select.disabled = true;
+    }
+
+    /** Remember which option was chosen, so a refill does not silently drop it. */
+    selectionKey(select) {
+        const opt = select.selectedOptions && select.selectedOptions[0];
+        return {
+            value: select.value || '',
+            inventoryId: (opt && opt.dataset.inventoryId) || ''
+        };
+    }
+
+    /**
+     * Restore a selection after a refill.
+     *
+     * Matched on the inventory row id where there is one, because several units
+     * of one model share the same option VALUE -- which is the whole reason the
+     * take-out list is per unit. Matching on value alone would jump the selection
+     * to the first of four identical DIMMs.
+     */
+    restoreSelection(select, keep) {
+        if (!keep.value) return;
+        const options = Array.from(select.options);
+        const hit = options.find((o) => o.value === keep.value
+                && (!keep.inventoryId || (o.dataset.inventoryId || '') === keep.inventoryId))
+            || options.find((o) => o.value === keep.value);
+        if (hit) select.selectedIndex = hit.index;
+    }
+
+    /**
+     * Models we hold units of -- the list of things that could be fitted.
+     *
+     * The count rides on the option because "in stock" is the point of the list:
+     * one unit left when four are wanted is worth seeing before the request is
+     * raised, not after it is refused.
+     */
+    fillStockModels(select, models, source, locationAware) {
+        if (!models.length) {
+            this.setSelectNotice(select, source === 'records'
+                ? 'No records of this type yet'
+                : 'No free stock of this type');
+            return;
+        }
+
+        const keep = this.selectionKey(select);
+        select.innerHTML = '<option value="">Choose a model...</option>'
+            + models.map((m) => {
+                const bits = [source === 'records'
+                    ? `${m.available_count} record${m.available_count === 1 ? '' : 's'}`
+                    : `${m.available_count} available`];
+                // Only where the server's site is actually known. A missing
+                // annotation must not read as "none of it is in the right place".
+                if (locationAware) {
+                    bits.push(m.here_count > 0 ? `${m.here_count} at this site` : 'none at this site');
+                }
+                return `<option value="${this.esc(m.component_uuid)}">${this.esc(this.optionModelName(m))} \u00b7 ${this.esc(bits.join(', '))}</option>`;
+            }).join('');
+        select.disabled = false;
+        this.restoreSelection(select, keep);
+    }
+
+    /**
+     * The units installed in the chosen server -- the list of things that could
+     * be taken out.
+     *
+     * One row per physical unit, carrying its serial and its inventory row id,
+     * because "which of these four identical DIMMs" is a question a model name
+     * cannot answer.
+     */
+    fillInstalledUnits(select, units) {
+        if (!units.length) {
+            this.setSelectNotice(select, 'Nothing of this type is in that server');
+            return;
+        }
+
+        const keep = this.selectionKey(select);
+        select.innerHTML = '<option value="">Choose the unit...</option>'
+            + units.map((u) => {
+                const bits = [];
+                if (u.is_onboard) bits.push('onboard');
+                if (u.serial_number) {
+                    bits.push(`SN ${u.serial_number}`);
+                } else if (u.quantity > 1) {
+                    // The legacy JSON side can hold several identical parts as one
+                    // entry with no serials. Saying so beats inventing identities.
+                    bits.push(`${u.quantity} installed, no serials`);
+                } else {
+                    bits.push('no serial recorded');
+                }
+                if (u.slot_position) bits.push(u.slot_position);
+                const invId = (u.inventory_id === null || u.inventory_id === undefined)
+                    ? '' : String(u.inventory_id);
+                return `<option value="${this.esc(u.component_uuid)}" data-serial="${this.esc(u.serial_number || '')}" data-inventory-id="${this.esc(invId)}">${this.esc(this.optionModelName(u))} \u00b7 ${this.esc(bits.join(' \u00b7 '))}</option>`;
+            }).join('');
+        select.disabled = false;
+        this.restoreSelection(select, keep);
+    }
+
+    /**
+     * A model's name for one option row.
+     *
+     * model_label is null when the uuid is in no spec file -- an onboard NIC's
+     * synthetic uuid, or a model dropped from the catalogue while inventory rows
+     * still point at it. The uuid stub is shown rather than the row hidden: a part
+     * that physically exists must stay requestable, and an unnameable one is a
+     * data problem worth seeing.
+     */
+    optionModelName(entry) {
+        if (entry.model_label) return entry.model_label;
+        if (entry.is_onboard) return 'Onboard NIC';
+        return `Unrecognised model ${String(entry.component_uuid || '').slice(0, 8)}`;
+    }
+
+    /**
+     * Copy the chosen unit's serial into the action's serial box.
+     *
+     * Only server.component.remove has one -- the executor sends serial_number to
+     * name the unit, and leaving the requester to retype what they just picked
+     * from a list is how a request ends up naming a unit that is not there. It
+     * stays editable, because the box is what gets sent and must be what is shown.
+     */
+    syncUnitSerial() {
+        const fields = document.getElementById('plActionFields');
+        if (!fields || this.actionType !== 'server.component.remove') return;
+
+        const unitSel = fields.querySelector('[data-action-field="component_uuid"]');
+        const serialInput = fields.querySelector('[data-action-field="serial_number"]');
+        if (!unitSel || !serialInput) return;
+
+        const opt = unitSel.selectedOptions && unitSel.selectedOptions[0];
+        serialInput.value = (opt && opt.dataset.serial) || '';
     }
 
     /* ----- Location awareness (2026-08-26) ------------------------------- */
@@ -1976,7 +2242,7 @@ class RequestsManager {
         };
 
         set('component_type', pre.component_type);
-        this.fillActionModels();
+        await this.fillActionModels();
         set('component_uuid', pre.component_uuid);
 
         // The unit list arrives from the same endpoint the warning used, so it
@@ -2360,6 +2626,22 @@ class RequestsManager {
             if (unitSelect && !payload.inventory_id) delete payload.inventory_id;
         }
 
+        // A swap names the unit coming out by the option picked, not by anything
+        // typed: old_component_uuid is a MODEL, and a build with four identical
+        // DIMMs offers four choices that would otherwise produce one identical
+        // payload. The serial and the inventory row id both ride along -- the
+        // executor prefers the id and falls back to the serial, so a
+        // configuration still read from the legacy JSON columns (where the id is
+        // always NULL) behaves exactly as it did before.
+        if (this.actionType === 'server.component.replace' && fields) {
+            const outSel = fields.querySelector('[data-action-field="old_component_uuid"]');
+            const opt = outSel && outSel.selectedOptions && outSel.selectedOptions[0];
+            const serial = (opt && opt.dataset.serial) || '';
+            const invId = (opt && opt.dataset.inventoryId) || '';
+            if (serial) payload.old_serial_number = serial;
+            if (invId) payload.old_inventory_id = invId;
+        }
+
         if (this.actionType === 'server.config.update') {
             // rack_position removed 2026-08-26: it is derived from the real rack
             // placement, and the executor no longer writes it.
@@ -2434,8 +2716,16 @@ class RequestsManager {
             // stay frozen with no visible cause.
             'inventory.component.relocate': ['component_type', 'inventory_id', 'location_uuid', 'handover_user_id']
         };
+        // The take-out and put-in fields no longer hold what their payload names
+        // suggest, so they are asked for in the words the form uses.
+        const FIELD_ASKS = {
+            old_component_uuid: 'Choose the unit to take out',
+            new_component_uuid: 'Choose the model to put in',
+            component_uuid: 'Choose a model'
+        };
         (REQUIRED[this.actionType] || []).forEach((f) => {
-            if (!p[f]) problems.push(`${f.replace(/_/g, ' ')} is required`);
+            if (p[f]) return;
+            problems.push(FIELD_ASKS[f] || `${f.replace(/_/g, ' ')} is required`);
         });
 
         if (this.actionType === 'server.config.update'

@@ -573,6 +573,45 @@ window.api = {
             });
         },
 
+        // The build's OWN attributes -- name, description, notes. Gated on
+        // server.edit_details, NOT server.edit (which is about the PARTS inside).
+        //
+        // Two fields it deliberately does NOT carry:
+        //   configuration_status -- a status change is transitionStatus(); the
+        //     backend refuses it here so status_v2 can never drift from the
+        //     legacy int.
+        //   location -- updateLocation() is the canonical writer (it also sets
+        //     location_uuid and re-stamps every installed component).
+        // Only the keys present in `fields` are sent, so an omitted field is
+        // left alone rather than blanked.
+        async updateConfig(configUuid, fields = {}) {
+            const payload = { config_uuid: configUuid };
+            ['server_name', 'description', 'notes'].forEach(key => {
+                if (fields[key] !== undefined) { payload[key] = fields[key]; }
+            });
+            return await api.request('server-update-config', payload);
+        },
+
+        // The lifecycle moves this user could make on this build RIGHT NOW, read
+        // from config_status_transitions with the same ACL checker the command
+        // itself uses. Ask before offering a status change -- the legal graph is
+        // database data and must not be mirrored in JS.
+        async allowedTransitions(configUuid) {
+            return await api.request('server-allowed-transitions', { config_uuid: configUuid });
+        },
+
+        // Walk one lifecycle edge. toStatus is a status_v2 value ('draft',
+        // 'building', ...), never the legacy int -- the command maps it. This is
+        // also the way BACK out of finalized (finalized -> building / draft,
+        // permission server.unfinalize).
+        async transitionStatus(configUuid, toStatus, notes = '') {
+            return await api.request('server-transition-status', {
+                config_uuid: configUuid,
+                to_status: toStatus,
+                notes: notes
+            });
+        },
+
         async getCompatibleComponents(configUuid, componentType, availableOnly = true) {
             return await api.request('server-get-compatible', {
                 config_uuid: configUuid,
