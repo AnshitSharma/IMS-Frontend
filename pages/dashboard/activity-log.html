@@ -9,7 +9,7 @@
     <!-- Prevent flash of unstyled content: must run before CSS loads -->
     <script>
         (function () {
-            const theme = localStorage.getItem('theme') || 'light';
+            const theme = (localStorage.getItem('theme') || 'light').replace(/^"|"$/g, '');
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
@@ -340,7 +340,7 @@
         // Theme + nav init (same pattern as other pages)
         (() => {
             function initTheme() {
-                const savedTheme = localStorage.getItem('theme') || 'light';
+                const savedTheme = (localStorage.getItem('theme') || 'light').replace(/^"|"$/g, '');
                 document.documentElement.setAttribute('data-theme', savedTheme);
                 const icon = document.getElementById('themeToggleIcon');
                 if (icon) icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';

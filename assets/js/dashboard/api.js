@@ -142,50 +142,65 @@ window.api = {
                 throw new Error(rateLimitMsg);
             }
 
+            // Handle an expired or missing access token.
+            //
+            // This MUST be checked BEFORE the generic non-ok throw below. The API
+            // answers an expired/absent token with HTTP 401, so the old ordering
+            // threw on `!response.ok` first and the refresh branch underneath was
+            // unreachable — every page rendered the raw "Valid JWT token required -
+            // please login" message instead of renewing the session or redirecting.
+            // Matching on the status/code (not on the message text) is what makes
+            // this fire: the API's 401 message says neither "expired" nor
+            // "Invalid token".
+            //
+            // auth-* actions are excluded: a wrong password is also a 401 and must
+            // surface as "Invalid credentials", not trigger a refresh/logout.
+            const unauthorized = response.status === 401 || result?.code === 401;
+            if (unauthorized && !action.startsWith('auth-')) {
+                const refreshed = await this.refreshToken();
+                if (!refreshed) {
+                    // No usable session left — clear it and send the user to login.
+                    this.handleAuthFailure();
+                    throw this.buildError(result, response);
+                }
+
+                // Retry the original request with the new token
+                const retryResponse = await fetch(this.baseURL, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${this.getToken()}` },
+                    body: formData
+                });
+
+                // Try to parse JSON response even for non-ok responses
+                let retryResult;
+                try {
+                    retryResult = await retryResponse.json();
+                } catch (parseError) {
+                    if (!retryResponse.ok) {
+                        throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+                    }
+                    throw parseError;
+                }
+
+                // Still unauthorized after a fresh token — the session is genuinely
+                // over (refresh token revoked, user disabled). Go to login.
+                if (retryResponse.status === 401 || retryResult?.code === 401) {
+                    this.handleAuthFailure();
+                    throw this.buildError(retryResult, retryResponse);
+                }
+
+                // For non-ok responses, if we have an API message, throw it
+                if (!retryResponse.ok && !retryResult.success) {
+                    throw this.buildError(retryResult, retryResponse);
+                }
+
+                return retryResult;
+            }
+
             // For non-ok responses, if we have an API message, throw it
             // This ensures the actual API error message reaches the catch block
             if (!response.ok && !result.success) {
                 throw this.buildError(result, response);
-            }
-
-            // Handle token expiration
-            if (result.code === 401 && result.message &&
-                (result.message.includes('expired') || result.message.includes('Invalid token'))) {
-                const refreshed = await this.refreshToken();
-                if (refreshed) {
-                    // Retry the original request with new token
-                    const newHeaders = {
-                        'Authorization': `Bearer ${this.getToken()}`
-                    };
-
-                    const retryResponse = await fetch(this.baseURL, {
-                        method: 'POST',
-                        headers: newHeaders,
-                        body: formData
-                    });
-
-                    // Try to parse JSON response even for non-ok responses
-                    let retryResult;
-                    try {
-                        retryResult = await retryResponse.json();
-                    } catch (parseError) {
-                        if (!retryResponse.ok) {
-                            throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
-                        }
-                        throw parseError;
-                    }
-
-                    // For non-ok responses, if we have an API message, throw it
-                    if (!retryResponse.ok && !retryResult.success) {
-                        throw this.buildError(retryResult, retryResponse);
-                    }
-
-                    return retryResult;
-                } else {
-                    // Refresh failed, redirect to login
-                    this.handleAuthFailure();
-                    throw new Error('Authentication failed');
-                }
             }
 
             return result;
@@ -196,8 +211,25 @@ window.api = {
         }
     },
 
-    // Refresh authentication token
+    // Refresh authentication token.
+    //
+    // Single-flight: a page load fires several calls in parallel (requests fires
+    // three), so an expired token produces several simultaneous 401s. Without this
+    // they would each POST auth-refresh, and the losers would overwrite the winner's
+    // fresh token with a stale one. Everyone waits on the same in-flight promise.
+    _refreshPromise: null,
+
     async refreshToken() {
+        if (this._refreshPromise) {
+            return this._refreshPromise;
+        }
+        this._refreshPromise = this._performRefresh().finally(() => {
+            this._refreshPromise = null;
+        });
+        return this._refreshPromise;
+    },
+
+    async _performRefresh() {
         const refreshToken = this.getRefreshToken();
         if (!refreshToken) {
             return false;
@@ -254,9 +286,18 @@ window.api = {
     },
 
     // Handle authentication failure
+    // Guarded: several parallel calls can fail auth at once and would otherwise
+    // stack duplicate toasts and racing redirects.
+    _authFailureHandled: false,
+
     handleAuthFailure() {
+        if (this._authFailureHandled) return;
+        this._authFailureHandled = true;
+
         this.clearAuth();
-        utils.showAlert('Session expired. Please login again.', 'warning');
+        if (window.utils && typeof window.utils.showAlert === 'function') {
+            window.utils.showAlert('Session expired. Please login again.', 'warning');
+        }
         // Redirect to login page after a short delay
         setTimeout(() => {
             window.location.href = this.loginURL;

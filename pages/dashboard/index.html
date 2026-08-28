@@ -10,7 +10,7 @@
     <!-- Prevent flash of unstyled content -->
     <script>
         (function () {
-            const theme = localStorage.getItem('theme') || 'light';
+            const theme = (localStorage.getItem('theme') || 'light').replace(/^"|"$/g, '');
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>

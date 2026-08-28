@@ -167,23 +167,43 @@ class RequestsManager {
         return sessionStorage.getItem('bdc_token') || localStorage.getItem('bdc_token');
     }
 
+    // Every call on this page goes through here so an expired token is renewed
+    // once and the call retried, instead of the 401 body being rendered as
+    // "Couldn't load requests / Valid JWT token required - please login". If the
+    // session cannot be renewed, window.api clears it and redirects to login.
+    async apiFetch(url, options) {
+        const withAuth = () => ({
+            ...options,
+            headers: { ...(options.headers || {}), 'Authorization': `Bearer ${this.getToken()}` }
+        });
+
+        let res = await fetch(url, withAuth());
+        if (res.status !== 401 || !window.api) {
+            return res.json();
+        }
+
+        const refreshed = await window.api.refreshToken();
+        if (!refreshed) {
+            window.api.handleAuthFailure();
+            return res.json();
+        }
+
+        res = await fetch(url, withAuth());
+        if (res.status === 401) {
+            window.api.handleAuthFailure();
+        }
+        return res.json();
+    }
+
     async apiPost(action, fields = {}) {
         const fd = new FormData();
         fd.append('action', action);
         Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v); });
-        const res = await fetch(this.apiBaseUrl, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${this.getToken()}` },
-            body: fd
-        });
-        return res.json();
+        return this.apiFetch(this.apiBaseUrl, { method: 'POST', body: fd });
     }
 
     async apiGet(action) {
-        const res = await fetch(`${this.apiBaseUrl}?action=${encodeURIComponent(action)}`, {
-            headers: { 'Authorization': `Bearer ${this.getToken()}` }
-        });
-        return res.json();
+        return this.apiFetch(`${this.apiBaseUrl}?action=${encodeURIComponent(action)}`, { method: 'GET' });
     }
 
     async loadSupportData() {

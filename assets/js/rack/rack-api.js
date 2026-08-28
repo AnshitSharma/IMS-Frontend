@@ -10,27 +10,60 @@ class RackAPI {
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
     }
 
+    // Re-read the token from storage and keep the axios default header in step.
+    _currentToken() {
+        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        if (this.token) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
+        }
+        return this.token;
+    }
+
     async makeRequest(data, options = {}) {
-        try {
-            const formData = new FormData();
-            for (const [key, value] of Object.entries(data)) {
-                if (value !== undefined && value !== null) {
-                    formData.append(key, value);
-                }
+        const formData = new FormData();
+        for (const [key, value] of Object.entries(data)) {
+            if (value !== undefined && value !== null) {
+                formData.append(key, value);
             }
-            const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
-            const response = await axios.post(this.baseURL, formData, {
+        }
+
+        const post = () => {
+            const token = this._currentToken();
+            return axios.post(this.baseURL, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                     'Authorization': token ? `Bearer ${token}` : '',
                 },
                 ...options
             });
+        };
+
+        try {
+            const response = await post();
             return response.data;
         } catch (error) {
             if (error.response?.status === 401) {
-                sessionStorage.removeItem('bdc_token');
-                localStorage.removeItem('bdc_token');
+                // Access tokens last 30 minutes — renew and retry once rather than
+                // bouncing the user to login on an ordinary expiry.
+                const refreshed = window.api ? await window.api.refreshToken() : false;
+                if (refreshed) {
+                    try {
+                        const retry = await post();
+                        return retry.data;
+                    } catch (retryError) {
+                        if (retryError.response?.status !== 401) {
+                            const msg = retryError.response?.data?.message || 'Network error occurred';
+                            return { success: false, message: msg };
+                        }
+                    }
+                }
+
+                if (window.api) {
+                    window.api.clearAuth();
+                } else {
+                    sessionStorage.removeItem('bdc_token');
+                    localStorage.removeItem('bdc_token');
+                }
                 window.location.href = this.loginURL;
                 return;
             }
