@@ -1147,16 +1147,16 @@ class Dashboard {
                               placeholder="Enter server description and purpose"></textarea>
                 </div>
                 <div class="form-group">
-                    <label for="serverLocation" class="form-label flex items-center gap-2">
+                    <label for="serverLocation" class="form-label required flex items-center gap-2">
                         <i class="fas fa-map-marker-alt text-teal-600 text-sm"></i>
                         Location
                     </label>
-                    <select class="form-select" id="serverLocation">
+                    <select class="form-select" id="serverLocation" required>
                         <option value="">Loading locations…</option>
                     </select>
                 </div>
                 <div class="form-group" id="rackFieldGroup">
-                    <label for="serverRack" class="form-label flex items-center gap-2">
+                    <label for="serverRack" class="form-label required flex items-center gap-2">
                         <i class="fas fa-th-large text-teal-600 text-sm"></i>
                         Rack
                     </label>
@@ -1169,7 +1169,7 @@ class Dashboard {
                     </div>
                 </div>
                 <div class="form-group" id="rackPositionGroup">
-                    <label for="rackPosition" class="form-label flex items-center gap-2">
+                    <label for="rackPosition" class="form-label required flex items-center gap-2">
                         <i class="fas fa-layer-group text-teal-600 text-sm"></i>
                         Position
                     </label>
@@ -1282,8 +1282,30 @@ class Dashboard {
                 const rackUuid = !isVirtual ? (document.getElementById('serverRack')?.value || '') : '';
                 const startU = !isVirtual ? parseInt(document.getElementById('rackPosition')?.value || '', 10) : NaN;
 
+                if (!location) {
+                    utils.showAlert('Please choose a location for this server', 'warning');
+                    locationSelect.focus();
+                    return;
+                }
+
+                // Rack + Position are mandatory for a physical build. They are only
+                // required when they are actually offerable: virtual/template builds
+                // cannot occupy a rack, non-admins never see the fields (they are
+                // removed above), and a disabled rack select means no racks exist or
+                // the list failed to load -- blocking creation in those cases would
+                // leave the user with no way forward.
+                const rackSelectEl = document.getElementById('serverRack');
+                const rackRequired = !isVirtual && rackSelectEl && !rackSelectEl.disabled;
+
+                if (rackRequired && !rackUuid) {
+                    utils.showAlert('Please choose a rack for this server', 'warning');
+                    rackSelectEl.focus();
+                    return;
+                }
+
                 if (rackUuid && !startU) {
-                    utils.showAlert('Please choose a position in the rack, or clear the rack selection', 'warning');
+                    utils.showAlert('Please choose a position in the rack', 'warning');
+                    document.getElementById('rackPosition')?.focus();
                     return;
                 }
 

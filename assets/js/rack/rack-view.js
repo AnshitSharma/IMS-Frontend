@@ -98,6 +98,16 @@ class RackView {
             return;
         }
 
+        // ?rack=<uuid> — how the Locations page hands off a specific rack. Honoured
+        // once, on the first load only, so a later refresh keeps the user's choice.
+        if (!this.deepLinkUsed) {
+            this.deepLinkUsed = true;
+            const wanted = new URLSearchParams(window.location.search).get('rack');
+            if (wanted && this.racks.some(r => r.rack_uuid === wanted)) {
+                this.selectedRackUuid = wanted;
+            }
+        }
+
         // Keep current selection if still present, else select the first rack.
         const stillExists = this.racks.some(r => r.rack_uuid === this.selectedRackUuid);
         this.selectRack(stillExists ? this.selectedRackUuid : this.racks[0].rack_uuid);

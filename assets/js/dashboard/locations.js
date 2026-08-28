@@ -26,6 +26,12 @@ class LocationsManager {
     constructor() {
         this.allLocations = [];
         this.bound = false;
+        // Which locations have their rack list open, and the racks fetched for
+        // them. Expansion survives a filter/re-render (the whole tbody is
+        // rewritten on every keystroke) but not a reload, which refetches.
+        this.expanded = new Set();
+        this.racksByLocation = {};
+        this.racksLoading = new Set();
     }
 
     /**
@@ -65,6 +71,8 @@ class LocationsManager {
     async load() {
         try {
             utils.showLoading(true, 'Loading locations...');
+            // Racks may have moved since the last fetch; open rows refetch.
+            this.racksByLocation = {};
             // includeCounts drives the Objects column. It is the only caller
             // that asks for it — everywhere else a plain list is enough.
             const result = await api.locations.list({ includeCounts: true, includeInactive: true });
@@ -130,7 +138,18 @@ class LocationsManager {
             return;
         }
 
-        tbody.innerHTML = locations.map(l => this.rowHtml(l)).join('');
+        tbody.innerHTML = locations.map(l => {
+            const uuid = l.location_uuid;
+            return this.expanded.has(uuid)
+                ? this.rowHtml(l) + this.racksRowHtml(uuid)
+                : this.rowHtml(l);
+        }).join('');
+
+        // A row can be open with nothing cached — first click, or a reload that
+        // cleared the cache underneath it. Fill those in.
+        locations.forEach(l => {
+            if (this.expanded.has(l.location_uuid)) this.ensureRacks(l.location_uuid);
+        });
     }
 
     emptyStateRow(isUnfiltered) {
@@ -159,11 +178,12 @@ class LocationsManager {
         const uuid = utils.escapeHtml(l.location_uuid);
         const name = utils.escapeHtml(l.name || '');
         const retired = Number(l.is_active) !== 1;
+        const open = this.expanded.has(l.location_uuid);
 
         return `
             <tr class="hover:bg-surface-hover transition-colors">
                 <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Name">
-                    <div class="flex items-center gap-3">
+                    <button type="button" class="flex items-center gap-3 text-left w-full" onclick="locationsManager.toggleRacks('${uuid}')" title="${open ? 'Hide racks' : 'Show racks at this location'}">
                         <div class="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary dark:text-primary-light flex items-center justify-center text-sm">
                             <i class="fas fa-map-marker-alt"></i>
                         </div>
@@ -171,7 +191,8 @@ class LocationsManager {
                             <span class="font-semibold text-text-primary">${name}</span>
                             ${retired ? '<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-surface-secondary text-text-muted">Retired</span>' : ''}
                         </div>
-                    </div>
+                        <i class="fas ${open ? 'fa-chevron-up' : 'fa-chevron-down'} text-xs text-text-muted"></i>
+                    </button>
                 </td>
                 <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Objects">${this.objectsCell(l)}</td>
                 <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-secondary" data-label="Description">${l.description ? utils.escapeHtml(l.description) : '<span class="text-text-muted">—</span>'}</td>
@@ -222,6 +243,104 @@ class LocationsManager {
             return '<span class="font-sans text-text-muted">—</span>';
         }
         return `${utils.escapeHtml(String(l.latitude))} / ${utils.escapeHtml(String(l.longitude))}`;
+    }
+
+    /* ============================================================
+     * Racks at a location (expandable row)
+     * ============================================================ */
+
+    /**
+     * Clicking a location name opens the racks that sit at it, inline.
+     *
+     * The render is driven off `expanded` rather than DOM state because the
+     * whole tbody is rewritten on every search keystroke — a row toggled by
+     * class alone would snap shut on the next character typed.
+     */
+    toggleRacks(locationUuid) {
+        if (this.expanded.has(locationUuid)) {
+            this.expanded.delete(locationUuid);
+        } else {
+            this.expanded.add(locationUuid);
+        }
+        this.filterAndRender();
+    }
+
+    /**
+     * Fetch the racks for one location once, then re-render to show them.
+     * `racksLoading` keeps a second render (a keystroke while the request is in
+     * flight) from firing a duplicate call.
+     */
+    async ensureRacks(locationUuid) {
+        if (this.racksByLocation[locationUuid] || this.racksLoading.has(locationUuid)) return;
+
+        this.racksLoading.add(locationUuid);
+        try {
+            const result = await api.locations.racks(locationUuid);
+            this.racksByLocation[locationUuid] = (result.success && result.data && result.data.racks) || [];
+        } catch (error) {
+            // Leave the cache empty and say so in the row rather than a toast —
+            // the failure belongs next to the location it happened for.
+            this.racksByLocation[locationUuid] = [];
+        } finally {
+            this.racksLoading.delete(locationUuid);
+            // Only redraw if the row is still open.
+            if (this.expanded.has(locationUuid)) this.filterAndRender();
+        }
+    }
+
+    racksRowHtml(locationUuid) {
+        const racks = this.racksByLocation[locationUuid];
+
+        let body;
+        if (!racks) {
+            body = `<div class="flex items-center gap-2 text-sm text-text-muted">
+                        <i class="fas fa-circle-notch fa-spin"></i> Loading racks…
+                    </div>`;
+        } else if (racks.length === 0) {
+            body = `<div class="text-sm text-text-muted">No racks at this location yet.</div>`;
+        } else {
+            body = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        ${racks.map(r => this.rackCardHtml(r)).join('')}
+                    </div>`;
+        }
+
+        return `
+            <tr class="bg-surface-secondary">
+                <td colspan="6" class="px-4 sm:px-5 py-4" data-label="Racks">${body}</td>
+            </tr>
+        `;
+    }
+
+    /**
+     * One rack: how full it is and what is in it. Links into Rack View, which is
+     * admin-only — for anyone else the card is plain text rather than a link
+     * that would bounce them straight back out.
+     */
+    rackCardHtml(r) {
+        const total = Number(r.total_u || 0);
+        const used = Number(r.used_u || 0);
+        const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
+        const servers = Number(r.server_count || 0);
+        const floor = r.floor !== null && r.floor !== undefined && r.floor !== ''
+            ? `Floor ${utils.escapeHtml(String(r.floor))}` : '';
+
+        const inner = `
+            <div class="flex items-center justify-between gap-2">
+                <span class="font-semibold text-text-primary truncate">${utils.escapeHtml(r.name || '')}</span>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums">${servers} server${servers === 1 ? '' : 's'}</span>
+            </div>
+            <div class="text-xs text-text-muted mt-1 tabular-nums">${floor ? floor + ' · ' : ''}${used} / ${total}U used · ${Math.max(0, total - used)}U free</div>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-surface-secondary overflow-hidden">
+                <div class="h-1.5 rounded-full bg-primary" style="width:${pct}%"></div>
+            </div>
+        `;
+
+        const canOpen = !!(window.api && api.utils && api.utils.hasRole && api.utils.hasRole(['admin', 'super_admin']));
+        const classes = 'block text-left rounded-lg border border-border bg-surface-card px-4 py-3';
+
+        return canOpen
+            ? `<a href="racks.html?rack=${encodeURIComponent(r.rack_uuid)}" class="${classes} hover:bg-surface-hover transition-colors">${inner}</a>`
+            : `<div class="${classes}">${inner}</div>`;
     }
 
     /* ============================================================
