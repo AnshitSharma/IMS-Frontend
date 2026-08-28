@@ -55,6 +55,10 @@ class RequestsManager {
         this.currentRoleIds = [];
         this.currentRoleNames = [];
         this.currentDetail = null;
+        // Filter over the open request's Activity trail. Kept across a re-render
+        // of the same request (an action refreshes the detail), reset by
+        // openDetail() so a new request always opens showing everything.
+        this.historyFilter = { q: '', action: '', user: '', from: '', to: '' };
         // The request a new one is being raised as a PREREQUISITE for, while the
         // create form is open. Set by showCreate(parent), read by submitCreate().
         this.parentContext = null;
@@ -73,6 +77,16 @@ class RequestsManager {
         // check at submit still needs to know which model the parent asked for.
         this.stockPrefill = null;
         this.stockWanted = null;
+        // The two inline prerequisite panels (2026-08-29). stockGapNow is the
+        // model the requester just chose and we hold nothing free of;
+        // prereqMounted is which model the embedded Add Component form is
+        // currently for, so a re-render does not throw away what they have typed
+        // into it. Both cleared whenever the panel clears.
+        this.stockGapNow = null;
+        this.prereqMounted = null;
+        this.prereqForm = null;
+        // The unit the requester picked out of the "it is over there" list.
+        this.pickedUnit = null;
     }
 
     init() {
@@ -502,6 +516,12 @@ class RequestsManager {
         this.editRecords = [];
         this.editRecordId = '';
         this.editRecordsSeq = 0;
+        // A fresh form asks its own questions: nothing about the last request's
+        // shortage or its embedded form may survive into this one.
+        this.stockGapNow = null;
+        this.prereqMounted = null;
+        this.prereqForm = null;
+        this.pickedUnit = null;
 
         this.renderServerPicker();
         this.wirePopoverDismiss();
@@ -1168,6 +1188,13 @@ class RequestsManager {
         // A different action asks different questions of the same dropdowns, so
         // any fill still in flight is answering the wrong one.
         this.modelFillSeq = (this.modelFillSeq || 0) + 1;
+        // The prerequisite panel belongs to the action that raised it — and the
+        // form mounted inside it must go with it, or two add-form instances
+        // could end up sharing one set of element ids.
+        this.stockGapNow = null;
+        this.prereqMounted = null;
+        this.prereqForm = null;
+        this.pickedUnit = null;
 
         const hint = document.getElementById('plActionHint');
         const fields = document.getElementById('plActionFields');
@@ -1732,19 +1759,30 @@ class RequestsManager {
      * A model dropdown means something different in each action, and this is that
      * difference written down:
      *
-     *   stock      models we hold a FREE unit of  -> can be fitted
+     *   catalogue  every model that EXISTS      -> can be asked for
+     *   stock      models we hold a FREE unit of  -> can be fitted today
      *   installed  the units in the chosen SERVER -> can be taken out
      *   records    every unit we hold, any status -> can be corrected
      *
-     * The catalogue is still right for exactly one action, inventory.component.add,
-     * and that one is absent here on purpose: it mounts the real Add Component
-     * form, whose own cascading dropdowns ARE the catalogue.
+     * WHY THE PUT-IN SIDE IS THE CATALOGUE AGAIN (2026-08-29). Restricting it to
+     * stock on 2026-08-26 made an out-of-stock model unselectable, which sounds
+     * like a guardrail and is really a dead end: needing a part we do not have is
+     * the single commonest reason to raise a request, and the form refused to let
+     * anyone say it. The list is annotated with the same counts instead, so the
+     * shortage is visible rather than unspeakable, and choosing a model we hold
+     * none of opens the prerequisite that fixes it.
+     *
+     * The take-out sides stay narrowed. "Which unit is in this server" has one
+     * true answer and offering a wider list there would only invite a wrong one.
+     *
+     * inventory.component.add is absent on purpose: it mounts the real Add
+     * Component form, whose own cascading dropdowns ARE the catalogue.
      */
     actionModelSources() {
         return {
-            'server.component.add':         { component_uuid: 'stock' },
+            'server.component.add':         { component_uuid: 'catalogue' },
             'server.component.remove':      { component_uuid: 'installed' },
-            'server.component.replace':     { old_component_uuid: 'installed', new_component_uuid: 'stock' },
+            'server.component.replace':     { old_component_uuid: 'installed', new_component_uuid: 'catalogue' },
             'inventory.component.relocate': { component_uuid: 'stock' },
             'inventory.component.edit':     { component_uuid: 'records' }
         };
@@ -1792,6 +1830,11 @@ class RequestsManager {
 
         if (!jobs.length) return;
 
+        // The catalogue half lives in ims-data, not in the database. Loaded once
+        // and cached on the instance, so this is a no-op on every fill but the
+        // first.
+        if (jobs.some((j) => j.source === 'catalogue')) await this.loadComponentData();
+
         await Promise.all(jobs.map(async (job) => {
             let data = null;
             try {
@@ -1818,6 +1861,8 @@ class RequestsManager {
 
             if (job.source === 'installed') {
                 this.fillInstalledUnits(live, data.units || []);
+            } else if (job.source === 'catalogue') {
+                this.fillCatalogueModels(live, type, data.models || [], !!data.location_aware);
             } else {
                 this.fillStockModels(live, data.models || [], job.source, !!data.location_aware);
             }
@@ -1827,9 +1872,17 @@ class RequestsManager {
         this.syncUnitSerial();
     }
 
-    /** The endpoint parameters for one dropdown's source. */
+    /**
+     * The endpoint parameters for one dropdown's source.
+     *
+     * 'catalogue' asks the server for 'stock': the catalogue half is already in
+     * the browser (loadComponentData), and what the server alone can answer is
+     * how many of each model are free and how many are at this site. Merging the
+     * two client-side answers both prerequisite questions from a call the form
+     * was making anyway — no new endpoint, and no second round trip.
+     */
     modelOptionParams(type, source, configUuid) {
-        const params = { component_type: type, source };
+        const params = { component_type: type, source: source === 'catalogue' ? 'stock' : source };
         // Sent for 'stock' too, where it is optional and buys the "how much of
         // this is at the server's own site?" annotation. Never for 'records':
         // correcting a row is not about carrying anything anywhere.
@@ -1874,6 +1927,64 @@ class RequestsManager {
                 && (!keep.inventoryId || (o.dataset.inventoryId || '') === keep.inventoryId))
             || options.find((o) => o.value === keep.value);
         if (hit) select.selectedIndex = hit.index;
+    }
+
+    /**
+     * Every model of this type, annotated with what we actually hold.
+     *
+     * ONE LIST, NOT TWO. A model we have none of sits in the same list as one we
+     * have four of, reading "0 available" rather than being hidden — because
+     * "we do not have that" is the answer the requester needs to SEE, and a
+     * missing row cannot say it. Selecting one is what opens the prerequisite.
+     *
+     * The counts ride on the option as data attributes as well as in its text:
+     * checkComponentLocation() reads them back to decide which prerequisite (if
+     * any) the requester is looking at, which saves asking the server a question
+     * it has already answered.
+     *
+     * `here` is only meaningful when the server's site is known — a missing
+     * annotation must never read as "none of it is in the right place".
+     */
+    fillCatalogueModels(select, type, stockModels, locationAware) {
+        const catalogue = (this.componentData && this.componentData[type]) || [];
+        if (!catalogue.length) {
+            // ims-data could not be read. The stock list is still a true, if
+            // narrower, answer -- better than an empty control.
+            this.fillStockModels(select, stockModels, 'stock', locationAware);
+            return;
+        }
+
+        const counts = {};
+        (stockModels || []).forEach((m) => {
+            counts[m.component_uuid] = {
+                free: Number(m.available_count) || 0,
+                here: Number(m.here_count) || 0
+            };
+        });
+
+        const keep = this.selectionKey(select);
+        const rows = catalogue.slice().sort((a, b) => {
+            // Stock first: the models that need no prerequisite are the ones
+            // most requests want, and sorting is the gentlest way to say so.
+            const fa = counts[a.uuid]?.free || 0;
+            const fb = counts[b.uuid]?.free || 0;
+            if ((fb > 0) !== (fa > 0)) return fb > 0 ? 1 : -1;
+            return `${a.brand} ${a.name}`.localeCompare(`${b.brand} ${b.name}`);
+        });
+
+        select.innerHTML = '<option value="">Choose a model...</option>'
+            + rows.map((m) => {
+                const c = counts[m.uuid] || { free: 0, here: 0 };
+                const bits = [c.free > 0 ? `${c.free} available` : 'none available'];
+                if (locationAware && c.free > 0) {
+                    bits.push(c.here > 0 ? `${c.here} at this site` : 'none at this site');
+                }
+                const name = [m.brand, m.name].filter(Boolean).join(' ') || m.uuid.slice(0, 8);
+                return `<option value="${this.esc(m.uuid)}" data-free="${c.free}" data-here="${c.here}"
+                                data-location-aware="${locationAware ? '1' : '0'}">${this.esc(name)} · ${this.esc(bits.join(', '))}</option>`;
+            }).join('');
+        select.disabled = false;
+        this.restoreSelection(select, keep);
     }
 
     /**
@@ -2024,16 +2135,41 @@ class RequestsManager {
         // the model must clear the picker too.
         if (this.actionType === 'inventory.component.edit') {
             this.locationWarn = null;
-            this.renderLocationWarning(null);
+            this.stockGapNow = null;
+            this.renderPrereqPanel();
             await this.loadEditRecords(componentType, componentUuid);
             return;
         }
 
         if (!componentType || !componentUuid) {
             this.locationWarn = null;
-            this.renderLocationWarning(null);
+            this.stockGapNow = null;
+            this.renderPrereqPanel();
             if (this.actionType === 'inventory.component.relocate') this.fillHandoverUnits([]);
             return;
+        }
+
+        // CHECK ONE, and it is answered without asking anybody: the catalogue
+        // dropdown already carries how many free units of this model exist. Nothing
+        // free means the location question cannot even be posed -- a model we hold
+        // none of is not in the wrong place, it is simply not there -- so this
+        // returns before the location call rather than after it.
+        if (this.actionType === 'server.component.add' || this.actionType === 'server.component.replace') {
+            const modelField = this.actionType === 'server.component.replace'
+                ? 'new_component_uuid' : 'component_uuid';
+            const sel = fields.querySelector(`[data-action-field="${modelField}"]`);
+            const opt = sel && sel.selectedOptions ? sel.selectedOptions[0] : null;
+
+            // A missing data-free is an unannotated list (the catalogue could not
+            // be read and the stock list was used instead), where every listed
+            // model is in stock by construction. Absence is not a shortage.
+            if (opt && opt.dataset.free !== undefined && Number(opt.dataset.free) === 0) {
+                this.locationWarn = null;
+                this.stockGapNow = { component_type: componentType, component_uuid: componentUuid };
+                this.renderPrereqPanel();
+                return;
+            }
+            this.stockGapNow = null;
         }
 
         const params = { component_type: componentType, component_uuid: componentUuid };
@@ -2043,7 +2179,7 @@ class RequestsManager {
             const configUuid = this.selectedServerUuid();
             if (!configUuid) {
                 this.locationWarn = null;
-                this.renderLocationWarning(null);
+                this.renderPrereqPanel();
                 return;
             }
             params.config_uuid = configUuid;
@@ -2065,7 +2201,95 @@ class RequestsManager {
         }
 
         this.locationWarn = (data && data.supported && data.match === false) ? data : null;
-        this.renderLocationWarning(this.locationWarn);
+        this.renderPrereqPanel();
+    }
+
+    /* ----- The prerequisite panel (2026-08-29) --------------------------- */
+
+    /**
+     * The one panel under the Model field, in whichever of three states applies.
+     *
+     * The whole point of this feature is HERE rather than after Submit. Both
+     * prerequisites were already offered, but only once the parent request
+     * existed, which put the fix on the far side of the decision that needed it.
+     * The requester now sees the obstacle at the moment they name the part, and
+     * fixes it without leaving the form.
+     *
+     *   clear        nothing is in the way -> no panel at all
+     *   not in stock we hold no free unit  -> the Add Component form, prefilled
+     *   wrong site   free units, elsewhere -> the handover fields, prefilled
+     *
+     * ORDER MATTERS AND IS NOT ARBITRARY: stock first, because a model we hold
+     * none of cannot be at the wrong site. checkComponentLocation() enforces it
+     * by returning before it ever asks the location question.
+     */
+    renderPrereqPanel() {
+        const box = document.getElementById('plLocationWarn');
+        if (!box) return;
+
+        if (this.stockGapNow) {
+            this.renderStockPrereq(box, this.stockGapNow);
+            return;
+        }
+
+        this.prereqMounted = null;
+        this.prereqForm = null;
+        this.renderLocationWarning(box, this.locationWarn);
+    }
+
+    /**
+     * "We do not have one" — and the form that fixes it, in place.
+     *
+     * The requester is never shown the Add Inventory Record request TYPE. They
+     * see the fields, already carrying the type and model they just chose, and
+     * one button. Which request type carries the child is chosen by capability
+     * in raiseInlinePrereq(), the same way applyStockPrefill() does it.
+     *
+     * Re-rendered only when the model actually changed: the mounted form holds
+     * whatever the requester has typed into it, and rebuilding it on every
+     * keystroke elsewhere in the modal would throw that away.
+     */
+    renderStockPrereq(box, gap) {
+        const same = this.prereqMounted
+            && this.prereqMounted.component_type === gap.component_type
+            && this.prereqMounted.component_uuid === gap.component_uuid;
+        if (same) return;
+
+        const label = this.modelLabel(gap.component_type, gap.component_uuid);
+        const typeLabel = this.componentTypeLabel(gap.component_type);
+
+        box.innerHTML = `
+            <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10 space-y-3">
+                <div>
+                    <div class="text-sm font-medium text-text-primary">
+                        <i class="fas fa-box-open mr-1.5 text-warning"></i>We have none of these free
+                    </div>
+                    <p class="text-xs text-text-secondary mt-1">
+                        No <span class="font-medium text-text-primary">${this.esc(typeLabel)}</span> unit of
+                        <span class="font-medium text-text-primary">${this.esc(label)}</span> is available to fit —
+                        either we have never had one, or every one we hold is in another server or marked failed.
+                        Record the unit first: an admin approves that, the unit exists, and this request unfreezes.
+                    </p>
+                </div>
+                <div id="plPrereqMount" class="pt-2 border-t border-warning/30">
+                    <p class="text-xs text-text-muted">Loading the component form…</p>
+                </div>
+                <div class="flex justify-end">
+                    <button type="button" id="plPrereqStock"
+                        class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Raise the inventory record
+                    </button>
+                </div>
+            </div>`;
+
+        this.prereqMounted = {
+            component_type: gap.component_type,
+            component_uuid: gap.component_uuid
+        };
+        this.mountPrereqInventoryForm(gap);
+
+        document.getElementById('plPrereqStock')
+            ?.addEventListener('click', () => this.raiseInlinePrereq('stock'));
     }
 
     /**
@@ -2073,11 +2297,10 @@ class RequestsManager {
      *
      * Choosing one of the units fills the action's serial number field, so the
      * request names the exact unit the requester is looking at rather than
-     * leaving the picker to guess -- and so the handover offer afterwards knows
-     * which object it is about.
+     * leaving the picker to guess -- and so the handover form below knows which
+     * object it is about.
      */
-    renderLocationWarning(data) {
-        const box = document.getElementById('plLocationWarn');
+    renderLocationWarning(box, data) {
         if (!box) return;
 
         if (!data) { box.innerHTML = ''; return; }
@@ -2085,13 +2308,17 @@ class RequestsManager {
         const serverWhere = data.server?.location_name || 'another site';
         const units = Array.isArray(data.units_elsewhere) ? data.units_elsewhere : [];
 
-        const rows = units.map((u) => {
+        const rows = units.map((u, i) => {
             const id = String(u.inventory_id ?? '');
             const name = u.serial_number || u.asset_tag || `#${id}`;
             const where = u.address_text || u.location_name || 'location unknown';
+            // One unit is no choice at all, so it is made for them. The radio
+            // stays visible: what is being moved is worth reading even when
+            // there is nothing to decide.
+            const only = units.length === 1;
             return `
                 <label class="flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-surface-hover">
-                    <input type="radio" name="plUnitPick" value="${this.esc(id)}" class="mt-1 shrink-0">
+                    <input type="radio" name="plUnitPick" value="${this.esc(id)}" class="mt-1 shrink-0"${only || i === 0 ? ' checked' : ''}>
                     <span class="text-xs min-w-0">
                         <span class="font-mono text-text-primary">${this.esc(name)}</span>
                         <span class="text-text-muted"> \u00b7 ${this.esc(where)}</span>
@@ -2100,27 +2327,104 @@ class RequestsManager {
         }).join('');
 
         box.innerHTML = `
-            <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10">
-                <div class="text-sm font-medium text-text-primary">
-                    <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>This part is not at the server's site
+            <div class="px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10 space-y-3">
+                <div>
+                    <div class="text-sm font-medium text-text-primary">
+                        <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>This part is not at the server's site
+                    </div>
+                    <p class="text-xs text-text-secondary mt-1">
+                        The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                        Every free unit of this model is somewhere else. Move one there first: an admin approves the
+                        handover, the person carrying it confirms it has arrived, and only then does this request unfreeze.
+                    </p>
                 </div>
-                <p class="text-xs text-text-secondary mt-1">
-                    The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
-                    Every free unit of this model is somewhere else. Approving this request would be refused,
-                    so raise a Hardware Handover to move the part first \u2014 you will be offered one when you submit.
-                </p>
-                ${rows ? `<div class="mt-2 pt-2 border-t border-warning/30 space-y-0.5">${rows}</div>` : ''}
+                ${rows ? `
+                <div class="pt-2 border-t border-warning/30">
+                    <div class="text-xs font-medium text-text-primary mb-1">Which unit is being moved</div>
+                    <div class="space-y-0.5">${rows}</div>
+                </div>` : ''}
+                <div class="pt-2 border-t border-warning/30 space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-text-secondary mb-1">Who is transferring it <span class="text-danger">*</span></label>
+                        <select id="plPrereqCarrier" class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Loading people\u2026</option>
+                        </select>
+                        <p class="text-xs text-text-muted mt-1">They confirm the handover once the hardware has actually arrived, and only they can.</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-text-secondary mb-1">Shelf or bin there</label>
+                            <input type="text" id="plPrereqShelf" maxlength="100"
+                                class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Optional, e.g. Shelf B3">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-text-secondary mb-1">Reason</label>
+                            <input type="text" id="plPrereqReason" maxlength="255"
+                                class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="button" id="plPrereqHandover"
+                            class="px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
+                            <i class="fas fa-truck-fast"></i> Raise the Hardware Handover
+                        </button>
+                    </div>
+                </div>
             </div>`;
+
+        // The destination is not offered as a choice: the whole reason this panel
+        // exists is that the part has to reach ONE place, the server's own site.
+        // A dropdown there would only invite the wrong answer.
+        this.pickedUnit = units[0] || null;
+        const serialField = document.querySelector('[data-action-field="serial_number"]');
+        if (serialField && this.pickedUnit?.serial_number) serialField.value = this.pickedUnit.serial_number;
 
         box.querySelectorAll('input[name="plUnitPick"]').forEach((radio) => {
             radio.addEventListener('change', () => {
                 const unit = units.find((u) => String(u.inventory_id) === radio.value);
                 if (!unit) return;
                 this.pickedUnit = unit;
-                const serialField = document.querySelector('[data-action-field="serial_number"]');
-                if (serialField && unit.serial_number) serialField.value = unit.serial_number;
+                const field = document.querySelector('[data-action-field="serial_number"]');
+                if (field && unit.serial_number) field.value = unit.serial_number;
             });
         });
+
+        this.fillPrereqCarriers();
+        document.getElementById('plPrereqHandover')
+            ?.addEventListener('click', () => this.raiseInlinePrereq('handover'));
+    }
+
+    /**
+     * The carrier list for the inline handover panel.
+     *
+     * The same list loadHandoverUsers() builds, into a different control -- kept
+     * separate rather than parameterised because that one also honours
+     * handoverPrefill, which belongs to the full form and would be wrong here.
+     */
+    async fillPrereqCarriers() {
+        const select = document.getElementById('plPrereqCarrier');
+        if (!select) return;
+
+        let users = [];
+        try {
+            const result = await this.apiPost('pipeline-users', { limit: 200 });
+            if (result?.success) users = result.data?.users || [];
+        } catch (e) {
+            users = [];
+        }
+
+        if (!document.getElementById('plPrereqCarrier')) return;   // panel replaced meanwhile
+
+        if (!users.length) {
+            select.innerHTML = '<option value="">Nobody is set up to confirm handovers yet</option>';
+            select.disabled = true;
+            return;
+        }
+
+        select.disabled = false;
+        select.innerHTML = '<option value="">Choose a person...</option>' + users.map((u) =>
+            `<option value="${this.esc(String(u.id))}">${this.esc(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
+        ).join('');
     }
 
     /**
@@ -2286,6 +2590,269 @@ class RequestsManager {
         // it when their own requests come back, which may be after this point in
         // the source but not after this point in time.
         this.handoverPrefill = null;
+    }
+
+    /**
+     * The real Add Component form, mounted inside the Install Hardware modal.
+     *
+     * The same fragment and the same initialiser mountInventoryForm() uses --
+     * deliberately the same form, not a cut-down copy, because the fields a new
+     * inventory record needs are the record's business and a second version of
+     * them here would drift from the first within a month.
+     *
+     * SAFE TO MOUNT HERE because add-form.js is getElementById-based and only
+     * one instance may exist in the document: this panel appears on
+     * server.component.add / .replace, and #plInventoryMount only on
+     * inventory.component.add. They are different action types, so the two
+     * mounts are mutually exclusive by construction.
+     *
+     * The model is then SELECTED, not merely named -- selectModelByUuid() drives
+     * the cascade from the uuid. Location is left blank on purpose: where the
+     * part physically is, is the one thing only the requester knows.
+     */
+    async mountPrereqInventoryForm(gap) {
+        const mount = document.getElementById('plPrereqMount');
+        if (!mount) return;
+
+        const stillWanted = () => this.prereqMounted
+            && this.prereqMounted.component_uuid === gap.component_uuid
+            && document.getElementById('plPrereqMount');
+
+        try {
+            const response = await fetch('../../pages/forms/add-component.html');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const html = await response.text();
+
+            if (!stillWanted()) return;
+            document.getElementById('plPrereqMount').innerHTML = html;
+
+            await this.loadAddFormScript();
+            if (!stillWanted()) return;
+            if (typeof initializeAddComponentForm !== 'function') {
+                throw new Error('initializeAddComponentForm is unavailable');
+            }
+
+            this.prereqForm = initializeAddComponentForm(gap.component_type, { embedded: true });
+
+            // The cascade is per component type and lives in add-form.js, which
+            // is why this call is there and not here.
+            if (this.prereqForm && typeof this.prereqForm.selectModelByUuid === 'function') {
+                await this.prereqForm.selectModelByUuid(gap.component_uuid);
+            }
+        } catch (e) {
+            const box = document.getElementById('plPrereqMount');
+            if (box) {
+                box.innerHTML = `<p class="text-xs text-danger">Could not load the component form. Submit this request and raise the inventory record from its detail page instead.</p>`;
+            }
+        }
+    }
+
+    /**
+     * One click: create the parent request, then its prerequisite.
+     *
+     * WHY THE PARENT IS CREATED FIRST AND AUTOMATICALLY. A child needs a
+     * parent_ticket_id, and asking the requester to submit one request, find it,
+     * and then raise another against it is the workflow this whole panel exists
+     * to remove. The order is not negotiable, so it is not offered as a choice.
+     *
+     * If the parent fails, nothing else runs and the modal is left exactly as it
+     * was -- the requester's typing survives, and they can fix and retry. If the
+     * CHILD fails the parent still exists, which is honest rather than tidy: the
+     * gap is on its detail page and both offers are still there.
+     */
+    async raiseInlinePrereq(kind) {
+        const button = document.getElementById(kind === 'stock' ? 'plPrereqStock' : 'plPrereqHandover');
+        const child = kind === 'stock' ? this.buildStockChild() : this.buildHandoverChild();
+        if (!child) return;                                    // it said why itself
+
+        if (button) { button.disabled = true; button.classList.add('opacity-60'); }
+        try {
+            const parent = await this.createFromForm();
+            if (!parent) return;                               // createFromForm() toasted
+
+            const result = await this.apiPost('pipeline-create', Object.assign({
+                parent_ticket_id: parent.pipeline_id
+            }, child.fields));
+
+            if (!result.success) {
+                const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed');
+                this.toast(`#${parent.ticket_number} was created, but the prerequisite failed: ${msg}`, 'error');
+            } else {
+                this.toast('Request and its prerequisite created', 'success');
+            }
+
+            this.closeModal('modalContainer');
+            this.resetPrereqState();
+            this.load();
+            // The PARENT, not the child: the frozen request is what the
+            // requester came here for, and it now shows what it waits on.
+            this.openDetail(parent.pipeline_id);
+        } catch (e) {
+            this.toast('Failed: ' + e.message, 'error');
+        } finally {
+            if (button) { button.disabled = false; button.classList.remove('opacity-60'); }
+        }
+    }
+
+    /** Everything the inline flow leaves behind, cleared in one place. */
+    resetPrereqState() {
+        this.stockGapNow = null;
+        this.locationWarn = null;
+        this.prereqMounted = null;
+        this.prereqForm = null;
+        this.pickedUnit = null;
+        this.parentContext = null;
+        this.stockWanted = null;
+    }
+
+    /**
+     * Submit the Install Hardware form itself and return what was created.
+     *
+     * Deliberately NOT submitCreate(): that method owns the post-submit offers,
+     * and running them here would show the requester an offer for the very
+     * prerequisite they just filled in. This is the same create call without the
+     * epilogue.
+     *
+     * @return {Promise<{pipeline_id:number, ticket_number:string}|null>}
+     */
+    async createFromForm() {
+        const pipeline_template_id = document.getElementById('plType').value;
+        const title = document.getElementById('plTitle').value.trim();
+        if (!pipeline_template_id) { this.toast('Choose a request type', 'error'); return null; }
+        if (!title) { this.toast('Title is required', 'error'); return null; }
+
+        const problems = this.actionProblems();
+        if (problems.length) {
+            if (problems[0]) this.toast(problems[0], 'error');
+            return null;
+        }
+
+        const fields = {
+            pipeline_template_id,
+            title,
+            description: document.getElementById('plDescription').value.trim(),
+            priority: document.getElementById('plPriority').value,
+            items: JSON.stringify(this.collectComponentItems())
+        };
+        const target = this.selectedServerUuid();
+        if (target) fields.target_server_uuid = target;
+
+        const action = this.collectAction();
+        if (action) fields.actions = JSON.stringify([action]);
+
+        const result = await this.apiPost('pipeline-create', fields);
+        if (!result.success || !result.data?.pipeline_id) {
+            const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed to create');
+            this.toast(msg, 'error');
+            return null;
+        }
+        return { pipeline_id: result.data.pipeline_id, ticket_number: result.data.ticket_number || '' };
+    }
+
+    /**
+     * The Add Inventory Record child, from the form mounted in the panel.
+     *
+     * The request TYPE is chosen by capability -- the one whose approval step may
+     * perform inventory.component.add -- so renaming it in Settings does not
+     * quietly break this. Same rule applyStockPrefill() uses.
+     */
+    buildStockChild() {
+        if (!this.prereqForm || !this.prereqForm.currentComponentType) {
+            this.toast('The component form has not finished loading', 'error');
+            return null;
+        }
+        if (typeof this.prereqForm.validateForm === 'function' && !this.prereqForm.validateForm()) {
+            return null;                     // the form put the cursor in the field
+        }
+
+        const type = this.types.find((t) => t.is_active !== 0
+            && this.typeActionCeiling(t).some((a) => a.action_type === 'inventory.component.add'));
+        if (!type) {
+            this.toast('No request type can add to inventory yet — ask an admin to add one', 'warning');
+            return null;
+        }
+
+        const data = Object.assign({}, this.prereqForm.collectFormData());
+        delete data.action;                  // the request names the action; the payload is fields only
+
+        const label = this.modelLabel(this.stockGapNow.component_type, this.stockGapNow.component_uuid);
+        return {
+            fields: {
+                pipeline_template_id: String(type.id),
+                title: `Add ${this.componentTypeLabel(this.stockGapNow.component_type)} ${label} to inventory`.trim(),
+                description: 'Raised automatically: the request above needs a unit of this model.',
+                priority: document.getElementById('plPriority').value,
+                items: JSON.stringify([]),
+                actions: JSON.stringify([{
+                    action_type: 'inventory.component.add',
+                    payload: { component_type: this.prereqForm.currentComponentType, data: data }
+                }])
+            }
+        };
+    }
+
+    /**
+     * The Hardware Handover child, from the inline panel's fields.
+     *
+     * The destination is the SERVER's site, taken from the location check rather
+     * than from a control: that is the only destination that makes this request
+     * possible, so it is stated, not asked.
+     */
+    buildHandoverChild() {
+        const warn = this.locationWarn;
+        const unit = this.pickedUnit;
+        const destination = warn?.server?.location_uuid || '';
+
+        if (!unit || !unit.inventory_id) {
+            this.toast('Choose which unit is being moved', 'error');
+            return null;
+        }
+        if (!destination) {
+            this.toast('The server has no location on record, so nothing can be sent to it', 'error');
+            return null;
+        }
+
+        const carrier = (document.getElementById('plPrereqCarrier')?.value || '').trim();
+        if (!carrier) {
+            this.toast('Choose who is transferring it', 'error');
+            return null;
+        }
+
+        const type = this.types.find((t) => t.is_active !== 0 && /hardware handover/i.test(t.name || ''));
+        if (!type) {
+            this.toast('No "Hardware Handover" request type exists yet — ask an admin to add it', 'warning');
+            return null;
+        }
+
+        const fields = document.getElementById('plActionFields');
+        const componentType = (fields?.querySelector('[data-action-field="component_type"]')?.value || '').trim();
+        const shelf = (document.getElementById('plPrereqShelf')?.value || '').trim();
+        const reason = (document.getElementById('plPrereqReason')?.value || '').trim();
+        const to = warn?.server?.location_name || '';
+
+        const payload = {
+            component_type: componentType,
+            inventory_id: String(unit.inventory_id),
+            location_uuid: destination,
+            handover_user_id: carrier
+        };
+        if (shelf) payload.store_location = shelf;
+        if (reason) payload.reason = reason;
+        if (unit.serial_number) payload.serial_number = unit.serial_number;
+        if (unit.location_name) payload.from_location_name = unit.location_name;
+        if (to) payload.to_location_name = to;
+
+        return {
+            fields: {
+                pipeline_template_id: String(type.id),
+                title: `Hand over ${componentType} ${unit.serial_number || `#${unit.inventory_id}`}`.trim()
+                    + (to ? ` to ${to}` : ''),
+                description: 'Raised automatically: the request above needs this part at the server\'s site.',
+                priority: document.getElementById('plPriority').value,
+                items: JSON.stringify([]),
+                actions: JSON.stringify([{ action_type: 'inventory.component.relocate', payload }])
+            }
+        };
     }
 
     /**
@@ -2901,10 +3468,12 @@ class RequestsManager {
             const result = await this.apiPost('pipeline-get', { pipeline_id: id });
             if (!result.success) return this.toast(result.message || 'Failed to load request', 'error');
             this.currentDetail = result.data.pipeline;
+            this.historyFilter = { q: '', action: '', user: '', from: '', to: '' };
             // Only when there is a gap to name: loading the catalogue is eleven
             // static fetches, and someone merely reading a request should not pay
             // for them. Cached after the first call either way.
-            if (Array.isArray(this.currentDetail.stock_missing) && this.currentDetail.stock_missing.length) {
+            if ((Array.isArray(this.currentDetail.stock_missing) && this.currentDetail.stock_missing.length)
+                || (Array.isArray(this.currentDetail.location_gap) && this.currentDetail.location_gap.length)) {
                 await this.loadComponentData();
             }
             this.renderDetail(this.currentDetail);
@@ -2979,16 +3548,7 @@ class RequestsManager {
 
         const actionsBlock = this.renderActionsBlock(p);
 
-        const history = (p.history && p.history.length) ? `
-            <div class="mt-5">
-                <h4 class="text-sm font-semibold text-text-primary mb-2">Activity</h4>
-                <ul class="space-y-1.5">
-                    ${p.history.map((h) => `<li class="text-xs text-text-muted flex gap-2">
-                        <i class="fas fa-circle text-[5px] mt-1.5 text-text-muted"></i>
-                        <span><span class="text-text-secondary font-medium">${this.esc((h.action || '').replace(/_/g, ' '))}</span>${h.notes ? ` — ${this.esc(h.notes)}` : ''} <span class="text-text-disabled">· ${this.esc(h.changed_by || 'system')} · ${this.fmtDate(h.created_at)}</span></span>
-                    </li>`).join('')}
-                </ul>
-            </div>` : '';
+        const history = this.renderHistoryBlock(p);
 
         body.innerHTML = `
             <div class="flex flex-wrap items-center gap-2 mb-1">
@@ -3009,6 +3569,7 @@ class RequestsManager {
             ${accessBanner}
             ${this.executionFailureBanner()}
             ${this.stockMissingBlock(p)}
+            ${this.locationGapBlock(p)}
             ${this.prerequisitesBlock(p)}
 
             <div class="mt-5">
@@ -3025,6 +3586,91 @@ class RequestsManager {
                 </div>` : ''}`;
 
         this.wireDetailActions(p);
+        this.renderHistoryList();
+    }
+
+    /**
+     * The Activity trail plus the filter bar over it.
+     *
+     * pipeline-get already hands over every history entry for the request, so
+     * the filtering happens here rather than through a new action and a round
+     * trip. The rows themselves are painted by renderHistoryList(), which is
+     * also what every filter change re-runs.
+     */
+    renderHistoryBlock(p) {
+        const entries = p.history || [];
+        if (!entries.length) return '';
+
+        const f = this.historyFilter;
+        const inputCls = 'px-2 py-1 text-xs border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
+        const actions = [...new Set(entries.map((h) => h.action).filter(Boolean))].sort();
+        const users = [...new Set(entries.map((h) => h.changed_by || 'system'))].sort();
+        const opt = (v, label, sel) => `<option value="${this.esc(v)}"${sel === v ? ' selected' : ''}>${this.esc(label)}</option>`;
+
+        // A single entry is nothing to sift through; the bar would be clutter.
+        const bar = entries.length > 1 ? `
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+                <input id="plHistorySearch" type="search" placeholder="Search activity..." value="${this.esc(f.q)}"
+                    class="flex-1 min-w-0 ${inputCls}">
+                <select id="plHistoryAction" class="${inputCls}">
+                    ${opt('', 'All events', f.action)}${actions.map((a) => opt(a, a.replace(/_/g, ' '), f.action)).join('')}
+                </select>
+                <select id="plHistoryUser" class="${inputCls}">
+                    ${opt('', 'Anyone', f.user)}${users.map((u) => opt(u, u, f.user)).join('')}
+                </select>
+                <input id="plHistoryFrom" type="date" title="From date" value="${this.esc(f.from)}" class="${inputCls}">
+                <input id="plHistoryTo" type="date" title="To date" value="${this.esc(f.to)}" class="${inputCls}">
+            </div>` : '';
+
+        return `
+            <div class="mt-5">
+                <h4 class="text-sm font-semibold text-text-primary mb-2">Activity</h4>
+                ${bar}
+                <ul id="plHistoryList" class="space-y-1.5"></ul>
+                <div id="plHistoryCount" class="text-[11px] text-text-disabled mt-2"></div>
+            </div>`;
+    }
+
+    /**
+     * Does one history entry survive the current filter? Dates compare on the
+     * YYYY-MM-DD prefix of created_at, which sorts correctly as text and so
+     * needs no parsing.
+     */
+    historyMatches(h) {
+        const f = this.historyFilter;
+        if (f.action && h.action !== f.action) return false;
+        if (f.user && (h.changed_by || 'system') !== f.user) return false;
+
+        const day = (h.created_at || '').slice(0, 10);
+        if (f.from && day < f.from) return false;
+        if (f.to && day > f.to) return false;
+
+        if (f.q) {
+            const hay = `${h.action || ''} ${h.notes || ''} ${h.changed_by || ''} ${h.old_value || ''} ${h.new_value || ''}`
+                .replace(/_/g, ' ').toLowerCase();
+            if (!hay.includes(f.q)) return false;
+        }
+        return true;
+    }
+
+    renderHistoryList() {
+        const list = document.getElementById('plHistoryList');
+        if (!list) return;
+
+        const entries = (this.currentDetail && this.currentDetail.history) || [];
+        const shown = entries.filter((h) => this.historyMatches(h));
+
+        list.innerHTML = shown.length ? shown.map((h) => `<li class="text-xs text-text-muted flex gap-2">
+            <i class="fas fa-circle text-[5px] mt-1.5 text-text-muted"></i>
+            <span><span class="text-text-secondary font-medium">${this.esc((h.action || '').replace(/_/g, ' '))}</span>${h.notes ? ` — ${this.esc(h.notes)}` : ''} <span class="text-text-disabled">· ${this.esc(h.changed_by || 'system')} · ${this.fmtDate(h.created_at)}</span></span>
+        </li>`).join('') : '<li class="text-xs text-text-muted">No activity matches these filters.</li>';
+
+        const count = document.getElementById('plHistoryCount');
+        if (count) {
+            count.textContent = shown.length === entries.length
+                ? `${entries.length} event${entries.length === 1 ? '' : 's'}`
+                : `Showing ${shown.length} of ${entries.length} events`;
+        }
     }
 
     /**
@@ -3076,7 +3722,12 @@ class RequestsManager {
     }
 
     /**
-     * Parts this request needs that nobody has yet.
+     * Parts this request needs that nobody has FREE.
+     *
+     * Widened with the backend on 2026-08-29: a model whose only units are
+     * inside other servers is, to the person waiting for one, exactly as absent
+     * as a model nobody ever bought. `held` is what tells the two apart in the
+     * copy, because they are the same problem but not the same sentence.
      *
      * Rendered from `stock_missing`, which the backend re-derives from live
      * inventory on every read rather than storing -- so this notice disappears by
@@ -3091,26 +3742,36 @@ class RequestsManager {
         const gaps = Array.isArray(p.stock_missing) ? p.stock_missing : [];
         if (!gaps.length) return '';
 
-        const rows = gaps.map((g) => `
+        const rows = gaps.map((g) => {
+            const held = Number(g.held) || 0;
+            // "None in stock" and "two, both busy" are the same obstacle and
+            // completely different news. Somebody chasing the part needs to know
+            // which one they are chasing.
+            const holding = held > 0
+                ? ` &mdash; we hold ${held}, ${held === 1 ? 'and it is' : 'and all of them are'} in use or failed`
+                : '';
+            return `
             <li class="text-xs text-text-secondary">
                 &bull; <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(g.component_type))}</span>
-                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>${g.serial_number ? `, serial <span class="font-mono">${this.esc(g.serial_number)}</span>` : ''}
-            </li>`).join('');
+                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>${g.serial_number ? `, serial <span class="font-mono">${this.esc(g.serial_number)}</span>` : ''}${holding}
+            </li>`;
+        }).join('');
 
         const canRaise = this.canRaisePrerequisite(p);
         const first = gaps[0];
+        const anyHeld = gaps.some((g) => (Number(g.held) || 0) > 0);
 
         return `
             <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-warning/30 bg-warning/10">
                 <i class="fas fa-box-open text-warning mt-0.5"></i>
                 <div class="min-w-0">
                     <div class="text-sm font-medium text-text-primary">
-                        Not in inventory yet
+                        ${anyHeld ? 'Nothing free to fit' : 'Not in inventory yet'}
                     </div>
                     <ul class="mt-1.5 space-y-0.5">${rows}</ul>
                     <div class="text-xs text-text-secondary mt-2">
-                        Approving this will be refused while ${gaps.length === 1 ? 'that part is' : 'those parts are'} missing,
-                        and the approval is rolled back whole. Add the inventory record first &mdash; as a prerequisite,
+                        Approving this will be refused while ${gaps.length === 1 ? 'there is nothing to fit' : 'there is nothing to fit for each of those'},
+                        and the approval is rolled back whole. Record the unit first &mdash; as a prerequisite,
                         so this request unfreezes on its own once it is approved.
                     </div>
                     ${canRaise ? `
@@ -3120,6 +3781,62 @@ class RequestsManager {
                             data-stock-serial="${this.esc(first.serial_number || '')}"
                             class="mt-3 px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover transition-colors flex items-center gap-1.5">
                             <i class="fas fa-plus"></i> Add it to inventory
+                        </button>` : ''}
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Parts this request needs that exist, but at another site.
+     *
+     * THE SECOND HALF OF THE CHAIN, and the reason it is on the detail page
+     * rather than in the create form. When a request is raised for a part we do
+     * not stock, there is nothing to have a location: the handover question
+     * cannot even be asked yet. It becomes askable the moment the inventory
+     * record child is approved and a real unit exists — which is a change to
+     * inventory, not to this request, so nothing would have told the requester
+     * about it. This block appears by itself on the next read.
+     *
+     * Rendered only when the backend says match === false. "Cannot tell" (the
+     * location seeders unrun, an unplaced server, unlocated stock) renders
+     * nothing, exactly as the create form's panel stays silent.
+     */
+    locationGapBlock(p) {
+        const gaps = Array.isArray(p.location_gap) ? p.location_gap : [];
+        if (!gaps.length) return '';
+
+        const first = gaps[0];
+        const serverWhere = first.server?.location_name || 'the server\'s site';
+        const canRaise = this.canRaisePrerequisite(p);
+
+        const rows = gaps.map((g) => {
+            const units = Array.isArray(g.units_elsewhere) ? g.units_elsewhere : [];
+            const where = units.map((u) => u.location_name || u.address_text).filter(Boolean);
+            const unique = [...new Set(where)];
+            return `
+            <li class="text-xs text-text-secondary">
+                &bull; <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(g.component_type))}</span>
+                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>
+                ${unique.length ? `is at <span class="font-medium text-text-primary">${this.esc(unique.join(', '))}</span>` : 'is somewhere else'}
+            </li>`;
+        }).join('');
+
+        return `
+            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-warning/30 bg-warning/10">
+                <i class="fas fa-truck-fast text-warning mt-0.5"></i>
+                <div class="min-w-0">
+                    <div class="text-sm font-medium text-text-primary">The part is not at the server's site</div>
+                    <ul class="mt-1.5 space-y-0.5">${rows}</ul>
+                    <div class="text-xs text-text-secondary mt-2">
+                        The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                        Approving this will be refused until the hardware is there. Raise a Hardware Handover as a
+                        prerequisite: an admin approves it, the person carrying it confirms it has arrived, and this
+                        request unfreezes on its own.
+                    </div>
+                    ${canRaise ? `
+                        <button type="button" id="plRaiseHandover"
+                            class="mt-3 px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover transition-colors flex items-center gap-1.5">
+                            <i class="fas fa-truck-fast"></i> Raise the Hardware Handover
                         </button>` : ''}
                 </div>
             </div>`;
@@ -3533,6 +4250,20 @@ class RequestsManager {
         if (!body) return;
 
         body.querySelector('#plCancelPipeline')?.addEventListener('click', () => this.cancelPipeline(p.id));
+
+        // Activity filters. Each one only repaints the list, never the panel,
+        // so the field keeps focus while you type.
+        const onFilter = (id, key, transform) => {
+            body.querySelector(id)?.addEventListener('input', (e) => {
+                this.historyFilter[key] = transform ? transform(e.target.value) : e.target.value;
+                this.renderHistoryList();
+            });
+        };
+        onFilter('#plHistorySearch', 'q', (v) => v.trim().toLowerCase());
+        onFilter('#plHistoryAction', 'action');
+        onFilter('#plHistoryUser', 'user');
+        onFilter('#plHistoryFrom', 'from');
+        onFilter('#plHistoryTo', 'to');
         body.querySelector('#plRaisePrerequisite')?.addEventListener('click', () => this.showCreate(p));
 
         // The same prefill the offer sets, so both routes into the Add Inventory
@@ -3545,6 +4276,24 @@ class RequestsManager {
                 serial_number: stockBtn.dataset.stockSerial || '',
                 label: this.modelLabel(stockBtn.dataset.stockType, stockBtn.dataset.stockUuid),
                 ticket_number: p.ticket_number || ''
+            };
+            this.showCreate(p);
+        });
+
+        // The wrong-site half of the chain, raised from the detail because that
+        // is where it becomes possible — see locationGapBlock(). The same
+        // prefill offerHandover() builds, from the same fields.
+        body.querySelector('#plRaiseHandover')?.addEventListener('click', () => {
+            const gap = (Array.isArray(p.location_gap) ? p.location_gap : [])[0];
+            if (!gap) return;
+            const unit = (Array.isArray(gap.units_elsewhere) ? gap.units_elsewhere : [])[0] || {};
+            this.handoverPrefill = {
+                component_type: gap.component_type,
+                component_uuid: gap.component_uuid,
+                inventory_id: unit.inventory_id || '',
+                serial_number: unit.serial_number || '',
+                location_uuid: gap.server?.location_uuid || '',
+                location_name: gap.server?.location_name || ''
             };
             this.showCreate(p);
         });

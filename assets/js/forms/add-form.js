@@ -1072,6 +1072,81 @@ class AddComponentForm {
         }
     }
 
+    /**
+     * Drive the cascading dropdowns to one model, from its uuid alone.
+     *
+     * WHY IT LIVES HERE. A request that needs a part we do not stock offers this
+     * form already pointed at the model it needs, and only this file knows how
+     * many levels each component type has or what sits at each one — RAM and
+     * storage take four, caddies three, chassis four through a different shape.
+     * Written anywhere else it would be a second, guessable copy of that map,
+     * and it would drift.
+     *
+     * BY SEARCH, NOT BY LOOKUP, for the same reason: it walks the levels the way
+     * a person would, trying each branch and asking the next level whether the
+     * uuid turned up. That works for every type without knowing which is which,
+     * and it cannot go stale when a spec file gains a level. The tree is small
+     * and every populate step is synchronous, so this is a handful of
+     * milliseconds.
+     *
+     * A branch that leads nowhere is unwound rather than left half-set: a
+     * partially chosen cascade would look to the requester like a choice
+     * somebody made.
+     *
+     * @return {Promise<boolean>} false if the model is not in this type's specs
+     */
+    async selectModelByUuid(uuid) {
+        if (!uuid) return false;
+
+        // initializeAddComponentForm() does not await init(), so the spec file
+        // may still be in flight when the caller reaches this line.
+        if (!await this.waitForDropdowns()) return false;
+
+        const tryLevel = (level) => {
+            const dropdown = document.getElementById(`dropdown${level}Select`);
+            if (!dropdown || dropdown.disabled) return false;
+
+            const values = Array.from(dropdown.options)
+                .map((o) => o.value)
+                .filter(Boolean);
+
+            // The uuid IS one of this level's options: this level holds models.
+            if (values.includes(uuid)) {
+                dropdown.value = uuid;
+                this.handleDropdownChange(level, uuid);
+                return true;
+            }
+
+            if (level >= 4) return false;
+
+            for (const value of values) {
+                dropdown.value = value;
+                this.handleDropdownChange(level, value);
+                if (tryLevel(level + 1)) return true;
+            }
+
+            dropdown.value = '';
+            this.handleDropdownChange(level, '');
+            return false;
+        };
+
+        return tryLevel(1);
+    }
+
+    /** Resolve once the first cascade level has something in it, or give up. */
+    waitForDropdowns(timeoutMs = 8000) {
+        const startedAt = Date.now();
+        return new Promise((resolve) => {
+            const tick = () => {
+                const dropdown = document.getElementById('dropdown1Select');
+                if (dropdown && !dropdown.disabled && dropdown.options.length > 1) return resolve(true);
+                if (Date.now() - startedAt > timeoutMs) return resolve(false);
+                setTimeout(tick, 50);
+            };
+            tick();
+        });
+    }
+
     clearDropdownsFrom(startLevel) {
         for (let i = startLevel; i <= 4; i++) {
             const dropdown = document.getElementById(`dropdown${i}Select`);
