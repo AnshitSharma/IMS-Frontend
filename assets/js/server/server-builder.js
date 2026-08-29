@@ -1856,7 +1856,8 @@ class ServerBuilder {
      * Get onboard NIC details from stored network config
      */
     getOnboardNICDetails(uuid) {
-        // Look up onboard NIC specs from the network config (populated from nic_config JSON)
+        // Look up onboard NIC specs from the network config (server-get-config resolves them
+        // from config_components + the board spec; the nic_config JSON column is retired)
         if (this.networkConfig && Array.isArray(this.networkConfig.nics)) {
             const nicEntry = this.networkConfig.nics.find(n => n.uuid === uuid);
 
