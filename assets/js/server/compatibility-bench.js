@@ -3,9 +3,15 @@
  *
  * A bench build is an ordinary server configuration flagged is_sandbox=1, which the
  * backend forces to is_virtual=1. That single flag is what makes the whole feature
- * safe: ServerBuilder::addComponent() skips the inventory lock, the availability
- * check, the duplicate check and — the point of the exercise — the status flip from
- * available to in_use. Nothing tested here is ever reserved.
+ * safe: AddComponentCommand writes the component row with no inventory unit behind it
+ * and skips the status flip from available to in_use, so nothing tested here is ever
+ * reserved — and a bench build can now hold hardware we do not own at all.
+ *
+ * This used to say "ServerBuilder::addComponent() skips the inventory lock", which
+ * stopped being true when P9 deleted that method: from then until 2026-09-01 a bench
+ * add claimed a real unit and, because the row store is keyed on the physical unit,
+ * MOVED it out of whatever real server was holding it. The guard is back in
+ * AddComponentCommand::resolveVirtualComponent().
  *
  * Two classes live in this file:
  *   BenchResults       — the tested-parts log (localStorage). Loaded by BOTH this page

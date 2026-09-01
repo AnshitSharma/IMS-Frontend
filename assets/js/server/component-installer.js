@@ -31,11 +31,17 @@ class ComponentInstaller {
         'cpu',
         'ram',
         'storage',
+        'caddy',
+        // risercard BEFORE the cards that sit on it (moved 2026-09-01). Four platform
+        // boards — HPE DL360 Gen9, DL380 Gen10, DL325 Gen10 Plus v2 and Dell R630 —
+        // declare only expansion_slots.riser_slots and no pcie_slots at all, so on
+        // those platforms every NIC, HBA and PCIe card was refused for want of a slot
+        // that only an already-installed riser can provide.
+        'risercard',
         'nic',
         'hbacard',
-        'caddy',
-        'risercard',
         'pciecard',
+        // sfp last: it needs its parent NIC to already be in the configuration.
         'sfp'
     ];
 
