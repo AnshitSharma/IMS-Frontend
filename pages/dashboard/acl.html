@@ -465,6 +465,92 @@
         </div>
     </div>
 
+    <!-- Reset User Password Modal -->
+    <div id="resetPasswordModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden">
+            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 class="text-xl font-semibold text-text-primary">Reset Password</h3>
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors"
+                    id="resetPasswordModalClose">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <form id="resetPasswordForm" class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-180px)] space-y-4">
+                <input type="hidden" id="resetTargetUserId" value="">
+
+                <p class="text-sm text-text-muted">
+                    Setting a new password for <span class="font-semibold text-text-primary" id="resetTargetLabel">-</span>.
+                    They are signed out of every device and must log in with the new password.
+                    Hand it over yourself — nothing is emailed.
+                </p>
+
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block text-sm font-medium text-text-secondary">
+                            New Password <span class="text-danger">*</span>
+                        </label>
+                        <button type="button" id="generatePasswordBtn"
+                            class="btn-secondary px-3 py-2 text-xs bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors">
+                            Generate
+                        </button>
+                    </div>
+                    <div class="relative">
+                        <input type="password" id="resetNewPassword" autocomplete="new-password" maxlength="128"
+                            class="input-field w-full px-3 py-2 pr-10 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                            placeholder="Min 8 chars, 1 uppercase, 1 number, 1 special" required>
+                        <button type="button" data-toggle-password="resetNewPassword" aria-label="Show password"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                        Confirm New Password <span class="text-danger">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="resetConfirmPassword" autocomplete="new-password" maxlength="128"
+                            class="input-field w-full px-3 py-2 pr-10 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                            placeholder="Re-enter the new password" required>
+                        <button type="button" data-toggle-password="resetConfirmPassword" aria-label="Show password"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-border">
+                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                        Your Password <span class="text-danger">*</span>
+                    </label>
+                    <div class="relative">
+                        <input type="password" id="resetAdminPassword" autocomplete="current-password" maxlength="128"
+                            class="input-field w-full px-3 py-2 pr-10 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
+                            placeholder="Confirm it is you" required>
+                        <button type="button" data-toggle-password="resetAdminPassword" aria-label="Show password"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary focus:outline-none">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-text-muted mt-2">Your own password confirms the change. It is never stored or logged.</p>
+                </div>
+            </form>
+
+            <div class="modal-footer flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-surface-hover">
+                <button type="button"
+                    class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors"
+                    id="cancelResetPassword">Cancel</button>
+                <button type="button"
+                    class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
+                    id="confirmResetPasswordBtn">
+                    <i class="fas fa-key"></i> Reset Password
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Alert Container -->
     <div id="alertContainer" class="alert-container"></div>
 

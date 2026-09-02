@@ -310,6 +310,9 @@ class ACLManager {
         const roles = Array.isArray(user.roles) ? user.roles : [];
         const currentRoleId = roles.length > 0 ? roles[0].id : '';
         const isSelf = this.currentUserId != null && String(user.id) === String(this.currentUserId);
+        // UI-ONLY gate, same as the Add User button. The backend requires the
+        // admin/super_admin role AND users.reset_password regardless.
+        const canResetPassword = window.api?.utils?.hasPermission('users.reset_password') === true;
 
         const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim();
         const displayName = fullName || user.username || 'Unknown';
@@ -353,11 +356,19 @@ class ACLManager {
                     ${statusBadge}
                 </td>
                 <td class="px-4 py-3" data-label="Actions">
-                    <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
-                            ${isSelf ? 'disabled title="You cannot remove your own account"' : 'title="Remove user" onclick="aclManager.handleDeleteUser(' + user.id + ')"'}
-                            aria-label="Remove user">
-                        <i class="fas fa-user-minus text-sm"></i>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        ${canResetPassword ? `
+                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-surface-hover hover:text-primary transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
+                                ${isSelf ? 'disabled title="Use Change Password in the account menu for your own password"' : `title="Reset password" onclick="aclManager.openResetPasswordModal(${user.id})"`}
+                                aria-label="Reset password">
+                            <i class="fas fa-key text-sm"></i>
+                        </button>` : ''}
+                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
+                                ${isSelf ? 'disabled title="You cannot remove your own account"' : 'title="Remove user" onclick="aclManager.handleDeleteUser(' + user.id + ')"'}
+                                aria-label="Remove user">
+                            <i class="fas fa-user-minus text-sm"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `;
@@ -796,9 +807,14 @@ class ACLManager {
             toast.error('Please select a role for the user');
             return false;
         }
-        // Mirror the backend password policy (users-create). Each rule reports
-        // separately so the toast names the requirement that actually failed —
-        // a bundled message reads as a length complaint even when the length is fine.
+        return this.validatePasswordPolicy(password, confirmPassword);
+    }
+
+    // Mirror of the backend password policy (assertUserPasswordPolicy in
+    // users_api.php), shared by Create User and Reset Password. Each rule reports
+    // separately so the toast names the requirement that actually failed — a
+    // bundled message reads as a length complaint even when the length is fine.
+    validatePasswordPolicy(password, confirmPassword) {
         if (password.length < 8) {
             toast.error('Password must be at least 8 characters long');
             return false;
@@ -854,6 +870,191 @@ class ACLManager {
         } catch (error) {
             console.error('Error creating user:', error);
             toast.error(error.message || 'An error occurred while creating the user');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
+    // ======================
+    // Reset User Password
+    // ======================
+
+    openResetPasswordModal(userId) {
+        const user = this.users.find(u => String(u.id) === String(userId));
+        if (!user) {
+            toast.error('User not found — refresh the list and try again');
+            return;
+        }
+        // Same guard the backend applies. Changing your own password here would
+        // invalidate the session you are using; the account menu has the
+        // self-service flow, which asks for your current password.
+        if (this.currentUserId != null && String(user.id) === String(this.currentUserId)) {
+            toast.error('Use Change Password in the account menu to change your own password');
+            return;
+        }
+
+        const modal = document.getElementById('resetPasswordModal');
+        if (!modal) return;
+
+        document.getElementById('resetPasswordForm')?.reset();
+
+        const idField = document.getElementById('resetTargetUserId');
+        if (idField) idField.value = user.id;
+
+        const label = document.getElementById('resetTargetLabel');
+        if (label) label.textContent = '@' + (user.username || user.email || ('#' + user.id));
+
+        // Clear anything left from a previous open, and put the fields back to
+        // masked with their eye icons in the matching state.
+        ['resetNewPassword', 'resetConfirmPassword', 'resetAdminPassword'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) {
+                input.value = '';
+                input.type = 'password';
+            }
+        });
+        modal.querySelectorAll('[data-toggle-password]').forEach(btn => {
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = 'fas fa-eye';
+            btn.setAttribute('aria-label', 'Show password');
+        });
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            const modalContent = modal.querySelector('.modal');
+            if (modalContent) {
+                modalContent.style.opacity = '1';
+                modalContent.style.transform = 'scale(1)';
+            }
+            document.getElementById('resetNewPassword')?.focus();
+        }, 10);
+    }
+
+    closeResetPasswordModal() {
+        const modal = document.getElementById('resetPasswordModal');
+        if (!modal) return;
+
+        modal.style.opacity = '0';
+        const modalContent = modal.querySelector('.modal');
+        if (modalContent) {
+            modalContent.style.opacity = '0';
+            modalContent.style.transform = 'scale(0.95)';
+        }
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            // Never leave a password sitting in the DOM behind a hidden modal.
+            ['resetNewPassword', 'resetConfirmPassword', 'resetAdminPassword'].forEach(id => {
+                const input = document.getElementById(id);
+                if (input) {
+                    input.value = '';
+                    input.type = 'password';
+                }
+            });
+        }, 200);
+    }
+
+    // Uniform random index, rejection-sampled so the modulo does not bias the
+    // low characters. Falls back to Math.random only where crypto is absent.
+    randomInt(max) {
+        const cryptoObj = window.crypto || window.msCrypto;
+        if (cryptoObj && cryptoObj.getRandomValues) {
+            const limit = Math.floor(0xFFFFFFFF / max) * max;
+            const buf = new Uint32Array(1);
+            let value;
+            do {
+                cryptoObj.getRandomValues(buf);
+                value = buf[0];
+            } while (value >= limit);
+            return value % max;
+        }
+        return Math.floor(Math.random() * max);
+    }
+
+    generateStrongPassword(length = 16) {
+        // Ambiguous glyphs (I l 1 O 0) are left out — this password gets read off
+        // a screen and typed by someone else.
+        const sets = [
+            'ABCDEFGHJKLMNPQRSTUVWXYZ',
+            'abcdefghijkmnopqrstuvwxyz',
+            '23456789',
+            '!@#$%^&*?-_'
+        ];
+        const all = sets.join('');
+        const pick = chars => chars[this.randomInt(chars.length)];
+
+        // One from each set first, so the result always satisfies the policy.
+        const out = sets.map(pick);
+        while (out.length < length) out.push(pick(all));
+
+        // Fisher–Yates, so the guaranteed characters are not always up front.
+        for (let i = out.length - 1; i > 0; i--) {
+            const j = this.randomInt(i + 1);
+            [out[i], out[j]] = [out[j], out[i]];
+        }
+        return out.join('');
+    }
+
+    handleGeneratePassword() {
+        const password = this.generateStrongPassword();
+
+        ['resetNewPassword', 'resetConfirmPassword'].forEach(id => {
+            const input = document.getElementById(id);
+            if (!input) return;
+            input.value = password;
+            input.type = 'text'; // revealed on purpose — it has to be readable to be handed over
+            const btn = document.querySelector(`#resetPasswordModal [data-toggle-password="${id}"]`);
+            const icon = btn?.querySelector('i');
+            if (icon) icon.className = 'fas fa-eye-slash';
+            btn?.setAttribute('aria-label', 'Hide password');
+        });
+
+        toast.info('Password generated — copy it before closing this dialog');
+    }
+
+    async handleResetPassword() {
+        const userId = document.getElementById('resetTargetUserId')?.value || '';
+        const newPassword = document.getElementById('resetNewPassword')?.value || '';
+        const confirmPassword = document.getElementById('resetConfirmPassword')?.value || '';
+        const adminPassword = document.getElementById('resetAdminPassword')?.value || '';
+
+        if (!userId) {
+            toast.error('No user selected');
+            return;
+        }
+        if (!adminPassword) {
+            toast.error('Enter your own password to confirm the change');
+            return;
+        }
+        if (!this.validatePasswordPolicy(newPassword, confirmPassword)) return;
+
+        const user = this.users.find(u => String(u.id) === String(userId));
+        const label = user ? (user.username || user.email || `#${userId}`) : `#${userId}`;
+
+        const confirmed = await utils.confirm(
+            `Set a new password for "${label}"? They are signed out of every device immediately and must log in with the new password.`,
+            'Reset Password'
+        );
+        if (!confirmed) return;
+
+        try {
+            utils.showLoading(true, 'Resetting password...');
+            const result = await window.api.users.resetPassword({
+                userId,
+                newPassword,
+                confirmPassword,
+                adminPassword
+            });
+
+            if (result && result.success) {
+                toast.success(result.message || `Password reset for ${label}`);
+                this.closeResetPasswordModal();
+            } else {
+                toast.error(result?.message || 'Failed to reset the password');
+            }
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            toast.error(error.message || 'An error occurred while resetting the password');
         } finally {
             utils.showLoading(false);
         }
@@ -945,6 +1146,35 @@ class ACLManager {
         document.getElementById('createUserModalClose')?.addEventListener('click', () => this.closeCreateUserModal());
         document.getElementById('cancelCreateUser')?.addEventListener('click', () => this.closeCreateUserModal());
         document.getElementById('saveUserBtn')?.addEventListener('click', () => this.handleCreateUser());
+
+        // Reset Password modal close / cancel / generate / submit
+        document.getElementById('resetPasswordModalClose')?.addEventListener('click', () => this.closeResetPasswordModal());
+        document.getElementById('cancelResetPassword')?.addEventListener('click', () => this.closeResetPasswordModal());
+        document.getElementById('generatePasswordBtn')?.addEventListener('click', () => this.handleGeneratePassword());
+        document.getElementById('confirmResetPasswordBtn')?.addEventListener('click', () => this.handleResetPassword());
+
+        // Enter anywhere in the reset form submits it instead of reloading the page
+        document.getElementById('resetPasswordForm')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleResetPassword();
+        });
+
+        // Show/hide password eyes. Delegated because there was NO handler for
+        // [data-toggle-password] anywhere in the frontend — the buttons already
+        // in the Create User modal were inert markup. This covers both dialogs.
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-toggle-password]');
+            if (!btn) return;
+
+            const input = document.getElementById(btn.dataset.togglePassword);
+            if (!input) return;
+
+            const reveal = input.type === 'password';
+            input.type = reveal ? 'text' : 'password';
+            btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = reveal ? 'fas fa-eye-slash' : 'fas fa-eye';
+        });
     }
 
     attachPermissionEventListeners() {

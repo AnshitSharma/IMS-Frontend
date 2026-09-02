@@ -884,11 +884,15 @@ window.api = {
             return await api.request('users-delete', { user_id: id });
         },
 
-        async resetPassword(id, newPassword = null, sendEmail = true) {
-            return await api.request('users-reset_password', {
-                id: id,
+        // Administrative password reset (ACL -> Users). The acting admin's own
+        // password is the confirmation; the target is signed out everywhere.
+        // Nothing is emailed — the new password is handed over out of band.
+        async resetPassword({ userId, newPassword, confirmPassword, adminPassword }) {
+            return await api.request('users-reset-password', {
+                user_id: userId,
                 new_password: newPassword,
-                send_email: sendEmail
+                confirm_password: confirmPassword,
+                admin_password: adminPassword
             });
         },
 

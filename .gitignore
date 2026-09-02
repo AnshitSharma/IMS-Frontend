@@ -4,5 +4,6 @@ CLAUDE.md
 .env.*
 .agent/
 *.md
-.claude/i m s - f t p . z i p
+.claude/
+ims-ftp.zip
 .vscode/
