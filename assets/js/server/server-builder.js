@@ -980,6 +980,7 @@ class ServerBuilder {
                             ${boardLine ? `<div class="text-xs text-text-secondary mt-1"><i class="fas fa-microchip me-1 opacity-50"></i>${boardLine}</div>` : ''}
                             ${chassisLine ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-server me-1 opacity-50"></i>${chassisLine}</div>` : ''}
                             ${version.included_nic ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-network-wired me-1 opacity-50"></i>${this.escapeHtml(version.included_nic.model || 'Included network card')}</div>` : ''}
+                            ${version.included_storage_controller ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-hdd me-1 opacity-50"></i>${this.escapeHtml(version.included_storage_controller.model || 'Included storage controller')}</div>` : ''}
                         </div>
                         <div class="text-xs whitespace-nowrap">${status}</div>
                     </div>

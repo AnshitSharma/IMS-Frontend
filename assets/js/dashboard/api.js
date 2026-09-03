@@ -746,6 +746,20 @@ window.api = {
             return await api.request('rack-placement', { config_uuid: configUuid });
         },
 
+        // Install a server in a BAY of a blade enclosure (an FX2s holds four
+        // FC630 sleds). The enclosure already owns a rack and a U range, so
+        // neither is sent and neither may be chosen -- a sled is bolted into a
+        // box that already has a position.
+        async assignServerToSlot(enclosureUuid, configUuid, slotIndex, options = {}) {
+            const payload = {
+                enclosure_uuid: enclosureUuid,
+                config_uuid: configUuid,
+                slot_index: String(slotIndex)
+            };
+            if (options.reason) { payload.reason = options.reason; }
+            return await api.request('rack-assign-server', payload);
+        },
+
         async unassignServer(configUuid, reason = '') {
             const payload = { config_uuid: configUuid };
             if (reason) { payload.reason = reason; }

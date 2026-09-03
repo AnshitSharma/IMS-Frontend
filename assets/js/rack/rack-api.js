@@ -148,6 +148,17 @@ class RackAPI {
         return this.makeRequest({ action: 'rack-unassigned-servers' }, options);
     }
 
+    // Every physical server, racked or not, each with where it is now. The bay
+    // picker uses this rather than unassignedServers(): moving a server out of a
+    // U and into an enclosure bay is an ordinary move, and in an estate where
+    // everything is already racked, offering only unracked servers left the bays
+    // permanently unfillable.
+    placeableServers(excludeConfigUuid = '', options = {}) {
+        const data = { action: 'rack-placeable-servers' };
+        if (excludeConfigUuid) { data.exclude_config_uuid = excludeConfigUuid; }
+        return this.makeRequest(data, options);
+    }
+
     placement(configUuid, options = {}) {
         return this.makeRequest({ action: 'rack-placement', config_uuid: configUuid }, options);
     }

@@ -1325,7 +1325,12 @@ class Dashboard {
                 // Rack placement is a separate step after the config exists (and is
                 // never offered for virtual configs).
                 const rackUuid = !isVirtual ? (document.getElementById('serverRack')?.value || '') : '';
-                const startU = !isVirtual ? parseInt(document.getElementById('rackPosition')?.value || '', 10) : NaN;
+                // A position is EITHER a start U ("30") or an enclosure bay
+                // ("bay:<enclosure_uuid>:<slot>"). parseInt would silently turn
+                // the latter into NaN, so the shape is tested before it is read.
+                const positionValue = !isVirtual ? (document.getElementById('rackPosition')?.value || '') : '';
+                const bayMatch = /^bay:([^:]+):(\d+)$/.exec(positionValue);
+                const startU = bayMatch ? NaN : parseInt(positionValue || '', 10);
                 // How many U the server occupies. Sent explicitly so a 2U/4U box is
                 // racked at its real size instead of the 1U this form used to assume.
                 const uHeight = !isVirtual ? parseInt(document.getElementById('rackUHeight')?.value || '1', 10) : 1;
@@ -1336,23 +1341,13 @@ class Dashboard {
                     return;
                 }
 
-                // Rack + Position are mandatory for a physical build. They are only
-                // required when they are actually offerable: virtual/template builds
-                // cannot occupy a rack, non-admins never see the fields (they are
-                // removed above), and a disabled rack select means no racks exist or
-                // the list failed to load -- blocking creation in those cases would
-                // leave the user with no way forward.
-                const rackSelectEl = document.getElementById('serverRack');
-                const rackRequired = !isVirtual && rackSelectEl && !rackSelectEl.disabled;
-
-                if (rackRequired && !rackUuid) {
-                    utils.showAlert('Please choose a rack for this server', 'warning');
-                    rackSelectEl.focus();
-                    return;
-                }
-
-                if (rackUuid && !startU) {
-                    utils.showAlert('Please choose a position in the rack', 'warning');
+                // A rack is OPTIONAL, because the Rack dropdown genuinely offers
+                // "-- Not racked --" and refusing that choice made the option a
+                // trap: a server built on the bench, or one waiting for a bay,
+                // had no way through this form at all. What IS required is that a
+                // chosen rack gets a position.
+                if (rackUuid && !positionValue) {
+                    utils.showAlert('Please choose a position in the rack, or set the rack to "Not racked"', 'warning');
                     document.getElementById('rackPosition')?.focus();
                     return;
                 }
@@ -1386,7 +1381,17 @@ class Dashboard {
                         // Place it in the rack. The server exists either way, so a failed
                         // placement is reported as such instead of a false success.
                         let placementWarning = null;
-                        if (rackUuid && startU && result.data?.config_uuid) {
+                        if (rackUuid && bayMatch && result.data?.config_uuid) {
+                            // Into an enclosure bay. No rack and no U are sent:
+                            // the enclosure owns both, and uHeight is meaningless
+                            // for a sled whose height is the box's.
+                            const placement = await api.racks.assignServerToSlot(
+                                bayMatch[1], result.data.config_uuid, parseInt(bayMatch[2], 10)
+                            );
+                            if (!placement?.success) {
+                                placementWarning = placement?.message || 'Could not install the server in the enclosure bay';
+                            }
+                        } else if (rackUuid && startU && result.data?.config_uuid) {
                             const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU, { locationUuid, uHeight });
                             if (!placement?.success) {
                                 placementWarning = placement?.message || 'Could not place the server in the rack';
@@ -1494,6 +1499,10 @@ class Dashboard {
         // re-filter the positions without re-fetching it.
         let currentRack = null;
         let occupied = new Set();
+        // Blade enclosures standing in this rack. Their U is occupied by the BOX
+        // (whether or not any bay is filled), and their free bays are offered as
+        // positions in their own right.
+        let enclosures = [];
 
         // A server that is N U tall needs N CONTIGUOUS free U, and must not run
         // past the top of the rack. Offering every free U regardless of height
@@ -1514,25 +1523,55 @@ class Dashboard {
                 if (fits) starts.push(u);
             }
 
-            if (starts.length === 0) {
+            // Free bays across every enclosure in this rack. A bay is a position
+            // in its own right: a blade sled does not choose a U, it is bolted
+            // into a box that already has one, so the U-height filter above does
+            // not apply to these and they are offered whatever it is set to.
+            const bayOptions = [];
+            enclosures.forEach(e => {
+                (e.slots || []).forEach(slot => {
+                    if (slot.occupied) return;
+                    bayOptions.push({
+                        value: `bay:${e.enclosure_uuid}:${slot.slot_index}`,
+                        label: `${e.name} — bay ${slot.slot_index}`,
+                    });
+                });
+            });
+
+            if (starts.length === 0 && bayOptions.length === 0) {
                 resetPositions(`No ${height}U slot free`);
-                showHint(`${currentRack.name} has no run of ${height} free U — pick another rack or a smaller size.`);
+                showHint(`${currentRack.name} has no run of ${height} free U and no free enclosure bay — pick another rack or a smaller size.`);
                 return;
             }
 
             const previous = positionSelect.value;
-            positionSelect.innerHTML = '<option value="">-- Select position --</option>' +
+            const uGroup = starts.length === 0 ? '' :
+                `<optgroup label="Rack position">` +
                 starts.map(u => {
                     const label = height > 1 ? `U${u}–U${u + height - 1}` : `U${u}`;
                     return `<option value="${u}">${label}</option>`;
-                }).join('');
+                }).join('') + `</optgroup>`;
+            const bayGroup = bayOptions.length === 0 ? '' :
+                `<optgroup label="Enclosure bay">` +
+                bayOptions.map(b =>
+                    `<option value="${utils.escapeHtml(b.value)}">${utils.escapeHtml(b.label)}</option>`
+                ).join('') + `</optgroup>`;
+
+            positionSelect.innerHTML = '<option value="">-- Select position --</option>' + uGroup + bayGroup;
             positionSelect.disabled = false;
-            if (previous && starts.includes(parseInt(previous, 10))) {
+
+            // Restore the previous choice only if it is still on offer — a bay
+            // may have been taken, or a U-height change may have removed a run.
+            if (previous && Array.from(positionSelect.options).some(o => o.value === previous)) {
                 positionSelect.value = previous;
             }
-            showHint(height > 1
+
+            const bayNote = bayOptions.length > 0
+                ? ` A bay takes its position from its enclosure, so the U size above is ignored for one.`
+                : '';
+            showHint((height > 1
                 ? `Placed as ${height}U — adding a chassis re-derives the height from its spec.`
-                : 'Placed as 1U — adding a chassis re-derives the height from its spec.');
+                : 'Placed as 1U — adding a chassis re-derives the height from its spec.') + bayNote);
         };
 
         heightSelect?.addEventListener('change', renderPositions);
@@ -1557,8 +1596,16 @@ class Dashboard {
             }
 
             currentRack = detail.data?.rack || {};
+            enclosures = detail.data?.enclosures || [];
             (detail.data?.servers || []).forEach(s => {
                 for (let u = s.start_u; u <= s.end_u; u++) occupied.add(u);
+            });
+            // An enclosure occupies its U range whether or not it holds any
+            // servers. Without this the FX2s at U30-U31 would be offered as a
+            // free slot and the backend would refuse the placement with a 409
+            // AFTER the server had already been created.
+            enclosures.forEach(e => {
+                for (let u = e.start_u; u <= e.end_u; u++) occupied.add(u);
             });
 
             renderPositions();
@@ -1927,6 +1974,13 @@ class Dashboard {
         (rackDetail?.servers || []).forEach(server => {
             if (server.config_uuid === ownConfigUuid) return;
             for (let u = server.start_u; u <= server.end_u; u++) occupied.add(u);
+        });
+        // A blade enclosure occupies its U range too, and is never listed in
+        // `servers`. Omitting it would offer a start U the backend then refuses.
+        // Its own bays are NOT treated as free here: this dialog moves a server
+        // to a U, and installing it in a bay is a different operation.
+        (rackDetail?.enclosures || []).forEach(e => {
+            for (let u = e.start_u; u <= e.end_u; u++) occupied.add(u);
         });
 
         const starts = [];

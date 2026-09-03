@@ -79,7 +79,7 @@ class RackView {
             const sled = e.target.closest('.rk-sled');
             if (sled && sled.dataset.configUuid) { this.openServerActions(sled.dataset.configUuid); return; }
 
-            const bay = e.target.closest('.rk-bay');
+            const bay = e.target.closest('.rk-encl__bay');
             if (bay && bay.dataset.enclosureUuid) {
                 this.openPlaceInBay(bay.dataset.enclosureUuid, parseInt(bay.dataset.slot, 10));
                 return;
@@ -278,7 +278,7 @@ class RackView {
             const bays = e.slots.map(slot => {
                 if (!slot.occupied) {
                     return `
-                        <button type="button" class="rk-bay" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                        <button type="button" class="rk-encl__bay" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
                             data-slot="${slot.slot_index}"
                             aria-label="Install a server in bay ${slot.slot_index} of ${this.esc(e.name)}">
                             <span class="rk-slot__hint"><i class="fas fa-plus"></i> Bay ${slot.slot_index}</span>
@@ -803,6 +803,52 @@ class RackView {
         });
     }
 
+    /**
+     * The bay roster: what is actually inside this enclosure.
+     *
+     * The one place that answers "what is in this FX2s" without clicking each
+     * bay in turn — every bay in slot order, filled or not, with the server's
+     * status, how many components are installed in it, and a way straight into
+     * the builder or into filling the bay.
+     */
+    renderEnclosureRoster(e) {
+        const rows = e.slots.map(slot => {
+            if (!slot.occupied) {
+                return `
+                    <li class="rk-roster__row flex items-center gap-3 px-3 py-2">
+                        <span class="rk-mono text-xs text-text-muted w-8 shrink-0">B${slot.slot_index}</span>
+                        <span class="flex-1 min-w-0 text-sm text-text-muted italic">Empty</span>
+                        <button type="button" class="rk-roster__fill rk-roster__link text-primary text-xs font-medium shrink-0"
+                            data-slot="${slot.slot_index}">Install</button>
+                    </li>`;
+            }
+
+            const builderHref = `../server/builder.html?config=${encodeURIComponent(slot.config_uuid)}`;
+            // null means the count could not be taken, which is not the same as
+            // a server with nothing in it.
+            const count = (slot.component_count === null || slot.component_count === undefined)
+                ? 'components unknown'
+                : `${slot.component_count} component${slot.component_count === 1 ? '' : 's'}`;
+
+            return `
+                <li class="rk-roster__row flex items-center gap-3 px-3 py-2">
+                    <span class="rk-mono text-xs text-text-muted w-8 shrink-0">B${slot.slot_index}</span>
+                    <span class="rk-sled__led ${slot.orphaned ? 'st-orphaned' : this.statusClass(slot.configuration_status)} shrink-0"></span>
+                    <span class="flex-1 min-w-0">
+                        <span class="block text-sm text-text-primary truncate">${this.esc(slot.server_name)}</span>
+                        <span class="block text-xs text-text-muted">${this.esc(this.statusText(slot.configuration_status))} · ${this.esc(count)}</span>
+                    </span>
+                    ${slot.orphaned ? '' : `<a href="${builderHref}" class="rk-roster__link text-primary text-xs font-medium shrink-0">Open</a>`}
+                </li>`;
+        }).join('');
+
+        return `
+            <div>
+                <p class="text-sm font-medium text-text-primary mb-2">Bays</p>
+                <ul class="border border-border rounded-lg overflow-hidden">${rows}</ul>
+            </div>`;
+    }
+
     /** Rename / re-tag / move / remove one enclosure. */
     openEnclosureActions(enclosureUuid) {
         const e = this.currentEnclosures.find(x => x.enclosure_uuid === enclosureUuid);
@@ -817,6 +863,7 @@ class RackView {
                     ${e.model ? `<p class="text-xs text-text-muted mt-0.5">${this.esc(e.model)}</p>` : ''}
                     ${e.serial_number ? `<p class="text-xs text-text-muted rk-mono mt-0.5">Service tag ${this.esc(e.serial_number)}</p>` : ''}
                 </div>
+                ${this.renderEnclosureRoster(e)}
                 <form id="enclEditForm" class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -843,6 +890,13 @@ class RackView {
                 </form>
                 <button id="ee_remove" class="w-full px-4 py-2 border border-danger/40 text-danger rounded-lg hover:bg-danger/10 flex items-center gap-2"><i class="fas fa-trash"></i> Remove enclosure from rack</button>
             </div>`);
+
+        // Roster "Install" on an empty bay — same dialog the bay tile opens.
+        this.el.modalBody.querySelectorAll('.rk-roster__fill').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.openPlaceInBay(e.enclosure_uuid, parseInt(btn.dataset.slot, 10));
+            });
+        });
 
         document.getElementById('ee_cancel').addEventListener('click', () => this.closeModal());
         document.getElementById('enclEditForm').addEventListener('submit', async (ev) => {
@@ -883,7 +937,12 @@ class RackView {
 
         this.openModal(`Install in ${e.name} bay ${slotIndex}`, this.spinner('Loading…'));
 
-        const res = await rackAPI.unassignedServers();
+        // Racked servers are offered too, grouped separately and labelled with
+        // where they are now. Restricting this to unracked servers made the bays
+        // unfillable in an estate where everything is already in a rack, even
+        // though moving a server from a U into a bay is an ordinary move the
+        // backend already validates and performs.
+        const res = await rackAPI.placeableServers();
         if (!res || !res.success) {
             this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load servers')}</p>`;
             return;
@@ -893,16 +952,24 @@ class RackView {
         if (servers.length === 0) {
             this.el.modalBody.innerHTML = `
                 <div class="text-center py-6">
-                    <i class="fas fa-circle-check text-3xl text-success mb-3"></i>
-                    <p class="text-text-primary font-medium mb-1">Every server is already racked</p>
-                    <p class="text-text-muted text-sm">Build a new server, or remove one from its rack, to install it here.</p>
+                    <i class="fas fa-server text-3xl text-text-muted mb-3"></i>
+                    <p class="text-text-primary font-medium mb-1">No servers exist yet</p>
+                    <p class="text-text-muted text-sm">Build a server first, then install it into this bay.</p>
                     <a href="servers.html" class="inline-block mt-3 text-primary text-sm font-medium hover:underline">Go to Servers</a>
                 </div>`;
             return;
         }
 
-        const options = '<option value="" disabled selected>Select a server…</option>' +
-            servers.map(s => `<option value="${this.esc(s.config_uuid)}">${this.esc(s.server_name)} · ${this.esc(s.status_text)}</option>`).join('');
+        const free = servers.filter(s => !s.is_racked);
+        const placed = servers.filter(s => s.is_racked);
+        const opt = (s, suffix) =>
+            `<option value="${this.esc(s.config_uuid)}">${this.esc(s.server_name)} · ${this.esc(s.status_text)}${suffix}</option>`;
+
+        const options = '<option value="" disabled selected>Select a server…</option>'
+            + (free.length ? `<optgroup label="Not in a rack">${free.map(s => opt(s, '')).join('')}</optgroup>` : '')
+            + (placed.length ? `<optgroup label="Already placed — will be moved here">${
+                placed.map(s => opt(s, ` · now at ${s.current_position || 'a rack'}`)).join('')
+              }</optgroup>` : '');
 
         this.el.modalBody.innerHTML = `
             <form id="bayForm" class="space-y-4">
