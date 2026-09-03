@@ -497,7 +497,10 @@ class AddComponentForm {
                         option.value = model.uuid;
 
                         // Build descriptive model name
-                        const modelName = `${item.brand} ${item.series} ${model.capacity_GB}GB ${model.memory_type}-${model.frequency_MHz}MHz ${model.module_type}`;
+                        // Same brand/capacity/speed in two JEDEC reference designs
+                        // renders identically without the printed module label.
+                        const variant = model.label ? ` (${model.label})` : '';
+                        const modelName = `${item.brand} ${item.series} ${model.capacity_GB}GB ${model.memory_type}-${model.frequency_MHz}MHz ${model.module_type}${variant}`;
                         option.textContent = modelName;
 
                         // Store full model data
@@ -561,31 +564,30 @@ class AddComponentForm {
 
         dropdown2.innerHTML = '<option value="">Select Form Factor</option>';
 
-        const formFactors = new Set();
+        // Map each form factor to the subtypes actually present for this storage type,
+        // so the label can never contradict the data (a hardcoded map went stale before).
+        const formFactors = new Map();
         this.jsonData.forEach(item => {
             if (item.models && Array.isArray(item.models)) {
                 item.models.forEach(model => {
                     if (model.storage_type === storageType && model.form_factor) {
-                        formFactors.add(model.form_factor);
+                        if (!formFactors.has(model.form_factor)) {
+                            formFactors.set(model.form_factor, new Set());
+                        }
+                        if (model.subtype) formFactors.get(model.form_factor).add(model.subtype);
                     }
                 });
             }
         });
 
-        const formFactorLabels = {
-            '3.5-inch':    '3.5-inch (SATA HDD / SAS HDD)',
-            '2.5-inch':    '2.5-inch (SATA SSD / SAS SSD / U.3)',
-            '2.5-inch U.2':'2.5-inch U.2 (NVMe U.2)',
-            'M.2 2280':    'M.2 2280 (NVMe PCIe 4.0)',
-            'M.3 2280':    'M.3 2280 (NVMe PCIe 5.0)',
-            'M.3 2230':    'M.3 2230 (NVMe PCIe 5.0)',
-        };
-
         const fragStorageFF = document.createDocumentFragment();
-        [...formFactors].sort().forEach(formFactor => {
+        [...formFactors.keys()].sort().forEach(formFactor => {
             const option = document.createElement('option');
             option.value = formFactor;
-            option.textContent = formFactorLabels[formFactor] || formFactor;
+            const subtypes = [...formFactors.get(formFactor)].sort();
+            option.textContent = subtypes.length
+                ? `${formFactor} (${subtypes.join(' / ')})`
+                : formFactor;
             fragStorageFF.appendChild(option);
         });
         dropdown2.appendChild(fragStorageFF);
@@ -641,7 +643,11 @@ class AddComponentForm {
                         const option = document.createElement('option');
                         option.value = model.uuid;
 
-                        const modelName = `${item.brand} ${item.series} ${model.capacity_GB}GB ${model.storage_type} ${model.form_factor}`;
+                        // Model and interface are what separate otherwise identical rows
+                        // (two ADATA 4TB M.2 2280 NVMe drives differ only by PCIe generation).
+                        const modelLabel = model.model ? ` ${model.model}` : '';
+                        const interfaceLabel = model.interface ? ` (${model.interface})` : '';
+                        const modelName = `${item.brand} ${item.series}${modelLabel} ${model.capacity_GB}GB ${model.storage_type} ${model.form_factor}${interfaceLabel}`;
                         option.textContent = modelName;
 
                         option.dataset.modelData = JSON.stringify({
@@ -1983,6 +1989,19 @@ class AddComponentForm {
             }
         });
 
+        // Location is mandatory now, which turns a location list that failed to
+        // load from a degraded optional field into a hard block. Say so: telling
+        // someone to "fill in the Location field" on a select with nothing in it
+        // is unactionable. populateSelect() leaves it disabled in exactly this case.
+        const locationSelect = document.getElementById('location');
+        if (locationSelect && locationSelect.hasAttribute('required')
+            && locationSelect.disabled && !locationSelect.value) {
+            if (typeof toast !== 'undefined') {
+                toast.error('No location can be selected, so this component cannot be filed. Add a site on the Locations page first.');
+            }
+            return false;
+        }
+
         // Validate visible required fields
         for (const field of visibleRequiredFields) {
             if (!field.value.trim()) {
@@ -2063,7 +2082,8 @@ class AddComponentForm {
             'ramSize': 'RAM Size',
             'storageType': 'Storage Type',
             'storageCapacity': 'Storage Capacity',
-            'caddyType': 'Caddy Type'
+            'caddyType': 'Caddy Type',
+            'location': 'Location'
         };
 
         return labelMap[fieldId] || fieldId.replace(/([A-Z])/g, ' $1').toLowerCase();
@@ -2202,6 +2222,15 @@ class AddComponentForm {
                 Status: formData.Status,
                 VendorID: formData.VendorID,
                 Location: formData.Location,
+                // This list is written out by hand rather than spread from
+                // formData, so a field collectFormData() builds is only sent if
+                // it is also named here. Both of these are named explicitly for
+                // that reason: Location is mandatory now, and a site that landed
+                // in the free-text column without its uuid would leave the row
+                // unfilterable by location. submitAsRequest() posts the whole
+                // object, so the two paths agree on what a saved unit carries.
+                location_uuid: formData.location_uuid,
+                StoreLocation: formData.StoreLocation,
                 RackPosition: formData.RackPosition,
                 PurchaseDate: formData.PurchaseDate,
                 InstallationDate: formData.InstallationDate,

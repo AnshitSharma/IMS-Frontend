@@ -531,12 +531,22 @@ window.api = {
         // rack_servers placement (see rack-assign-server), never typed by hand.
         // isSandbox creates a Compatibility Bench build instead of a server: it implies
         // is_virtual server-side, so nothing it holds is reserved or marked in_use.
-        async createConfig(serverName, description, startWith, isVirtual, location, isSandbox = false) {
+        // serialNumber is the manufacturer serial typed in on the Create Server
+        // form. The backend requires one for a physical build and refuses a
+        // duplicate with a 400 naming the server that already holds it.
+        async createConfig(serverName, description, startWith, isVirtual, location, isSandbox = false, serialNumber = '') {
             const requestData = {
                 server_name: serverName,
                 description: description,
                 is_virtual: isVirtual
             };
+
+            // Omitted rather than sent blank when there is none (a virtual build):
+            // the column is UNIQUE, so the backend stores absent-or-blank as NULL,
+            // and only NULLs can coexist there.
+            if (serialNumber) {
+                requestData.serial_number = serialNumber;
+            }
 
             if (isSandbox) {
                 requestData.is_sandbox = 'true';
@@ -723,6 +733,9 @@ window.api = {
             };
             if (options.locationUuid) { payload.location_uuid = options.locationUuid; }
             if (options.reason) { payload.reason = options.reason; }
+            // Explicit sled height. Omitted, the backend derives it from the
+            // chassis spec (1U when there is no chassis yet).
+            if (options.uHeight) { payload.u_height = String(options.uHeight); }
             return await api.request('rack-assign-server', payload);
         },
 

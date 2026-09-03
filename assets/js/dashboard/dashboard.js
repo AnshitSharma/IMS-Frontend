@@ -686,12 +686,18 @@ class Dashboard {
                 const location = (server.location || '').toLowerCase();
                 const notes = (server.notes || '').toLowerCase();
                 const uuid = (server.config_uuid || '').toLowerCase();
+                // The server's own serial. Matched locally so typing BDC-SRV-000123
+                // resolves instantly off the loaded list; the searchBySerial
+                // fallback below also matches it server-side, which is what finds
+                // a server whose page of the list has not been loaded.
+                const serial = (server.serial_number || '').toLowerCase();
 
                 return name.includes(search) ||
                     description.includes(search) ||
                     location.includes(search) ||
                     notes.includes(search) ||
-                    uuid.includes(search);
+                    uuid.includes(search) ||
+                    serial.includes(search);
             });
 
             if (localMatches.length > 0) {
@@ -899,6 +905,11 @@ class Dashboard {
                 <!-- Meta -->
                 <div class="px-5 py-4 flex-1">
                     <div class="divide-y divide-border-light">
+                        ${server.serial_number ? `
+                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
+                            <span class="text-text-muted">Serial</span>
+                            <span class="text-text-primary font-medium font-mono truncate" title="${utils.escapeHtml(server.serial_number)}">${utils.escapeHtml(server.serial_number)}</span>
+                        </div>` : ''}
                         <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
                             <span class="text-text-muted">Location</span>
                             <span class="text-text-primary font-medium truncate tabular-nums">${getRackLabel(server)}</span>
@@ -1138,6 +1149,15 @@ class Dashboard {
                     <input type="text" class="form-input" id="serverName" required
                            placeholder="e.g., Production Web Server">
                 </div>
+                <div class="form-group" id="serialNumberGroup">
+                    <label for="serverSerialNumber" class="form-label required flex items-center gap-2">
+                        <i class="fas fa-barcode text-teal-600 text-sm"></i>
+                        Serial Number
+                    </label>
+                    <input type="text" class="form-input" id="serverSerialNumber" maxlength="50"
+                           placeholder="Serial printed on the server">
+                    <p class="text-xs text-slate-500 mt-1">The manufacturer serial on the physical machine. Each server's must be unique.</p>
+                </div>
                 <div class="form-group">
                     <label for="description" class="form-label flex items-center gap-2">
                         <i class="fas fa-align-left text-teal-600 text-sm"></i>
@@ -1167,6 +1187,22 @@ class Dashboard {
                         <i class="fas fa-info-circle text-slate-500 text-sm mt-0.5"></i>
                         <p class="text-xs text-slate-500" id="rackFieldHintText"></p>
                     </div>
+                </div>
+                <div class="form-group" id="rackHeightGroup">
+                    <label for="rackUHeight" class="form-label required flex items-center gap-2">
+                        <i class="fas fa-arrows-alt-v text-teal-600 text-sm"></i>
+                        Rack Units (U)
+                    </label>
+                    <select class="form-select" id="rackUHeight">
+                        <option value="1" selected>1U</option>
+                        <option value="2">2U</option>
+                        <option value="3">3U</option>
+                        <option value="4">4U</option>
+                        <option value="5">5U</option>
+                        <option value="6">6U</option>
+                        <option value="8">8U</option>
+                        <option value="10">10U</option>
+                    </select>
                 </div>
                 <div class="form-group" id="rackPositionGroup">
                     <label for="rackPosition" class="form-label required flex items-center gap-2">
@@ -1227,11 +1263,13 @@ class Dashboard {
         // unracked and an admin places it from Rack View.
         const rackGroup = document.getElementById('rackFieldGroup');
         const positionGroup = document.getElementById('rackPositionGroup');
+        const heightGroup = document.getElementById('rackHeightGroup');
         const canPlaceInRack = api.utils.hasRole(['admin', 'super_admin']);
 
         if (!canPlaceInRack) {
             rackGroup?.remove();
             positionGroup?.remove();
+            heightGroup?.remove();
         } else {
             this.initRackFields();
         }
@@ -1257,7 +1295,14 @@ class Dashboard {
                 if (rackGroup && positionGroup) {
                     rackGroup.classList.toggle('hidden', this.checked);
                     positionGroup.classList.toggle('hidden', this.checked);
+                    heightGroup?.classList.toggle('hidden', this.checked);
                 }
+
+                // Same reasoning for the serial: a virtual config has no physical
+                // machine to read one off, and the backend only requires it for a
+                // physical build. Hiding the field beats showing a mandatory box
+                // with nothing that could legitimately go in it.
+                document.getElementById('serialNumberGroup')?.classList.toggle('hidden', this.checked);
             });
         }
 
@@ -1281,6 +1326,9 @@ class Dashboard {
                 // never offered for virtual configs).
                 const rackUuid = !isVirtual ? (document.getElementById('serverRack')?.value || '') : '';
                 const startU = !isVirtual ? parseInt(document.getElementById('rackPosition')?.value || '', 10) : NaN;
+                // How many U the server occupies. Sent explicitly so a 2U/4U box is
+                // racked at its real size instead of the 1U this form used to assume.
+                const uHeight = !isVirtual ? parseInt(document.getElementById('rackUHeight')?.value || '1', 10) : 1;
 
                 if (!location) {
                     utils.showAlert('Please choose a location for this server', 'warning');
@@ -1320,15 +1368,26 @@ class Dashboard {
                     return;
                 }
 
+                // The serial off the physical machine. Required for a real server,
+                // never asked for on a virtual/template build — the field is hidden
+                // in that case and the backend applies the same rule.
+                const serialEl = document.getElementById('serverSerialNumber');
+                const serialNumber = (serialEl?.value || '').trim();
+                if (!isVirtual && !serialNumber) {
+                    utils.showAlert("Please enter the server's serial number", 'warning');
+                    serialEl?.focus();
+                    return;
+                }
+
                 try {
                     utils.showLoading(true, 'Creating server...');
-                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location);
+                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location, false, isVirtual ? '' : serialNumber);
                     if (result.success) {
                         // Place it in the rack. The server exists either way, so a failed
                         // placement is reported as such instead of a false success.
                         let placementWarning = null;
                         if (rackUuid && startU && result.data?.config_uuid) {
-                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU, { locationUuid });
+                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU, { locationUuid, uHeight });
                             if (!placement?.success) {
                                 placementWarning = placement?.message || 'Could not place the server in the rack';
                             }
@@ -1384,6 +1443,7 @@ class Dashboard {
     async initRackFields() {
         const rackSelect = document.getElementById('serverRack');
         const positionSelect = document.getElementById('rackPosition');
+        const heightSelect = document.getElementById('rackUHeight');
         const hint = document.getElementById('rackFieldHint');
         const hintText = document.getElementById('rackFieldHintText');
         if (!rackSelect || !positionSelect) return;
@@ -1430,8 +1490,58 @@ class Dashboard {
         resetPositions('-- Select a rack first --');
         clearHint();
 
+        // Layout of the rack currently selected, so changing the U-height can
+        // re-filter the positions without re-fetching it.
+        let currentRack = null;
+        let occupied = new Set();
+
+        // A server that is N U tall needs N CONTIGUOUS free U, and must not run
+        // past the top of the rack. Offering every free U regardless of height
+        // would just push the refusal down to the backend after the server was
+        // already created.
+        const renderPositions = () => {
+            if (!currentRack) return;
+
+            const height = Math.max(1, parseInt(heightSelect?.value || '1', 10));
+            const totalU = currentRack.total_u || 0;
+            const starts = [];
+
+            for (let u = 1; u + height - 1 <= totalU; u++) {
+                let fits = true;
+                for (let i = 0; i < height; i++) {
+                    if (occupied.has(u + i)) { fits = false; break; }
+                }
+                if (fits) starts.push(u);
+            }
+
+            if (starts.length === 0) {
+                resetPositions(`No ${height}U slot free`);
+                showHint(`${currentRack.name} has no run of ${height} free U — pick another rack or a smaller size.`);
+                return;
+            }
+
+            const previous = positionSelect.value;
+            positionSelect.innerHTML = '<option value="">-- Select position --</option>' +
+                starts.map(u => {
+                    const label = height > 1 ? `U${u}–U${u + height - 1}` : `U${u}`;
+                    return `<option value="${u}">${label}</option>`;
+                }).join('');
+            positionSelect.disabled = false;
+            if (previous && starts.includes(parseInt(previous, 10))) {
+                positionSelect.value = previous;
+            }
+            showHint(height > 1
+                ? `Placed as ${height}U — adding a chassis re-derives the height from its spec.`
+                : 'Placed as 1U — adding a chassis re-derives the height from its spec.');
+        };
+
+        heightSelect?.addEventListener('change', renderPositions);
+
         rackSelect.addEventListener('change', async () => {
             const rackUuid = rackSelect.value;
+            currentRack = null;
+            occupied = new Set();
+
             if (!rackUuid) {
                 resetPositions('-- Select a rack first --');
                 clearHint();
@@ -1446,27 +1556,12 @@ class Dashboard {
                 return;
             }
 
-            const rack = detail.data?.rack || {};
-            const occupied = new Set();
+            currentRack = detail.data?.rack || {};
             (detail.data?.servers || []).forEach(s => {
                 for (let u = s.start_u; u <= s.end_u; u++) occupied.add(u);
             });
 
-            const free = [];
-            for (let u = 1; u <= (rack.total_u || 0); u++) {
-                if (!occupied.has(u)) free.push(u);
-            }
-
-            if (free.length === 0) {
-                resetPositions('Rack is full');
-                showHint(`${rack.name} has no free U left — pick another rack.`);
-                return;
-            }
-
-            positionSelect.innerHTML = '<option value="">-- Select position --</option>' +
-                free.map(u => `<option value="${u}">U${u}</option>`).join('');
-            positionSelect.disabled = false;
-            showHint('Placed as 1U — the placement resizes automatically when you add the chassis.');
+            renderPositions();
         });
     }
 
@@ -2132,6 +2227,33 @@ class Dashboard {
             ? `This server is installed in rack <strong class="text-text-secondary">${utils.escapeHtml(server.rack_name || 'unknown')}</strong>, so its location is that rack's. Use <em>Move server</em> to put it somewhere else.`
             : "You do not have permission to change this server's location.";
 
+        // The manufacturer serial, editable because it is typed in by a person and
+        // typed values get mistyped. Built out here rather than inline for the same
+        // reason locationField is: the two-branch markup does not nest cleanly
+        // inside the return template.
+        //
+        // Omitted entirely for a virtual build -- there is no physical machine to
+        // read a serial off, which is also why the create form hides the field and
+        // the backend requires it only when is_virtual is 0. Empty when the column
+        // has not been seeded yet, in which case the box is simply blank and the
+        // backend ignores what is sent.
+        const serialHint = server.serial_number
+            ? 'Correct this if it was recorded wrongly. Each serial must be unique.'
+            : 'Not recorded yet — enter the serial on the physical machine.';
+
+        const serialField = server.is_virtual
+            ? ''
+            : `<div class="form-group">
+                   <label for="serverEditSerial" class="form-label flex items-center gap-2">
+                       <i class="fas fa-barcode text-primary text-sm"></i>
+                       Serial Number
+                   </label>
+                   <input type="text" class="form-input" id="serverEditSerial" maxlength="50"
+                       placeholder="Serial printed on the server"
+                       value="${utils.escapeHtml(server.serial_number || '')}" ${detailsLocked ? 'disabled' : ''}>
+                   <p class="text-xs text-text-muted mt-1">${serialHint}</p>
+               </div>`;
+
         const locationField = canEditLocation
             ? `<div class="form-group">
                    <label for="serverEditLocation" class="form-label flex items-center gap-2">
@@ -2180,6 +2302,7 @@ class Dashboard {
                             <input type="text" class="form-input" id="serverEditName" maxlength="100"
                                 value="${utils.escapeHtml(server.server_name || '')}" ${detailsLocked ? 'disabled' : ''}>
                         </div>
+                        ${serialField}
                         <div class="form-group">
                             <label for="serverEditDescription" class="form-label flex items-center gap-2">
                                 <i class="fas fa-align-left text-primary text-sm"></i>
@@ -2251,6 +2374,14 @@ class Dashboard {
         if (notesEl && !notesEl.disabled) {
             const notes = notesEl.value.trim();
             if (notes !== (server.notes || '')) { fields.notes = notes; }
+        }
+        // Absent for a virtual build (no field is rendered) and skipped while the
+        // details are locked. A cleared box is sent as '', which the backend
+        // stores as NULL — blanking a wrongly recorded serial is allowed.
+        const serialEl = document.getElementById('serverEditSerial');
+        if (serialEl && !serialEl.disabled) {
+            const serial = serialEl.value.trim();
+            if (serial !== (server.serial_number || '')) { fields.serial_number = serial; }
         }
 
         const newLocationUuid = locationSelect && !locationSelect.disabled
@@ -2392,8 +2523,17 @@ class Dashboard {
         document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
         document.getElementById('serverBuilderView').classList.add('active');
 
-        // Update title
-        document.getElementById('serverBuilderTitle').innerHTML = `<i class="fas fa-wrench"></i> ${serverName || 'Server Builder'}`;
+        // Update title. The serial comes from the already-loaded list rather than
+        // a new argument, the same lookup showServerEditModal() uses -- so the
+        // card click, the Configure button and the post-create jump all get it
+        // without four call sites having to pass it. Absent (a config created
+        // moments ago, a virtual build, or the seeder not yet applied) simply
+        // means no serial is shown.
+        const builderServer = (this.allServers || []).find(s => s.config_uuid === configUuid);
+        const builderSerial = builderServer?.serial_number
+            ? `<span class="ml-2 text-sm font-mono text-text-muted align-middle">${utils.escapeHtml(builderServer.serial_number)}</span>`
+            : '';
+        document.getElementById('serverBuilderTitle').innerHTML = `<i class="fas fa-wrench"></i> ${serverName || 'Server Builder'}${builderSerial}`;
         // document.getElementById('serverBuilderSubtitle').textContent = `PC Part Picker Style Interface`;
 
         // Store current config

@@ -309,7 +309,7 @@ class RequestsManager {
                             <span class="font-mono text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">#${this.esc(p.ticket_number)}</span>
                             <span class="text-xs text-text-muted">${this.esc(p.pipeline_type || 'Request')}</span>
                             ${p.created_at ? `
-                            <span class="text-xs text-text-muted" title="Created ${this.esc(p.created_at)}">
+                            <span class="text-xs text-text-muted" title="Created ${this.esc(p.created_at)} UTC">
                                 <i class="fas fa-clock mr-1"></i>${this.esc(this.fmtDate(p.created_at))}
                             </span>` : ''}
                             ${p.last_attempt_failed ? `
@@ -3563,7 +3563,7 @@ class RequestsManager {
             ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>` : ''}
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
                 <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
-                ${p.created_at ? `<span title="${this.esc(p.created_at)}"><i class="fas fa-clock mr-1"></i>Created ${this.esc(this.fmtDate(p.created_at))}</span>` : ''}
+                ${p.created_at ? `<span title="${this.esc(p.created_at)} UTC"><i class="fas fa-clock mr-1"></i>Created ${this.esc(this.fmtDate(p.created_at))}</span>` : ''}
                 ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
                 ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${this.esc(p.parent.ticket_number)}</button></span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
@@ -3967,16 +3967,24 @@ class RequestsManager {
      * What the requester actually entered, where the one-line summary cannot
      * carry it. "Add a cpu to inventory" is not something an approver can judge:
      * deciding whether a component belongs in inventory means seeing the
-     * component. The model name arrives inside Notes, put there by the Add
-     * Component form's own buildNotesWithSpecification().
+     * component.
+     *
+     * So the component's SPECIFICATION leads — cores, clocks, socket, the facts
+     * that make one model different from the next — resolved from ims-data by
+     * the backend (ActionComponentSpec) and handed over on the action as
+     * `component`. The frontend does not re-fetch a catalogue file to name one
+     * model, and the panel still renders when the lookup found nothing.
+     *
+     * The uuid and serial number are deliberately absent: a uuid identifies the
+     * model to the database and to nobody else, and the serial is recorded on
+     * the inventory row when the add runs either way.
      */
     renderActionPayload(a) {
-        if (a.action_type !== 'inventory.component.add') return '';
+        const spec = this.renderComponentSpec(a.component);
+        if (a.action_type !== 'inventory.component.add') return spec;
 
         const data = (a.payload && a.payload.data) || {};
         const LABELS = {
-            UUID: 'Component UUID',
-            SerialNumber: 'Serial number',
             Status: 'Status',
             Location: 'Location',
             RackPosition: 'Rack position',
@@ -3989,18 +3997,69 @@ class RequestsManager {
         };
         const STATUS = { '0': 'Failed', '1': 'Available', '2': 'In use' };
 
+        // The model line the Add Component form writes into Notes is what the
+        // spec block above now says properly, so it is dropped rather than
+        // printed twice — but only when that block is actually there.
+        const values = Object.assign({}, data);
+        if (spec && values.Notes) {
+            values.Notes = this.notesWithoutModelLine(values.Notes);
+        }
+
         const rows = Object.keys(LABELS)
-            .filter((k) => data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== '')
+            .filter((k) => values[k] !== undefined && values[k] !== null && String(values[k]).trim() !== '')
             .map((k) => {
-                const value = k === 'Status' ? (STATUS[String(data[k])] || data[k]) : data[k];
+                const value = k === 'Status' ? (STATUS[String(values[k])] || values[k]) : values[k];
                 return `<div class="text-xs">
                     <span class="text-text-muted">${this.esc(LABELS[k])}:</span>
                     <span class="text-text-secondary">${this.esc(String(value))}</span>
                 </div>`;
             }).join('');
 
-        if (!rows) return '';
-        return `<div class="mt-1.5 space-y-0.5">${rows}</div>`;
+        if (!rows) return spec;
+        return `${spec}<div class="mt-1.5 space-y-0.5">${rows}</div>`;
+    }
+
+    /**
+     * The requester's own note, without the model line in front of it.
+     *
+     * buildNotesWithSpecification() in the Add Component form prepends
+     * "Brand: …, Series: …, Model: …" and pushes anything the requester typed
+     * behind an "Additional Notes:" marker. Anything that does not match that
+     * exact shape is a note somebody wrote by hand and is returned untouched.
+     */
+    notesWithoutModelLine(notes) {
+        const text = String(notes);
+        const m = text.match(/^(?:Brand: [^\n]*, Series: [^\n]*, )?Model: [^\n]*(?:\n\nAdditional Notes: ([\s\S]*))?$/);
+        return m ? (m[1] || '').trim() : text;
+    }
+
+    /**
+     * One model, as its spec sheet describes it.
+     *
+     * Label/value pairs rather than prose, because that is how somebody who
+     * knows the hardware reads it: the eye goes to "Cores 12" without being
+     * asked to parse a sentence. Empty when the action names no component, or
+     * names one ims-data no longer describes — the rest of the panel is
+     * unaffected, which is the point of the backend failing open.
+     */
+    renderComponentSpec(component) {
+        if (!component || !Array.isArray(component.specs) || !component.specs.length) return '';
+
+        const rows = component.specs.map((s) => `
+            <div class="text-xs min-w-0">
+                <span class="text-text-muted">${this.esc(s.label)}:</span>
+                <span class="text-text-secondary break-words">${this.esc(s.value)}</span>
+            </div>`).join('');
+
+        const subtitle = [component.series, (component.type || '').toUpperCase()]
+            .filter(Boolean).join(' · ');
+
+        return `
+            <div class="mt-2 pt-2 border-t border-border">
+                <div class="text-xs font-semibold text-text-primary break-words">${this.esc(component.name)}</div>
+                ${subtitle ? `<div class="text-[11px] text-text-muted">${this.esc(subtitle)}</div>` : ''}
+                <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">${rows}</div>
+            </div>`;
     }
 
     /** An action's outcome: what it created, or why it refused. */
@@ -4758,11 +4817,22 @@ class RequestsManager {
         }
     }
 
+    /**
+     * Every timestamp the API hands back is UTC — PHP runs on UTC
+     * (core/config/app.php) and the rows are written with MySQL NOW() on the
+     * same host. The string carries no offset, so `new Date()` would read it as
+     * the VIEWER's wall clock and show UTC numbers unchanged; the trailing 'Z'
+     * is what makes it a real instant. Rendered in IST because that is where
+     * this system is operated, not wherever the browser happens to be.
+     */
     fmtDate(dateString) {
         if (!dateString) return '';
-        const d = new Date(dateString.replace(' ', 'T'));
+        const d = new Date(dateString.replace(' ', 'T') + 'Z');
         if (isNaN(d.getTime())) return dateString;
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleDateString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
     }
 
     toast(message, type = 'info') {
