@@ -9,7 +9,10 @@ class RackView {
         this.racks = [];
         this.selectedRackUuid = null;
         this.currentRack = null;
+        // Servers placed DIRECTLY in the rack. Sleds are not here — they live in
+        // currentEnclosures[].slots, which is where the elevation draws them.
         this.currentServers = [];
+        this.currentEnclosures = [];
     }
 
     init() {
@@ -55,6 +58,7 @@ class RackView {
     bindStaticEvents() {
         document.getElementById('newRackBtn')?.addEventListener('click', () => this.openRackForm());
         document.getElementById('placeServerBtn')?.addEventListener('click', () => this.openPlaceServer());
+        document.getElementById('addEnclosureBtn')?.addEventListener('click', () => this.openEnclosureForm());
         document.getElementById('editRackBtn')?.addEventListener('click', () => this.openRackForm(this.currentRack));
         document.getElementById('deleteRackBtn')?.addEventListener('click', () => this.deleteRack());
 
@@ -68,10 +72,22 @@ class RackView {
             if (card) this.selectRack(card.getAttribute('data-rack-uuid'));
         });
 
-        // Elevation — event delegation for sleds and empty slots
+        // Elevation — event delegation for sleds, enclosures, empty U and empty bays.
+        // Order matters: a sled inside a bay carries .rk-sled AND sits inside
+        // .rk-encl, so it must be tested before the enclosure rail.
         this.el.elevation?.addEventListener('click', (e) => {
             const sled = e.target.closest('.rk-sled');
             if (sled && sled.dataset.configUuid) { this.openServerActions(sled.dataset.configUuid); return; }
+
+            const bay = e.target.closest('.rk-bay');
+            if (bay && bay.dataset.enclosureUuid) {
+                this.openPlaceInBay(bay.dataset.enclosureUuid, parseInt(bay.dataset.slot, 10));
+                return;
+            }
+
+            const rail = e.target.closest('.rk-encl__rail');
+            if (rail && rail.dataset.enclosureUuid) { this.openEnclosureActions(rail.dataset.enclosureUuid); return; }
+
             const slot = e.target.closest('.rk-slot');
             if (slot && slot.dataset.u) this.openPlaceServer(parseInt(slot.dataset.u, 10));
         });
@@ -164,6 +180,9 @@ class RackView {
 
         this.currentRack = res.data.rack;
         this.currentServers = res.data.servers || [];
+        // Absent until seeder 2026_09_03_003 has been run; the elevation then
+        // renders exactly as it did before, with no enclosures to draw.
+        this.currentEnclosures = res.data.enclosures || [];
         this.renderToolbar();
         this.renderElevation();
     }
@@ -171,6 +190,7 @@ class RackView {
     showEmptyDetail() {
         this.currentRack = null;
         this.currentServers = [];
+        this.currentEnclosures = [];
         this.el.detail.classList.add('hidden');
         this.el.detailEmpty.classList.remove('hidden');
     }
@@ -191,11 +211,17 @@ class RackView {
         const N = r.total_u;
         const topDown = r.numbering_top_down === 1;
         const servers = this.currentServers;
+        const enclosures = this.currentEnclosures;
 
-        // Map every covered U so we know which rows are empty.
+        // Map every covered U so we know which rows are empty. Enclosures count:
+        // their U is occupied by the box whether or not any bay is filled, so a
+        // "Place here" target must never appear on top of one.
         const covered = new Set();
         servers.forEach(s => {
             for (let u = s.start_u; u <= s.end_u; u++) covered.add(u);
+        });
+        enclosures.forEach(e => {
+            for (let u = e.start_u; u <= e.end_u; u++) covered.add(u);
         });
 
         // Vertical offset (in U rows from the top of the bay) for a given U number.
@@ -241,6 +267,49 @@ class RackView {
                 </div>`;
         });
 
+        // ---- enclosures ----
+        // Positioned exactly like a sled. The bays are a CSS grid, so grid
+        // row-major order is the backend's 1-based slot numbering: slot 1 is
+        // top-left, matching Dell's own FX2s bay labelling.
+        const enclosureFrames = enclosures.map(e => {
+            const top = rowsFromTop(topDown ? e.start_u : e.end_u);
+            const uLabel = e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`;
+
+            const bays = e.slots.map(slot => {
+                if (!slot.occupied) {
+                    return `
+                        <button type="button" class="rk-bay" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                            data-slot="${slot.slot_index}"
+                            aria-label="Install a server in bay ${slot.slot_index} of ${this.esc(e.name)}">
+                            <span class="rk-slot__hint"><i class="fas fa-plus"></i> Bay ${slot.slot_index}</span>
+                        </button>`;
+                }
+                const statusClass = slot.orphaned ? 'st-orphaned' : this.statusClass(slot.configuration_status);
+                return `
+                    <div class="rk-sled rk-sled--bay ${statusClass}" data-config-uuid="${this.esc(slot.config_uuid)}"
+                        tabindex="0" role="button"
+                        aria-label="${this.esc(slot.server_name)} in bay ${slot.slot_index} of ${this.esc(e.name)}">
+                        <span class="rk-sled__led"></span>
+                        <span class="rk-sled__name">${this.esc(slot.server_name)}</span>
+                        <span class="rk-sled__u rk-mono">B${slot.slot_index}</span>
+                    </div>`;
+            }).join('');
+
+            return `
+                <div class="rk-encl" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                    style="top:calc(${top} * var(--rk-u)); height:calc(${e.u_height} * var(--rk-u));">
+                    <button type="button" class="rk-encl__rail" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                        aria-label="${this.esc(e.name)}, ${this.esc(e.model || 'enclosure')}, ${uLabel}, ${e.slots_used} of ${e.slot_count} bays used">
+                        <span class="rk-encl__name">${this.esc(e.name)}</span>
+                        <span class="rk-encl__meta rk-mono">${uLabel} · ${e.slots_used}/${e.slot_count}</span>
+                    </button>
+                    <div class="rk-encl__bays"
+                        style="grid-template-columns:repeat(${e.slot_cols},minmax(0,1fr));grid-template-rows:repeat(${e.slot_rows},minmax(0,1fr));">
+                        ${bays}
+                    </div>
+                </div>`;
+        });
+
         const rightGutter = gutterCells.map(c => c).join('');
 
         this.el.elevation.innerHTML = `
@@ -255,6 +324,7 @@ class RackView {
                         <div class="rk-grid" style="height:calc(${N} * var(--rk-u));">
                             ${slots.join('')}
                             ${sleds.join('')}
+                            ${enclosureFrames.join('')}
                         </div>
                     </div>
                     <div class="rk-gutter rk-gutter--right">${rightGutter}</div>
@@ -532,10 +602,43 @@ class RackView {
         await this.refreshRackOccupancy();
     }
 
+    /**
+     * A placed server by config uuid, whether it sits directly in the rack or in
+     * an enclosure bay. A sled is normalised into the same shape as a direct
+     * server — plus `enclosure` and `slot_index` — so the actions modal below
+     * does not need two versions of itself.
+     */
+    findPlacedServer(configUuid) {
+        const direct = this.currentServers.find(x => x.config_uuid === configUuid);
+        if (direct) return direct;
+
+        for (const e of this.currentEnclosures) {
+            const slot = e.slots.find(sl => sl.occupied && sl.config_uuid === configUuid);
+            if (slot) {
+                return {
+                    config_uuid: slot.config_uuid,
+                    server_name: slot.server_name,
+                    configuration_status: slot.configuration_status,
+                    status_text: this.statusText(slot.configuration_status),
+                    chassis_name: slot.chassis_name,
+                    orphaned: slot.orphaned,
+                    // A sled's U range is its enclosure's — it does not own one.
+                    start_u: e.start_u,
+                    end_u: e.end_u,
+                    u_height: e.u_height,
+                    enclosure: e,
+                    slot_index: slot.slot_index,
+                };
+            }
+        }
+        return null;
+    }
+
     openServerActions(configUuid) {
-        const s = this.currentServers.find(x => x.config_uuid === configUuid);
+        const s = this.findPlacedServer(configUuid);
         if (!s) return;
-        const uLabel = s.u_height > 1 ? `U${s.start_u}–U${s.end_u}` : `U${s.start_u}`;
+        const uRange = s.u_height > 1 ? `U${s.start_u}–U${s.end_u}` : `U${s.start_u}`;
+        const uLabel = s.enclosure ? `${uRange} · ${s.enclosure.name} bay ${s.slot_index}` : uRange;
         const builderHref = `../server/builder.html?config=${encodeURIComponent(s.config_uuid)}`;
 
         const body = `
@@ -550,14 +653,31 @@ class RackView {
                 </div>
                 <div class="grid grid-cols-1 gap-2 pt-1">
                     ${s.orphaned ? '' : `<a href="${builderHref}" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-wrench"></i> Open in builder</a>`}
-                    <button id="sa_move" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-arrows-up-down"></i> Move to another position</button>
+                    ${s.enclosure ? `<button id="sa_bay" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-grip"></i> Move to another bay</button>` : ''}
+                    <button id="sa_move" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-arrows-up-down"></i> ${s.enclosure ? 'Move into the rack directly' : 'Move to another position'}</button>
                     <button id="sa_remove" class="w-full px-4 py-2 border border-danger/40 text-danger rounded-lg hover:bg-danger/10 flex items-center gap-2"><i class="fas fa-trash"></i> Remove from rack</button>
                 </div>
             </div>`;
         this.openModal('Server', body);
 
-        document.getElementById('sa_move').addEventListener('click', () => {
-            this.openPlaceServer(s.start_u, { config_uuid: s.config_uuid, server_name: s.server_name, u_height: s.u_height });
+        document.getElementById('sa_bay')?.addEventListener('click', () => {
+            this.openMoveToBay(s);
+        });
+        document.getElementById('sa_move').addEventListener('click', async () => {
+            if (!s.enclosure) {
+                this.openPlaceServer(s.start_u, {
+                    config_uuid: s.config_uuid, server_name: s.server_name, u_height: s.u_height,
+                });
+                return;
+            }
+            // A sled has no U of its own and its u_height is the enclosure's, so
+            // neither is a sensible default for a direct placement. Ask the
+            // backend what this server would actually occupy on its own.
+            const res = await rackAPI.placement(s.config_uuid);
+            const needed = (res && res.success && res.data?.required_u_height) || 1;
+            this.openPlaceServer(null, {
+                config_uuid: s.config_uuid, server_name: s.server_name, u_height: needed,
+            });
         });
         document.getElementById('sa_remove').addEventListener('click', () => this.removeServer(s));
     }
@@ -582,6 +702,293 @@ class RackView {
         }
     }
 
+
+    /* ---------------- modals: enclosures and bays ---------------- */
+
+    /**
+     * Install a blade enclosure in the current rack.
+     *
+     * The model list comes from ims-data, which has no deploy watcher — so an
+     * empty list is an expected state with a real explanation, not a failure.
+     */
+    async openEnclosureForm() {
+        if (!this.currentRack) return;
+        this.openModal('Add enclosure', this.spinner('Loading enclosure models…'));
+
+        const res = await rackAPI.enclosureModels();
+        if (!res || !res.success) {
+            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load enclosure models')}</p>`;
+            return;
+        }
+
+        const models = res.data?.models || [];
+        if (models.length === 0) {
+            this.el.modalBody.innerHTML = `
+                <div class="text-center py-6">
+                    <i class="fas fa-layer-group text-3xl text-text-muted mb-3"></i>
+                    <p class="text-text-primary font-medium mb-1">No enclosure models available</p>
+                    <p class="text-text-muted text-sm">The component catalog has no chassis that declares bays yet.</p>
+                </div>`;
+            return;
+        }
+
+        const options = '<option value="" disabled selected>Select a model…</option>' +
+            models.map(m => `<option value="${this.esc(m.chassis_uuid)}" data-h="${m.u_height}" data-slots="${m.slot_count}">${this.esc(m.model)} · ${m.u_height}U · ${m.slot_count} bays</option>`).join('');
+
+        this.el.modalBody.innerHTML = `
+            <form id="enclForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Model</label>
+                    <select id="ef_model" required
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        ${options}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
+                        <input id="ef_name" type="text" maxlength="100" required placeholder="FX2S-01"
+                            class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-1">Start U</label>
+                        <input id="ef_start" type="number" min="1" max="${this.currentRack.total_u}" required
+                            class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Service tag <span class="text-text-muted font-normal">(optional)</span></label>
+                    <input id="ef_serial" type="text" maxlength="50"
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <p class="text-xs text-text-muted">It occupies <span id="ef_range" class="rk-mono">—</span> in ${this.esc(this.currentRack.name)}, and holds <span id="ef_bays">—</span> servers. Install servers into its bays afterwards.</p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" id="ef_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add enclosure</button>
+                </div>
+            </form>`;
+
+        const modelSel = document.getElementById('ef_model');
+        const startInput = document.getElementById('ef_start');
+        const rangeLabel = document.getElementById('ef_range');
+        const baysLabel = document.getElementById('ef_bays');
+
+        const updateRange = () => {
+            const opt = modelSel.options[modelSel.selectedIndex];
+            const h = opt ? parseInt(opt.dataset.h, 10) : NaN;
+            const start = parseInt(startInput.value, 10);
+            baysLabel.textContent = (opt && opt.dataset.slots) ? opt.dataset.slots : '—';
+            rangeLabel.textContent = (start >= 1 && h >= 1)
+                ? (h > 1 ? `U${start}–U${start + h - 1}` : `U${start}`)
+                : '—';
+        };
+        modelSel.addEventListener('change', updateRange);
+        startInput.addEventListener('input', updateRange);
+        updateRange();
+
+        document.getElementById('ef_cancel').addEventListener('click', () => this.closeModal());
+        document.getElementById('enclForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const res2 = await rackAPI.addEnclosure(this.currentRack.rack_uuid, {
+                name: document.getElementById('ef_name').value.trim(),
+                chassisUuid: modelSel.value,
+                startU: parseInt(startInput.value, 10),
+                serialNumber: document.getElementById('ef_serial').value.trim(),
+            });
+            if (!res2 || !res2.success) { toast.error(res2?.message || 'Could not add the enclosure'); return; }
+            toast.success(res2.message || 'Enclosure added');
+            this.closeModal();
+            await this.loadRackDetail(this.selectedRackUuid);
+            await this.refreshRackOccupancy();
+        });
+    }
+
+    /** Rename / re-tag / move / remove one enclosure. */
+    openEnclosureActions(enclosureUuid) {
+        const e = this.currentEnclosures.find(x => x.enclosure_uuid === enclosureUuid);
+        if (!e) return;
+        const uLabel = e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`;
+
+        this.openModal('Enclosure', `
+            <div class="space-y-4">
+                <div>
+                    <p class="font-semibold text-text-primary break-words">${this.esc(e.name)}</p>
+                    <p class="text-sm text-text-muted rk-mono">${uLabel} · ${e.u_height}U · ${e.slots_used}/${e.slot_count} bays used</p>
+                    ${e.model ? `<p class="text-xs text-text-muted mt-0.5">${this.esc(e.model)}</p>` : ''}
+                    ${e.serial_number ? `<p class="text-xs text-text-muted rk-mono mt-0.5">Service tag ${this.esc(e.serial_number)}</p>` : ''}
+                </div>
+                <form id="enclEditForm" class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
+                            <input id="ee_name" type="text" maxlength="100" required value="${this.esc(e.name)}"
+                                class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-text-primary mb-1">Start U</label>
+                            <input id="ee_start" type="number" min="1" max="${this.currentRack.total_u}" required value="${e.start_u}"
+                                class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-text-primary mb-1">Service tag</label>
+                        <input id="ee_serial" type="text" maxlength="50" value="${this.esc(e.serial_number || '')}"
+                            class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                    </div>
+                    ${e.slots_used > 0 ? `<p class="text-xs text-text-muted"><i class="fas fa-circle-info mr-1"></i>Moving this enclosure moves the ${e.slots_used} server(s) in it, and every component inside them.</p>` : ''}
+                    <div class="flex justify-end gap-2 pt-1">
+                        <button type="button" id="ee_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
+                        <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Save</button>
+                    </div>
+                </form>
+                <button id="ee_remove" class="w-full px-4 py-2 border border-danger/40 text-danger rounded-lg hover:bg-danger/10 flex items-center gap-2"><i class="fas fa-trash"></i> Remove enclosure from rack</button>
+            </div>`);
+
+        document.getElementById('ee_cancel').addEventListener('click', () => this.closeModal());
+        document.getElementById('enclEditForm').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const res = await rackAPI.updateEnclosure(e.enclosure_uuid, {
+                name: document.getElementById('ee_name').value.trim(),
+                serialNumber: document.getElementById('ee_serial').value.trim(),
+                startU: parseInt(document.getElementById('ee_start').value, 10),
+            });
+            if (!res || !res.success) { toast.error(res?.message || 'Could not update the enclosure'); return; }
+            toast.success(res.message || 'Enclosure updated');
+            this.closeModal();
+            await this.loadRackDetail(this.selectedRackUuid);
+            await this.refreshRackOccupancy();
+        });
+        document.getElementById('ee_remove').addEventListener('click', () => this.removeEnclosure(e));
+    }
+
+    async removeEnclosure(e) {
+        if (!confirm(`Remove enclosure "${e.name}" from ${this.currentRack.name}?`)) return;
+        const res = await rackAPI.removeEnclosure(e.enclosure_uuid);
+        if (!res || !res.success) { toast.error(res?.message || 'Could not remove the enclosure'); return; }
+        toast.success(res.message || 'Enclosure removed');
+        this.closeModal();
+        await this.loadRackDetail(this.selectedRackUuid);
+        await this.refreshRackOccupancy();
+    }
+
+    /**
+     * Install an unracked server into one bay.
+     *
+     * No U and no height are asked for: the enclosure already has both, and
+     * offering them would invite a choice the backend is going to ignore.
+     */
+    async openPlaceInBay(enclosureUuid, slotIndex) {
+        const e = this.currentEnclosures.find(x => x.enclosure_uuid === enclosureUuid);
+        if (!e) return;
+
+        this.openModal(`Install in ${e.name} bay ${slotIndex}`, this.spinner('Loading…'));
+
+        const res = await rackAPI.unassignedServers();
+        if (!res || !res.success) {
+            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load servers')}</p>`;
+            return;
+        }
+
+        const servers = res.data?.servers || [];
+        if (servers.length === 0) {
+            this.el.modalBody.innerHTML = `
+                <div class="text-center py-6">
+                    <i class="fas fa-circle-check text-3xl text-success mb-3"></i>
+                    <p class="text-text-primary font-medium mb-1">Every server is already racked</p>
+                    <p class="text-text-muted text-sm">Build a new server, or remove one from its rack, to install it here.</p>
+                    <a href="servers.html" class="inline-block mt-3 text-primary text-sm font-medium hover:underline">Go to Servers</a>
+                </div>`;
+            return;
+        }
+
+        const options = '<option value="" disabled selected>Select a server…</option>' +
+            servers.map(s => `<option value="${this.esc(s.config_uuid)}">${this.esc(s.server_name)} · ${this.esc(s.status_text)}</option>`).join('');
+
+        this.el.modalBody.innerHTML = `
+            <form id="bayForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Server</label>
+                    <select id="bf_server" required
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        ${options}
+                    </select>
+                </div>
+                <p class="text-xs text-text-muted">Goes into bay ${slotIndex} of ${this.esc(e.name)}, which occupies ${e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`} of ${this.esc(this.currentRack.name)}. The bay decides the position — there is no separate U to choose.</p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" id="bf_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Install here</button>
+                </div>
+            </form>`;
+
+        document.getElementById('bf_cancel').addEventListener('click', () => this.closeModal());
+        document.getElementById('bayForm').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            await this.submitBayPlacement(enclosureUuid, document.getElementById('bf_server').value, slotIndex);
+        });
+    }
+
+    /** Move a server already in a bay to a different free bay of any enclosure. */
+    async openMoveToBay(s) {
+        // Every free bay in this rack, plus the one the server is in now, which
+        // is listed as its current position rather than offered as a target.
+        const choices = [];
+        this.currentEnclosures.forEach(e => {
+            e.slots.forEach(slot => {
+                if (!slot.occupied) {
+                    choices.push({ enclosure: e, slotIndex: slot.slot_index });
+                }
+            });
+        });
+
+        if (choices.length === 0) {
+            this.openModal('Move to another bay', `
+                <div class="text-center py-6">
+                    <i class="fas fa-layer-group text-3xl text-text-muted mb-3"></i>
+                    <p class="text-text-primary font-medium mb-1">No free bays in ${this.esc(this.currentRack.name)}</p>
+                    <p class="text-text-muted text-sm">Every enclosure in this rack is full. Add an enclosure, or free a bay first.</p>
+                </div>`);
+            return;
+        }
+
+        const options = '<option value="" disabled selected>Select a bay…</option>' +
+            choices.map(c => `<option value="${this.esc(c.enclosure.enclosure_uuid)}|${c.slotIndex}">${this.esc(c.enclosure.name)} · bay ${c.slotIndex}</option>`).join('');
+
+        this.openModal('Move to another bay', `
+            <form id="moveBayForm" class="space-y-4">
+                <p class="text-sm text-text-muted">${this.esc(s.server_name)} is in ${this.esc(s.enclosure.name)} bay ${s.slot_index}.</p>
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Move to</label>
+                    <select id="mb_target" required
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        ${options}
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" id="mb_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Move here</button>
+                </div>
+            </form>`);
+
+        document.getElementById('mb_cancel').addEventListener('click', () => this.closeModal());
+        document.getElementById('moveBayForm').addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const [enclosureUuid, slot] = document.getElementById('mb_target').value.split('|');
+            await this.submitBayPlacement(enclosureUuid, s.config_uuid, parseInt(slot, 10));
+        });
+    }
+
+    async submitBayPlacement(enclosureUuid, configUuid, slotIndex) {
+        if (!configUuid) { toast.error('Select a server'); return; }
+
+        const res = await rackAPI.assignServerToSlot(enclosureUuid, configUuid, slotIndex);
+        if (!res || !res.success) { toast.error(res?.message || 'Could not install the server'); return; }
+
+        toast.success(res.message || 'Server installed');
+        this.closeModal();
+        await this.loadRackDetail(this.selectedRackUuid);
+        await this.refreshRackOccupancy();
+    }
+
     /* ---------------- modal + utils ---------------- */
 
     openModal(title, bodyHtml) {
@@ -596,6 +1003,12 @@ class RackView {
 
     statusClass(status) {
         return { 0: 'st-draft', 1: 'st-validated', 2: 'st-built', 3: 'st-finalized' }[status] || 'st-draft';
+    }
+
+    // Mirrors rackConfigStatusText() in the backend. Direct servers arrive with
+    // status_text already resolved; a sled carries only the numeric status.
+    statusText(status) {
+        return { 0: 'Draft', 1: 'Validated', 2: 'Built', 3: 'Finalized' }[status] || 'Unknown';
     }
 
     spinner(label) {

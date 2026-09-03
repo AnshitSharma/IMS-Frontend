@@ -129,12 +129,64 @@ class RackAPI {
         return this.makeRequest(data, options);
     }
 
+    // Install a server in a BAY of an enclosure. The enclosure already has a
+    // rack and a U range, so neither is sent — the backend takes both from it.
+    assignServerToSlot(enclosureUuid, configUuid, slotIndex, options = {}) {
+        return this.makeRequest({
+            action: 'rack-assign-server',
+            enclosure_uuid: enclosureUuid,
+            config_uuid: configUuid,
+            slot_index: slotIndex
+        }, options);
+    }
+
     unassignServer(configUuid, options = {}) {
         return this.makeRequest({ action: 'rack-unassign-server', config_uuid: configUuid }, options);
     }
 
     unassignedServers(options = {}) {
         return this.makeRequest({ action: 'rack-unassigned-servers' }, options);
+    }
+
+    placement(configUuid, options = {}) {
+        return this.makeRequest({ action: 'rack-placement', config_uuid: configUuid }, options);
+    }
+
+    /* ---- Enclosures (seeder 2026_09_03_003) ---- */
+
+    // Chassis models declaring bays. Comes back empty — not as an error — when
+    // ims-data carries no enclosure model yet, since that directory is uploaded
+    // by hand and may lag the code.
+    enclosureModels(options = {}) {
+        return this.makeRequest({ action: 'rack-enclosure-models' }, options);
+    }
+
+    addEnclosure(rackUuid, { name, chassisUuid, startU, serialNumber = '', notes = '' }, options = {}) {
+        return this.makeRequest({
+            action: 'rack-enclosure-add',
+            rack_uuid: rackUuid,
+            name,
+            chassis_uuid: chassisUuid,
+            start_u: startU,
+            serial_number: serialNumber,
+            notes
+        }, options);
+    }
+
+    // Only the fields present are sent: the backend distinguishes "clear this"
+    // from "leave it alone", so sending every key would blank the serial and
+    // notes on a rename.
+    updateEnclosure(enclosureUuid, fields = {}, options = {}) {
+        const data = { action: 'rack-enclosure-update', enclosure_uuid: enclosureUuid };
+        if (fields.name !== undefined) data.name = fields.name;
+        if (fields.serialNumber !== undefined) data.serial_number = fields.serialNumber;
+        if (fields.notes !== undefined) data.notes = fields.notes;
+        if (fields.startU !== undefined) data.start_u = fields.startU;
+        return this.makeRequest(data, options);
+    }
+
+    removeEnclosure(enclosureUuid, options = {}) {
+        return this.makeRequest({ action: 'rack-enclosure-remove', enclosure_uuid: enclosureUuid }, options);
     }
 }
 
