@@ -16,6 +16,11 @@ const ADD_FORM_COMPONENT_TYPES = [
     'hbacard', 'pciecard', 'risercard', 'chassis', 'caddy', 'sfp', 'serverplatform'
 ];
 
+// Types whose units are always identified by their manufacturer serial, so the
+// Serial Number field is mandatory for them. Every other type keeps it optional
+// (a blank serial is stored as null — see collectFormData).
+const ADD_FORM_SERIAL_REQUIRED_TYPES = ['storage', 'sfp', 'serverplatform'];
+
 class AddComponentForm {
     /**
      * @param {object} options
@@ -156,13 +161,51 @@ class AddComponentForm {
         }
     }
 
+    // Serial Number is optional for most types but mandatory for the ones in
+    // ADD_FORM_SERIAL_REQUIRED_TYPES. Flips the `required` attribute (validateForm
+    // reads `[required]`) plus the label marker and helper text to match.
+    applySerialRequirement(componentType) {
+        const input = document.getElementById('serialNumber');
+        if (!input) return;
+
+        const label = document.getElementById('serialNumberLabel');
+        const optionalHint = document.getElementById('serialNumberOptionalHint');
+        const help = document.getElementById('serialNumberHelp');
+        const isRequired = ADD_FORM_SERIAL_REQUIRED_TYPES.includes(componentType);
+
+        if (isRequired) {
+            input.setAttribute('required', 'required');
+            input.placeholder = 'Manufacturer serial (required)';
+        } else {
+            input.removeAttribute('required');
+            input.placeholder = 'Manufacturer serial, if readable';
+        }
+
+        if (label) {
+            // Same asterisk marker the other required labels use.
+            label.classList.toggle('required', isRequired);
+            label.classList.toggle("after:content-['_*']", isRequired);
+            label.classList.toggle('after:text-danger', isRequired);
+        }
+        if (optionalHint) {
+            optionalHint.style.display = isRequired ? 'none' : '';
+        }
+        if (help) {
+            help.textContent = isRequired
+                ? 'Required for this component type — record the serial printed on the unit.'
+                : 'Leave blank if the label is missing or unreadable. Every unit gets its own asset tag either way.';
+        }
+    }
+
     async handleComponentTypeChange(componentType) {
         if (!componentType) {
             this.hideAllSections();
+            this.applySerialRequirement(null);
             return;
         }
 
         this.currentComponentType = componentType;
+        this.applySerialRequirement(componentType);
         this.componentSpecification = {};
         document.getElementById('formTitle').textContent = `Add ${componentType.toUpperCase()} Component`;
 
@@ -2189,6 +2232,7 @@ class AddComponentForm {
     resetForm() {
         document.getElementById('addComponentForm').reset();
         this.hideAllSections();
+        this.applySerialRequirement(null);
         this.currentComponentType = null;
         this.jsonData = [];
         this.selectedComponent = null;

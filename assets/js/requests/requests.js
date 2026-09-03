@@ -308,6 +308,10 @@ class RequestsManager {
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="font-mono text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">#${this.esc(p.ticket_number)}</span>
                             <span class="text-xs text-text-muted">${this.esc(p.pipeline_type || 'Request')}</span>
+                            ${p.created_at ? `
+                            <span class="text-xs text-text-muted" title="Created ${this.esc(p.created_at)}">
+                                <i class="fas fa-clock mr-1"></i>${this.esc(this.fmtDate(p.created_at))}
+                            </span>` : ''}
                             ${p.last_attempt_failed ? `
                             <span class="text-[11px] text-danger bg-danger-light border border-danger rounded px-2 py-0.5"
                                 title="The last approval was rolled back. Open the request for the reason.">
@@ -3559,6 +3563,7 @@ class RequestsManager {
             ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>` : ''}
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
                 <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
+                ${p.created_at ? `<span title="${this.esc(p.created_at)}"><i class="fas fa-clock mr-1"></i>Created ${this.esc(this.fmtDate(p.created_at))}</span>` : ''}
                 ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
                 ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${this.esc(p.parent.ticket_number)}</button></span>` : ''}
                 ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}

@@ -379,7 +379,9 @@ class ACLManager {
         const label = user ? (user.username || user.email || `#${userId}`) : `#${userId}`;
 
         const confirmed = await utils.confirm(
-            `Remove user "${label}"? This deletes the account and its role assignments. This cannot be undone.`,
+            `Remove user "${label}"? This revokes all access and deletes the account. ` +
+            `Any Requests and history the user touched are kept, reattributed to a ` +
+            `"deleted_user" placeholder. This cannot be undone.`,
             'Remove User'
         );
         if (!confirmed) return;
@@ -389,7 +391,10 @@ class ACLManager {
             const result = await window.api.users.delete(userId);
 
             if (result && result.success) {
-                toast.success('User removed successfully');
+                // The backend says what it actually did — a delete, or a retire
+                // that keeps the row. Never claim a delete the admin can still
+                // see in the table.
+                toast.success(result.message || 'User removed successfully');
                 await this.loadInitialData();
                 this.renderUsersTable();
                 await this.renderRolesTable();

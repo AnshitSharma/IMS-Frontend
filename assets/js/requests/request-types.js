@@ -144,6 +144,10 @@ class RequestTypesManager {
     renderCard(type) {
         const inactive = type.is_active === 0;
         const isSystem = type.is_system === 1;
+        // Types shipped by a seeder carry created_by = NULL; only ones built in
+        // this UI have a creator. Seeded types are part of the product, so they
+        // can be edited and archived but never deleted.
+        const isSeeded = type.created_by === null || type.created_by === undefined;
         const stages = type.stages || [];
         const flow = stages.length
             ? `<div class="flow-rail mt-3">${stages.map((s) => `
@@ -154,6 +158,7 @@ class RequestTypesManager {
             : `<p class="text-xs text-text-muted mt-3 italic">No steps defined</p>`;
 
         // Built-in types can have their steps edited, but never archived/deleted.
+        // Seeded types keep Archive but lose Delete.
         const manageBtns = this.canManage ? `
             <button data-action="edit" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary transition-colors" title="Edit">
                 <i class="fas fa-pen mr-1"></i>Edit
@@ -162,9 +167,10 @@ class RequestTypesManager {
             <button data-action="archive" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary transition-colors" title="${inactive ? 'Restore' : 'Archive'}">
                 <i class="fas fa-${inactive ? 'box-open' : 'box-archive'} mr-1"></i>${inactive ? 'Restore' : 'Archive'}
             </button>
+            ${isSeeded ? '' : `
             <button data-action="delete" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-danger-light hover:text-danger text-text-muted transition-colors" title="Delete">
                 <i class="fas fa-trash"></i>
-            </button>`}` : '';
+            </button>`}`}` : '';
 
         return `
             <div class="bg-surface-card border border-border rounded-xl p-5 shadow-sm ${inactive ? 'opacity-70' : ''}">
