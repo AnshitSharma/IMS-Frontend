@@ -566,20 +566,8 @@
     <script src="../../assets/js/server/acl-manager.js?v=20260720"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
     <script>
-        // Show/hide toggles for the Create User password fields
-        (function () {
-            document.querySelectorAll('[data-toggle-password]').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    const input = document.getElementById(btn.dataset.togglePassword);
-                    if (!input) return;
-                    const show = input.type === 'password';
-                    input.type = show ? 'text' : 'password';
-                    btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-                    const icon = btn.querySelector('i');
-                    if (icon) icon.className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
-                });
-            });
-        })();
+        // Password show/hide is handled by the delegated [data-toggle-password]
+        // listener in acl-manager.js. A second handler here double-toggled it.
 
         // Theme Toggle Handler for Dashboard
         (function () {
