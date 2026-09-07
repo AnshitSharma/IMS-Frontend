@@ -274,7 +274,11 @@ async function handleLogin(e) {
 
             // Store JWT token and user data
             storage.setItem('bdc_token', response.data.tokens.access_token);
-            storage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
+            // Pinned to sessionStorage even when remember-me is on: this is a 30-day
+            // credential and must not outlive the tab. Remember-me still persists the
+            // access token above, so a restart keeps the user signed in until it expires.
+            sessionStorage.setItem('bdc_refresh_token', response.data.tokens.refresh_token);
+            localStorage.removeItem('bdc_refresh_token');
             storage.setItem('bdc_user', JSON.stringify(response.data.user));
 
             // Reset failed attempts on success
@@ -666,7 +670,14 @@ function clearAutoSavedData() {
 
 // Token refresh functionality
 async function refreshAccessToken() {
-    const refreshToken = localStorage.getItem('bdc_refresh_token') || sessionStorage.getItem('bdc_refresh_token');
+    const staleRefresh = localStorage.getItem('bdc_refresh_token');
+    if (staleRefresh !== null) {
+        localStorage.removeItem('bdc_refresh_token');
+        if (!sessionStorage.getItem('bdc_refresh_token')) {
+            sessionStorage.setItem('bdc_refresh_token', staleRefresh);
+        }
+    }
+    const refreshToken = sessionStorage.getItem('bdc_refresh_token');
     if (!refreshToken) {
         return false;
     }
@@ -687,7 +698,7 @@ async function refreshAccessToken() {
             if (result.success) {
                 const storage = localStorage.getItem('bdc_remember_me') === 'true' ? localStorage : sessionStorage;
                 storage.setItem('bdc_token', result.data.tokens.access_token);
-                storage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
+                sessionStorage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
                 return true;
             }
         }

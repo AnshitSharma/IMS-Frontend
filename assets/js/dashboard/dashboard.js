@@ -875,12 +875,12 @@ class Dashboard {
                                 <i class="fas fa-pen text-xs"></i>
                             </button>` : ''}
                             ${canManageRacks ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
-                                    onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
+                                    onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
                                     title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
                                 <i class="fas fa-th-large text-xs"></i>
                             </button>` : ''}
                             <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
-                                    onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
+                                    onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
                                     title="View change history" aria-label="View server change history">
                                 <i class="fas fa-history text-xs"></i>
                             </button>
@@ -928,7 +928,7 @@ class Dashboard {
                 <!-- Actions -->
                 <div class="px-5 pb-5 mt-auto">
                     <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                            onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', '${utils.escapeHtml(server.server_name || 'Unnamed Server').replace(/'/g, "\\'")}')"
+                            onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
                             title="Configure server components">
                         <i class="fas fa-wrench text-xs"></i> Configure
                     </button>
@@ -4509,13 +4509,13 @@ class Dashboard {
                 <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-muted whitespace-nowrap" data-label="Created">${utils.formatDate(vendor.created_at)}</td>
                 <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Actions">
                     <div class="flex items-center justify-end gap-1">
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="View Components">
+                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, ${utils.jsArg(vendor.name || 'Unnamed Vendor')})" title="View Components">
                             <i class="fas fa-boxes text-sm"></i>
                         </button>
                         <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-info hover:bg-info/10 transition-colors" onclick="dashboard.showEditVendorForm(${vendor.id})" title="Edit">
                             <i class="fas fa-edit text-sm"></i>
                         </button>
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, '${utils.escapeHtml(vendor.name)}')" title="Delete">
+                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, ${utils.jsArg(vendor.name || 'Unnamed Vendor')})" title="Delete">
                             <i class="fas fa-trash text-sm"></i>
                         </button>
                     </div>

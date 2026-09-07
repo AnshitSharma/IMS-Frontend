@@ -1,0 +1,12 @@
+# ============================================================
+# BDC IMS — Tests: No Direct Web Access
+# IMS-Frontend/tests/.htaccess
+# The SFTP watcher does not upload tests/, but the deploy never deletes either,
+# so a copy that reached the server once stays there. The root .htaccess blocks
+# .md/.txt/.map/.sql/.log but not .js, which would leave these served.
+# ============================================================
+
+Options -Indexes -MultiViews
+
+Order Deny,Allow
+Deny from all

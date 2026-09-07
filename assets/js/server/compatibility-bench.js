@@ -210,7 +210,7 @@ class CompatibilityBench {
         grid.innerHTML = this.filteredBuilds.map(build => {
             const name = build.server_name || 'Unnamed Test Build';
             const safeName = utils.escapeHtml(name);
-            const jsName = safeName.replace(/'/g, "\\'");
+            const jsName = utils.jsArg(name);
             const results = BenchResults.get(build.config_uuid);
             const failed = results.filter(r => !r.compatible).length;
 
@@ -237,7 +237,7 @@ class CompatibilityBench {
                         </div>
                         <div class="flex items-center gap-1 flex-shrink-0">
                             <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-danger-light hover:text-danger"
-                                    onclick="event.stopPropagation(); compatibilityBench.deleteBuild('${build.config_uuid}', '${jsName}')"
+                                    onclick="event.stopPropagation(); compatibilityBench.deleteBuild('${build.config_uuid}', ${jsName})"
                                     title="Delete test build" aria-label="Delete test build">
                                 <i class="fas fa-trash text-xs"></i>
                             </button>
@@ -268,7 +268,7 @@ class CompatibilityBench {
 
                 <div class="px-5 pb-5 mt-auto">
                     <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                            onclick="event.stopPropagation(); compatibilityBench.openBuild('${build.config_uuid}', '${jsName}')"
+                            onclick="event.stopPropagation(); compatibilityBench.openBuild('${build.config_uuid}', ${jsName})"
                             title="Open this test build">
                         <i class="fas fa-flask text-xs"></i> Open Bench
                     </button>

@@ -37,7 +37,6 @@ class AddComponentForm {
         this.isSubmitting = false;
         this.embedded = options.embedded === true;
         this.listenersBound = false;
-        this.apiBaseUrl = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
 
         this.init();
     }
@@ -2241,21 +2240,13 @@ class AddComponentForm {
             });
         }
 
-        // Fallback to direct API call
-        const response = await fetch(this.apiBaseUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Bearer ${localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token')}`
-            },
-            body: new URLSearchParams(formData)
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        return await response.json();
+        // Deliberately no fallback fetch. This module is only injected onto pages
+        // that already load api.js, so the branch above always takes. A hand-rolled
+        // request here would read the token itself and check only response.ok,
+        // bypassing the shared layer's 401 handling — refresh, storage clearing and
+        // the redirect to login — and would leave the user on a page with dead
+        // credentials reading "HTTP error! status: 401". Fail loudly instead.
+        throw new Error('API layer is not loaded — cannot submit the component.');
     }
 
     resetForm() {

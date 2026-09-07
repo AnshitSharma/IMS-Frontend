@@ -150,9 +150,12 @@ class EditFormComponent {
 
     escapeHtml(str) {
         if (!str) return '';
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        // Character map rather than textContent -> innerHTML: HTML text-node
+        // serialisation escapes only & < > and leaves both quote characters
+        // intact, which is unsafe wherever this value lands inside an attribute
+        // (title=, data-*, aria-label=, value=).
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return String(str).replace(/[&<>"']/g, m => map[m]);
     }
 
     renderCommonFields() {

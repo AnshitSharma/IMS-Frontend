@@ -8,11 +8,14 @@ window.api = {
     baseURL: window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php',
     loginURL: window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/',
 
-    // SECURITY NOTE: Auth tokens are stored in sessionStorage rather than localStorage.
-    // sessionStorage tokens expire when the tab is closed, limiting the exposure window
-    // for stolen tokens. This does NOT eliminate XSS risk — any script running in this
-    // origin can still read sessionStorage. Proper mitigation requires HttpOnly cookies
-    // managed server-side, which requires backend changes outside this frontend's scope.
+    // SECURITY NOTE: the refresh token is ALWAYS held in sessionStorage and never in
+    // localStorage, including when remember-me is ticked — the backend mints it with a
+    // 30-day life, so a localStorage copy would be a month-long credential readable by
+    // any script in this origin. Remember-me persists only the short-lived access token,
+    // so a browser restart keeps the user signed in until that token expires and no
+    // longer. This does NOT eliminate XSS risk: any script in this origin can still read
+    // sessionStorage. Proper mitigation requires HttpOnly cookies managed server-side,
+    // which requires backend changes outside this frontend's scope.
 
     // Determine which storage to use based on remember-me preference
     _getStorage() {
@@ -34,18 +37,28 @@ window.api = {
         }
     },
 
-    // Get refresh token (check both storages)
+    // Get refresh token. sessionStorage only — see the note at the top of this file.
+    // A copy left in localStorage by an older build is migrated across on first read,
+    // so an already-signed-in user is not kicked out by the change, then deleted.
     getRefreshToken() {
-        return localStorage.getItem('bdc_refresh_token') || sessionStorage.getItem('bdc_refresh_token');
+        const staleRefresh = localStorage.getItem('bdc_refresh_token');
+        if (staleRefresh !== null) {
+            localStorage.removeItem('bdc_refresh_token');
+            if (!sessionStorage.getItem('bdc_refresh_token')) {
+                sessionStorage.setItem('bdc_refresh_token', staleRefresh);
+            }
+        }
+        return sessionStorage.getItem('bdc_refresh_token');
     },
 
-    // Set refresh token in the active storage
+    // Set refresh token — always sessionStorage, never localStorage, regardless of
+    // the remember-me preference. _getStorage() is deliberately not used here.
     setRefreshToken(token) {
-        const storage = this._getStorage();
+        localStorage.removeItem('bdc_refresh_token');
         if (token) {
-            storage.setItem('bdc_refresh_token', token);
+            sessionStorage.setItem('bdc_refresh_token', token);
         } else {
-            storage.removeItem('bdc_refresh_token');
+            sessionStorage.removeItem('bdc_refresh_token');
         }
     },
 
