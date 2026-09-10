@@ -874,11 +874,6 @@ class Dashboard {
                                     title="Edit server — name, details, location and status" aria-label="Edit this server's details or change its status">
                                 <i class="fas fa-pen text-xs"></i>
                             </button>` : ''}
-                            ${canManageRacks ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
-                                    onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
-                                    title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
-                                <i class="fas fa-th-large text-xs"></i>
-                            </button>` : ''}
                             <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
                                     onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
                                     title="View change history" aria-label="View server change history">
@@ -927,11 +922,18 @@ class Dashboard {
 
                 <!-- Actions -->
                 <div class="px-5 pb-5 mt-auto">
-                    <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                            onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
-                            title="Configure server components">
-                        <i class="fas fa-wrench text-xs"></i> Configure
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                                onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
+                                title="Configure server components">
+                            <i class="fas fa-wrench text-xs"></i> Configure
+                        </button>
+                        ${canManageRacks ? `<button class="flex-1 px-4 py-2.5 bg-surface-card text-text-secondary border border-border rounded-lg hover:bg-surface-hover hover:border-primary hover:text-primary transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                                onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
+                                title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
+                            <i class="fas fa-th-large text-xs"></i> Move
+                        </button>` : ''}
+                    </div>
                 </div>
             </div>
         `).join('');

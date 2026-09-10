@@ -222,15 +222,16 @@
                             </div>
                             <nav class="kb-rail-nav" id="kbRailNav">
                                 <a href="#kb-start"><span class="kb-idx">01</span>Getting Started</a>
-                                <a href="#kb-dash"><span class="kb-idx">02</span>Dashboard</a>
-                                <a href="#kb-inventory"><span class="kb-idx">03</span>Inventory</a>
-                                <a href="#kb-build"><span class="kb-idx">04</span>Building a Server</a>
-                                <a href="#kb-compat"><span class="kb-idx">05</span>Compatibility</a>
-                                <a href="#kb-racks"><span class="kb-idx">06</span>Rack View</a>
-                                <a href="#kb-requests"><span class="kb-idx">07</span>Requests</a>
-                                <a href="#kb-admin"><span class="kb-idx">08</span>Types &amp; Vendors</a>
-                                <a href="#kb-reference"><span class="kb-idx">09</span>Reference</a>
-                                <a href="#kb-trouble"><span class="kb-idx">10</span>Troubleshooting</a>
+                                <a href="#kb-dash"><span class="kb-idx">02</span>The Dashboard</a>
+                                <a href="#kb-locations"><span class="kb-idx">03</span>Locations</a>
+                                <a href="#kb-inventory"><span class="kb-idx">04</span>Managing Inventory</a>
+                                <a href="#kb-build"><span class="kb-idx">05</span>Building a Server</a>
+                                <a href="#kb-compat"><span class="kb-idx">06</span>Compatibility</a>
+                                <a href="#kb-racks"><span class="kb-idx">07</span>Rack View</a>
+                                <a href="#kb-requests"><span class="kb-idx">08</span>Requests</a>
+                                <a href="#kb-admin"><span class="kb-idx">09</span>Request Types &amp; Vendors</a>
+                                <a href="#kb-reference"><span class="kb-idx">10</span>Reference</a>
+                                <a href="#kb-trouble"><span class="kb-idx">11</span>Troubleshooting</a>
                             </nav>
                         </aside>
 
@@ -243,36 +244,68 @@
                                 <h3><span class="kb-eyebrow">01</span>Getting Started</h3>
 
                                 <h4>Signing in</h4>
-                                <p>Enter your username and password. Tick <strong>Remember me</strong> only on your own machine — it keeps you signed in between browser sessions. On a shared workstation leave it unticked, and your session ends when the browser closes.</p>
+                                <p>Enter your username and password. Tick <strong>Remember me</strong> only on your own machine — it keeps you signed in between browser sessions. On a shared workstation leave it unticked.</p>
 
                                 <div class="kb-note">
-                                    <span class="kb-note-title">Sessions last 30 minutes</span>
-                                    <p>After thirty minutes you are signed out and returned to the login screen. The system renews your session quietly in the background, so you rarely notice — but save long forms as you go rather than leaving them open.</p>
+                                    <span class="kb-note-title">A sign-in lasts 24 hours</span>
+                                    <p>After that you are returned to the login screen. Closing the browser also ends the session's ability to renew itself quietly, even with Remember me ticked — so a tab left open overnight will usually ask you to sign in again in the morning. Save long forms as you go rather than leaving them open.</p>
                                 </div>
 
                                 <h4>Forgotten password</h4>
-                                <p>Use the reset link on the login screen. You will be emailed a single-use link to set a new password.</p>
+                                <p>Use the reset link on the login screen. You will be emailed a single-use link to set a new password. An administrator can also reset it for you from Access Control — in that case nothing is emailed, they hand you the new password directly, and you are signed out of every device.</p>
 
-                                <h4>What you can see</h4>
-                                <p>The system shows only what your role allows. A missing page or a greyed-out button is a permissions matter, not a fault — ask an administrator to review your role.</p>
+                                <h4>What you can see, and what you can do</h4>
+                                <p>The system shows you what your role allows, but it no longer simply hides the work. New accounts start on the <strong>Viewer</strong> role, which can see everything and change nothing directly. Rather than greying out <strong>Add Component</strong> and <strong>Build Server</strong>, the system leaves those buttons in place and turns them into Requests: you fill in the same form, and it goes for approval instead of being written straight away.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Which pages are genuinely restricted</span>
+                                    <p>Rack View and Settings &rarr; Request Types are administrator-only. Everything else — including Requests — is on every signed-in user's sidebar. If a button carries the tooltip <em>"You will be asked to submit this as a request for approval"</em>, that is not a fault; it is the normal route for your role.</p>
+                                </div>
                             </section>
 
                             <!-- 02 -->
                             <section class="kb-section" id="kb-dash">
-                                <h3><span class="kb-eyebrow">02</span>Dashboard</h3>
+                                <h3><span class="kb-eyebrow">02</span>The Dashboard</h3>
                                 <p>The dashboard answers one question: <em>what do we have, and how much of it is free?</em> Each hardware type gets a tile showing total, available, in use, and failed. The sidebar repeats those totals as counters, so you can watch stock without leaving the page you are on.</p>
-                                <p>Below the tiles, a recent activity strip shows the latest changes across the system.</p>
+                                <p>Below the tiles, a recent activity strip shows the latest changes across the system — components added, components removed from servers, roles changed.</p>
 
                                 <div class="kb-note">
                                     <span class="kb-note-title">Reading the numbers</span>
                                     <p><strong>Available</strong> is in stock and free to assign. <strong>In use</strong> is installed in a server. <strong>Failed</strong> is marked faulty and excluded when building. The three always add up to the total.</p>
                                 </div>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Compute Platforms has no tile yet</span>
+                                    <p>The twelfth hardware type has a sidebar counter but not yet a dashboard tile. For its totals, open the Compute Platforms page itself.</p>
+                                </div>
                             </section>
 
                             <!-- 03 -->
+                            <section class="kb-section" id="kb-locations">
+                                <h3><span class="kb-eyebrow">03</span>Locations</h3>
+                                <p><strong>Locations</strong> lists every site the company holds hardware at — name, description, address, coordinates and notes. It is the newest page in the system and the one most other pages now depend on.</p>
+
+                                <div class="kb-note is-stop">
+                                    <span class="kb-note-title">Locations feed every other form</span>
+                                    <p>The Location dropdown on component forms, server forms and rack forms is loaded from this page. The old hardcoded list of sites is gone. If a site is missing here, nothing can be filed against it anywhere else — add it here first.</p>
+                                </div>
+
+                                <h4>What a location shows</h4>
+                                <p>The <strong>Objects</strong> column carries chips counting the racks, servers and components held at that site. Click a location's name to expand the racks it contains, each showing used and free U, its server count and its floor; administrators can jump straight into Rack View from there.</p>
+
+                                <h4>Retiring and deleting</h4>
+                                <p>A site that is no longer in use should be switched off with the <strong>In service</strong> toggle rather than deleted — that keeps its history intact. If you do delete a site that still holds hardware, the system does not refuse: it opens a <strong>Move everything to</strong> dialog and asks which site should take the contents. Deleting an empty site just asks you to confirm.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Saving a location cascades</span>
+                                    <p>Changing a site re-stamps the records held there, and tells you how many: <em>"Location saved &middot; re-stamped 4 server(s) and 37 component(s)"</em>. Editing a rack's location does the same for everything in the rack. You never update those records one by one.</p>
+                                </div>
+                            </section>
+
+                            <!-- 04 -->
                             <section class="kb-section" id="kb-inventory">
-                                <h3><span class="kb-eyebrow">03</span>Managing Inventory</h3>
-                                <p>Eleven kinds of hardware are tracked, each with its own page:</p>
+                                <h3><span class="kb-eyebrow">04</span>Managing Inventory</h3>
+                                <p>Twelve kinds of hardware are tracked, each with its own page:</p>
 
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
@@ -289,11 +322,13 @@
                                             <tr><td>Riser Cards</td><td>Adapters that redirect PCIe slots within a chassis.</td></tr>
                                             <tr><td>HBA Cards</td><td>Host bus adapters for storage connectivity.</td></tr>
                                             <tr><td>SFP Modules</td><td>Optical and direct-attach network transceivers.</td></tr>
+                                            <tr><td>Compute Platforms</td><td>Whole server boxes stocked as single units. See <em>Building a Server</em>.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
 
                                 <h4>Adding a component</h4>
+
                                 <div class="kb-steps">
                                     <div class="kb-step"><div class="kb-step-dot">1</div><div>
                                         <h5>Pick the model</h5>
@@ -301,11 +336,11 @@
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">2</div><div>
                                         <h5>Identify the physical unit</h5>
-                                        <p>Enter the serial number. An asset tag such as <code>BDC-CPU-000128</code> is generated for you. The serial is what tells two identical units apart.</p>
+                                        <p>Enter the serial number — required for <strong>Storage</strong> and <strong>SFP</strong>, optional but strongly advised elsewhere. An asset tag is generated for you, and the confirmation names it: <em>"Added as BDC-CPU-000128 — label the unit with this tag."</em></p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">3</div><div>
-                                        <h5>Set status and location</h5>
-                                        <p>Status is Available, In Use, or Failed. Location is free text — a site or store room.</p>
+                                        <h5>Say where it is</h5>
+                                        <p><strong>Location is required</strong> and comes from the Locations page. Use <strong>Store / Shelf</strong> for where loose stock physically sits — <em>Shelf B3, Bin 12</em>. <strong>Rack Position is read-only</strong>: it fills itself in when the unit is installed in a server that is racked.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">4</div><div>
                                         <h5>Add dates and notes</h5>
@@ -318,28 +353,31 @@
                                     <p>Every component is checked against the catalogue before saving. If your model is not in the dropdowns it must be added there first. Do not pick the nearest match — compatibility checking would then run against the wrong specification.</p>
                                 </div>
 
+                                <h4>Finding things</h4>
+                                <p>Every inventory page carries a search box, a status filter and a <strong>location filter</strong>. The location filter searches the whole inventory for that site, not just the rows currently on screen.</p>
+
                                 <h4>Editing, deleting, and bulk actions</h4>
-                                <p>Rows can be edited or deleted individually, and several rows can be selected for a bulk update or delete — useful when a shipment arrives or a batch is retired.</p>
+                                <p>Rows show <strong>Edit</strong> and <strong>Delete</strong> only if your role includes them. Several rows can be selected for a bulk status update or bulk delete — useful when a shipment arrives or a batch is retired. <strong>Add Component</strong> is shown to everyone; without create permission it raises a Request instead of writing the record, and the same is true of the edit form.</p>
 
                                 <div class="kb-note is-warn">
-                                    <span class="kb-note-title">Components in use cannot be deleted outright</span>
-                                    <p>Remove the unit from its server configuration first. Otherwise a server record would refer to hardware that no longer exists.</p>
+                                    <span class="kb-note-title">A unit installed in a server cannot be deleted</span>
+                                    <p>The delete is refused and names the culprit: <em>"This cpu is installed in server configuration(s) &hellip; Remove it from the configuration before deleting it."</em> In a bulk delete the rest of the batch still goes through and the blocked rows are listed individually. If the system cannot establish one way or the other whether a unit is in use, it refuses rather than guessing.</p>
                                 </div>
                             </section>
 
-                            <!-- 04 -->
+                            <!-- 05 -->
                             <section class="kb-section" id="kb-build">
-                                <h3><span class="kb-eyebrow">04</span>Building a Server</h3>
-                                <p>The Server Builder assembles a configuration from units already in inventory, checking at each step that the parts fit together.</p>
+                                <h3><span class="kb-eyebrow">05</span>Building a Server</h3>
+                                <p>The Server Builder assembles a configuration from units already in inventory, checking at each step that the parts fit together. There are two ways to start: install a <strong>compute platform</strong> — a whole box we stock — or build up from a bare motherboard.</p>
 
                                 <div class="kb-steps">
                                     <div class="kb-step"><div class="kb-step-dot">1</div><div>
                                         <h5>Start the configuration</h5>
-                                        <p>Name it, optionally add a description and location. It opens as a draft.</p>
+                                        <p>Name it, and enter the <strong>serial number</strong> printed on the box. That is the manufacturer's serial, not a tag the system invents, and it is required for a real server; virtual and bench builds are exempt. A serial already on file is refused by name: <em>"Serial number 'X' is already recorded against the server 'Y'."</em> Set the location, and if it is going straight into a rack, its U height.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">2</div><div>
-                                        <h5>Choose the motherboard first</h5>
-                                        <p>Nearly every later rule derives from the board — its socket, memory slots, and PCIe layout. Picking it first lets the builder filter everything else for you.</p>
+                                        <h5>Install a platform, or choose the motherboard first</h5>
+                                        <p>With a platform, the board and chassis arrive with it. Building up instead, pick the motherboard first — nearly every later rule derives from the board, and picking it first lets the builder filter everything else for you.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">3</div><div>
                                         <h5>Add components, guided by the fit lists</h5>
@@ -351,15 +389,25 @@
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">5</div><div>
                                         <h5>Finalise and place it</h5>
-                                        <p>A finalised configuration can be assigned to a rack and moved through its deployment states.</p>
+                                        <p>A finalised configuration can be assigned to a rack at a U position, or into a bay in a blade enclosure.</p>
                                     </div></div>
                                 </div>
 
+                                <h4>Compute platforms</h4>
+                                <p>A compute platform is a whole server box held in stock as a unit. Pick the platform, then its <strong>version</strong> — the version is the SKU we actually hold on the shelf. Its motherboard and chassis come with the box and are never stocked separately, so you will not find them on the Motherboards or Chassis pages as loose parts.</p>
+                                <p>Versions you cannot pick are still listed, with the reason why — usually that the box, or a card that ships with it, is not in stock. Parts that are bolted in at the factory are never stock-checked and never make a version unselectable.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Changing or removing a platform releases the whole build</span>
+                                    <p>Both <strong>Change</strong> and <strong>Remove</strong> free every component currently installed back to available stock. The system refuses the first attempt and re-asks, listing exactly what would be released. Slots the platform supplies carry a locked <em>Compute platform</em> badge — you cannot remove that board or chassis on its own unless a separately stocked twin of the same model exists. Neither is possible at all once the server is finalized.</p>
+                                </div>
+
                                 <h4>Six components are required</h4>
-                                <p>A configuration is not complete until it has all of: <strong>chassis</strong>, <strong>motherboard</strong>, <strong>CPU</strong>, <strong>RAM</strong>, <strong>storage</strong>, and a <strong>network card</strong>.</p>
+                                <p>A configuration is not complete until it has all of: <strong>chassis</strong>, <strong>motherboard</strong>, <strong>CPU</strong>, <strong>RAM</strong>, <strong>storage</strong>, and a <strong>network card</strong>. Whatever is absent is named in one line — <code>Missing required component(s): chassis, nic</code>. This is checked when you validate or finalise, never while you are still adding parts.</p>
 
                                 <h4>The resource budget</h4>
                                 <p>Validation shows where you stand against the board's limits. A single-socket board with a 128-lane CPU reports something like:</p>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Resource</th><th class="kb-num">Max</th><th class="kb-num">Used</th><th class="kb-num">Free</th></tr></thead>
@@ -372,20 +420,28 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <p>PCIe lanes are attributed to their source, so you can see the budget comes from the CPU rather than the board.</p>
+                                <p>PCIe lanes are attributed to their source, so you can see the budget comes from the CPU rather than the board. There is no longer an overall compatibility score — a build is described by the rules it passes and fails, not by a number.</p>
+
+                                <h4>Editing and moving a finished server</h4>
+                                <p>Each server card carries an <strong>Edit</strong> button for its name, description, serial number and location, and a separate panel for <strong>changing its status</strong>. That panel lists only the moves your role can actually make, marks the ones that need the build validated first, and takes an optional reason. Below it is the server's movement history, including <code>Request #NN</code> where a move came from an approved Request. Administrators also get a <strong>Move server</strong> button for rack placement.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Finalising is no longer a one-way door</span>
+                                    <p>A server finalized by mistake can be sent back to Building, given the permission for it. Note also that working on a build's <em>parts</em> and editing the build's <em>own details</em> are separate permissions — you may well be able to add a CPU to a server you cannot rename.</p>
+                                </div>
 
                                 <h4>Trying things out safely</h4>
-                                <p>The <strong>Server Compatibility</strong> page is a bench for experimenting. Builds made there are sandboxes and never reserve real stock, so you can test a combination without taking parts out of circulation.</p>
+                                <p>The <strong>Server Compatibility</strong> page is a bench for experimenting. Builds made there are sandboxes and never reserve real stock, so you can test a combination without taking parts out of circulation. A bench build may even hold hardware we do not own — only the model has to exist in the catalogue.</p>
 
                                 <div class="kb-note">
                                     <span class="kb-note-title">Sandbox builds are kept separate</span>
-                                    <p>A sandbox build does not appear in the ordinary server list — it belongs to the Server Compatibility bench. If a test build seems to have vanished, that is why; it has not been deleted.</p>
+                                    <p>A sandbox build does not appear in the ordinary server list — it belongs to the Server Compatibility bench, and it is kept out of the template picker too. It also cannot be finalized: <em>"This is a compatibility bench build and cannot be finalized&hellip; rebuild it as a real server to deploy it."</em> If a test build seems to have vanished, that is why; it has not been deleted.</p>
                                 </div>
                             </section>
 
-                            <!-- 05 -->
+                            <!-- 06 -->
                             <section class="kb-section" id="kb-compat">
-                                <h3><span class="kb-eyebrow">05</span>Understanding Compatibility</h3>
+                                <h3><span class="kb-eyebrow">06</span>Understanding Compatibility</h3>
                                 <p>Every check returns findings in three buckets. Which bucket you are looking at tells you what to do next.</p>
 
                                 <div class="kb-cards">
@@ -395,12 +451,14 @@
                                 </div>
 
                                 <h4>Issues you will actually meet</h4>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Message</th><th>What it means</th></tr></thead>
                                         <tbody>
                                             <tr><td><code>CPU socket LGA3647 incompatible with motherboard socket SP3</code></td><td>Intel processor, AMD board. Sockets must match exactly.</td></tr>
                                             <tr><td><code>CPU limit exceeded: motherboard supports maximum 1 CPUs</code></td><td>You are adding a second processor to a single-socket board.</td></tr>
+                                            <tr><td><code>&hellip; is not a CPU generation this motherboard supports</code></td><td>The socket fits but the generation does not. One socket can span several generations — LGA2011-3, LGA3647, SP3 and AM4 all do — and a mismatched pair will not boot.</td></tr>
                                             <tr><td><code>Incompatible CPU pairing</code></td><td>Two different processor models in one machine. See the note below.</td></tr>
                                             <tr><td><code>SFP type QSFP+ not compatible with NIC port type SFP+</code></td><td>The transceiver does not fit that port — different physical formats.</td></tr>
                                             <tr><td><code>Storage form factor (2.5-inch) not supported by caddy</code></td><td>The drive tray is for a different drive size.</td></tr>
@@ -414,6 +472,7 @@
                                 </div>
 
                                 <h4>Warnings worth reading</h4>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Message</th><th>What to do</th></tr></thead>
@@ -427,75 +486,122 @@
 
                                 <h4>Why a part was rejected</h4>
                                 <p>When a component is blocked, every failing rule is named — not just the first. Adding an Intel processor to a board that already had an AMD one returns three findings at once: the socket does not match, the socket count is exceeded, and the models cannot be mixed. Work through them together; fixing only the first would still leave the part rejected.</p>
-                            </section>
 
-                            <!-- 06 -->
-                            <section class="kb-section" id="kb-racks">
-                                <h3><span class="kb-eyebrow">06</span>Rack View</h3>
-                                <p>Rack View maps physical space. A rack records its name, site, and height in rack units, and shows how many U are used and how many remain.</p>
-
-                                <h4>Creating a rack</h4>
-                                <p>Give it a name and location and set its height in U. The setting worth pausing over is <strong>U numbering direction</strong> — racks can be numbered top-down or bottom-up. Match what is physically labelled on the rack in the hall, or every position you record afterwards will be off.</p>
-
-                                <h4>Placing servers</h4>
-                                <p>Finalised configurations can be assigned to a rack at a starting U position. Unassigned servers are listed alongside the rack map so you can see what is waiting to be placed. Unassigning returns a server to that pool without altering its configuration.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Free space is calculated, not typed</span>
-                                    <p>Used and free U are derived from the servers placed in the rack and the height of their chassis. You do not maintain them by hand.</p>
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Checks get stricter as the catalogue fills in</span>
+                                    <p>Some rules stay quiet when the catalogue has nothing to check against — the generation rule is inert for a board with no generation data recorded. As those entries are completed, combinations that were accepted before will start being refused. That is the rule working, not a regression.</p>
                                 </div>
                             </section>
 
                             <!-- 07 -->
-                            <section class="kb-section" id="kb-requests">
-                                <h3><span class="kb-eyebrow">07</span>Requests</h3>
-                                <p>A Request is a piece of work that moves through people — a memory upgrade, a decommission, a new build. Each follows a <strong>Request Type</strong>, which defines the ordered <strong>Steps</strong> it passes through.</p>
-                                <p>Requests are numbered <code>TKT-YYYYMMDD-NNNN</code> and carry a priority of <span class="kb-chip bg-surface-secondary text-text-muted">low</span> <span class="kb-chip bg-surface-secondary text-text-muted">medium</span> <span class="kb-chip bg-surface-secondary text-text-muted">high</span> or <span class="kb-chip bg-danger/10 text-danger">urgent</span>.</p>
+                            <section class="kb-section" id="kb-racks">
+                                <h3><span class="kb-eyebrow">07</span>Rack View</h3>
+                                <p>Rack View maps physical space. A rack records its name, its site, its floor or room, and its height in rack units, and shows how many U are used and how many remain.</p>
 
-                                <h4>General Request</h4>
-                                <p>The built-in type, with three steps:</p>
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th class="kb-num">#</th><th>Step</th><th>What happens</th></tr></thead>
-                                        <tbody>
-                                            <tr><td class="kb-num">1</td><td>Approval</td><td>Review the request and approve it to proceed.</td></tr>
-                                            <tr><td class="kb-num">2</td><td>Execution</td><td>Carry out the approved work.</td></tr>
-                                            <tr><td class="kb-num">3</td><td>Deployment</td><td>Deploy or finalise, and close the request.</td></tr>
-                                        </tbody>
-                                    </table>
+                                <h4>Creating a rack</h4>
+                                <p>Give it a name, pick its <strong>location</strong> from the Locations page — it is a dropdown now, not free text — and add the <strong>floor or room</strong>. Set its height in U. The setting worth pausing over is <strong>U numbering direction</strong>: racks can be numbered top-down or bottom-up. Match what is physically labelled on the rack in the hall, or every position you record afterwards will be off.</p>
+
+                                <h4>Placing servers</h4>
+                                <p>Servers can be placed from the rack map, or from the <strong>Move server</strong> button on the server card itself. Unassigned servers are listed alongside the map so you can see what is waiting. Unassigning returns a server to that pool without altering its configuration.</p>
+
+                                <h4>Blade enclosures and bays</h4>
+                                <p><strong>Add enclosure</strong> installs a chassis such as an FX2s at a start U, optionally with its service tag. It is drawn in the elevation as a framed box with a grid of numbered bays. Clicking an empty bay installs a server into it — there is no U to choose, because the bay decides the position. Clicking the enclosure's rail opens a dialog with the roster of what is inside, and lets you rename it, re-tag it, move it to a different start U, or remove it. A server already in a bay can be moved to another bay, or out into the rack directly.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Two servers can share a U — inside an enclosure</span>
+                                    <p>Four sleds in one FX2s legitimately occupy the same rack units. Overlap checking treats the enclosure as the thing occupying that space, and the servers inside it as belonging to the enclosure rather than to the rack.</p>
+                                </div>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Free space is calculated, not typed</span>
+                                    <p>Used and free U are derived from what is placed in the rack and how tall it is. Moving a rack or a server also re-stamps the location onto every component inside it. A move is checked at the moment it happens, not when it was asked for — so an approved Move Server request can still be refused if the space filled up in the meantime.</p>
+                                </div>
+                            </section>
+
+                            <!-- 08 -->
+                            <section class="kb-section" id="kb-requests">
+                                <h3><span class="kb-eyebrow">08</span>Requests</h3>
+                                <p>A Request is a piece of work that moves through people — a memory upgrade, a decommission, a new build. Each follows a <strong>Request Type</strong>, which defines the ordered <strong>Steps</strong> it passes through. Requests are numbered <code>TKT-YYYYMMDD-NNNN</code> and carry a priority of <span class="kb-chip bg-surface-secondary text-text-muted">low</span> <span class="kb-chip bg-surface-secondary text-text-muted">medium</span> <span class="kb-chip bg-surface-secondary text-text-muted">high</span> or <span class="kb-chip bg-danger/10 text-danger">urgent</span>.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Requests are open to everyone</span>
+                                    <p>Every signed-in user can raise a Request, and claim and complete steps on one. Only administrators approve or reject. If your role cannot see the whole queue you will land on <strong>Created by me</strong> rather than My Queue — that is the right tab for you, not an empty system.</p>
+                                </div>
+
+                                <h4>Raising one</h4>
+
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div>
+                                        <h5>Say what should happen</h5>
+                                        <p>The form opens with a dropdown of concrete actions rather than a blank box: add, remove or replace a part in a server; create, update or re-status a server; move a server; add, edit or relocate an inventory record. Each choice renders its own fields. For inventory records the real Add or Edit Component form is embedded directly in the request.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div>
+                                        <h5>Pick the server</h5>
+                                        <p>A searchable picker finds servers by name, location, rack or UUID, with an <em>Any server</em> option where the work is not tied to one. Some request types are configured not to ask about a server or components at all — a door-access request, for instance.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div>
+                                        <h5>Check the title and submit</h5>
+                                        <p>The title writes itself from your choices and is marked as such; type over it if you prefer your own. The description is optional now. On submit the Request moves to its first step and appears in the queue for whoever owns it.</p>
+                                    </div></div>
+                                </div>
+
+                                <h4>Checks while you fill the form in</h4>
+                                <p>The form looks at real stock as you go. If nothing of the chosen model is free it says so — <em>"We have none of these free"</em> — and offers to raise an add-to-inventory request as a prerequisite. If the part exists but sits at a different site from the server, it offers a <strong>Hardware Handover</strong> instead, naming who is carrying the part. Only that person can confirm the arrival, and their confirmation closes the handover.</p>
+
+                                <h4>Prerequisites and frozen Requests</h4>
+                                <p>A Request can have children — prerequisites that must be resolved before it can proceed. While one is outstanding the parent is <strong>Frozen</strong> and shows a lock banner naming the blockers; Reject and Cancel still work on a frozen Request, only progress is held. In the list, cards carry chips for <strong>Blocked</strong>, <strong>Last attempt failed</strong>, and <strong>for #TKT-&hellip;</strong> when the Request is itself a prerequisite of another. Prerequisites can nest three deep.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">A rejected prerequisite still freezes its parent</span>
+                                    <p>A refused blocker never counts as met. Someone has to cancel or reject the parent, or an administrator has to detach the rejected child, before the parent can move again.</p>
+                                </div>
+
+                                <h4>Approval performs the work</h4>
+                                <p>On the step that carries the effect the button reads <strong>Approve &amp; run N actions</strong> rather than complete-and-advance, and an <strong>Actions</strong> panel lists what will happen, in order. After it runs, the same panel shows what it produced — asset tag, inventory ID, server, revision, the fields that changed.</p>
+
+                                <div class="kb-note is-stop">
+                                    <span class="kb-note-title">Three rules govern approval</span>
+                                    <p>Only an administrator or super admin can approve. The work is always performed on behalf of the person who raised the Request, not the approver. And nobody approves or rejects their own Request — <em>"Cannot approve your own request (separation of duties)"</em>. Note also that no Request can delete anything: adding, editing, moving and re-statusing are the only things approval can do.</p>
+                                </div>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">If execution fails, nothing is changed</span>
+                                    <p>A failed action rolls the whole approval back and leaves a red banner — <em>"Approval was rolled back — nothing was changed"</em> — with the error. The step stays active, so fix the cause and approve again. A common cause is the location gate: <em>"This component is at X, and the server is at Y. Raise a Hardware Handover request to move the part first."</em></p>
                                 </div>
 
                                 <h4>Working a step</h4>
-                                <p>Each step has an owner — usually a role rather than a named person, so anyone holding that role can pick it up. <strong>Claim</strong> a step to signal you are working on it, then complete it to advance the Request. A step can be skipped where it does not apply, or rejected, which sends the Request back.</p>
+                                <p>Each step has an owner — usually a role rather than a named person, so anyone holding that role can pick it up. <strong>Claim</strong> a step to signal you are working on it, then complete it to advance the Request. A step can be skipped where it does not apply. <strong>Reject</strong> is a button on every actionable step, with a box for the reason, and it is available even on frozen Requests where Approve deliberately is not. Progress reads as steps done against total.</p>
 
                                 <h4>Lifecycle</h4>
+
                                 <div class="kb-flow">
                                     <span class="kb-state">draft</span><span class="kb-arrow">&rarr;</span>
                                     <span class="kb-state">in_progress</span><span class="kb-arrow">&rarr;</span>
                                     <span class="kb-state is-end">completed</span>
                                 </div>
                                 <p>Two endings stop a Request early: <span class="kb-chip bg-danger/10 text-danger">rejected</span> when the work is declined, and <span class="kb-chip bg-surface-secondary text-text-muted">cancelled</span> when it is withdrawn. Neither can be resumed — raise a fresh Request instead.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Access</span>
-                                    <p>Requests and Request Types are available to administrators. If you cannot see them in the sidebar, that is why.</p>
-                                </div>
+                                <p>The activity trail on each Request gains a filter bar — search, action, user and date range — once there is more than one entry to sift.</p>
                             </section>
 
-                            <!-- 08 -->
+                            <!-- 09 -->
                             <section class="kb-section" id="kb-admin">
-                                <h3><span class="kb-eyebrow">08</span>Request Types &amp; Vendors</h3>
+                                <h3><span class="kb-eyebrow">09</span>Request Types &amp; Vendors</h3>
                                 <p>These are administrator sections. They are described here so everyone understands what the system can do, even if the pages are not available to you.</p>
 
                                 <h4>Request Types</h4>
                                 <p>A Request Type is a named, ordered list of Steps. For each step you set a name, a position, instructions for whoever performs it, and a default owner — normally a role. Write the instructions as if for someone who has not done the task before; they are the only guidance the person working the step receives.</p>
+                                <p>A step can be marked <strong>"On approval, perform the request's work"</strong>. Ticking it reveals a checklist of action types — server builds, component inventory — and that checklist is the <em>ceiling</em> of what anyone raising this type may ask for. A separate <strong>"What the form asks for"</strong> block decides whether the create form asks about a server and a list of components at all.</p>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Temporary access has been retired</span>
+                                    <p>Approving a step no longer grants anyone permissions for a period. A Request now describes work, and approval performs that work as the requester. Old steps built on the previous model display read-only as <em>"Legacy effect &mdash; grants temporary access. This model was retired; approving this step no longer grants anything."</em> Access to a room or a store is still requestable — an approver opens the door and records it.</p>
+                                </div>
 
                                 <div class="kb-note">
                                     <span class="kb-note-title">General Request cannot be changed</span>
                                     <p>It is built in and cannot be renamed, archived, or deleted — only its steps edited. Build a new type rather than repurposing it.</p>
                                 </div>
-
-                                <p>Types can be deactivated when a process is retired. Requests already using a type keep their steps; deactivating only stops new Requests from choosing it.</p>
+                                <p>Types can be deactivated when a process is retired, which stops new Requests choosing them while existing ones keep their steps. A type can also be deleted outright; the Requests that used it keep its name on record.</p>
 
                                 <h4>Vendors</h4>
                                 <p>Vendors record who supplied hardware — name, contact details, what they sell, and notes. Components link to a vendor, which is what makes "everything we bought from this supplier" answerable.</p>
@@ -506,19 +612,23 @@
                                 </div>
 
                                 <h4>Activity Log</h4>
-                                <p>The Activity Log records who did what and when — components added and removed, servers changed, roles assigned. It is the first place to look when something changed and nobody remembers changing it.</p>
+                                <p>The Activity Log records who did what and when — components added and removed, servers changed, roles assigned. It is the first place to look when something changed and nobody remembers changing it. It now filters by free text, by date range and by user, so you can narrow to one person on one afternoon; if a search returns nothing it says the filters matched nothing rather than that the log is empty.</p>
 
                                 <div class="kb-note is-warn">
                                     <span class="kb-note-title">The log records IP addresses</span>
                                     <p>Entries include the client IP of whoever performed the action. Redact before sharing screenshots outside the team.</p>
                                 </div>
+
+                                <h4>Access Control</h4>
+                                <p>Administrators can reset another user's password from the Users list. The dialog takes the new password twice plus <em>your own</em> password to confirm, and can generate a strong one for you. Nothing is emailed — you hand the password over yourself — and the target is signed out of every device. You cannot reset your own this way; use Change Password in the account menu. Deleting a user who has raised Requests keeps their history under a placeholder rather than erasing it.</p>
                             </section>
 
-                            <!-- 09 -->
+                            <!-- 10 -->
                             <section class="kb-section" id="kb-reference">
-                                <h3><span class="kb-eyebrow">09</span>Reference</h3>
+                                <h3><span class="kb-eyebrow">10</span>Reference</h3>
 
                                 <h4>Component status</h4>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
@@ -531,56 +641,101 @@
                                 </div>
                                 <p>You may occasionally see finer-grained states such as <code>installed</code> or <code>reserved</code> on records created by automated processes. Treat <code>installed</code> as In Use.</p>
 
-                                <h4>Server configuration status</h4>
+                                <h4>Server status</h4>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
                                         <tbody>
-                                            <tr><td><code>draft</code></td><td>Being assembled. Incomplete configurations are expected here.</td></tr>
-                                            <tr><td><code>validated</code></td><td>Passed the compatibility and completeness checks.</td></tr>
-                                            <tr><td><code>built</code></td><td>Physically assembled.</td></tr>
-                                            <tr><td><code>deployed</code></td><td>In service.</td></tr>
-                                            <tr><td><code>retired</code></td><td>Taken out of service.</td></tr>
+                                            <tr><td><code>Draft</code></td><td>Being assembled. Incomplete configurations are expected here.</td></tr>
+                                            <tr><td><code>Building</code></td><td>Actively being worked on. Parts can be added and removed.</td></tr>
+                                            <tr><td><code>Validating</code></td><td>Being checked against the rules.</td></tr>
+                                            <tr><td><code>Validated</code></td><td>Passed the compatibility and completeness checks.</td></tr>
+                                            <tr><td><code>Finalized</code></td><td>Committed. Its parts are reserved; the platform can no longer be changed.</td></tr>
+                                            <tr><td><code>Deployed</code></td><td>In service.</td></tr>
+                                            <tr><td><code>Maintenance</code></td><td>Out of service temporarily. Parts can be changed again.</td></tr>
+                                            <tr><td><code>Retired</code></td><td>Taken out of service.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
 
+                                <div class="kb-note">
+                                    <span class="kb-note-title">"Built" is an older label</span>
+                                    <p>Servers created before this vocabulary was introduced may still show <code>Built</code>. Read it as Building. Parts can only be added or removed while a server is in Draft, Building or Maintenance.</p>
+                                </div>
+
+                                <h4>Compute platforms</h4>
+                                <p>The catalogue holds known server platforms — HPE ProLiant DL360, DL380, DL325 and DL385 across several generations, Dell PowerEdge, and others. A platform is stocked as a whole box, and each <strong>version</strong> of it is a distinct SKU with its own count on the shelf. Installing one supplies the build's motherboard and chassis; those are not separately stocked parts.</p>
+
                                 <h4>Glossary</h4>
+
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
                                         <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
                                         <tbody>
                                             <tr><td>U</td><td>Rack unit — 1.75 inches of vertical rack space. A 2U server occupies two.</td></tr>
                                             <tr><td>Socket</td><td>The physical processor mount. <code>SP3</code> is AMD; <code>LGA3647</code> and <code>LGA2011-3</code> are Intel. Not interchangeable.</td></tr>
+                                            <tr><td>Generation</td><td>Which family of processors a board accepts. One socket can span several, and the wrong generation will not boot even though it fits.</td></tr>
                                             <tr><td>ECC</td><td>Error-correcting memory. Needs board support, otherwise correction is simply disabled.</td></tr>
                                             <tr><td>PCIe lane</td><td>The bandwidth budget for expansion cards, supplied mostly by the CPU. Cards consume lanes; you can run out.</td></tr>
                                             <tr><td>Caddy</td><td>The tray holding a drive in a chassis. Must match the drive size and the chassis.</td></tr>
                                             <tr><td>SFP / QSFP+</td><td>Pluggable network transceiver formats. QSFP+ is larger and will not fit an SFP+ port.</td></tr>
                                             <tr><td>HBA</td><td>Host bus adapter — a card connecting storage devices to the system.</td></tr>
-                                            <tr><td>Asset tag</td><td>The generated identifier for a physical unit, such as <code>BDC-CPU-000128</code>.</td></tr>
+                                            <tr><td>Compute platform</td><td>A whole server box stocked as one unit, supplying its own board and chassis.</td></tr>
+                                            <tr><td>Version</td><td>The specific SKU of a compute platform that we hold in stock.</td></tr>
+                                            <tr><td>Enclosure / bay</td><td>A blade chassis placed in a rack, and the numbered slots inside it that each hold a server.</td></tr>
+                                            <tr><td>Prerequisite</td><td>A Request raised inside another that must be resolved before the parent can move.</td></tr>
+                                            <tr><td>Hardware handover</td><td>A Request tracking a part being physically carried between sites; the carrier confirms arrival.</td></tr>
+                                            <tr><td>Store / Shelf</td><td>Where a loose unit physically sits at its site — a shelf or bin reference.</td></tr>
+                                            <tr><td>Serial number</td><td>The manufacturer's number printed on the unit. You type it in.</td></tr>
+                                            <tr><td>Asset tag</td><td>The identifier the system generates for a unit, such as <code>BDC-CPU-000128</code>.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </section>
 
-                            <!-- 10 -->
+                            <!-- 11 -->
                             <section class="kb-section" id="kb-trouble">
-                                <h3><span class="kb-eyebrow">10</span>Troubleshooting</h3>
+                                <h3><span class="kb-eyebrow">11</span>Troubleshooting</h3>
 
                                 <h4>I was signed out unexpectedly</h4>
-                                <p>Sessions last thirty minutes. Sign in again — unsaved form data is lost, so save long entries as you go.</p>
+                                <p>A sign-in lasts 24 hours, and closing the browser ends the session's ability to renew itself even with Remember me ticked. Sign in again — unsaved form data is lost, so save long entries as you go.</p>
 
                                 <h4>A page or button is missing</h4>
-                                <p>Your role does not include it. Rack View, Requests, Request Types, and Vendors are restricted to administrators. Ask an administrator to review your role rather than working around it.</p>
+                                <p>Rack View and Request Types are administrator-only. Most other buttons are not hidden from you: if you lack the permission, <strong>Add Component</strong> and <strong>Build Server</strong> stay on screen and raise a Request instead. If a row's Edit or Delete is genuinely absent, that one is a permissions matter — ask an administrator.</p>
 
                                 <h4>The model I need is not in the dropdown</h4>
                                 <p>The hardware catalogue does not have it yet; it must be added there first. Do not substitute a similar model — compatibility checking would then run against the wrong specification.</p>
 
+                                <h4>I cannot save a component without a location</h4>
+                                <p>Location is required and is chosen from the Locations page. If the site you need is not listed, it has to be created there first.</p>
+
+                                <h4>I cannot delete a component</h4>
+                                <p>It is installed in a server. The message names the configuration — remove it from that build first, then delete. In a bulk delete the unaffected rows still go through.</p>
+
+                                <h4>A component will not add to my build</h4>
+                                <p>Read every finding, not just the first. Common causes: socket mismatch, a CPU generation the board does not support, full CPU or memory slots, mixed processor models, or a transceiver that does not match the port. The fit lists tell you what <em>would</em> work.</p>
+
+                                <h4>I cannot remove the motherboard or chassis</h4>
+                                <p>They came with the compute platform and are locked to it. Change or remove the platform instead — which releases the whole build — unless a separately stocked unit of the same model exists, in which case that spare can be removed on its own.</p>
+
                                 <h4>I cannot delete a server configuration</h4>
                                 <p>Configurations with components still attached refuse to delete and say so — for example, <em>"This server still has 2 components installed (1 CPU, 1 motherboard). Remove all components from the server before deleting it."</em> Remove the components, then delete.</p>
 
-                                <h4>A component will not add to my build</h4>
-                                <p>Read every finding, not just the first. Common causes: socket mismatch, full CPU or memory slots, mixed processor models, or a transceiver that does not match the port. The fit lists tell you what <em>would</em> work.</p>
+                                <h4>I finalized a server by mistake</h4>
+                                <p>It can be sent back to Building. The status panel on the server card lists the move if your role includes it; otherwise ask an administrator.</p>
+
+                                <h4>I can edit a server's parts but not its name</h4>
+                                <p>Those are two different permissions. Working on the components in a build and editing the build's own details — name, description, location, status — are granted separately.</p>
+
+                                <h4>My Request is frozen</h4>
+                                <p>It has an unresolved prerequisite; the lock banner names it. Resolve or cancel the child. A <em>rejected</em> prerequisite still counts as unresolved — an administrator has to detach it, or the parent has to be cancelled.</p>
+
+                                <h4>My approval was rolled back</h4>
+                                <p>An action failed part-way and everything was undone, so nothing changed. The banner carries the error and the step stays active. If the reason is that the part is at another site, raise a Hardware Handover first.</p>
+
+                                <h4>I cannot approve my own Request</h4>
+                                <p>That is deliberate — separation of duties. Someone else with administrator rights has to approve it.</p>
 
                                 <h4>My test build has vanished</h4>
                                 <p>Builds made on the Server Compatibility bench are sandboxes and do not appear in the ordinary server list. Look for it there.</p>
@@ -588,6 +743,7 @@
                                 <h4>The numbers look wrong after a change</h4>
                                 <p>Dashboard counts are derived from inventory. Refresh the page; if they still look wrong, check the Activity Log to see what actually changed.</p>
                             </section>
+
                         </div>
                     </div>
                 </div>
