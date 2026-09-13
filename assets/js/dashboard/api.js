@@ -547,7 +547,18 @@ window.api = {
         // serialNumber is the manufacturer serial typed in on the Create Server
         // form. The backend requires one for a physical build and refuses a
         // duplicate with a 400 naming the server that already holds it.
-        async createConfig(serverName, description, startWith, isVirtual, location, isSandbox = false, serialNumber = '') {
+        // ONE CALL CREATES AND PLACES A SERVER.
+        //
+        // This used to be the first of three: create, then rack-assign-server,
+        // then update-location, each able to fail on its own. A failed placement
+        // left a real server row with nowhere to be and told the operator
+        // "Server created, but not placed in the rack" — a state nothing
+        // cleaned up. The backend now does all of it in one transaction, so
+        // `placement` rides along with the create and a refusal means nothing
+        // was created at all.
+        //
+        // placement: { locationUuid, rackUuid, startU, enclosureUuid, slotIndex, uHeight }
+        async createConfig(serverName, description, startWith, isVirtual, location, isSandbox = false, serialNumber = '', placement = {}) {
             const requestData = {
                 server_name: serverName,
                 description: description,
@@ -573,6 +584,25 @@ window.api = {
             // Only include location if provided
             if (location) {
                 requestData.location = location;
+            }
+
+            // The site as a real identifier, not the free-text name: two sites
+            // can share a name, and the backend files the server by uuid.
+            if (placement.locationUuid) {
+                requestData.location_uuid = placement.locationUuid;
+            }
+            // A destination is EITHER a rack + U or an enclosure bay. Only the
+            // chosen shape is sent, so the backend never has to guess which the
+            // operator meant.
+            if (placement.enclosureUuid) {
+                requestData.enclosure_uuid = placement.enclosureUuid;
+                requestData.slot_index = String(placement.slotIndex);
+            } else if (placement.rackUuid) {
+                requestData.rack_uuid = placement.rackUuid;
+                requestData.start_u = String(placement.startU);
+                if (placement.uHeight) {
+                    requestData.u_height = String(placement.uHeight);
+                }
             }
 
             utils.logger.log('API createConfig called with:', {

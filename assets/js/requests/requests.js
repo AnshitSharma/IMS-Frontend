@@ -1172,11 +1172,65 @@ class RequestsManager {
 
             // Blank stays available on purpose: "move it to the site, leave it
             // out of a rack" is a real request.
+            //
+            // free_u alone was misleading: 12U free in six 2U gaps takes no 4U
+            // server. The largest single opening is what decides whether a
+            // machine fits, so both are shown.
             rackSelect.innerHTML = '<option value="">-- No rack --</option>' + racks.map(rack => {
                 const floor = rack.floor ? ` \u00b7 Floor ${this.esc(rack.floor)}` : '';
-                return `<option value="${this.esc(rack.rack_uuid)}" data-name="${this.esc(rack.name)}">${this.esc(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U)</option>`;
+                const biggest = Number.isFinite(rack.largest_free_u)
+                    ? `, largest gap ${rack.largest_free_u}U` : '';
+                return `<option value="${this.esc(rack.rack_uuid)}" data-name="${this.esc(rack.name)}">${this.esc(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U${biggest})</option>`;
             }).join('');
+
+            // Keep the racks so the Bay dropdown can be filled without a second
+            // round trip -- location-racks already carried the free bays.
+            this.relocateRacks = racks;
+            this.fillRelocateBays();
         });
+
+        rackSelect?.addEventListener('change', () => this.fillRelocateBays());
+    }
+
+    /**
+     * Fill the relocate form's Bay dropdown from the chosen rack's enclosures.
+     *
+     * A blade sled goes into a BAY, not a U (F-12): the enclosure is already
+     * bolted somewhere and owns the U range, so the two destinations are
+     * exclusive. Choosing a bay therefore disables Start U rather than letting
+     * a request carry both and leaving the executor to guess.
+     */
+    fillRelocateBays() {
+        const rackSelect = document.getElementById('plRelocateRack');
+        const baySelect = document.getElementById('plRelocateBay');
+        const startU = document.getElementById('plRelocateStartU');
+        if (!baySelect) return;
+
+        const rack = (this.relocateRacks || []).find(
+            (r) => r.rack_uuid === rackSelect?.value);
+        const enclosures = (rack?.enclosures || []).filter((e) => e.free_slots?.length);
+
+        if (!enclosures.length) {
+            baySelect.innerHTML = `<option value="">${rack ? 'No free bays in this rack' : 'Choose a rack first'}</option>`;
+            baySelect.disabled = true;
+            if (startU) startU.disabled = false;
+            return;
+        }
+
+        baySelect.innerHTML = '<option value="">-- Not in a bay --</option>' + enclosures.map((e) => {
+            const label = `${e.name}${e.model ? ` (${e.model})` : ''}`;
+            return e.free_slots.map((slot) =>
+                `<option value="${this.esc(e.enclosure_uuid)}:${slot}" data-name="${this.esc(e.name)}">${this.esc(label)} \u00b7 bay ${slot}</option>`
+            ).join('');
+        }).join('');
+        baySelect.disabled = false;
+
+        baySelect.onchange = () => {
+            if (!startU) return;
+            startU.disabled = !!baySelect.value;
+            if (baySelect.value) startU.value = '';
+        };
+        baySelect.onchange();
     }
 
     /** Which action this request is building, and the fields it needs. */
@@ -1237,6 +1291,7 @@ class RequestsManager {
         this.locationWarn = null;
         this.pickedUnit = null;
         this.handoverUnits = [];
+        this.relocateRacks = [];
         // The create/update forms ask for a location by NAME (that is the column
         // they write), so they get the same list rendered with names as values.
         fields.querySelectorAll('[data-location-name-select]').forEach((el) => {
@@ -1645,15 +1700,21 @@ class RequestsManager {
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                            <label class="${LABEL}">Start U</label>
-                            <input type="number" min="1" max="100" data-action-field="start_u" class="${INPUT}" placeholder="e.g. 21">
+                            <label class="${LABEL}">Bay</label>
+                            <select class="${INPUT}" id="plRelocateBay" disabled>
+                                <option value="">Choose a rack first</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="${LABEL}">Reason</label>
-                            <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                            <label class="${LABEL}">Start U</label>
+                            <input type="number" min="1" max="100" data-action-field="start_u" class="${INPUT}" id="plRelocateStartU" placeholder="e.g. 21">
                         </div>
                     </div>
-                    <p class="text-xs text-text-muted">Every component installed in the server moves with it. Leave the rack blank to ask for it to be moved to the site but left out of a rack. The position is checked against the rack when the request is approved, so a slot that fills up in the meantime means the move is refused rather than forced.</p>`;
+                    <div>
+                        <label class="${LABEL}">Reason</label>
+                        <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                    </div>
+                    <p class="text-xs text-text-muted">Every component installed in the server moves with it. Leave the rack blank to ask for it to be moved to the site but left out of a rack. Choose a bay only for a server that goes inside a blade enclosure &mdash; the enclosure already has a position, so there is no Start U to pick. The position is checked against the rack when the request is approved, so a slot that fills up in the meantime means the move is refused rather than forced.</p>`;
 
             case 'server.config.transition':
                 return `
@@ -3192,10 +3253,27 @@ class RequestsManager {
         if (this.actionType === 'server.relocate') {
             const locationSelect = document.getElementById('plRelocateLocation');
             const rackSelect = document.getElementById('plRelocateRack');
+            const baySelect = document.getElementById('plRelocateBay');
             const locName = locationSelect?.selectedOptions?.[0]?.dataset?.name;
             const rackName = rackSelect?.selectedOptions?.[0]?.dataset?.name;
             if (locName) payload.location_name = locName;
             if (rackName) payload.rack_name = rackName;
+
+            // A bay is "enclosureUuid:slotIndex" in one control, because the two
+            // are one decision. Split here rather than in the form, so the
+            // select never has to carry a data-action-field the executor would
+            // reject as an unexpected parameter.
+            const bay = baySelect?.value || '';
+            if (bay) {
+                const sep = bay.lastIndexOf(':');
+                payload.enclosure_uuid = bay.slice(0, sep);
+                payload.slot_index = bay.slice(sep + 1);
+                const encName = baySelect.selectedOptions?.[0]?.dataset?.name;
+                if (encName) payload.enclosure_name = encName;
+                // The enclosure owns the U range. Sending a start_u as well
+                // would describe a destination the move will not use.
+                delete payload.start_u;
+            }
         }
 
         // A handover names a UNIT, so the model select is a stepping stone to

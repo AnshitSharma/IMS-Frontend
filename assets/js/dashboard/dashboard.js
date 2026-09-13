@@ -1260,21 +1260,24 @@ class Dashboard {
         const advancedForm = document.getElementById('advancedForm');
 
 
-        // Rack placement fields. Rack View is admin/super_admin only (the backend
-        // gates the rack module on top of ACL), so anyone else creates the server
-        // unracked and an admin places it from Rack View.
+        // Rack placement fields, shown to EVERYONE who can reach this form.
+        //
+        // They used to be removed for anyone who was not admin/super_admin, on
+        // the reasoning that Rack View is admin-only. Both halves of that have
+        // gone: api.php no longer role-gates the rack module (rack.view /
+        // rack.assign decide now), and placement is no longer something an admin
+        // adds afterwards — a physical server is refused without it. Removing
+        // the fields would therefore not create an unracked server, it would make
+        // creating a server impossible for everyone else.
+        //
+        // Placing a server AS IT IS CREATED is part of server.create, which this
+        // form already requires; it is not a move, and it does not need
+        // rack.assign. Moving an existing server still does.
         const rackGroup = document.getElementById('rackFieldGroup');
         const positionGroup = document.getElementById('rackPositionGroup');
         const heightGroup = document.getElementById('rackHeightGroup');
-        const canPlaceInRack = api.utils.hasRole(['admin', 'super_admin']);
 
-        if (!canPlaceInRack) {
-            rackGroup?.remove();
-            positionGroup?.remove();
-            heightGroup?.remove();
-        } else {
-            this.initRackFields();
-        }
+        this.initRackFields();
 
         // The six sites this dropdown used to hardcode are real `locations` rows
         // now (seeder 2026_08_26_002), so the list is loaded rather than written
@@ -1337,19 +1340,24 @@ class Dashboard {
                 // racked at its real size instead of the 1U this form used to assume.
                 const uHeight = !isVirtual ? parseInt(document.getElementById('rackUHeight')?.value || '1', 10) : 1;
 
-                if (!location) {
+                if (!location || !locationUuid) {
                     utils.showAlert('Please choose a location for this server', 'warning');
                     locationSelect.focus();
                     return;
                 }
 
-                // A rack is OPTIONAL, because the Rack dropdown genuinely offers
-                // "-- Not racked --" and refusing that choice made the option a
-                // trap: a server built on the bench, or one waiting for a bay,
-                // had no way through this form at all. What IS required is that a
-                // chosen rack gets a position.
-                if (rackUuid && !positionValue) {
-                    utils.showAlert('Please choose a position in the rack, or set the rack to "Not racked"', 'warning');
+                // A PHYSICAL SERVER MUST BE PLACED. The rack used to be optional
+                // because the dropdown offered "-- Not racked --", which let a
+                // real machine be recorded with no position at all. That option
+                // is gone and the backend refuses without a destination, so
+                // asking here is only about giving a better message than a 400.
+                if (!isVirtual && !rackUuid) {
+                    utils.showAlert('Please choose the rack this server is installed in', 'warning');
+                    document.getElementById('serverRack')?.focus();
+                    return;
+                }
+                if (!isVirtual && !positionValue) {
+                    utils.showAlert('Please choose the position this server occupies in the rack', 'warning');
                     document.getElementById('rackPosition')?.focus();
                     return;
                 }
@@ -1378,48 +1386,28 @@ class Dashboard {
 
                 try {
                     utils.showLoading(true, 'Creating server...');
-                    const result = await api.servers.createConfig(serverName, description, startWith, isVirtual, location, false, isVirtual ? '' : serialNumber);
+                    // ONE CALL. Creation, location and placement commit together
+                    // on the backend, so there is no longer a window in which the
+                    // server exists but has nowhere to be — and no compensating
+                    // cleanup for this code to get wrong. A refusal means nothing
+                    // was created, so it is reported as a plain failure rather
+                    // than the old "created, but not placed" half-success.
+                    const result = await api.servers.createConfig(
+                        serverName, description, startWith, isVirtual, location, false,
+                        isVirtual ? '' : serialNumber,
+                        isVirtual ? {} : {
+                            locationUuid,
+                            // A bay and a U are exclusive: the enclosure owns the
+                            // rack and the U range, so only one shape is sent.
+                            enclosureUuid: bayMatch ? bayMatch[1] : null,
+                            slotIndex: bayMatch ? parseInt(bayMatch[2], 10) : null,
+                            rackUuid: bayMatch ? null : rackUuid,
+                            startU: bayMatch ? null : startU,
+                            uHeight: bayMatch ? null : uHeight,
+                        }
+                    );
                     if (result.success) {
-                        // Place it in the rack. The server exists either way, so a failed
-                        // placement is reported as such instead of a false success.
-                        let placementWarning = null;
-                        if (rackUuid && bayMatch && result.data?.config_uuid) {
-                            // Into an enclosure bay. No rack and no U are sent:
-                            // the enclosure owns both, and uHeight is meaningless
-                            // for a sled whose height is the box's.
-                            const placement = await api.racks.assignServerToSlot(
-                                bayMatch[1], result.data.config_uuid, parseInt(bayMatch[2], 10)
-                            );
-                            if (!placement?.success) {
-                                placementWarning = placement?.message || 'Could not install the server in the enclosure bay';
-                            }
-                        } else if (rackUuid && startU && result.data?.config_uuid) {
-                            const placement = await api.racks.assignServer(rackUuid, result.data.config_uuid, startU, { locationUuid, uHeight });
-                            if (!placement?.success) {
-                                placementWarning = placement?.message || 'Could not place the server in the rack';
-                            }
-                        } else if (locationUuid && result.data?.config_uuid) {
-                            // No rack chosen, but a site was. A racked server takes
-                            // its location from the rack, so this branch is the only
-                            // one that needs to write it — and it is what links the
-                            // new server to a real location row rather than leaving
-                            // the free-text name as its only address.
-                            //
-                            // Non-fatal: the server exists and carries the location
-                            // TEXT regardless, so a failure here is not worth
-                            // interrupting the create flow for.
-                            try {
-                                await api.servers.updateLocation(result.data.config_uuid, locationUuid);
-                            } catch (locError) {
-                                console.warn('Could not set the server location:', locError);
-                            }
-                        }
-
-                        if (placementWarning) {
-                            utils.showAlert(`Server created, but not placed in the rack: ${placementWarning}`, 'warning');
-                        } else {
-                            utils.showAlert('Server created successfully!', 'success');
-                        }
+                        utils.showAlert(result.message || 'Server created successfully!', 'success');
                         this.closeModal();
                         await this.loadServerList(true);
                         await this.loadDashboard();
@@ -1476,7 +1464,7 @@ class Dashboard {
             rackSelect.innerHTML = '<option value="">Racks unavailable</option>';
             rackSelect.disabled = true;
             resetPositions('—');
-            showHint(res?.message || 'Could not load racks. The server can still be created and placed later.');
+            showHint(res?.message || 'Could not load racks, so a server cannot be created right now — a physical server has to be placed when it is created.');
             return;
         }
 
@@ -1485,11 +1473,13 @@ class Dashboard {
             rackSelect.innerHTML = '<option value="">No racks available</option>';
             rackSelect.disabled = true;
             resetPositions('—');
-            showHint('No racks exist yet — create one in Rack View before placing servers.');
+            showHint('No racks exist yet — create one in Rack View before creating a server.');
             return;
         }
 
-        rackSelect.innerHTML = '<option value="">-- Not racked --</option>' + racks.map(r => {
+        // No "-- Not racked --": a physical server must be placed, and offering a
+        // choice the backend refuses is a trap rather than an option.
+        rackSelect.innerHTML = '<option value="">-- Choose a rack --</option>' + racks.map(r => {
             const loc = r.location ? ` — ${utils.escapeHtml(r.location)}` : '';
             return `<option value="${utils.escapeHtml(r.rack_uuid)}">${utils.escapeHtml(r.name)}${loc} (${r.free_u}U free of ${r.total_u}U)</option>`;
         }).join('');
@@ -2589,7 +2579,10 @@ class Dashboard {
         const builderSerial = builderServer?.serial_number
             ? `<span class="ml-2 text-sm font-mono text-text-muted align-middle">${utils.escapeHtml(builderServer.serial_number)}</span>`
             : '';
-        document.getElementById('serverBuilderTitle').innerHTML = `<i class="fas fa-wrench"></i> ${serverName || 'Server Builder'}${builderSerial}`;
+        // serverName is stored text a user chose, so it is escaped the same way the
+        // serial beside it already was. It used to be interpolated raw.
+        const builderTitle = utils.escapeHtml(serverName || 'Server Builder');
+        document.getElementById('serverBuilderTitle').innerHTML = `<i class="fas fa-wrench"></i> ${builderTitle}${builderSerial}`;
         // document.getElementById('serverBuilderSubtitle').textContent = `PC Part Picker Style Interface`;
 
         // Store current config
