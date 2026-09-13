@@ -146,9 +146,11 @@
                     <select id="status"
                         class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                         required>
+                        <!-- No "In Use": a unit arriving in inventory is not
+                             installed in anything yet, and the backend refuses
+                             that value from a form. [H-03/F-10] -->
                         <option value="">Select Status</option>
                         <option value="1">Available</option>
-                        <option value="2">In Use</option>
                         <option value="0">Failed</option>
                     </select>
                 </div>

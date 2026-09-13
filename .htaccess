@@ -31,14 +31,16 @@ AddDefaultCharset UTF-8
 # ── Security headers ─────────────────────────────────────────
 <IfModule mod_headers.c>
     # CSP — allow only known, trusted sources
-    # Scripts: 'self' + cdn.jsdelivr.net (axios, bootstrap) + cdnjs (font-awesome)
+    # Scripts: 'self' ONLY. Axios is served from assets/vendor (L-01,
+    #          2026-09-13); cdnjs supplies font-awesome's stylesheet and
+    #          fonts, never a script, so it has no business in script-src.
     # Styles:  'self' + 'unsafe-inline' (Tailwind utility classes) + cdnjs + Google Fonts
     # Fonts:   'self' + Google Fonts static + cdnjs
     # Connect: 'self' + production API
     # No objects, no embeds, no frames
     Header always set Content-Security-Policy "\
 default-src 'self'; \
-script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; \
+script-src 'self' 'unsafe-inline'; \
 style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; \
 font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; \
 img-src 'self' data:; \

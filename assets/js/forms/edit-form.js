@@ -163,8 +163,25 @@ class EditFormComponent {
             <div class="form-section">
                 <h4 class="form-section-title">Inventory Details</h4>
                 <div class="form-grid two-column">
-                    ${this.renderSelectField('Status', 'Status', this.componentData.Status, [{ value: 1, text: 'Available' }, { value: 2, text: 'In Use' }, { value: 0, text: 'Failed' }])}
-                    ${this.renderTextField('ServerUUID', 'Server UUID', this.componentData.ServerUUID)}
+                    <!-- "In Use" is not on this list any more. A unit becomes
+                         in-use by being installed in a configuration, and the
+                         backend now refuses the value here [H-03/F-10] — an
+                         option that always errors is a trap, not a choice. A
+                         unit that IS installed shows its status below and can
+                         only be freed by removing it from its server. -->
+                    ${this.componentData.ServerUUID
+                        ? `<div class="form-group">
+                        <label class="form-label">Status</label>
+                        <input type="text" class="form-input" readonly value="In Use">
+                        <small class="form-hint">Installed in a server — remove it from that configuration to change this.</small>
+                    </div>`
+                        : this.renderSelectField('Status', 'Status', this.componentData.Status, [{ value: 1, text: 'Available' }, { value: 0, text: 'Failed' }])}
+                    <div class="form-group">
+                        <label for="ServerUUID" class="form-label">Server UUID</label>
+                        <input type="text" id="ServerUUID" name="ServerUUID" class="form-input" readonly
+                               value="${this.escapeHtml(this.componentData.ServerUUID || '')}">
+                        <small class="form-hint">Which configuration claims this unit. Set by installing or removing it, never typed.</small>
+                    </div>
                     <div class="form-group">
                         <label for="VendorID" class="form-label">Vendor</label>
                         <select id="VendorID" name="VendorID" class="form-select">
