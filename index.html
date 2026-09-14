@@ -147,6 +147,27 @@
             display: flex;
         }
 
+        /* Microsoft sign-in button.
+           Styled here rather than with hover: utilities because the compiled
+           tailwind.css carries no hover variants — see IMS-Frontend/CLAUDE.md.
+           Stays display:none until auth-microsoft_status says the feature is on. */
+        .ms-signin-btn {
+            background: #FFFFFF;
+            border: 1px solid #DFE3E6;
+            border-radius: 6px;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .ms-signin-btn:hover {
+            border-color: #B9C0C6;
+            background: #F6F7F8;
+        }
+
+        .ms-signin-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
         /* Blueprint grid texture for the brand panel (static) */
         .brand-grid {
             background-image:
@@ -284,6 +305,29 @@
                             <div class="btn-loader"></div>
                         </button>
                     </form>
+
+                    <!-- Microsoft (Entra ID) sign-in.
+                         Hidden until auth-microsoft_status reports the feature
+                         configured, so an unconfigured deployment shows exactly
+                         the page it showed before this existed. -->
+                    <div id="microsoftSignIn" class="hidden mt-6">
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="h-px flex-1 bg-border-light"></div>
+                            <span class="text-[11px] text-text-muted uppercase tracking-[0.12em]">or</span>
+                            <div class="h-px flex-1 bg-border-light"></div>
+                        </div>
+
+                        <button type="button" id="microsoftLoginBtn"
+                            class="ms-signin-btn w-full flex items-center justify-center gap-3 py-3 text-sm font-semibold text-text-primary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                                <rect x="0" y="0" width="7" height="7" fill="#F25022" />
+                                <rect x="9" y="0" width="7" height="7" fill="#7FBA00" />
+                                <rect x="0" y="9" width="7" height="7" fill="#00A4EF" />
+                                <rect x="9" y="9" width="7" height="7" fill="#FFB900" />
+                            </svg>
+                            <span id="microsoftLoginBtnText">Sign in with Microsoft</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Security Badge -->

@@ -49,6 +49,7 @@ function initializeApp() {
     setupFormValidation();
     setupFormSubmissions();
     setupForgotPassword();
+    setupMicrosoftSignIn();
     checkExistingToken();
     checkLockoutStatus(); // Check if user is currently locked out
 }
@@ -430,6 +431,96 @@ async function loginUser(username, password, rememberMe = false) {
     }
 
     return await response.json();
+}
+
+// ---------------------------------------------------------------------------
+// Microsoft (Entra ID) sign-in
+//
+// The button is hidden in the markup and only revealed if the backend says the
+// feature is configured, so an unconfigured deployment — or one whose backend
+// files have not finished uploading — shows exactly the page it showed before
+// this existed. Every failure path here leaves the password form usable.
+// ---------------------------------------------------------------------------
+
+async function setupMicrosoftSignIn() {
+    const container = document.getElementById('microsoftSignIn');
+    const button = document.getElementById('microsoftLoginBtn');
+
+    if (!container || !button) {
+        return;
+    }
+
+    button.addEventListener('click', startMicrosoftSignIn);
+
+    try {
+        const formData = new URLSearchParams();
+        formData.append('action', 'auth-microsoft_status');
+
+        const response = await fetch(API_CONFIG.baseURL, {
+            method: 'POST',
+            headers: API_CONFIG.headers,
+            body: formData
+        });
+
+        if (!response.ok) {
+            return; // stays hidden
+        }
+
+        const body = await response.json();
+        if (body && body.data && body.data.enabled === true) {
+            container.classList.remove('hidden');
+        }
+    } catch (_) {
+        // Network trouble on a probe must never block the password form.
+    }
+}
+
+async function startMicrosoftSignIn() {
+    const button = document.getElementById('microsoftLoginBtn');
+    const label = document.getElementById('microsoftLoginBtnText');
+    const originalLabel = label ? label.textContent : '';
+
+    if (button) button.disabled = true;
+    if (label) label.textContent = 'Redirecting to Microsoft…';
+
+    try {
+        // Remember-me is chosen here but applied by the callback page, so it
+        // has to survive the round trip through Microsoft. sessionStorage, not
+        // localStorage: the preference belongs to this sign-in attempt.
+        const rememberMe = document.getElementById('rememberMe')?.checked || false;
+        sessionStorage.setItem('bdc_ms_remember_me', rememberMe ? 'true' : 'false');
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'auth-microsoft_start');
+
+        const response = await fetch(API_CONFIG.baseURL, {
+            method: 'POST',
+            headers: API_CONFIG.headers,
+            body: formData
+        });
+
+        if (response.status === 429) {
+            throw new Error('Too many sign-in attempts. Please wait and try again.');
+        }
+        if (!response.ok) {
+            throw await parseAPIError(response);
+        }
+
+        const body = await response.json();
+        const authorizationUrl = body && body.data ? body.data.authorization_url : null;
+
+        if (!authorizationUrl) {
+            throw new Error(body.message || 'Could not start Microsoft sign-in.');
+        }
+
+        window.location.href = authorizationUrl;
+        return; // leave the button disabled while the browser navigates away
+
+    } catch (error) {
+        showAlert('error', error.message || 'Could not start Microsoft sign-in.', 'fas fa-times-circle');
+        if (button) button.disabled = false;
+        if (label) label.textContent = originalLabel;
+    }
 }
 
 async function forgotPasswordUser(email) {

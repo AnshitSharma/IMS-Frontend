@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <title>BDC IMS - Signing in</title>
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .callback-spinner {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #DFE3E6;
+            border-top-color: #0F766E;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .back-link {
+            border: 1px solid #DFE3E6;
+            border-radius: 6px;
+            transition: border-color 0.15s ease, background-color 0.15s ease;
+        }
+
+        .back-link:hover {
+            border-color: #B9C0C6;
+            background: #F6F7F8;
+        }
+    </style>
+</head>
+
+<body class="bg-surface-main text-text-primary">
+
+    <div class="flex items-center justify-center min-h-screen p-6">
+        <div class="w-full max-w-[400px]">
+
+            <div class="flex items-center gap-3 mb-10">
+                <div class="w-10 h-10 rounded bg-primary flex items-center justify-center">
+                    <i class="fas fa-server text-white text-base"></i>
+                </div>
+                <div>
+                    <span class="text-base font-semibold text-text-primary tracking-tight block leading-none">BDC IMS</span>
+                    <span class="text-[10px] text-text-muted uppercase tracking-[0.18em] block mt-1">Infrastructure Management</span>
+                </div>
+            </div>
+
+            <h1 id="callbackStatus" class="text-2xl font-semibold text-text-primary mb-2 tracking-tight">
+                Completing sign-in
+            </h1>
+            <p id="callbackMessage" class="text-text-muted text-sm">
+                Verifying your Microsoft account…
+            </p>
+
+            <div id="callbackSpinner" class="mt-6">
+                <div class="callback-spinner"></div>
+            </div>
+
+            <div id="callbackActions" class="hidden mt-6">
+                <a href="index.html"
+                    class="back-link inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-text-primary">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    Back to sign in
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/auth-callback.js"></script>
+</body>
+
+</html>
