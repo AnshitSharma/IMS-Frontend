@@ -10,7 +10,6 @@ class GlobalLoadingManager {
         this.isManualLoading = false;
         this.overlay = null;
         this.messageElement = null;
-        this.spinnerElement = null;
         this.currentMessage = 'Loading...';
         this.init();
     }
@@ -32,7 +31,6 @@ class GlobalLoadingManager {
         if (document.getElementById('globalLoadingOverlay')) {
             this.overlay = document.getElementById('globalLoadingOverlay');
             this.messageElement = this.overlay.querySelector('.loading-message');
-            this.spinnerElement = this.overlay.querySelector('.loading-spinner');
             return;
         }
 
@@ -73,7 +71,6 @@ class GlobalLoadingManager {
 
         this.overlay = overlay;
         this.messageElement = overlay.querySelector('.loading-message');
-        this.spinnerElement = overlay.querySelector('.loading-spinner');
     }
 
     show(message = 'Loading...') {

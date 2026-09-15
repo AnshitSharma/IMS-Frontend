@@ -215,13 +215,6 @@
     @apply opacity-75 pointer-events-none;
   }
 
-  /* Loading Spinner (referenced by global-loading.js and page overlays) */
-  .loading-spinner {
-    @apply inline-block w-8 h-8 rounded-full border-2 border-border align-middle;
-    border-top-color: var(--color-primary);
-    animation: spin 0.7s linear infinite;
-  }
-
   /* Form Sections */
   .form-section {
     @apply bg-surface-card border border-border-light rounded-lg p-6 shadow-card;

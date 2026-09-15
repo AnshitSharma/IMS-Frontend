@@ -69,6 +69,14 @@ class SidebarManager {
 
             placeholder.innerHTML = html;
 
+            // sidebar.html writes every link as a bare filename ("servers.html"),
+            // which only resolves from pages/dashboard/. On any other page --
+            // pages/server/builder.html, pages/server/configuration.html -- each
+            // one resolved against the CURRENT directory and 404'd. Rewrite them
+            // against the dashboard directory once, here, so the shared markup
+            // stays location-agnostic.
+            this.rewriteSidebarLinks(placeholder);
+
             // Show vendor menu item only for admin/superadmin (UI-only gate; API enforces server-side)
             if (window.api && window.api.utils && window.api.utils.hasRole(['admin', 'super_admin'])) {
                 const vendorMenuItem = document.getElementById('vendorMenuItem');
@@ -128,6 +136,37 @@ class SidebarManager {
         } catch (error) {
             console.error('[SidebarManager] Error loading sidebar:', error);
         }
+    }
+
+    /**
+     * How far the current page is from pages/dashboard/, where every sidebar
+     * link points. '' when we are already there.
+     */
+    sidebarLinkPrefix() {
+        const path = window.location.pathname;
+        if (path.includes('/pages/dashboard/')) return '';
+        // pages/<something-else>/page.html
+        if (/\/pages\/[^/]+\//.test(path)) return '../dashboard/';
+        // pages/page.html
+        if (path.includes('/pages/')) return 'dashboard/';
+        // site root
+        return 'pages/dashboard/';
+    }
+
+    /**
+     * Point the injected sidebar's relative links at pages/dashboard/. Absolute
+     * URLs, root-relative paths, anchors and links that already carry a path
+     * prefix are left exactly as written.
+     */
+    rewriteSidebarLinks(root) {
+        const prefix = this.sidebarLinkPrefix();
+        if (!prefix) return;
+
+        root.querySelectorAll('a[href]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (!href || /^([a-z][a-z0-9+.-]*:|\/|#|\.)/i.test(href)) return;
+            link.setAttribute('href', prefix + href);
+        });
     }
 
     /**

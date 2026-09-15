@@ -80,40 +80,18 @@ window.utils = {
         }
     },
 
-    // Show/Hide loading overlay (Unified Loading System - delegates to global loading manager)
+    // Show/Hide loading. The global loading manager (components/global-loading.js)
+    // is the only loading UI in the app; the per-page #loadingOverlay it replaced
+    // is gone, along with the fallback that used to drive it.
     showLoading(show = true, message = 'Loading...') {
-        // Use global loading manager if available
         if (window.globalLoading) {
             window.globalLoading.showLoading(show, message);
-        } else {
-            // Fallback for backward compatibility
-            const overlay = document.getElementById('loadingOverlay');
-            if (overlay) {
-                if (show) {
-                    const textEl = overlay.querySelector('p');
-                    if (textEl) textEl.textContent = message;
-                    overlay.classList.remove('hidden');
-                } else {
-                    overlay.classList.add('hidden');
-                }
-            } else {
-            }
         }
     },
 
     // Check if loading is currently visible
     isLoading() {
-        // Use global loading manager if available
-        if (window.globalLoading) {
-            return window.globalLoading.isLoading();
-        }
-        
-        const overlay = document.getElementById('loadingOverlay');
-        if (overlay) {
-            return !overlay.classList.contains('hidden');
-        }
-        
-        return false;
+        return window.globalLoading ? window.globalLoading.isLoading() : false;
     },
 
     // Format date strings

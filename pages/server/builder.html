@@ -24,27 +24,25 @@
         <main class="main-content flex-1 p-4 sm:p-6">
             <div class="content-section active">
                 <div class="content-header flex flex-wrap items-center justify-between gap-3 mb-6">
-                    <h2 class="text-2xl font-bold text-text-primary flex items-center gap-2">
+                    <!-- id matches the embedded builder's heading in pages/dashboard/servers.html
+                         so ServerBuilder fills in the server name and serial on both pages. -->
+                    <h2 id="serverBuilderTitle" class="text-2xl font-bold text-text-primary flex items-center gap-2">
                         <i class="fas fa-tools text-primary"></i> Server Builder
                     </h2>
                     <div class="header-actions">
                         <button
                             class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                            onclick="window.location.href='index.html'">
+                            onclick="window.location.href='../dashboard/servers.html'">
                             <i class="fas fa-arrow-left"></i> Back to List
                         </button>
                     </div>
                 </div>
 
-                <!-- App Container -->
-                <div id="app">
-                    <div class="text-center py-16">
-                        <div class="loading-spinner inline-block">
-                            <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
-                            <p class="text-text-muted">Loading server configuration...</p>
-                        </div>
-                    </div>
-                </div>
+                <!-- App Container. Deliberately empty: ServerBuilder shows the global
+                     loading overlay while it fetches, then renders in here. A static
+                     spinner of its own put a second animation on screen behind the
+                     overlay's blur. -->
+                <div id="app"></div>
             </div>
         </main>
     </div>

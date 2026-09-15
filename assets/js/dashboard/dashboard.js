@@ -641,15 +641,39 @@ class Dashboard {
             // Only fetch from API if we don't have cached data or forcing refresh
             if (!this.allServers || forceRefresh) {
                 utils.showLoading(true, `Loading servers...`);
-                const params = {};  // No search/filter params - get all servers
-                const result = await api.servers.listConfigs(params);
+                // The card grid has no pagination UI, and every search, status
+                // filter and by-serial lookup below runs over this.allServers --
+                // so the cache has to hold the whole list. server-list-configs
+                // defaults to a 20-row page and caps one at 200, which is why only
+                // 20 cards used to appear; walk the pages until has_more is false.
+                const pageSize = 200;
+                const collected = [];
+                let offset = 0;
 
-                if (result.success && result.data && result.data.configurations) {
-                    this.allServers = result.data.configurations;
-                } else {
-                    console.error('Invalid server list response:', result);
-                    this.allServers = [];
+                while (true) {
+                    const result = await api.servers.listConfigs({
+                        limit: String(pageSize),
+                        offset: String(offset)
+                    });
+
+                    if (!result.success || !result.data || !Array.isArray(result.data.configurations)) {
+                        console.error('Invalid server list response:', result);
+                        break;
+                    }
+
+                    const page = result.data.configurations;
+                    collected.push(...page);
+
+                    const pagination = result.data.pagination || {};
+                    const hasMore = pagination.has_more === true || pagination.has_more === 1;
+                    if (!hasMore || page.length === 0) break;
+
+                    offset += pageSize;
+                    // Guard against a backend that reports has_more forever.
+                    if (offset >= 10000) break;
                 }
+
+                this.allServers = collected;
             }
 
             // Apply frontend filtering
@@ -4112,7 +4136,8 @@ class Dashboard {
                 return;
             }
 
-            // Update header
+            // Placeholder heading only — ServerBuilder replaces it with the server's
+            // name and serial once the configuration is loaded (applyBuilderTitle).
             document.getElementById('serverBuilderTitle').innerHTML = '<i class="fas fa-wrench"></i> Server Builder';
             // document.getElementById('serverBuilderSubtitle').textContent = 'PC Part Picker Style Interface';
 
@@ -4124,6 +4149,9 @@ class Dashboard {
                 }
 
                 if (window.serverBuilder.currentConfig && window.serverBuilder.currentConfig.config_uuid === configUuid) {
+                    // Already built — nothing to reload, but the heading was just
+                    // reset above, so put the name and serial back.
+                    window.serverBuilder.applyBuilderTitle();
                     return;
                 }
 

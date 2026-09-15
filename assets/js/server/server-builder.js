@@ -111,8 +111,48 @@ class ServerBuilder {
             await this.loadExistingConfig(configUuid);
         } else {
             if (window.location.pathname.includes('builder')) {
-                window.location.href = 'index.html';
+                // The servers list lives in pages/dashboard/; 'index.html' resolved
+                // against pages/server/ and 404'd.
+                window.location.href = '../dashboard/servers.html';
             }
+        }
+    }
+
+    /**
+     * Put the loaded server's name and serial in the page heading.
+     *
+     * Both builders share the #serverBuilderTitle id. The embedded one in
+     * servers.html used to get its name from dashboard.js's already-loaded
+     * server list, which meant the standalone page -- the one Rack View's
+     * "Open in builder" opens -- and any direct ?config= link showed nothing
+     * but "Server Builder". The loaded configuration carries server_name and
+     * serial_number itself, so read them from there and both routes agree.
+     */
+    applyBuilderTitle() {
+        const heading = document.getElementById('serverBuilderTitle');
+        if (!heading || !this.currentConfig) return;
+
+        const name = this.currentConfig.server_name || this.currentConfig.ServerName || 'Unnamed Server';
+        const serial = this.currentConfig.serial_number || '';
+
+        // Keep whichever icon the page already had, then rebuild the text beside it.
+        const icon = heading.querySelector('i');
+        // builder.html's heading is a flex row with its own gap; servers.html's is
+        // not, so only the latter needs margins to keep the parts apart.
+        const gap = heading.classList.contains('flex') ? '' : ' ml-2';
+        heading.textContent = '';
+        if (icon) heading.appendChild(icon);
+
+        const nameEl = document.createElement('span');
+        nameEl.className = gap.trim();
+        nameEl.textContent = name;
+        heading.appendChild(nameEl);
+
+        if (serial) {
+            const serialEl = document.createElement('span');
+            serialEl.className = `text-sm font-mono text-text-muted align-middle${gap}`;
+            serialEl.textContent = serial;
+            heading.appendChild(serialEl);
         }
     }
 
@@ -2005,6 +2045,7 @@ class ServerBuilder {
 
         const serverName = this.currentConfig.server_name || this.currentConfig.ServerName || 'Unnamed Server';
         document.title = `${serverName} - Server Builder`;
+        this.applyBuilderTitle();
 
 
         const hasIssues = this.compatibilityIssues.length > 0;
@@ -2756,10 +2797,17 @@ class ServerBuilder {
             // Fetch chassis JSON (cached)
             const chassisData = await ServerBuilder.fetchJSON('/ims-data/chassis/chasis-level-3.json');
 
+            // The file nests everything under chassis_specifications; reading
+            // .manufacturers off the root threw on every builder load, so the
+            // Server Usage tree always fell back to serial-only chassis specs.
+            const manufacturers = chassisData?.chassis_specifications?.manufacturers
+                || chassisData?.manufacturers
+                || [];
+
             // Search for the chassis by UUID
-            for (const manufacturer of chassisData.manufacturers) {
-                for (const series of manufacturer.series) {
-                    for (const model of series.models) {
+            for (const manufacturer of manufacturers) {
+                for (const series of manufacturer.series || []) {
+                    for (const model of series.models || []) {
                         if (model.uuid === uuid) {
                             return model;
                         }
