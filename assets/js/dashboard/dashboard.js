@@ -307,6 +307,12 @@ class Dashboard {
         try {
             this.loadingStates.dashboard = true;
             utils.showLoading(true, 'Loading dashboard...');
+            // JSON-009: pull the type vocabulary from the backend once, so the two lists
+            // below stop being hand-maintained copies. Failure is non-fatal -- each list
+            // falls back to its literal -- because a dashboard that cannot render counts is
+            // a worse outcome than one rendering a stale vocabulary.
+            await this.loadTypeVocabulary();
+
             const result = await api.dashboard.getData();
             if (result.success && result.data.component_counts) {
                 this.updateDashboardStats(result.data.component_counts);
@@ -322,8 +328,29 @@ class Dashboard {
         }
     }
 
+    /**
+     * Fetch the canonical component-type list. Sets this.componentTypes on success and
+     * leaves it null otherwise; every reader treats null as "use the built-in list".
+     */
+    async loadTypeVocabulary() {
+        if (this.componentTypes) {
+            return;
+        }
+        try {
+            const manifest = await api.dashboard.typeManifest();
+            const types = manifest && manifest.data && manifest.data.types;
+            if (Array.isArray(types) && types.length) {
+                this.componentTypes = types.map(t => t.type);
+            }
+        } catch (error) {
+            // Older backend, or the endpoint is unreachable. Not worth an alert.
+            console.debug('Type manifest unavailable, using built-in list:', error);
+        }
+    }
+
     updateDashboardStats(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform'];
+        const components = this.componentTypes
+            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform'];
         components.forEach(component => {
             if (stats[component]) {
                 const stat = stats[component];
@@ -381,7 +408,16 @@ class Dashboard {
     }
 
     updateSidebarCounts(stats) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'serverplatform', 'servers'];
+        // JSON-009: 'sfp' was missing from this list while updateDashboardStats() above had
+        // it, so the sidebar silently showed no count for SFPs -- 46 stocked units -- and the
+        // main dashboard tile showed them. Two copies of the same vocabulary, one of them
+        // stale. 'servers' is not a component type; it is the extra bucket the dashboard
+        // response adds alongside the twelve.
+        // 'servers' is not a component type; it is the extra bucket the dashboard response
+        // adds alongside the twelve, so it is appended to whichever list is in use.
+        const components = (this.componentTypes
+            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform']
+        ).concat(['servers']);
         components.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);
             if (countElement && stats[component]) {

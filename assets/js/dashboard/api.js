@@ -400,6 +400,58 @@ window.api = {
 
         async getLogs(params = {}) {
             return await api.request('dashboard-get-logs', params);
+        },
+
+        /**
+         * The component-type vocabulary, from the backend's canonical constant. (JSON-009)
+         *
+         * Read this instead of retyping the twelve types. There were seventeen hand-written
+         * copies of that list across the two repos and two of them had drifted: the sidebar
+         * was missing 'sfp' and the Requests validator was missing 'serverplatform'.
+         *
+         * Cached for the page's lifetime -- the vocabulary changes when a component type is
+         * added, which is a deploy, not a user action.
+         */
+        async typeManifest() {
+            if (!api._typeManifestPromise) {
+                // Drop the cached promise if it rejects, so a transient failure does not
+                // pin every later caller to the same rejection for the life of the page.
+                api._typeManifestPromise = api.request('dashboard-type-manifest')
+                    .catch(error => {
+                        api._typeManifestPromise = null;
+                        throw error;
+                    });
+            }
+            return await api._typeManifestPromise;
+        }
+    },
+
+    // Model catalogue endpoints (JSON-010)
+    //
+    // These exist so the browser stops downloading whole spec files to populate a picker.
+    // add-form.js still walks the JSON directly (a 12-entry path map and five type-specific
+    // traversals); moving it onto these calls is a UI change that needs a click-through of
+    // the add flow, so it is deliberately NOT done in the same step as landing the endpoints.
+    models: {
+        /**
+         * Type-ahead over the catalogue. Returns ~20 ranked matches with unit counts,
+         * instead of the caller fetching and parsing 536 KB of spec JSON.
+         *
+         * @param {string} query  model name, brand, or part number
+         * @param {{type?: string, limit?: number}} options
+         */
+        async search(query, options = {}) {
+            const params = { q: query };
+            if (options.type) params.type = options.type;
+            if (options.limit) params.limit = options.limit;
+            return await api.request('search-models', params);
+        },
+
+        /** One model by spec uuid, including the full spec body. */
+        async get(specUuid, componentType = null) {
+            const params = { uuid: specUuid };
+            if (componentType) params.type = componentType;
+            return await api.request('search-model', params);
         }
     },
 
