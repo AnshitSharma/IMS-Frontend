@@ -1,4 +1,14 @@
 # The working copy of this repo IS what the SFTP watcher uploads to production.
 # Never let git rewrite line endings on checkout -- it would change the bytes
 # served to browsers without any edit being made.
+#
+# `-text` alone was not enough: core.autocrlf was still `true`, so navbar.html and
+# sidebar-manager.js had been checked out converted to CRLF while their blobs
+# stayed LF, and git's stat cache reported the repo clean the whole time. autocrlf
+# is now `false` locally in all three repos and the index was renormalized to the
+# working bytes on 2026-09-16. Do not set autocrlf back to true here.
+#
+# Everything else in this repo is LF. `git status` being clean does not by itself
+# prove the index matches the bytes on disk; `git hash-object <file>` against
+# `git ls-files -s <file>` does.
 * -text
