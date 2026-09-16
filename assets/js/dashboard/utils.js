@@ -428,6 +428,47 @@ window.utils = {
         init() {
             const theme = this.get();
             document.documentElement.setAttribute('data-theme', theme);
+        },
+
+        // Point the toggle icon at the CURRENT theme: sun while dark (click for light),
+        // moon while light. A page without the icon is fine -- nothing to update.
+        updateIcon(theme) {
+            const icon = document.getElementById('themeToggleIcon');
+            if (!icon) return;
+            icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        },
+
+        /**
+         * Apply the stored theme and wire the toggle button.
+         *
+         * This used to be a 60-odd-line IIFE pasted at the bottom of seventeen pages, in
+         * three textual variants that all behaved identically. It is called automatically
+         * on DOMContentLoaded below, so a page needs no theme script of its own -- just
+         * the #themeToggleBtn / #themeToggleIcon markup.
+         *
+         * Idempotent, and deliberately so: navbar.js injects its markup by fetch, i.e.
+         * AFTER this has already run and found no button, so it calls this again once the
+         * button exists. The flag is what stops a page that somehow mounts twice from
+         * registering two click listeners and toggling the theme straight back.
+         */
+        mountToggle() {
+            this.init();
+            const btn = document.getElementById('themeToggleBtn');
+            if (!btn || btn.dataset.themeToggleBound === '1') return;
+            btn.dataset.themeToggleBound = '1';
+            this.updateIcon(this.get());
+
+            btn.addEventListener('click', () => {
+                btn.classList.add('toggling');
+                setTimeout(() => btn.classList.remove('toggling'), 300);
+
+                const newTheme = this.toggle();
+                this.updateIcon(newTheme);
+
+                if (typeof toast !== 'undefined') {
+                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
+                }
+            });
         }
     },
 
@@ -564,9 +605,10 @@ window.utils = {
     }
 };
 
-// Initialize theme on page load
+// Initialize theme and wire its toggle on page load. mountToggle() calls init() itself,
+// so the theme is applied whether or not the page has a toggle button.
 document.addEventListener('DOMContentLoaded', () => {
-    utils.theme.init();
+    utils.theme.mountToggle();
 });
 
 // Global error handler for unhandled promise rejections

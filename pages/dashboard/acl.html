@@ -569,68 +569,7 @@
         // Password show/hide is handled by the delegated [data-toggle-password]
         // listener in acl-manager.js. A second handler here double-toggled it.
 
-        // Theme Toggle Handler for Dashboard
-        (function () {
-            // Initialize theme on page load
-            function initTheme() {
-                if (typeof utils !== 'undefined' && utils.theme) {
-                    utils.theme.init();
-                    updateThemeIcon(utils.theme.get());
-                }
-            }
 
-            // Update theme toggle icon
-            function updateThemeIcon(theme) {
-                const icon = document.getElementById('themeToggleIcon');
-                if (!icon) return;
-
-                if (theme === 'dark') {
-                    icon.className = 'fas fa-sun';
-                } else {
-                    icon.className = 'fas fa-moon';
-                }
-            }
-
-            // Handle theme toggle
-            function handleThemeToggle() {
-                if (typeof utils === 'undefined' || !utils.theme) {
-                    console.warn('Theme utilities not loaded');
-                    return;
-                }
-
-                // Add animation
-                const toggleBtn = document.getElementById('themeToggleBtn');
-                if (toggleBtn) {
-                    toggleBtn.classList.add('toggling');
-                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
-                }
-
-                // Toggle theme
-                const newTheme = utils.theme.toggle();
-
-                // Update icon
-                updateThemeIcon(newTheme);
-
-                // Show toast
-                if (typeof toast !== 'undefined') {
-                    const message = newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled';
-                    toast.success(message, 2000);
-                }
-            }
-
-            // Initialize theme when DOM is ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initTheme);
-            } else {
-                initTheme();
-            }
-
-            // Add click event listener to theme toggle button
-            const themeToggleBtn = document.getElementById('themeToggleBtn');
-            if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', handleThemeToggle);
-            }
-        })();
     </script>
 </body>
 

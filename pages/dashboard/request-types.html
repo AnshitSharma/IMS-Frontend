@@ -175,36 +175,6 @@
             }
         });
     </script>
-    <script>
-        (function () {
-            function updateThemeIcon(theme) {
-                const icon = document.getElementById('themeToggleIcon');
-                if (!icon) return;
-                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            }
-            function initTheme() {
-                if (typeof utils !== 'undefined' && utils.theme) {
-                    utils.theme.init();
-                    updateThemeIcon(utils.theme.get());
-                }
-            }
-            function handleThemeToggle() {
-                if (typeof utils === 'undefined' || !utils.theme) return;
-                const newTheme = utils.theme.toggle();
-                updateThemeIcon(newTheme);
-                if (typeof toast !== 'undefined') {
-                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initTheme);
-            } else {
-                initTheme();
-            }
-            const btn = document.getElementById('themeToggleBtn');
-            if (btn) btn.addEventListener('click', handleThemeToggle);
-        })();
-    </script>
 </body>
 
 </html>

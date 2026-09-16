@@ -418,42 +418,6 @@
     <!-- Sidebar Component and Manager (must load before dashboard) -->
     <script src="../../components/sidebar-manager.js"></script>
     <script src="../../assets/js/dashboard/dashboard.js"></script>
-    <script>
-        // Theme Toggle Handler
-        (function () {
-            function initTheme() {
-                if (typeof utils !== 'undefined' && utils.theme) {
-                    utils.theme.init();
-                    updateThemeIcon(utils.theme.get());
-                }
-            }
-            function updateThemeIcon(theme) {
-                const icon = document.getElementById('themeToggleIcon');
-                if (!icon) return;
-                icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-            }
-            function handleThemeToggle() {
-                if (typeof utils === 'undefined' || !utils.theme) return;
-                const toggleBtn = document.getElementById('themeToggleBtn');
-                if (toggleBtn) {
-                    toggleBtn.classList.add('toggling');
-                    setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
-                }
-                const newTheme = utils.theme.toggle();
-                updateThemeIcon(newTheme);
-                if (typeof toast !== 'undefined') {
-                    toast.success(newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled', 2000);
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initTheme);
-            } else {
-                initTheme();
-            }
-            const themeToggleBtn = document.getElementById('themeToggleBtn');
-            if (themeToggleBtn) themeToggleBtn.addEventListener('click', handleThemeToggle);
-        })();
-    </script>
 </body>
 
 </html>
