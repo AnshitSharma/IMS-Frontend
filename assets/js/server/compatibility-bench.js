@@ -126,7 +126,8 @@ class CompatibilityBench {
     }
 
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        const token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         if (!token) {
             window.location.href = this.loginURL;
             return false;

@@ -21,17 +21,24 @@ class BuildState {
      * The 11 component types. Single source of truth for how a type is named,
      * described and iconed — previously duplicated inside ServerBuilder.
      * Order here is the order rows render in.
+     *
+     * `required` here is only the FALLBACK. The authority is
+     * SystemRequiredSetRule::REQUIRED_TYPES on the backend, served per build in
+     * `component_options[type].required` and applied by visibleTypes(). These
+     * two lists had already drifted once — storage and nic were false here while
+     * the rule demanded both, so the builder reported a complete, compatible
+     * build that server-finalize-config then refused.
      */
     static COMPONENT_CATALOG = [
         { type: 'cpu', name: 'CPU', description: 'Processor', icon: 'fas fa-microchip', multiple: true, required: true },
         { type: 'motherboard', name: 'Motherboard', description: 'System Board', icon: 'fas fa-th-large', multiple: false, required: true },
         { type: 'ram', name: 'Memory', description: 'RAM Modules', icon: 'fas fa-memory', multiple: true, required: true },
-        { type: 'storage', name: 'Storage', description: 'Hard Drives, SSDs', icon: 'fas fa-hdd', multiple: true, required: false },
+        { type: 'storage', name: 'Storage', description: 'Hard Drives, SSDs', icon: 'fas fa-hdd', multiple: true, required: true },
         { type: 'chassis', name: 'Chassis', description: 'Server Case', icon: 'fas fa-server', multiple: false, required: true },
         { type: 'caddy', name: 'Caddy', description: 'Drive Mounting', icon: 'fas fa-box', multiple: true, required: false },
         { type: 'risercard', name: 'Riser Cards', description: 'PCIe Riser Bridges', icon: 'fas fa-layer-group', multiple: true, required: false },
         { type: 'pciecard', name: 'PCI Cards', description: 'Expansion Cards', icon: 'fas fa-credit-card', multiple: true, required: false },
-        { type: 'nic', name: 'Network Cards', description: 'Network Interface', icon: 'fas fa-network-wired', multiple: true, required: false },
+        { type: 'nic', name: 'Network Cards', description: 'Network Interface', icon: 'fas fa-network-wired', multiple: true, required: true },
         { type: 'hbacard', name: 'HBA Cards', description: 'Host Bus Adapter', icon: 'fas fa-hdd', multiple: true, required: false },
         { type: 'sfp', name: 'SFP Modules', description: 'Fiber Transceivers', icon: 'fas fa-plug', multiple: true, required: false }
     ];
@@ -65,10 +72,23 @@ class BuildState {
         return this.options ? (this.options[type] || null) : null;
     }
 
-    /** Catalog entries this build can accept, in catalog order. */
+    /**
+     * Catalog entries this build can accept, in catalog order.
+     *
+     * `required` is overridden from the backend's option wherever the backend
+     * states one, because the rule that refuses a finalize
+     * (SystemRequiredSetRule) is the only thing entitled to define it. The
+     * catalog literal is the fallback for a backend that predates the field, and
+     * is kept in step with that rule by hand.
+     */
     visibleTypes() {
         if (!this.options) return BuildState.COMPONENT_CATALOG;
-        return BuildState.COMPONENT_CATALOG.filter(entry => {
+        return BuildState.COMPONENT_CATALOG.map(entry => {
+            const option = this.options[entry.type];
+            return (option && typeof option.required === 'boolean')
+                ? Object.assign({}, entry, { required: option.required })
+                : entry;
+        }).filter(entry => {
             // Installed hardware is never hidden, whatever the capacity verdict
             // says. A motherboard's onboard NIC occupies no PCIe slot, so the
             // slot gate reports no capacity for `nic` — but the NIC is right

@@ -81,7 +81,8 @@ class ServerBuilder {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        const token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
 
         if (!token) {
             sessionStorage.removeItem('bdc_token');
@@ -258,51 +259,6 @@ class ServerBuilder {
     /**
      * Parse existing components from configuration
      */
-    // async parseExistingComponents(config) {
-
-    //     // Reset components first
-    //     this.selectedComponents = {
-    //         cpu: [],
-    //         motherboard: [],
-    //         ram: [],
-    //         storage: [],
-    //         chassis: [],
-    //         caddy: [],
-    //         pciecard: [],
-    //         nic: [],
-    //         hbacard: []
-    //     };
-
-    //     // Parse components from the API structure
-    //     if (config.components) {
-    //         const components = config.components;
-
-    //         Object.keys(components).forEach(type => {
-    //             const typeComponents = components[type];
-
-    //             if (Array.isArray(typeComponents) && typeComponents.length > 0) {
-    //                 this.selectedComponents[type] = typeComponents.map(comp => ({
-    //                     uuid: comp.uuid,
-    //                     serial_number: comp.serial_number || 'Not Found',
-    //                     quantity: comp.quantity || 1,
-    //                     slot_position: comp.slot_position || '',
-    //                     added_at: comp.added_at || ''
-    //                 }));
-
-    //             }
-    //         });
-    //     }
-
-    //     // Load motherboard details from JSON if motherboard is selected
-    //     if (this.selectedComponents.motherboard.length > 0) {
-    //         await this.loadMotherboardDetails(this.selectedComponents.motherboard[0].uuid);
-    //     }
-
-    //     this.checkCompatibility();
-    // }
-    /**
-     * Parse existing components from configuration
-     */
     async parseExistingComponents(config) {
         // Reset components first
         this.selectedComponents = {
@@ -454,44 +410,6 @@ class ServerBuilder {
         </div>
         `).join('');
     }
-    /**
-     * Load motherboard details from JSON
-     */
-    // async loadMotherboardDetails(uuid) {
-    //     try {
-    //         // Fetch motherboard JSON
-    //         const response = await fetch('/ims-data/motherboard/motherboard-level-3.json');
-    //         if (!response.ok) {
-    //             console.error('Failed to fetch motherboard JSON');
-    //             return;
-    //         }
-
-    //         const motherboardData = await response.json();
-
-    //         // Search for the motherboard by UUID
-    //         for (const brand of motherboardData) {
-    //             if (brand.models) {
-    //                 for (const model of brand.models) {
-    //                     if (model.uuid === uuid) {
-    //                         this.motherboardDetails = {
-    //                             brand: brand.brand,
-    //                             series: brand.series,
-    //                             family: brand.family,
-    //                             chassisSocket: model.form_factor || 'ATX',
-    //                             ...model
-    //                         };
-    //                         console.log('Loaded motherboard details:', this.motherboardDetails);
-    //                         return;
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         console.warn('Motherboard UUID not found in JSON:', uuid);
-    //     } catch (error) {
-    //         console.error('Error loading motherboard details:', error);
-    //     }
-    // }
     /**
      * Adopt the board spec the backend resolved for this build.
      *
@@ -1405,22 +1323,8 @@ class ServerBuilder {
     async lookupComponentNameByUuid(type, uuid) {
         if (!uuid) return 'Unknown Component';
 
-        // Map component types to their JSON resource files
-        const jsonMaps = {
-            'cpu': '/ims-data/cpu/Cpu-details-level-3.json',
-            'motherboard': '/ims-data/motherboard/motherboard-level-3.json',
-            'chassis': '/ims-data/chassis/chasis-level-3.json',
-            'ram': '/ims-data/ram/ram_detail.json',
-            'storage': '/ims-data/storage/storage-level-3.json',
-            'nic': '/ims-data/nic/nic-level-3.json',
-            'pciecard': '/ims-data/pciecard/pci-level-3.json',
-            'risercard': '/ims-data/risercard/riser-level-3.json',
-            'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
-            'sfp': '/ims-data/sfp/sfp-level-3.json',
-            'caddy': '/ims-data/caddy/caddy_details.json'
-        };
-
-        const jsonPath = jsonMaps[type.toLowerCase()];
+        // One map, served by dashboard-type-manifest from ComponentSpecPaths.php.
+        const jsonPath = await utils.specPathFor(type);
         if (!jsonPath) return 'Unknown Component';
 
         try {
@@ -1844,7 +1748,7 @@ class ServerBuilder {
             }
 
             // Component NIC - search in the NIC JSON spec file (cached)
-            const nicData = await ServerBuilder.fetchJSON('/ims-data/nic/nic-level-3.json');
+            const nicData = await ServerBuilder.fetchJSON(await utils.specPathFor('nic'));
 
             for (const brandObj of nicData) {
                 for (const series of brandObj.series) {
@@ -2441,29 +2345,12 @@ class ServerBuilder {
     /**
      * Finish configuration and save the server
      */
-    // finishConfiguration() {
-    //     // Check if all required components are selected
-    //     const missingRequired = this.componentTypes.filter(type => 
-    //         type.required && this.selectedComponents[type.type].length === 0
-    //     );
-
-    //     if (missingRequired.length > 0) {
-    //         const missingNames = missingRequired.map(type => type.name).join(', ');
-    //         this.showAlert(`Please add the following required components: ${missingNames}`, 'warning');
-    //         return;
-    //     }
-
-    //     // Show confirmation dialog
-    //     if (confirm('Are you sure you want to finish the configuration? This will save your server configuration.')) {
-    //         this.saveConfiguration();
-    //     }
-    // }
-    /**
-     * Finish configuration and save the server
-     */
     finishConfiguration() {
         // Check if all required components are selected
-        const missingRequired = this.componentTypes.filter(type =>
+        // visibleTypes(), not the static catalog: it carries the backend's own
+        // `required` verdict, which is what server-finalize-config will judge
+        // this build by. checkCompatibility() already reads the same source.
+        const missingRequired = this.buildState.visibleTypes().filter(type =>
             type.required && this.selectedComponents[type.type].length === 0
         );
 
@@ -2795,7 +2682,7 @@ class ServerBuilder {
     async loadChassisDetails(uuid) {
         try {
             // Fetch chassis JSON (cached)
-            const chassisData = await ServerBuilder.fetchJSON('/ims-data/chassis/chasis-level-3.json');
+            const chassisData = await ServerBuilder.fetchJSON(await utils.specPathFor('chassis'));
 
             // The file nests everything under chassis_specifications; reading
             // .manufacturers off the root threw on every builder load, so the
@@ -2946,44 +2833,6 @@ class ServerBuilder {
     }
 
     /**
-     * Render memory slots - Dynamic based on motherboard JSON
-     */
-    // renderMemorySlots() {
-    //     const ramComponents = this.selectedComponents.ram;
-    //     const motherboardData = this.motherboardDetails;
-
-    //     if (!motherboardData || !motherboardData.memory) {
-    //         // Fallback to 4 slots if no motherboard data
-    //         let html = '';
-    //         for (let i = 0; i < 4; i++) {
-    //             const ram = ramComponents[i];
-    //             html += `
-    //                 <div class="memory-slot">
-    //                     <span class="slot-label">RAM ${i + 1} (288-pin DIMM)</span>
-    //                     <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-    //                 </div>
-    //             `;
-    //         }
-    //         return html;
-    //     }
-
-    //     const memorySlots = motherboardData.memory.slots || 4;
-    //     const memoryType = motherboardData.memory.type || 'DIMM';
-    //     let html = '';
-
-    //     for (let i = 0; i < memorySlots; i++) {
-    //         const ram = ramComponents[i];
-    //         html += `
-    //             <div class="memory-slot">
-    //                 <span class="slot-label">RAM ${i + 1} (${memoryType})</span>
-    //                 <span class="${ram ? 'slot-component' : 'slot-empty'}">${ram ? ram.serial_number : 'Empty'}</span>
-    //             </div>
-    //         `;
-    //     }
-
-    //     return html;
-    // }
-    /**
 * Render memory slots - Dynamic based on motherboard JSON
 */
     renderMemorySlots() {
@@ -3021,144 +2870,6 @@ class ServerBuilder {
         return html;
     }
 
-    /**
-     * Render expansion slots - Dynamic based on motherboard JSON
-     */
-    // renderExpansionSlots() {
-    //     const pcieComponents = this.selectedComponents.pciecard || [];
-    //     const hbaComponents = this.selectedComponents.hbacard || [];
-    //     const nicComponents = this.selectedComponents.nic || [];
-    //     const motherboardData = this.motherboardDetails;
-
-    //     if (!motherboardData || !motherboardData.expansion_slots) {
-    //         // Fallback to basic PCIe slots
-    //         return `
-    //             <div class="expansion-slot">
-    //                 <span class="slot-label">PCIe 1 (x16)</span>
-    //                 <span class="slot-component">${pcieComponents.length > 0 ? pcieComponents[0].serial_number : 'Empty'}</span>
-    //             </div>
-    //             <div class="expansion-slot">
-    //                 <span class="slot-label">PCIe 2 (x1)</span>
-    //                 <span class="slot-empty">Empty</span>
-    //             </div>
-    //         `;
-    //     }
-
-    //     let html = '';
-    //     let componentIndex = 0;
-    //     const allExpansionComponents = [...pcieComponents, ...hbaComponents, ...nicComponents];
-
-    //     // Handle regular PCIe slots
-    //     if (motherboardData.expansion_slots.pcie_slots) {
-    //         motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
-    //             const slotCount = slotGroup.count || 1;
-    //             const slotType = slotGroup.type || 'PCIe';
-
-    //             for (let i = 0; i < slotCount; i++) {
-    //                 const component = allExpansionComponents[componentIndex];
-    //                 html += `
-    //                     <div class="expansion-slot">
-    //                         <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
-    //                         <span class="${component ? 'slot-component' : 'slot-empty'}">${component ? component.serial_number : 'Empty'}</span>
-    //                     </div>
-    //                 `;
-    //                 componentIndex++;
-    //             }
-    //         });
-    //     }
-
-    //     // Handle riser slots if present
-    //     if (motherboardData.expansion_slots.riser_slots) {
-    //         motherboardData.expansion_slots.riser_slots.forEach((riserGroup, groupIndex) => {
-    //             const riserCount = riserGroup.count || 1;
-    //             const riserType = riserGroup.type || 'Riser';
-
-    //             for (let i = 0; i < riserCount; i++) {
-    //                 html += `
-    //                     <div class="expansion-slot">
-    //                         <span class="slot-label">${riserType} ${i + 1}</span>
-    //                         <span class="slot-empty">Empty</span>
-    //                     </div>
-    //                 `;
-    //             }
-    //         });
-    //     }
-
-    //     // Handle specialty slots (OCP, etc.)
-    //     if (motherboardData.expansion_slots.specialty_slots) {
-    //         motherboardData.expansion_slots.specialty_slots.forEach((specialtySlot, index) => {
-    //             html += `
-    //                 <div class="expansion-slot">
-    //                     <span class="slot-label">${specialtySlot.type} Slot</span>
-    //                     <span class="slot-empty">Empty</span>
-    //                 </div>
-    //             `;
-    //         });
-    //     }
-
-    //     return html || '<div class="expansion-slot"><span class="slot-label">No expansion slots</span></div>';
-    // }
-    /**
-     * Render expansion slots - Dynamic based on motherboard JSON
-     */
-    // renderExpansionSlots() {
-    //     const pcieComponents = this.selectedComponents.pciecard || [];
-    //     const hbaComponents = this.selectedComponents.hbacard || [];
-    //     const nicComponents = this.selectedComponents.nic || [];
-    //     const motherboardData = this.motherboardDetails;
-
-    //     // Combine all expansion components
-    //     const allExpansionComponents = [
-    //         ...pcieComponents.map(comp => ({ ...comp, type: 'pcie' })),
-    //         ...hbaComponents.map(comp => ({ ...comp, type: 'hba' })),
-    //         ...nicComponents.map(comp => ({ ...comp, type: 'nic' }))
-    //     ];
-
-    //     if (!motherboardData || !motherboardData.expansion_slots) {
-    //         // Fallback to basic PCIe slots
-    //         let html = '';
-    //         const totalSlots = Math.max(4, allExpansionComponents.length);
-
-    //         for (let i = 0; i < totalSlots; i++) {
-    //             const component = allExpansionComponents[i];
-    //             html += `
-    //                 <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-    //                     <span class="slot-label">PCIe Slot ${i + 1}</span>
-    //                     <span class="${component ? 'slot-component' : 'slot-empty'}">
-    //                         ${component ? component.serial_number : 'Empty'}
-    //                     </span>
-    //                 </div>
-    //             `;
-    //         }
-    //         return html;
-    //     }
-
-    //     let html = '';
-    //     let componentIndex = 0;
-
-    //     // Handle regular PCIe slots
-    //     if (motherboardData.expansion_slots.pcie_slots) {
-    //         motherboardData.expansion_slots.pcie_slots.forEach((slotGroup, groupIndex) => {
-    //             const slotCount = slotGroup.count || 1;
-    //             const slotType = slotGroup.type || 'PCIe';
-
-    //             for (let i = 0; i < slotCount; i++) {
-    //                 const component = allExpansionComponents[componentIndex];
-    //                 html += `
-    //                     <div class="expansion-slot ${component ? 'occupied' : 'empty'}">
-    //                         <span class="slot-label">${slotType} Slot ${componentIndex + 1}</span>
-    //                         <span class="${component ? 'slot-component' : 'slot-empty'}">
-    //                             ${component ? component.serial_number : 'Empty'}
-    //                         </span>
-    //                     </div>
-    //                 `;
-    //                 componentIndex++;
-    //             }
-    //         });
-    //     }
-
-    //     return html || '<div class="expansion-slot empty"><span class="slot-label">No expansion slots</span></div>';
-    // }
     /**
      * Render expansion slots using hardware.slots API data for correct slot mapping.
      * Falls back to sequential assignment when slot data is unavailable.
@@ -3422,115 +3133,6 @@ class ServerBuilder {
     }
 
 
-    /**
-     * Render storage - Dynamic based on motherboard JSON
-     */
-    // renderStorageAndUSB() {
-    //     const motherboardData = this.motherboardDetails;
-    //     const storageComponents = this.selectedComponents.storage || [];
-
-    //     if (!motherboardData || !motherboardData.storage) {
-    //         // Fallback with dynamic storage components
-    //         let html = '';
-
-    //         // Show occupied storage slots first
-    //         storageComponents.forEach((storage, index) => {
-    //             html += `
-    //                 <div class="expansion-slot occupied">
-    //                     <span class="slot-label">Storage ${index + 1}</span>
-    //                     <span class="slot-component">
-    //                         <div class="component-with-type">
-    //                             <i class="fas fa-hdd"></i>
-    //                             <span class="component-type">Storage:</span>
-    //                             <span class="component-name">${storage.serial_number}</span>
-    //                         </div>
-    //                     </span>
-    //                 </div>
-    //             `;
-    //         });
-
-    //         // Show available slots
-    //         const remainingSlots = Math.max(2, 4 - storageComponents.length);
-    //         for (let i = 0; i < remainingSlots; i++) {
-    //             html += `
-    //                 <div class="expansion-slot empty">
-    //                     <span class="slot-label">Storage ${storageComponents.length + i + 1}</span>
-    //                     <span class="slot-empty">Available</span>
-    //                 </div>
-    //             `;
-    //         }
-
-    //         return html;
-    //     }
-
-    //     let html = '';
-    //     let storageIndex = 0;
-
-    //     // M.2 NVMe slots
-    //     if (motherboardData.storage.nvme && motherboardData.storage.nvme.m2_slots) {
-    //         motherboardData.storage.nvme.m2_slots.forEach((m2Group, index) => {
-    //             const m2Count = m2Group.count || 0;
-    //             const formFactors = m2Group.form_factors ? m2Group.form_factors.join(', ') : 'M.2';
-
-    //             for (let i = 0; i < m2Count; i++) {
-    //                 const storage = storageComponents[storageIndex];
-    //                 html += `
-    //                     <div class="expansion-slot ${storage ? 'occupied' : 'empty'}">
-    //                         <span class="slot-label">M.2 Slot ${i + 1} (${formFactors})</span>
-    //                         <span class="${storage ? 'slot-component' : 'slot-empty'}">
-    //                             ${storage ? `
-    //                                 <div class="component-with-type">
-    //                                     <i class="fas fa-hdd"></i>
-    //                                     <span class="component-type">NVMe:</span>
-    //                                     <span class="component-name">${storage.serial_number}</span>
-    //                                 </div>
-    //                             ` : 'Empty'}
-    //                         </span>
-    //                     </div>
-    //                 `;
-    //                 if (storage) storageIndex++;
-    //             }
-    //         });
-    //     }
-
-    //     // SATA ports
-    //     if (motherboardData.storage.sata) {
-    //         const sataPorts = motherboardData.storage.sata.ports || 0;
-    //         if (sataPorts > 0) {
-    //             // Show occupied SATA devices
-    //             for (let i = 0; i < sataPorts && storageIndex < storageComponents.length; i++) {
-    //                 const storage = storageComponents[storageIndex];
-    //                 if (storage) {
-    //                     html += `
-    //                         <div class="expansion-slot occupied">
-    //                             <span class="slot-label">SATA Port ${i + 1}</span>
-    //                             <span class="slot-component">
-    //                                 <div class="component-with-type">
-    //                                     <i class="fas fa-hdd"></i>
-    //                                     <span class="component-type">SATA:</span>
-    //                                     <span class="component-name">${storage.serial_number}</span>
-    //                                 </div>
-    //                             </span>
-    //                         </div>
-    //                     `;
-    //                     storageIndex++;
-    //                 }
-    //             }
-    //             // Show remaining empty SATA ports
-    //             const remainingSataPorts = sataPorts - (storageComponents.length - storageIndex);
-    //             for (let i = 0; i < remainingSataPorts; i++) {
-    //                 html += `
-    //                     <div class="expansion-slot empty">
-    //                         <span class="slot-label">SATA Port ${storageIndex + i + 1}</span>
-    //                         <span class="slot-empty">Available</span>
-    //                     </div>
-    //                 `;
-    //             }
-    //         }
-    //     }
-
-    //     return html || '<div class="expansion-slot empty"><span class="slot-label">No storage info</span></div>';
-    // }
     /**
      * Render drive bay connectivity using storage_connectivity API data.
      * Shows a grid of drive bay cells with interface color coding.

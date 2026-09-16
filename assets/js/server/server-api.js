@@ -5,7 +5,8 @@ class ServerAPI {
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         // Get token from bdc_token key (current standard)
-        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        this.token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
 
         // Setup axios defaults
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
@@ -37,7 +38,8 @@ class ServerAPI {
     // remember-me choice; setToken() here would force sessionStorage and quietly
     // break it.
     _currentToken() {
-        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        this.token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         if (this.token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
         }

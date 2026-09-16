@@ -44,7 +44,8 @@ class RequestTypesManager {
 
     // ----- API helpers -------------------------------------------------------
     getToken() {
-        return sessionStorage.getItem('bdc_token') || localStorage.getItem('bdc_token');
+        return window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
     }
 
     // Renew an expired token once and retry, rather than rendering the API's 401

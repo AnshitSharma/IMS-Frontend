@@ -3,80 +3,29 @@
  */
 
 window.utils = {
-    // Show alert notifications using toast system
+    /**
+     * Show a notification. Always a toast.
+     *
+     * `toast.js` loads before this file on every page that loads it, and assigns
+     * `window.toast` at top level, so the old `#alertContainer` DOM fallback that
+     * used to live here could never run — it was deleted rather than left as a
+     * second, drifting notification renderer.
+     *
+     * `title` is accepted and ignored. The toast API takes no title, so it has
+     * been dropped on every page since toasts were adopted; the parameter stays
+     * only because callers pass it positionally before `duration`.
+     */
     showAlert(message, type = 'info', title = '', duration = 5000) {
-        // Use toast notification system if available
-        if (typeof window.toast !== 'undefined') {
-            switch(type) {
-                case 'success':
-                    return window.toast.success(message, duration);
-                case 'error':
-                    return window.toast.error(message, duration);
-                case 'warning':
-                    return window.toast.warning(message, duration);
-                case 'info':
-                default:
-                    return window.toast.info(message, duration);
-            }
-        }
-
-        // Fallback to old alert system if toast is not available
-        const alertContainer = document.getElementById('alertContainer');
-        if (!alertContainer) return;
-
-        const alertId = 'alert_' + Date.now();
-        const alert = document.createElement('div');
-        alert.className = `alert ${type}`;
-        alert.id = alertId;
-
-        const icons = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        };
-
-        const titles = {
-            success: title || 'Success',
-            error: title || 'Error',
-            warning: title || 'Warning',
-            info: title || 'Information'
-        };
-
-        alert.innerHTML = `
-            <div class="alert-icon">
-                <i class="${icons[type]}"></i>
-            </div>
-            <div class="alert-content">
-                <div class="alert-title">${titles[type]}</div>
-                <div class="alert-message">${this.escapeHtml(message)}</div>
-            </div>
-            <button class="alert-close" onclick="utils.closeAlert('${alertId}')">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-
-        alertContainer.appendChild(alert);
-
-        // Auto remove after duration
-        if (duration > 0) {
-            setTimeout(() => {
-                this.closeAlert(alertId);
-            }, duration);
-        }
-
-        return alertId;
-    },
-
-    // Close specific alert
-    closeAlert(alertId) {
-        const alert = document.getElementById(alertId);
-        if (alert) {
-            alert.style.transform = 'translateX(100%)';
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                alert.remove();
-            }, 300);
+        switch (type) {
+            case 'success':
+                return window.toast.success(message, duration);
+            case 'error':
+                return window.toast.error(message, duration);
+            case 'warning':
+                return window.toast.warning(message, duration);
+            case 'info':
+            default:
+                return window.toast.info(message, duration);
         }
     },
 
@@ -372,6 +321,71 @@ window.utils = {
     },
 
     // URL helpers
+    /**
+     * Where each component type's ims-data spec file lives, as a URL.
+     *
+     * Served by dashboard-type-manifest, whose spec_url comes straight from
+     * ComponentSpecPaths.php — the one map entitled to say. There were five
+     * hand-typed copies of this in the frontend and three of them had already
+     * lost `serverplatform`, in one case under a comment claiming it mirrored
+     * the PHP file. ims-data filenames are irregular BY DESIGN
+     * (Cpu-details-level-3.json, chasis-level-3.json with its load-bearing
+     * typo), so a copy that drifts fails as a silent 404, not as an error.
+     *
+     * Fetched once per page and cached as a promise, so concurrent callers
+     * share one request.
+     *
+     * @returns {Promise<Object<string,string>>} type -> URL, {} if unavailable
+     */
+    specPaths() {
+        if (!this._specPathsPromise) {
+            this._specPathsPromise = (async () => {
+                try {
+                    const result = await window.api.request('dashboard-type-manifest');
+                    const types = result?.data?.types || [];
+                    const paths = {};
+                    types.forEach(entry => {
+                        if (entry.type && entry.spec_url) {
+                            paths[entry.type] = '/' + String(entry.spec_url).replace(/^\/+/, '');
+                        }
+                    });
+                    if (Object.keys(paths).length) return paths;
+                } catch (error) {
+                    console.warn('[specPaths] manifest unavailable, using fallback', error);
+                }
+                return Object.assign({}, utils.SPEC_PATHS_FALLBACK);
+            })();
+        }
+        return this._specPathsPromise;
+    },
+
+    /** One type's spec URL, or null. */
+    async specPathFor(componentType) {
+        if (!componentType) return null;
+        const paths = await utils.specPaths();
+        return paths[String(componentType).toLowerCase()] || null;
+    },
+
+    /**
+     * Last resort only — used when the manifest cannot be reached (offline, a
+     * user without dashboard.view, a backend that predates spec_url). Kept in
+     * step with ComponentSpecPaths.php by hand; the API is the authority.
+     */
+    SPEC_PATHS_FALLBACK: {
+        cpu: '/ims-data/cpu/Cpu-details-level-3.json',
+        motherboard: '/ims-data/motherboard/motherboard-level-3.json',
+        ram: '/ims-data/ram/ram_detail.json',
+        storage: '/ims-data/storage/storage-level-3.json',
+        nic: '/ims-data/nic/nic-level-3.json',
+        caddy: '/ims-data/caddy/caddy_details.json',
+        pciecard: '/ims-data/pciecard/pci-level-3.json',
+        risercard: '/ims-data/risercard/riser-level-3.json',
+        hbacard: '/ims-data/hbacard/hbacard-level-3.json',
+        sfp: '/ims-data/sfp/sfp-level-3.json',
+        chassis: '/ims-data/chassis/chasis-level-3.json',
+        serverplatform: '/ims-data/serverplatform/server-platform-level-3.json'
+    },
+
     updateURLParams(params) {
         const url = new URL(window.location);
         Object.keys(params).forEach(key => {

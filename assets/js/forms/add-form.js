@@ -287,24 +287,11 @@ class AddComponentForm {
 
     async loadJSONData(componentType) {
         try {
-            // Load component specs from the shared ims-data web alias
-            const jsonPaths = {
-                'cpu': '/ims-data/cpu/Cpu-details-level-3.json',
-                'motherboard': '/ims-data/motherboard/motherboard-level-3.json',
-                'ram': '/ims-data/ram/ram_detail.json',
-                'storage': '/ims-data/storage/storage-level-3.json',
-                'nic': '/ims-data/nic/nic-level-3.json',
-                'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
-                'pciecard': '/ims-data/pciecard/pci-level-3.json',
-                'risercard': '/ims-data/risercard/riser-level-3.json',
-                'chassis': '/ims-data/chassis/chasis-level-3.json',
-                'serverplatform': '/ims-data/serverplatform/server-platform-level-3.json',
-                'caddy': '/ims-data/caddy/caddy_details.json',
-                'sfp': '/ims-data/sfp/sfp-level-3.json'
-            };
+            // One map, served by dashboard-type-manifest from ComponentSpecPaths.php.
+            const specPath = await utils.specPathFor(componentType);
 
-            if (jsonPaths[componentType]) {
-                const response = await fetch(jsonPaths[componentType]);
+            if (specPath) {
+                const response = await fetch(specPath);
                 if (response.ok) {
                     this.jsonData = await response.json();
 

@@ -46,7 +46,6 @@ class Dashboard {
         this.searchTimeout = null;
         this.selectedItems = new Set();
         this.cardListenersInitialized = false;
-        this.allComponents = []; // Store all components for client-side filtering
         this.loadingStates = {
             dashboard: false,
             components: false,
@@ -219,7 +218,6 @@ class Dashboard {
         if (statusFilter) {
             statusFilter.addEventListener('change', (e) => {
                 this.handleFilterChange('status', e.target.value);
-                this.filterAndRenderComponents(this.currentComponent);
             });
         }
 
@@ -550,10 +548,16 @@ class Dashboard {
             // twelve-file diff for one dropdown.
             this.ensureLocationFilter(componentType);
 
-            // Only send search parameter to API, not status
             const search = document.getElementById('componentSearch')?.value || '';
             const params = { limit: this.itemsPerPage, offset: (this.currentPage - 1) * this.itemsPerPage };
             if (search) params.search = search;
+
+            // Server-side, like search and location_uuid. Filtering here in the
+            // browser only ever saw the loaded page: "Show Failed" on page 1 of
+            // 40 searched 50 rows, and the footer reported the filtered count
+            // against an unfiltered total.
+            const statusFilter = document.getElementById('statusFilter')?.value ?? '';
+            if (statusFilter !== '') params.status = statusFilter;
 
             // Filtered server-side: it reads the indexed location_uuid column, so
             // it filters the whole inventory rather than just the loaded page.
@@ -563,11 +567,8 @@ class Dashboard {
             const result = await api.components.list(componentType, params);
 
             if (result.success) {
-                // Store all components for client-side filtering
-                this.allComponents = result.data.components;
-
-                // Apply client-side status filter
-                this.filterAndRenderComponents(componentType);
+                const components = result.data.components || [];
+                this.renderComponentTable(components, componentType);
 
                 // Handle pagination - support both formats
                 if (result.data.pagination) {
@@ -594,28 +595,6 @@ class Dashboard {
         }
     }
 
-    filterAndRenderComponents(componentType) {
-        const statusFilter = document.getElementById('statusFilter')?.value || '';
-
-        let filteredComponents = this.allComponents;
-
-        // Apply status filter on frontend
-        if (statusFilter !== '') {
-            filteredComponents = this.allComponents.filter(component => {
-                return component.Status == statusFilter;
-            });
-        }
-
-        // Render filtered components
-        this.renderComponentTable(filteredComponents, componentType);
-
-        // Update pagination info with filtered count
-        const paginationInfo = document.getElementById('paginationInfo');
-        if (paginationInfo) {
-            paginationInfo.textContent = `Showing ${filteredComponents.length} of ${this.allComponents.length} items`;
-        }
-    }
-
     /**
      * Reveal a write affordance, and record whether using it will PERFORM the
      * change or REQUEST it.
@@ -632,10 +611,9 @@ class Dashboard {
      *
      * @param permission e.g. 'server.create', 'cpu.create'
      * @param btnId      the affordance to reveal
-     * @param requestId  RETIRED — the old "request access" link, now hidden
      * @returns {boolean} true when the user can perform the change directly
      */
-    applyPermissionGate(permission, btnId, requestId) {
+    applyPermissionGate(permission, btnId) {
         const allowed = api.utils.hasPermission(permission);
 
         const btn = document.getElementById(btnId);
@@ -646,24 +624,18 @@ class Dashboard {
             btn.title = allowed ? '' : 'You will be asked to submit this as a request for approval';
         }
 
-        // The old link asked to BE GIVEN the permission for 24 hours. There is no
-        // such thing any more, so it is never shown. The markup itself goes with
-        // the rest of the temporary-access UI.
-        const request = document.getElementById(requestId);
-        if (request) request.style.display = 'none';
-
         return allowed;
     }
 
     /** Servers page: the Build Server button. */
     applyServerCreateGate() {
-        this.applyPermissionGate('server.create', 'addServerBtn', 'requestBuildAccessBtn');
+        this.applyPermissionGate('server.create', 'addServerBtn');
     }
 
     /** Inventory page: the Add button for whichever component type is open. */
     applyComponentCreateGate(componentType) {
         if (!componentType) return;
-        this.applyPermissionGate(`${componentType}.create`, 'addComponentBtn', 'requestComponentAccessBtn');
+        this.applyPermissionGate(`${componentType}.create`, 'addComponentBtn');
     }
 
     async loadServerList(forceRefresh = false) {
@@ -1063,13 +1035,12 @@ class Dashboard {
     }
 
     handleFilterChange(filterType, value) {
-        // For status filter, just re-render with client-side filtering
-        if (filterType === 'status') {
-            this.filterAndRenderComponents(this.currentComponent);
-        } else {
-            this.currentPage = 1;
-            this.loadComponentList(this.currentComponent);
-        }
+        // Every filter is server-side now, status included, so they all reset to
+        // page 1 and reload. Status used to re-render the loaded page instead,
+        // which searched one page of a paginated table and counted against the
+        // wrong total.
+        this.currentPage = 1;
+        this.loadComponentList(this.currentComponent, true);
     }
 
     handleItemSelection(checkbox) {
@@ -2662,8 +2633,13 @@ class Dashboard {
                 this.showServerBuilderError('Failed to load server builder: ' + error.message);
             }
         } else {
-            // Load server configuration with fallback
-            await this.loadServerConfiguration(configUuid);
+            // Unreachable in practice: the only two pages carrying #serverBuilderView
+            // (servers.html, server-compatibility.html) both load server-builder.js,
+            // and on servers.html it loads BEFORE dashboard.js, so window.serverBuilder
+            // is always assigned first. This used to fall back to a second, drifted
+            // copy of the whole builder living inside this file; that copy is deleted.
+            // Reports the same way loadServerBuilder() already does.
+            this.showServerBuilderError('PC Part Picker Builder not available');
         }
     }
 
@@ -2674,560 +2650,6 @@ class Dashboard {
 
         // Clear current config
         this.currentServerConfig = null;
-    }
-
-    async loadServerConfiguration(configUuid) {
-        const builderContent = document.getElementById('serverBuilderContent');
-        if (!builderContent) return;
-
-        try {
-            utils.showLoading(true, 'Loading server configuration...');
-
-            // Get server config details
-            const configResult = await api.servers.getConfig(configUuid);
-
-            if (!configResult.success) {
-                throw new Error(configResult.message || 'Failed to load configuration');
-            }
-
-            const config = configResult.data;
-
-            // Component types definition
-            this.componentTypes = [
-                { type: 'cpu', name: 'CPU', description: 'Processor', icon: 'fas fa-microchip', multiple: false },
-                { type: 'motherboard', name: 'Motherboard', description: 'System Board', icon: 'fas fa-th-large', multiple: false },
-                { type: 'ram', name: 'RAM', description: 'Memory Modules', icon: 'fas fa-memory', multiple: true },
-                { type: 'storage', name: 'Storage', description: 'Hard Drives, SSDs, NVMe', icon: 'fas fa-hdd', multiple: true },
-                { type: 'chassis', name: 'Chassis', description: 'Server Cabinet/Case', icon: 'fas fa-server', multiple: false },
-                { type: 'caddy', name: 'Caddy', description: 'Drive Mounting Hardware', icon: 'fas fa-box', multiple: true },
-                { type: 'pciecard', name: 'PCI Cards', description: 'Expansion Cards (GPU, RAID)', icon: 'fas fa-credit-card', multiple: true },
-                { type: 'risercard', name: 'Riser Cards', description: 'PCIe Riser / Expansion Bridges', icon: 'fas fa-layer-group', multiple: true },
-                { type: 'hbacard', name: 'HBA Cards', description: 'Host Bus Adapter Cards', icon: 'fas fa-plug', multiple: true },
-                { type: 'nic', name: 'Network Cards', description: 'Network Interface Cards', icon: 'fas fa-network-wired', multiple: true }
-            ];
-
-            this.componentLimits = {
-                cpu: 2, motherboard: 1, ram: 24, storage: 24,
-                chassis: 1, caddy: 24, pciecard: 8, risercard: 4, hbacard: 4, nic: 4
-            };
-
-            // Load existing components directly from the config data (no second API call)
-            this.loadExistingComponentsFromData(config);
-
-            // Calculate progress based on loaded components
-            const selectedCount = this.getSelectedCount();
-            const totalCount = this.componentTypes.length;
-            const progressPercent = totalCount > 0 ? (selectedCount / totalCount) * 100 : 0;
-
-            // Render server builder interface
-            builderContent.innerHTML = `
-                <div class="server-builder-container">
-                    <!-- Progress Section -->
-                    <div class="progress-section">
-                        <div class="progress-header">
-                            <span class="progress-text">Component Selection Progress</span>
-                            <span class="progress-count">${selectedCount}/${totalCount} Components</span>
-                        </div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: ${progressPercent}%"></div>
-                        </div>
-                    </div>
-
-                    <!-- Components Grid -->
-                    <div class="components-grid" style="margin-top: 24px;">
-                        ${this.componentTypes.map(type => this.renderComponentCard(type)).join('')}
-                    </div>
-
-                    <!-- Validation Section -->
-                    <div class="validation-section" style="margin-top: 32px;">
-                        <div class="validation-actions">
-                            <button class="btn btn-success validation-button" id="validateButton" ${selectedCount === 0 ? 'disabled' : ''}>
-                                <i class="fas fa-clipboard-check"></i>
-                                Validate Configuration
-                            </button>
-                            <button class="btn btn-primary deploy-button" id="deployButton" disabled>
-                                <i class="fas fa-rocket"></i>
-                                Deploy Server
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            // Add event listeners for component cards
-            document.querySelectorAll('.component-card').forEach(card => {
-                card.addEventListener('click', (e) => {
-                    if (!card.classList.contains('disabled')) {
-                        const componentType = card.dataset.componentType;
-                        this.showComponentSelector(configUuid, componentType);
-                    }
-                });
-            });
-
-            // Add event listeners for validate and deploy buttons
-            const validateBtn = document.getElementById('validateButton');
-            if (validateBtn) {
-                validateBtn.addEventListener('click', () => this.validateServerConfiguration());
-            }
-
-            const deployBtn = document.getElementById('deployButton');
-            if (deployBtn) {
-                deployBtn.addEventListener('click', () => this.deployServerConfiguration());
-            }
-
-        } catch (error) {
-            console.error('Error loading server configuration:', error);
-            utils.showAlert(error.message || 'Failed to load server configuration', 'error');
-            builderContent.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: 60px 24px;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 64px; color: var(--danger-color); margin-bottom: 16px;"></i>
-                    <h3>Failed to Load Configuration</h3>
-                    <p>${error.message}</p>
-                    <button class="btn btn-primary" onclick="dashboard.switchView('servers')">
-                        <i class="fas fa-arrow-left"></i> Back to Server List
-                    </button>
-                </div>
-            `;
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
-    renderComponentCard(componentType) {
-        const count = this.getComponentCount(componentType.type);
-        const limit = this.componentLimits[componentType.type] || 1;
-        const isAtLimit = count >= limit;
-        const isSelected = count > 0;
-
-        let statusClass = isSelected ? 'selected' : 'available';
-        let statusIcon = isSelected ? 'fa-check-circle' : 'fa-plus-circle';
-        let statusText = 'Select Component';
-
-        if (isSelected) {
-            statusText = `${count} of ${limit}`;
-            if (isAtLimit) {
-                statusClass = 'limit-reached';
-                statusIcon = 'fa-ban';
-            }
-        }
-
-        let detailsSection = '';
-        if (isSelected) {
-            const components = this.selectedComponents[componentType.type];
-            if (Array.isArray(components) && components.length > 0) {
-                const componentsList = components.map(comp => `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--bg-secondary); border-radius: 0.375rem; margin-bottom: 0.5rem;">
-                        <div>
-                            <div style="font-weight: 500; font-size: 0.875rem;">${comp.serial_number}</div>
-                            ${comp.slot_position ? `<div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Slot: ${comp.slot_position}</div>` : ''}
-                        </div>
-                        <button class="btn-remove-component" onclick="event.stopPropagation(); dashboard.removeSpecificComponent('${componentType.type}', '${comp.uuid}', ${utils.jsArg(comp.serial_number)})">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                `).join('');
-
-                detailsSection = `
-                    <div class="component-details-section" style="max-height: 200px; overflow-y: auto;">
-                        ${componentsList}
-                    </div>
-                `;
-            }
-        }
-
-        return `
-            <div class="component-card ${statusClass} ${isAtLimit ? 'disabled' : ''}" data-component-type="${componentType.type}" ${isAtLimit ? 'style="cursor: not-allowed; opacity: 0.7;"' : ''}>
-                <div class="component-icon-wrapper">
-                    <i class="${componentType.icon}"></i>
-                </div>
-                <div class="component-info">
-                    <div class="component-name">${componentType.name}</div>
-                    <div class="component-description">${componentType.description}</div>
-                    <div class="component-status ${statusClass}">
-                        <i class="fas ${statusIcon}"></i>
-                        ${statusText}
-                    </div>
-                </div>
-                ${detailsSection}
-            </div>
-        `;
-    }
-
-    getSelectedCount() {
-        let count = 0;
-        this.componentTypes.forEach(type => {
-            if (this.isComponentSelected(type.type)) {
-                count++;
-            }
-        });
-        return count;
-    }
-
-    getComponentCount(type) {
-        const component = this.selectedComponents[type];
-        if (Array.isArray(component)) {
-            return component.length;
-        }
-        return component ? 1 : 0;
-    }
-
-    isComponentSelected(type) {
-        const component = this.selectedComponents[type];
-        if (Array.isArray(component)) {
-            return component.length > 0;
-        }
-        return component !== null && component !== undefined;
-    }
-
-    loadExistingComponentsFromData(configData) {
-        // Initialize selected components
-        this.selectedComponents = {
-            cpu: [],
-            motherboard: [],
-            ram: [],
-            storage: [],
-            chassis: [],
-            caddy: [],
-            pciecard: [],
-            risercard: [],
-            hbacard: [],
-            nic: []
-        };
-
-        try {
-            // Check if config data has components
-            // The API returns data.configuration.components OR data.components
-            let components = null;
-
-            if (configData.configuration && configData.configuration.components) {
-                components = configData.configuration.components;
-            } else if (configData.components) {
-                components = configData.components;
-            }
-
-
-            // Components are structured as { cpu: [...], motherboard: [...], etc. }
-            if (components && typeof components === 'object') {
-                Object.keys(components).forEach(type => {
-                    if (this.selectedComponents.hasOwnProperty(type) && Array.isArray(components[type])) {
-                        this.selectedComponents[type] = components[type].map(comp => ({
-                            uuid: comp.uuid || comp.component_uuid,
-                            serial_number: comp.serial_number || comp.uuid || comp.component_uuid,
-                            slot_position: comp.slot_position || '',
-                            quantity: comp.quantity || 1,
-                            added_at: comp.added_at || ''
-                        }));
-                    }
-                });
-            }
-
-        } catch (error) {
-            console.error('Error loading existing components:', error);
-        }
-    }
-
-    async showComponentSelector(configUuid, componentType) {
-
-        // Check if at limit
-        const count = this.getComponentCount(componentType);
-        const limit = this.componentLimits[componentType] || 1;
-
-        if (count >= limit) {
-            utils.showAlert(`Maximum ${limit} ${componentType} component(s) already added`, 'warning');
-            return;
-        }
-
-        const typeInfo = this.componentTypes.find(t => t.type === componentType);
-        await this.showComponentSelectionModal(componentType, typeInfo);
-    }
-
-    async showComponentSelectionModal(type, typeInfo) {
-        const modalHtml = `
-            <div class="modal-overlay" id="componentModal">
-                <div class="component-modal">
-                    <div class="modal-header">
-                        <h3 class="modal-title">
-                            <i class="${typeInfo.icon}"></i>
-                            Select ${typeInfo.name}
-                        </h3>
-                        <button class="modal-close" id="closeModal">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body" id="componentListContainer">
-                        <div style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-color);"></i>
-                            <p style="margin-top: 1rem; color: var(--text-secondary);">Loading compatible components...</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const modalContainer = document.createElement('div');
-        modalContainer.innerHTML = modalHtml;
-        document.body.appendChild(modalContainer.firstElementChild);
-
-        const modal = document.getElementById('componentModal');
-        setTimeout(() => modal.classList.add('active'), 10);
-
-        document.getElementById('closeModal').addEventListener('click', () => {
-            this.closeComponentModal();
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                this.closeComponentModal();
-            }
-        });
-
-        await this.loadCompatibleComponents(type, typeInfo);
-    }
-
-    async loadCompatibleComponents(type, typeInfo) {
-        try {
-            const result = await serverAPI.getCompatibleComponents(
-                this.currentServerConfig.uuid,
-                type,
-                true
-            );
-
-            const container = document.getElementById('componentListContainer');
-
-            if (result.success && result.data && result.data.data && result.data.data.compatible_components) {
-                const compatibleComponents = result.data.data.compatible_components;
-
-                if (compatibleComponents.length > 0) {
-                    container.innerHTML = `
-                        <div class="component-list">
-                            ${compatibleComponents.map(component => this.renderComponentOption(component, type, typeInfo)).join('')}
-                        </div>
-                    `;
-
-                    document.querySelectorAll('.component-option').forEach(option => {
-                        option.addEventListener('click', async () => {
-                            const uuid = option.getAttribute('data-uuid');
-                            const notes = option.getAttribute('data-notes');
-                            const componentType = option.getAttribute('data-type');
-                            await this.showComponentDetailsModal(uuid, componentType, type, notes, typeInfo);
-                        });
-                    });
-                } else {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                            <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                            <p>No compatible ${typeInfo.name.toLowerCase()} found</p>
-                        </div>
-                    `;
-                }
-            } else {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                        <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                        <p>No compatible ${typeInfo.name.toLowerCase()} found</p>
-                    </div>
-                `;
-            }
-        } catch (error) {
-            console.error('Error loading compatible components:', error);
-            const container = document.getElementById('componentListContainer');
-            container.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: var(--danger-color);">
-                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                    <p>Failed to load components</p>
-                </div>
-            `;
-        }
-    }
-
-    renderComponentOption(component, type, typeInfo) {
-        const status = component.status === 1 ? 'available' : 'in-use';
-        const statusText = component.status === 1 ? 'Available' : 'In Use';
-
-        let specs = '';
-        if (component.notes) {
-            const modelMatch = component.notes.match(/([A-Za-z0-9\s\-+]+)/);
-            if (modelMatch) {
-                specs = `<span class="spec-badge">${modelMatch[1].trim()}</span>`;
-            }
-        }
-
-        if (component.location) {
-            specs += `<span class="spec-badge"><i class="fas fa-map-marker-alt"></i> ${utils.escapeHtml(component.location)}</span>`;
-        }
-
-        if (component.compatibility_score) {
-            specs += `<span class="spec-badge"><i class="fas fa-check"></i> ${Math.round(component.compatibility_score * 100)}% Compatible</span>`;
-        }
-
-        return `
-            <div class="component-option" data-uuid="${component.uuid}" data-notes="${component.notes || ''}" data-type="${type}">
-                <div class="component-option-icon">
-                    <i class="${typeInfo.icon}"></i>
-                </div>
-                <div class="component-option-details">
-                    <div class="component-option-name">${component.serial_number || component.uuid}</div>
-                    <div class="component-option-specs">
-                        ${specs}
-                        ${component.compatibility_reason ? `<div style="margin-top: 0.5rem; font-size: 0.8125rem; color: var(--success-color);"><i class="fas fa-info-circle"></i> ${component.compatibility_reason}</div>` : ''}
-                    </div>
-                </div>
-                <div class="component-option-status ${status}">
-                    <i class="fas ${status === 'available' ? 'fa-check' : 'fa-lock'}"></i>
-                    ${statusText}
-                </div>
-            </div>
-        `;
-    }
-
-    async showComponentDetailsModal(uuid, componentType, type, notes, typeInfo) {
-        this.closeComponentModal();
-
-        const detailsModalHtml = `
-            <div class="modal-overlay" id="detailsModal">
-                <div class="component-details-modal">
-                    <div class="modal-header">
-                        <h3 class="modal-title">
-                            <i class="${typeInfo.icon}"></i>
-                            Component Details
-                        </h3>
-                        <button class="modal-close" id="closeDetailsModal">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body" id="detailsContainer">
-                        <div style="text-align: center; padding: 2rem;">
-                            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary-color);"></i>
-                            <p style="margin-top: 1rem; color: var(--text-secondary);">Loading component details...</p>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" id="cancelDetailsBtn">
-                            <i class="fas fa-times"></i>
-                            Cancel
-                        </button>
-                        <button class="btn btn-primary" id="confirmAddBtn">
-                            <i class="fas fa-plus"></i>
-                            Add to Configuration
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        const modalContainer = document.createElement('div');
-        modalContainer.innerHTML = detailsModalHtml;
-        document.body.appendChild(modalContainer.firstElementChild);
-
-        const modal = document.getElementById('detailsModal');
-        setTimeout(() => modal.classList.add('active'), 10);
-
-        document.getElementById('closeDetailsModal').addEventListener('click', () => {
-            this.closeDetailsModal();
-            this.showComponentSelector(this.currentServerConfig.uuid, type);
-        });
-
-        document.getElementById('cancelDetailsBtn').addEventListener('click', () => {
-            this.closeDetailsModal();
-            this.showComponentSelector(this.currentServerConfig.uuid, type);
-        });
-
-        const detailsContainer = document.getElementById('detailsContainer');
-        detailsContainer.innerHTML = `
-            <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
-                <i class="fas fa-info-circle" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
-                <p>Component details</p>
-                <p style="margin-top: 0.5rem; font-size: 0.875rem;">UUID: ${uuid}</p>
-                <p style="margin-top: 0.5rem; font-size: 0.875rem;">Notes: ${notes || 'None'}</p>
-            </div>
-        `;
-
-        document.getElementById('confirmAddBtn').addEventListener('click', async () => {
-            this.closeDetailsModal();
-            await this.addComponentToConfig(type, uuid, notes, typeInfo);
-        });
-    }
-
-    async addComponentToConfig(type, uuid, notes, typeInfo) {
-        try {
-            utils.showLoading(true, 'Adding component to configuration...');
-
-            const result = await serverAPI.addComponentToServer(
-                this.currentServerConfig.uuid,
-                type,
-                uuid,
-                1,
-                '',
-                false
-            );
-
-            if (result.success) {
-                utils.showAlert(`${typeInfo.name} added successfully`, 'success');
-                await this.loadServerConfiguration(this.currentServerConfig.uuid);
-                // Update server list in background to refresh component counts
-                this.loadServerList(true).catch(err => console.error('Error refreshing server list:', err));
-            } else {
-                utils.showAlert(result.message || 'Failed to add component', 'error');
-            }
-        } catch (error) {
-            console.error('Error adding component:', error);
-            utils.showAlert(error.message || 'Failed to add component', 'error');
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
-    // serialNumber identifies WHICH physical unit to release when several units of
-    // the same model sit in one config — see ServerBuilder.removeComponent().
-    async removeSpecificComponent(componentType, componentUuid, serialNumber = null) {
-        if (!confirm('Are you sure you want to remove this component?')) {
-            return;
-        }
-
-        try {
-            utils.showLoading(true, 'Removing component...');
-
-            const result = await serverAPI.removeComponentFromServer(
-                this.currentServerConfig.uuid,
-                componentType,
-                componentUuid,
-                { serial_number: serialNumber }
-            );
-
-            if (result.success) {
-                utils.showAlert('Component removed successfully', 'success');
-                await this.loadServerConfiguration(this.currentServerConfig.uuid);
-                // Update server list in background to refresh component counts
-                this.loadServerList(true).catch(err => console.error('Error refreshing server list:', err));
-            } else {
-                utils.showAlert(result.message || 'Failed to remove component', 'error');
-            }
-        } catch (error) {
-            console.error('Error removing component:', error);
-            utils.showAlert(error.message || 'Failed to remove component', 'error');
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
-    closeComponentModal() {
-        const modal = document.getElementById('componentModal');
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
-        }
-    }
-
-    closeDetailsModal() {
-        const modal = document.getElementById('detailsModal');
-        if (modal) {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                modal.remove();
-            }, 300);
-        }
     }
 
     async validateServerConfiguration() {
@@ -3343,23 +2765,8 @@ class Dashboard {
     async _fetchComponentSpecsByUUID(componentType, uuid) {
         if (!uuid) return null;
 
-        const jsonPaths = {
-            'cpu': '/ims-data/cpu/Cpu-details-level-3.json',
-            'motherboard': '/ims-data/motherboard/motherboard-level-3.json',
-            'ram': '/ims-data/ram/ram_detail.json',
-            'storage': '/ims-data/storage/storage-level-3.json',
-            'nic': '/ims-data/nic/nic-level-3.json',
-            'hbacard': '/ims-data/hbacard/hbacard-level-3.json',
-            'pciecard': '/ims-data/pciecard/pci-level-3.json',
-            'risercard': '/ims-data/risercard/riser-level-3.json',
-            'chassis': '/ims-data/chassis/chasis-level-3.json',
-            'caddy': '/ims-data/caddy/caddy_details.json',
-            'sfp': '/ims-data/sfp/sfp-level-3.json',
-            'serverplatform': '/ims-data/serverplatform/server-platform-level-3.json',
-        };
-
-        const typeLower = componentType.toLowerCase();
-        const jsonPath = jsonPaths[typeLower];
+        // One map, served by dashboard-type-manifest from ComponentSpecPaths.php.
+        const jsonPath = await utils.specPathFor(componentType);
         if (!jsonPath) return null;
 
         try {

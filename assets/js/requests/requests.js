@@ -178,7 +178,8 @@ class RequestsManager {
 
     // ----- API helpers -------------------------------------------------------
     getToken() {
-        return sessionStorage.getItem('bdc_token') || localStorage.getItem('bdc_token');
+        return window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
     }
 
     // Every call on this page goes through here so an expired token is renewed
@@ -4639,24 +4640,16 @@ class RequestsManager {
     // ----- Component item picker --------------------------------------------
 
     /**
-     * The 11 component types and their ims-data spec files, served from the shared
-     * /ims-data web alias. Filenames are irregular by design - never guess one;
-     * this mirrors ims-ftp/core/models/components/ComponentSpecPaths.php.
+     * Each component type and its ims-data spec file.
+     *
+     * Stays SYNCHRONOUS because three callers build option markup inline. It is
+     * primed from the API by loadComponentData() and serves utils' fallback map
+     * until then; either way it is no longer a literal typed into this file,
+     * which is how this copy came to be missing `serverplatform` entirely while
+     * its own comment claimed it mirrored ComponentSpecPaths.php.
      */
     componentSpecPaths() {
-        return {
-            cpu: '/ims-data/cpu/Cpu-details-level-3.json',
-            ram: '/ims-data/ram/ram_detail.json',
-            storage: '/ims-data/storage/storage-level-3.json',
-            motherboard: '/ims-data/motherboard/motherboard-level-3.json',
-            nic: '/ims-data/nic/nic-level-3.json',
-            caddy: '/ims-data/caddy/caddy_details.json',
-            chassis: '/ims-data/chassis/chasis-level-3.json',
-            pciecard: '/ims-data/pciecard/pci-level-3.json',
-            risercard: '/ims-data/risercard/riser-level-3.json',
-            hbacard: '/ims-data/hbacard/hbacard-level-3.json',
-            sfp: '/ims-data/sfp/sfp-level-3.json'
-        };
+        return this._specPaths || utils.SPEC_PATHS_FALLBACK;
     }
 
     /**
@@ -4683,6 +4676,7 @@ class RequestsManager {
 
     async loadComponentData() {
         if (this.componentData) return;
+        this._specPaths = await utils.specPaths();
         const paths = this.componentSpecPaths();
         this.componentData = {};
         Object.keys(paths).forEach((type) => { this.componentData[type] = []; });

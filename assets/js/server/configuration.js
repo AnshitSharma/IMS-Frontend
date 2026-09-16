@@ -81,7 +81,8 @@ class ConfigurationPage {
      * Check if user is authenticated
      */
     checkAuthentication() {
-        const token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        const token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         if (!token) {
             sessionStorage.removeItem('bdc_token');
             sessionStorage.removeItem('jwt_token');
@@ -618,10 +619,12 @@ class ConfigurationPage {
      */
     async fetchParentNICDetails(nicUuid) {
         try {
+            const nicPath = await utils.specPathFor('nic');
+
             // Use ServerBuilder's JSON cache if available, otherwise fetch directly
             const nicData = typeof ServerBuilder !== 'undefined'
-                ? await ServerBuilder.fetchJSON('/ims-data/nic/nic-level-3.json')
-                : await fetch('/ims-data/nic/nic-level-3.json').then(r => r.json());
+                ? await ServerBuilder.fetchJSON(nicPath)
+                : await fetch(nicPath).then(r => r.json());
 
             // Search for NIC by UUID in the JSON structure
             for (const brandObj of nicData) {
@@ -1222,21 +1225,10 @@ class ConfigurationPage {
      * Only loads level-3 and detailed JSON files for UUID matching
      */
     async fetchJSONData(componentType) {
-        const jsonPaths = {
-            'cpu': ['/ims-data/cpu/Cpu-details-level-3.json'],
-            'motherboard': ['/ims-data/motherboard/motherboard-level-3.json'],
-            'ram': ['/ims-data/ram/ram_detail.json'],
-            'storage': ['/ims-data/storage/storage-level-3.json'],
-            'nic': ['/ims-data/nic/nic-level-3.json'],
-            'chassis': ['/ims-data/chassis/chasis-level-3.json'],
-            'caddy': ['/ims-data/caddy/caddy_details.json'],
-            'pciecard': ['/ims-data/pciecard/pci-level-3.json'],
-            'risercard': ['/ims-data/risercard/riser-level-3.json'],
-            'hbacard': ['/ims-data/hbacard/hbacard-level-3.json'],
-            'sfp': ['/ims-data/sfp/sfp-level-3.json']
-        };
-
-        const paths = jsonPaths[componentType] || [];
+        // One map, served by dashboard-type-manifest from ComponentSpecPaths.php.
+        // Still a list: the loop below tolerates a type having several files.
+        const specPath = await utils.specPathFor(componentType);
+        const paths = specPath ? [specPath] : [];
         const allData = [];
 
         for (const path of paths) {

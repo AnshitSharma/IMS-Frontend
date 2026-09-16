@@ -6,13 +6,15 @@ class RackAPI {
     constructor() {
         this.baseURL = window.BDC_CONFIG?.API_BASE_URL || 'https://ims.bdcms.bharatdatacenter.com/Ims_backend/api/api.php';
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
-        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        this.token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
     }
 
     // Re-read the token from storage and keep the axios default header in step.
     _currentToken() {
-        this.token = localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token');
+        this.token = window.api ? window.api.getToken()
+            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         if (this.token) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
         }
