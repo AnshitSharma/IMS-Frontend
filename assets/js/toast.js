@@ -85,14 +85,24 @@ class ToastNotification {
     }
 
     /**
-     * Escape HTML to prevent XSS
+     * Escape HTML to prevent XSS.
+     *
+     * THE ONE DELIBERATE COPY of utils.escapeHtml(). Every other copy was folded
+     * into utils.js on 2026-09-16, but this file cannot delegate: index.html (the
+     * login page) and reset-password.html load toast.js WITHOUT utils.js, so
+     * window.utils is undefined there and a delegating call would throw on the
+     * first toast the login page shows. Keep the two implementations identical --
+     * if you change the escaping here, change utils.escapeHtml() too.
+     *
+     * Character map rather than textContent -> innerHTML: HTML text-node
+     * serialisation escapes only & < > and leaves both quote characters intact,
+     * which is unsafe wherever this value lands inside an attribute (title=,
+     * data-*, aria-label=, value=).
      */
     escapeHtml(str) {
-        if (!str) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
+        // Guard null/undefined only, NOT every falsy value: `if (!str)` turned the
+        // number 0 and the string "0" into an empty cell.
+        if (str === null || str === undefined) return '';
         const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
         return String(str).replace(/[&<>"']/g, m => map[m]);
     }

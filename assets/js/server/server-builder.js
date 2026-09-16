@@ -3776,30 +3776,19 @@ class ServerBuilder {
     }
 
     /**
-     * Escape HTML to prevent XSS
+     * Escape HTML to prevent XSS. Delegates to the one implementation in utils.js;
+     * every page carrying this file loads utils.js before it.
      */
     escapeHtml(str) {
-        if (!str) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(str).replace(/[&<>"']/g, m => map[m]);
+        return window.utils.escapeHtml(str);
     }
 
     /**
      * Render a value as a JS literal safe to drop into an inline onclick
-     * attribute. Serial numbers are user-entered free text, so they can carry
-     * quotes or backslashes that would otherwise break out of the handler.
-     * escapeHtml() is not enough on its own — it leaves both quote characters
-     * untouched. Returns the literal `null` for absent values so the receiving
-     * parameter falls back to its default.
+     * attribute. Delegates to the one implementation in utils.js.
      */
     jsArg(value) {
-        if (value === null || value === undefined || value === '') return 'null';
-        const js = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        return `'${js.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}'`;
+        return window.utils.jsArg(value);
     }
 }
 

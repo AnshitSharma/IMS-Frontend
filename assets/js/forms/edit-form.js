@@ -148,14 +148,12 @@ class EditFormComponent {
         }
     }
 
+    // Delegates to the one implementation in utils.js. This file is never loaded
+    // as a page script -- dashboard.js and requests.js inject it at runtime, and
+    // both only run on pages that already load utils.js, so window.utils is set
+    // by the time any instance of this class exists.
     escapeHtml(str) {
-        if (!str) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(str).replace(/[&<>"']/g, m => map[m]);
+        return window.utils.escapeHtml(str);
     }
 
     renderCommonFields() {
