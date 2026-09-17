@@ -182,43 +182,18 @@ class RequestsManager {
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
     }
 
-    // Every call on this page goes through here so an expired token is renewed
-    // once and the call retried, instead of the 401 body being rendered as
-    // "Couldn't load requests / Valid JWT token required - please login". If the
-    // session cannot be renewed, window.api clears it and redirects to login.
-    async apiFetch(url, options) {
-        const withAuth = () => ({
-            ...options,
-            headers: { ...(options.headers || {}), 'Authorization': `Bearer ${this.getToken()}` }
-        });
-
-        let res = await fetch(url, withAuth());
-        if (res.status !== 401 || !window.api) {
-            return res.json();
-        }
-
-        const refreshed = await window.api.refreshToken();
-        if (!refreshed) {
-            window.api.handleAuthFailure();
-            return res.json();
-        }
-
-        res = await fetch(url, withAuth());
-        if (res.status === 401) {
-            window.api.handleAuthFailure();
-        }
-        return res.json();
-    }
-
+    // Every call on this page goes through window.api.requestEnvelope(), which
+    // renews an expired token once and retries before giving up, and returns the
+    // API envelope rather than throwing. This class used to carry its own copy of
+    // that fetch logic, byte-for-byte identical to the one in the sibling page.
     async apiPost(action, fields = {}) {
-        const fd = new FormData();
-        fd.append('action', action);
-        Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v); });
-        return this.apiFetch(this.apiBaseUrl, { method: 'POST', body: fd });
+        return window.api.requestEnvelope(action, fields);
     }
 
     async apiGet(action) {
-        return this.apiFetch(`${this.apiBaseUrl}?action=${encodeURIComponent(action)}`, { method: 'GET' });
+        // Was a GET with the action in the query string; the API is POST
+        // FormData throughout and answers these actions the same way.
+        return window.api.requestEnvelope(action);
     }
 
     async loadSupportData() {

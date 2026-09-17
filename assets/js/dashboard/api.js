@@ -224,6 +224,19 @@ window.api = {
         }
     },
 
+    // Non-throwing sibling of request(). Returns the API envelope whatever
+    // happens, so a page that renders { success: false, message } inline does not
+    // need a try/catch around every call. The Requests and Request Types pages
+    // each used to carry their own byte-identical fetch-with-refresh-and-retry
+    // helper; both now come through here.
+    async requestEnvelope(action, fields = {}) {
+        try {
+            return await this.request(action, fields);
+        } catch (error) {
+            return { success: false, message: error.message || 'Request failed' };
+        }
+    },
+
     // Refresh authentication token.
     //
     // Single-flight: a page load fires several calls in parallel (requests fires

@@ -1,6 +1,6 @@
 /**
  * RackAPI — API wrapper for the Rack View feature.
- * Mirrors the ServerAPI pattern (axios + FormData + Bearer auth).
+ * Mirrors the ServerAPI pattern: action + FormData over window.api.request().
  */
 class RackAPI {
     constructor() {
@@ -8,70 +8,27 @@ class RackAPI {
         this.loginURL = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';
         this.token = window.api ? window.api.getToken()
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-        axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
     }
 
-    // Re-read the token from storage and keep the axios default header in step.
-    _currentToken() {
-        this.token = window.api ? window.api.getToken()
-            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-        if (this.token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
-        }
-        return this.token;
-    }
-
+    // One transport for the whole frontend: window.api.request() owns the Bearer
+    // header, the FormData encoding, the single-flight refresh-and-retry on 401 and
+    // the redirect to login. This used to be a second, axios-based copy of it.
+    //
+    // It throws where axios rejected, so the throw is turned back into the
+    // { success: false, message } envelope every caller on the Rack View page
+    // already checks. `options` was an axios request-config bag that no caller ever
+    // populated; accepted and ignored.
     async makeRequest(data, options = {}) {
-        const formData = new FormData();
-        for (const [key, value] of Object.entries(data)) {
-            if (value !== undefined && value !== null) {
-                formData.append(key, value);
-            }
-        }
-
-        const post = () => {
-            const token = this._currentToken();
-            return axios.post(this.baseURL, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Authorization': token ? `Bearer ${token}` : '',
-                },
-                ...options
-            });
-        };
-
+        const { action, ...fields } = data;
+        // This page shows the global overlay for every call; axios interceptors
+        // used to count the requests, so do it here instead.
+        window.globalLoading?.beginRequest(options.loadingMessage, options.silent);
         try {
-            const response = await post();
-            return response.data;
+            return await window.api.request(action, fields);
         } catch (error) {
-            if (error.response?.status === 401) {
-                // Access tokens last 30 minutes — renew and retry once rather than
-                // bouncing the user to login on an ordinary expiry.
-                const refreshed = window.api ? await window.api.refreshToken() : false;
-                if (refreshed) {
-                    try {
-                        const retry = await post();
-                        return retry.data;
-                    } catch (retryError) {
-                        if (retryError.response?.status !== 401) {
-                            const msg = retryError.response?.data?.message || 'Network error occurred';
-                            return { success: false, message: msg };
-                        }
-                    }
-                }
-
-                if (window.api) {
-                    window.api.clearAuth();
-                } else {
-                    sessionStorage.removeItem('bdc_token');
-                    localStorage.removeItem('bdc_token');
-                }
-                window.location.href = this.loginURL;
-                return;
-            }
-            // Surface the API's own message when present, else a generic one.
-            const message = error.response?.data?.message || 'Network error occurred';
-            return { success: false, message };
+            return { success: false, message: error.message || 'Network error occurred' };
+        } finally {
+            window.globalLoading?.endRequest();
         }
     }
 

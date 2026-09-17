@@ -7,16 +7,12 @@ class ServerAPI {
         // Get token from bdc_token key (current standard)
         this.token = window.api ? window.api.getToken()
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-
-        // Setup axios defaults
-        axios.defaults.headers.common['Authorization'] = this.token ? `Bearer ${this.token}` : '';
     }
 
     // Update token
     setToken(token) {
         this.token = token;
         sessionStorage.setItem('bdc_token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
     // Clear token
@@ -30,71 +26,25 @@ class ServerAPI {
         localStorage.removeItem('bdc_refresh_token');
         localStorage.removeItem('bdc_user');
         localStorage.removeItem('bdc_remember_me');
-        delete axios.defaults.headers.common['Authorization'];
     }
 
-    // Re-read the token from storage and keep the axios default header in step.
-    // Storage itself is only ever written by window.api, which honours the
-    // remember-me choice; setToken() here would force sessionStorage and quietly
-    // break it.
-    _currentToken() {
-        this.token = window.api ? window.api.getToken()
-            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-        if (this.token) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
-        }
-        return this.token;
-    }
-
-    // Generic API request method
+    // Generic API request method.
+    //
+    // One transport for the whole frontend: window.api.request() already owns the
+    // Bearer header, the FormData encoding, the single-flight token refresh with a
+    // retry, and the redirect to login when the session is genuinely over. This
+    // used to be a second, axios-based copy of all of that.
+    // `options` is threaded through every method below but no caller has ever
+    // populated it; it was an axios request-config bag. Accepted and ignored.
     async makeRequest(data, options = {}) {
-        const formData = new FormData();
-
-        // Add all data to FormData
-        for (const [key, value] of Object.entries(data)) {
-            formData.append(key, value);
-        }
-
-        const post = () => {
-            const token = this._currentToken();
-            return axios.post(this.baseURL, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                    'Authorization': token ? `Bearer ${token}` : '',
-                },
-                ...options
-            });
-        };
-
+        const { action, ...fields } = data;
+        // These pages show the global overlay for every call; axios interceptors
+        // used to count the requests, so do it here instead.
+        window.globalLoading?.beginRequest(options.loadingMessage, options.silent);
         try {
-            const response = await post();
-            return response.data;
-        } catch (error) {
-            if (error.response?.status === 401) {
-                // The access token only lives 30 minutes. Renew it and retry once
-                // before giving up: dropping the user on the login page mid-build
-                // throws away the configuration they had open.
-                const refreshed = window.api ? await window.api.refreshToken() : false;
-                if (refreshed) {
-                    try {
-                        const retry = await post();
-                        return retry.data;
-                    } catch (retryError) {
-                        if (retryError.response?.status !== 401) {
-                            console.error('API Request Error:', retryError);
-                            throw new Error(retryError.response?.data?.message || 'Network error occurred');
-                        }
-                    }
-                }
-
-                // Session genuinely over — clear it and send the user to login.
-                this.clearToken();
-                window.location.href = this.loginURL;
-                return;
-            }
-
-            console.error('API Request Error:', error);
-            throw new Error(error.response?.data?.message || 'Network error occurred');
+            return await window.api.request(action, fields);
+        } finally {
+            window.globalLoading?.endRequest();
         }
     }
 

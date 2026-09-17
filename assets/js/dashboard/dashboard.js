@@ -152,12 +152,10 @@ class Dashboard {
     }
 
     async initializeUserInfo() {
-        const user = api.getUser();
-        if (user) {
-            document.getElementById('userDisplayName').textContent =
-                `${user.firstname} ${user.lastname}` || user.username;
-            document.getElementById('userRole').textContent =
-                user.primary_role ? user.primary_role.replace('_', ' ').toUpperCase() : 'USER';
+        // The name and role sit in the navbar, which components/navbar.js fills
+        // in when it mounts. Kept as a hook for callers that refresh the user.
+        if (window.sharedNavbar) {
+            window.sharedNavbar.updateUserDisplay(api.getUser());
         }
     }
 
@@ -248,34 +246,11 @@ class Dashboard {
             });
         }
 
-        // User Dropdown
-        const dropdownBtn = document.querySelector('.dropdown-btn');
-        const dropdown = document.querySelector('.dropdown');
-
-        if (dropdownBtn && dropdown) {
-            dropdownBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                dropdown.classList.toggle('active');
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!dropdown.contains(e.target)) {
-                    dropdown.classList.remove('active');
-                }
-            });
-        }
-
-        // Change password
-        document.getElementById('changePassword')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.showChangePasswordModal();
-        });
-
-        // Logout
-        document.getElementById('logoutBtn')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.handleLogout();
-        });
+        // The user dropdown, Change Password and Logout live in the navbar, and
+        // components/navbar.js binds all three. It calls back into
+        // this.showChangePasswordModal() and this.handleLogout() when a page
+        // loads dashboard.js, so the behaviour here is unchanged — binding them
+        // a second time would toggle the dropdown open and shut on one click.
 
         document.getElementById('bulkDelete')?.addEventListener('click', () => {
             this.showBulkDeleteModal();

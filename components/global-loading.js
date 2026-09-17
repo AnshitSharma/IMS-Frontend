@@ -22,8 +22,6 @@ class GlobalLoadingManager {
             this.createOverlay();
         }
 
-        // Setup axios interceptors for automatic API loading
-        this.setupAxiosInterceptors();
     }
 
     createOverlay() {
@@ -118,69 +116,31 @@ class GlobalLoadingManager {
         return !this.overlay?.classList.contains('hidden') || this.activeRequests > 0 || this.isManualLoading;
     }
 
-    setupAxiosInterceptors() {
-        // Wait for axios to be available (max 5 retries)
-        let retries = 0;
-        const maxRetries = 5;
-        const setupInterceptors = () => {
-            if (typeof axios === 'undefined') {
-                if (retries++ < maxRetries) {
-                    setTimeout(setupInterceptors, 100);
-                }
-                return;
-            }
+    // The builder, configuration, rack and server pages show this overlay for
+    // every API call. That used to ride on axios request/response interceptors;
+    // now that those pages go through window.api like everything else, ServerAPI
+    // and RackAPI bracket each call with these two instead. Dashboard pages do
+    // not call them, so their calls stay silent exactly as before.
+    beginRequest(message, silent) {
+        this.activeRequests++;
+        if (silent) return;
 
-            // Request interceptor
-            axios.interceptors.request.use(
-                (config) => {
-                    this.activeRequests++;
+        if (this.messageElement) {
+            this.messageElement.textContent = message || 'Loading...';
+        }
+        if (!this.isManualLoading && this.overlay) {
+            this.overlay.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                this.overlay.style.opacity = '1';
+            });
+        }
+    }
 
-                    // Don't show loading for silent requests
-                    if (!config.silent) {
-                        const message = config.loadingMessage || 'Loading...';
-                        if (this.messageElement) {
-                            this.messageElement.textContent = message;
-                        }
-
-                        if (!this.isManualLoading && this.overlay) {
-                            this.overlay.classList.remove('hidden');
-                            requestAnimationFrame(() => {
-                                this.overlay.style.opacity = '1';
-                            });
-                        }
-                    }
-
-                    return config;
-                },
-                (error) => {
-                    this.activeRequests--;
-                    if (this.activeRequests === 0 && !this.isManualLoading) {
-                        this.hide();
-                    }
-                    return Promise.reject(error);
-                }
-            );
-
-            // Response interceptor
-            axios.interceptors.response.use(
-                (response) => {
-                    this.activeRequests--;
-                    if (this.activeRequests === 0 && !this.isManualLoading) {
-                        this.hide();
-                    }
-                    return response;
-                },
-                (error) => {
-                    this.activeRequests--;
-                    if (this.activeRequests === 0 && !this.isManualLoading) {
-                        this.hide();
-                    }
-                    return Promise.reject(error);
-                }
-            );
-        };
-
-        setupInterceptors();
+    endRequest() {
+        this.activeRequests = Math.max(0, this.activeRequests - 1);
+        if (this.activeRequests === 0 && !this.isManualLoading) {
+            this.hide();
+        }
     }
 
     // Reset all loading states (useful for navigation)

@@ -1,57 +1,98 @@
 /**
  * Shared Navbar Component
- * Handles navbar initialization, user info display, and dropdown functionality
+ *
+ * The navbar markup lives here, in one place, and is injected into
+ * <div id="navbar-placeholder"></div>. It used to be fetched from
+ * components/navbar.html, but a fetch cannot complete before the other page
+ * scripts run their DOMContentLoaded handlers, and several of them
+ * (dashboard.js, sidebar-manager.js) bind to elements inside the navbar. So the
+ * markup is a template literal and the mount is synchronous: put the <script>
+ * tag anywhere after the placeholder and the navbar exists before any
+ * DOMContentLoaded handler fires.
  */
+
+const NAVBAR_HTML = `
+<nav class="navbar bg-surface-card shadow-sm sticky top-0 z-navbar">
+    <div class="nav-container max-w-screen-4xl mx-auto navbar-padding py-3 flex items-center justify-between">
+        <!-- Mobile Hamburger + Brand -->
+        <div class="flex items-center gap-3">
+            <!-- Hamburger Menu Button (Mobile Only) -->
+            <button
+                class="hamburger-menu lg:hidden bg-surface-secondary hover:bg-surface-hover text-text-secondary hover:text-primary rounded-lg p-2 transition-colors border border-border-light"
+                id="hamburgerBtn" aria-label="Toggle Menu">
+                <i class="fas fa-bars text-base"></i>
+            </button>
+            <a href="#" id="navbarBrandLink"
+                class="nav-brand flex items-center gap-2 text-primary font-semibold text-lg hover:opacity-80 transition-opacity">
+                <i class="fas fa-server"></i>
+                <span>BDC Inventory</span>
+            </a>
+        </div>
+
+        <div class="nav-menu flex items-center gap-4">
+            <div class="nav-user flex items-center gap-3">
+                <!-- Theme Toggle Button -->
+                <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
+                    <i class="fas fa-moon" id="themeToggleIcon"></i>
+                </button>
+
+                <div class="user-info text-right hidden md:block">
+                    <span id="userDisplayName" class="block text-sm font-medium text-text-primary">Loading...</span>
+                    <span id="userRole" class="block text-xs text-text-muted">User</span>
+                </div>
+                <div class="user-avatar w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="dropdown relative">
+                    <button class="dropdown-btn text-text-secondary hover:text-text-primary">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div
+                        class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
+                        <a href="#" id="changePassword"
+                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                            <i class="fas fa-key"></i> Change Password
+                        </a>
+                        <a href="#" id="logoutBtn"
+                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+`;
 
 class SharedNavbar {
     constructor() {
-        this.init();
-    }
-
-    /**
-     * Initialize navbar
-     */
-    async init() {
-        await this.loadNavbarHTML();
+        this.render();
         this.initializeUserInfo();
         this.setupEventListeners();
     }
 
     /**
-     * Load navbar HTML from component file
+     * Inject the navbar markup and point the brand at the dashboard home.
      */
-    async loadNavbarHTML() {
-        try {
-            // Find the navbar placeholder
-            const placeholder = document.getElementById('navbar-placeholder');
-            if (!placeholder) {
-                return;
-            }
+    render() {
+        const placeholder = document.getElementById('navbar-placeholder');
+        if (!placeholder) {
+            return;
+        }
 
-            // Determine the correct path based on current page location
-            const currentPath = window.location.pathname;
-            let navbarPath = '../components/navbar.html';
+        placeholder.innerHTML = NAVBAR_HTML;
 
-            // Adjust path based on directory depth
-            if (currentPath.includes('/server/')) {
-                navbarPath = '../../components/navbar.html';
-            } else if (currentPath.includes('/dashboard/')) {
-                navbarPath = '../../components/navbar.html';
-            } else if (currentPath.includes('/forms/')) {
-                navbarPath = '../../components/navbar.html';
-            } else if (currentPath.includes('/pages/')) {
-                navbarPath = '../components/navbar.html';
-            }
-
-            const response = await fetch(navbarPath);
-            if (!response.ok) {
-                throw new Error(`Failed to load navbar: ${response.status}`);
-            }
-
-            const html = await response.text();
-            placeholder.innerHTML = html;
-        } catch (error) {
-            console.error('Error loading navbar:', error);
+        // The brand is a home link. pages/dashboard/ sits next to index.html;
+        // pages/server/ and pages/forms/ are one directory over.
+        const brand = document.getElementById('navbarBrandLink');
+        if (brand) {
+            brand.setAttribute(
+                'href',
+                window.location.pathname.includes('/dashboard/')
+                    ? './index.html'
+                    : '../dashboard/index.html'
+            );
         }
     }
 
@@ -63,46 +104,20 @@ class SharedNavbar {
         if (typeof api === 'undefined') {
             return;
         }
-
-        const user = api.getUser();
-        if (user) {
-            // Update display name
-            const displayNameElement = document.getElementById('userDisplayName');
-            if (displayNameElement) {
-                displayNameElement.textContent = user.name || user.username || 'User';
-            }
-
-            // Update role
-            const roleElement = document.getElementById('userRole');
-            if (roleElement) {
-                const primaryRole = user.primary_role;
-                const roles = user.roles;
-
-                if (primaryRole) {
-                    roleElement.textContent = primaryRole;
-                } else if (roles && roles.length > 0) {
-                    roleElement.textContent = roles[0].name || roles[0];
-                } else {
-                    roleElement.textContent = 'User';
-                }
-            }
-        }
+        this.updateUserDisplay(api.getUser());
     }
 
     /**
      * Setup event listeners for navbar interactions
      */
     setupEventListeners() {
-        // Theme toggle button
-        const themeToggleBtn = document.getElementById('themeToggleBtn');
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', () => {
-                this.handleThemeToggle();
-            });
+        // The theme toggle is owned by utils.theme, which binds it once and
+        // guards against a second listener. Calling it here covers the case
+        // where utils.js already ran its own DOMContentLoaded handler before
+        // this navbar existed.
+        if (typeof utils !== 'undefined' && utils.theme) {
+            utils.theme.mountToggle();
         }
-
-        // Initialize theme on load
-        this.initializeTheme();
 
         // Dropdown toggle
         const dropdownBtn = document.querySelector('.dropdown-btn');
@@ -255,6 +270,13 @@ class SharedNavbar {
      * Handle logout action
      */
     handleLogout() {
+        // Dashboard pages confirm first and tell the backend to revoke the
+        // token; prefer that over dropping the session on the floor.
+        if (typeof dashboard !== 'undefined' && dashboard.handleLogout) {
+            dashboard.handleLogout();
+            return;
+        }
+
         // Clear authentication data from both storages
         sessionStorage.removeItem('bdc_token');
         sessionStorage.removeItem('jwt_token');
@@ -277,7 +299,8 @@ class SharedNavbar {
 
         const displayNameElement = document.getElementById('userDisplayName');
         if (displayNameElement) {
-            displayNameElement.textContent = user.name || user.username || 'User';
+            const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ');
+            displayNameElement.textContent = fullName || user.name || user.username || 'User';
         }
 
         const roleElement = document.getElementById('userRole');
@@ -286,73 +309,26 @@ class SharedNavbar {
             const roles = user.roles;
 
             if (primaryRole) {
-                roleElement.textContent = primaryRole;
+                roleElement.textContent = primaryRole.replace(/_/g, ' ').toUpperCase();
             } else if (roles && roles.length > 0) {
                 roleElement.textContent = roles[0].name || roles[0];
             } else {
-                roleElement.textContent = 'User';
+                roleElement.textContent = 'USER';
             }
-        }
-    }
-
-    /**
-     * Initialize theme on page load
-     */
-    initializeTheme() {
-        if (typeof utils !== 'undefined' && utils.theme) {
-            utils.theme.init();
-            this.updateThemeIcon(utils.theme.get());
-        }
-    }
-
-    /**
-     * Handle theme toggle
-     */
-    handleThemeToggle() {
-        if (typeof utils === 'undefined' || !utils.theme) {
-            return;
-        }
-
-        // Add animation
-        const toggleBtn = document.getElementById('themeToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.classList.add('toggling');
-            setTimeout(() => toggleBtn.classList.remove('toggling'), 300);
-        }
-
-        // Toggle theme
-        const newTheme = utils.theme.toggle();
-
-        // Update icon
-        this.updateThemeIcon(newTheme);
-
-        // Show toast
-        if (typeof toast !== 'undefined') {
-            const message = newTheme === 'dark' ? 'Dark mode enabled' : 'Light mode enabled';
-            toast.success(message, 2000);
-        }
-    }
-
-    /**
-     * Update theme toggle icon
-     */
-    updateThemeIcon(theme) {
-        const icon = document.getElementById('themeToggleIcon');
-        if (!icon) return;
-
-        if (theme === 'dark') {
-            icon.className = 'fas fa-sun';
-        } else {
-            icon.className = 'fas fa-moon';
         }
     }
 }
 
-// Auto-initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+// Mount as soon as the placeholder exists — at parse time when the <script> tag
+// follows it, otherwise on DOMContentLoaded.
+function _mountNavbar() {
+    if (!window.sharedNavbar) {
         window.sharedNavbar = new SharedNavbar();
-    });
+    }
+}
+
+if (document.getElementById('navbar-placeholder') || document.readyState !== 'loading') {
+    _mountNavbar();
 } else {
-    window.sharedNavbar = new SharedNavbar();
+    document.addEventListener('DOMContentLoaded', _mountNavbar);
 }
