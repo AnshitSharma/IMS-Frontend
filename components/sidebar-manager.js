@@ -402,10 +402,10 @@ class SidebarManager {
             item.classList.remove('active');
         });
 
-        // Get current page
-        const path = window.location.pathname;
-        const page = path.split('/').pop() || 'index.html';
-        let componentName = page.replace('.html', '');
+        // Get current page. The 12 component inventories share one page
+        // (component.html?type=cpu), so the slug comes from utils.
+        let componentName = window.utils ? utils.currentPageSlug() : null;
+        if (componentName === null) componentName = 'index';
         if (componentName === 'index') componentName = 'dashboard';
 
         // Find and activate current page

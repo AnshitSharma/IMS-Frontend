@@ -812,8 +812,8 @@ window.api = {
     },
 
     // Rack endpoints — used by the Create Server form to place a new server.
-    // (The Rack View page has its own axios wrapper, rack/rack-api.js; this is the
-    // same API through the dashboard's fetch layer, not a second layer.)
+    // (The Rack View page calls the same actions through rack/rack-api.js, which
+    // is a typed catalogue over this same request() — not a second layer.)
     racks: {
         async list() {
             return await api.request('rack-list');

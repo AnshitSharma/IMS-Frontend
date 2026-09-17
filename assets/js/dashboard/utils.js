@@ -602,6 +602,40 @@ window.utils = {
         error(...args) {
             console.error(...args);
         }
+    },
+
+    // The 12 component types and their display names, in sidebar order. Keys
+    // match VALID_COMPONENT_TYPES in the backend. This is the only copy: the
+    // shared component page takes its <title> and heading from here, and so does
+    // the vendor "sells" picker.
+    componentLabels: {
+        cpu: 'CPUs',
+        ram: 'RAM',
+        storage: 'Storage',
+        motherboard: 'Motherboards',
+        nic: 'Network Cards',
+        caddy: 'Caddies',
+        chassis: 'Chassis',
+        pciecard: 'PCIe Cards',
+        risercard: 'Riser Cards',
+        hbacard: 'HBA Cards',
+        sfp: 'SFP Modules',
+        serverplatform: 'Server Compute Platforms'
+    },
+
+    // Which page this is, as the slug the rest of the app keys off.
+    //
+    // The 12 component inventories were 12 near-identical HTML files; they are now
+    // one page, component.html?type=cpu, so the slug comes from the query string
+    // there and from the filename everywhere else. The old per-type URLs still
+    // exist as redirects, so a bookmark or an old link keeps working.
+    currentPageSlug() {
+        const page = window.location.pathname.split('/').pop() || 'index.html';
+        if (page === 'component.html') {
+            const type = new URLSearchParams(window.location.search).get('type');
+            return this.componentLabels[type] ? type : null;
+        }
+        return page.replace('.html', '');
     }
 };
 

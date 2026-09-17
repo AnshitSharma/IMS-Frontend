@@ -69,9 +69,11 @@ class Dashboard {
         await this.initializeUserInfo();
         this.setupEventListeners();
 
-        // Determine current page and load appropriate data
-        const path = window.location.pathname;
-        const page = path.split('/').pop();
+        // Determine current page and load appropriate data. The 12 component
+        // inventories share one page (component.html?type=cpu), so ask utils for
+        // the slug rather than reading the filename.
+        const slug = utils.currentPageSlug();
+        const page = slug === null ? '' : slug + '.html';
 
         if (page === 'index.html' || page === '' || page === 'dashboard') {
             this.currentComponent = 'dashboard';
@@ -144,7 +146,7 @@ class Dashboard {
             await this.loadVendorList();
         } else {
             // Assume it's a component page
-            const component = page.replace('.html', '');
+            const component = slug;
             this.currentComponent = component;
             this.applyComponentCreateGate(component);
             await this.loadComponentList(component);
@@ -3968,20 +3970,7 @@ class Dashboard {
     // Component types a vendor can sell — keys match VALID_COMPONENT_TYPES in the
     // backend; labels mirror the sidebar menu.
     getVendorSellTypes() {
-        return [
-            { key: 'cpu', label: 'CPUs' },
-            { key: 'ram', label: 'RAM' },
-            { key: 'storage', label: 'Storage' },
-            { key: 'motherboard', label: 'Motherboards' },
-            { key: 'nic', label: 'Network Cards' },
-            { key: 'caddy', label: 'Caddies' },
-            { key: 'chassis', label: 'Chassis' },
-            { key: 'pciecard', label: 'PCIe Cards' },
-            { key: 'risercard', label: 'Riser Cards' },
-            { key: 'hbacard', label: 'HBA Cards' },
-            { key: 'sfp', label: 'SFP Modules' },
-            { key: 'serverplatform', label: 'Server Compute Platforms' }
-        ];
+        return Object.entries(utils.componentLabels).map(([key, label]) => ({ key, label }));
     }
 
     // Builds the optional extended-profile fields shared by the Add and Edit

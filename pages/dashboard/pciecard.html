@@ -4,161 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
     <title>PCIe Cards - BDC Inventory</title>
-    <link rel="stylesheet" href="../../assets/css/tailwind.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <!--
+      This page's content moved to component.html?type=pciecard, which serves all 12
+      component inventories from one copy of the markup. The file stays as a redirect
+      so existing links and bookmarks keep working. replace() rather than assign()
+      so Back does not bounce the user straight here again.
+    -->
     <script>
-        (function () {
-            const theme = (localStorage.getItem('theme') || 'light').replace(/^"|"$/g, '');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
+        location.replace('component.html?type=pciecard' + location.hash);
     </script>
 </head>
 
-<body class="bg-surface-main">
-    <div id="navbar-placeholder"></div>
-
-    <!-- Main Container with Layout Wrapper -->
-    <div class="layout-wrapper">
-        <div class="main-container flex">
-            <!-- Sidebar Content Area (injected here via sidebar-placeholder) -->
-            <div id="sidebar-placeholder"></div>
-
-            <!-- Main Content -->
-            <main class="main-content flex-1 p-4 sm:p-6">
-                <!-- Component List View -->
-                <div id="componentView" class="content-section active">
-                    <div class="content-header mb-6">
-                        <h2 id="componentTitle" class="text-2xl font-bold text-text-primary mb-4">PCIe Cards</h2>
-                        <div
-                            class="header-actions flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                            <div class="search-filter-group flex flex-col sm:flex-row gap-3 sm:flex-1 w-full sm:w-auto">
-                                <input type="text" id="componentSearch" placeholder="Search components..."
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
-                                <select id="statusFilter"
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] bg-surface-card text-text-primary">
-                                    <option value="">All Status</option>
-                                    <option value="1">Available</option>
-                                    <option value="2">In Use</option>
-                                    <option value="0">Failed</option>
-                                </select>
-                            </div>
-                            <button
-                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addComponentBtn" style="display: none;">
-                                <i class="fas fa-plus"></i> Add Component
-                            </button>
-                            <button
-                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshComponents">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
-                        </div>
-                    </div>
-
-
-                    <!-- Components Table -->
-                    <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base components-table table-responsive" id="componentsTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr id="componentsTableHeader">
-                                    <th class="px-4 py-3 text-left h-14 align-middle">
-                                        <input type="checkbox" id="selectAllComponents" class="w-4 h-4">
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Model
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Status</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Server UUID
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Location</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Purchase Date
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="componentsTableBody" class="divide-y divide-border">
-                                <!-- Table rows will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div class="pagination-container mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div class="pagination-info text-sm text-text-muted text-center sm:text-left">
-                            <span id="paginationInfo">Showing 0 of 0 items</span>
-                        </div>
-                        <div class="pagination flex items-center gap-1 sm:gap-2 flex-wrap justify-center" id="pagination">
-                            <!-- Pagination buttons will be populated by JavaScript -->
-                        </div>
-                    </div>
-
-                    <!-- Bulk Actions -->
-                    <div class="bulk-actions hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-border p-3 sm:p-4 shadow-lg z-50"
-                        id="bulkActions">
-                        <div class="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                            <div class="bulk-info text-sm text-text-primary text-center sm:text-left">
-                                <span id="selectedCount">0</span> items selected
-                            </div>
-                            <div class="bulk-buttons flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                <button
-                                    class="btn btn-secondary btn-icon-mobile px-4 py-2 min-h-[44px] bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center justify-center gap-2"
-                                    id="bulkUpdateStatus">
-                                    <i class="fas fa-edit"></i><span class="hidden sm:inline">Update Status</span>
-                                </button>
-                                <button
-                                    class="btn btn-danger btn-icon-mobile px-4 py-2 min-h-[44px] bg-danger text-white rounded-lg hover:bg-danger-600 transition-colors flex items-center justify-center gap-2"
-                                    id="bulkDelete">
-                                    <i class="fas fa-trash"></i><span class="hidden sm:inline">Delete Selected</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-    </div>
-
-    <!-- Modal Container -->
-    <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
-        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
-                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(90vh-120px)]" id="modalBody">
-                <!-- Modal content will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Alert Container -->
-    <div id="alertContainer" class="alert-container"></div>
-
-    <!-- Scripts -->
-    <script src="../../components/global-loading.js"></script>
-    <script src="../../assets/js/config.js"></script>
-    <script src="../../assets/js/toast.js"></script>
-    <script src="../../assets/js/dashboard/utils.js"></script>
-    <script src="../../assets/js/dashboard/api.js"></script>
-    <script src="../../components/sidebar-manager.js"></script>
-    <script src="../../components/navbar.js"></script>
-    <script src="../../assets/js/dashboard/dashboard.js"></script>
+<body>
+    <noscript><a href="component.html?type=pciecard">Continue to PCIe Cards</a></noscript>
 </body>
 
 </html>

@@ -308,13 +308,13 @@ class SharedNavbar {
             const primaryRole = user.primary_role;
             const roles = user.roles;
 
-            if (primaryRole) {
-                roleElement.textContent = primaryRole.replace(/_/g, ' ').toUpperCase();
-            } else if (roles && roles.length > 0) {
-                roleElement.textContent = roles[0].name || roles[0];
-            } else {
-                roleElement.textContent = 'USER';
-            }
+            // The dashboard pages uppercased primary_role and fell back to
+            // "USER"; the server pages printed the first role as written. Live,
+            // primary_role is absent and `roles` is a list of names, so that
+            // fallback showed every user as USER. One rule now: whichever role we
+            // have, uppercased.
+            const role = primaryRole || (roles && roles.length ? (roles[0].name || roles[0]) : '');
+            roleElement.textContent = role ? String(role).replace(/_/g, ' ').toUpperCase() : 'USER';
         }
     }
 }
