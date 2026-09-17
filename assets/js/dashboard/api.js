@@ -500,6 +500,28 @@ window.api = {
             });
         },
 
+        // {module}-bulk-delete (kebab -- the case the backend switch actually
+        // dispatches; see api/permission_map.php's bulk_delete/bulk-delete pair).
+        // Server caps a single call at 100 ids, so batches split here.
+        async bulkDelete(componentType, ids) {
+            const batches = [];
+            for (let i = 0; i < ids.length; i += 100) {
+                batches.push(ids.slice(i, i + 100));
+            }
+            const results = [];
+            let succeeded = 0, failed = 0;
+            for (const batch of batches) {
+                const result = await api.request(`${componentType}-bulk-delete`, {
+                    ids: JSON.stringify(batch)
+                });
+                const data = result?.data || {};
+                succeeded += data.succeeded || 0;
+                failed += data.failed || 0;
+                results.push(...(data.results || []));
+            }
+            return { succeeded, failed, total: succeeded + failed, results };
+        },
+
         async getJSONData(componentType) {
             return await api.request(`${componentType}-get_json_data`);
         }

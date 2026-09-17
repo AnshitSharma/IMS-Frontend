@@ -253,10 +253,6 @@ class Dashboard {
         // this.showChangePasswordModal() and this.handleLogout() when a page
         // loads dashboard.js, so the behaviour here is unchanged — binding them
         // a second time would toggle the dropdown open and shut on one click.
-
-        document.getElementById('bulkDelete')?.addEventListener('click', () => {
-            this.showBulkDeleteModal();
-        });
     }
 
     // switchView removed - MPA handles navigation natively via links
@@ -3091,18 +3087,13 @@ class Dashboard {
         if (confirmed) {
             try {
                 utils.showLoading(true, 'Deleting components...');
-                let deleted = 0, failed = 0;
-                for (const id of this.selectedItems) {
-                    try {
-                        await api.components.delete(this.currentComponent, id);
-                        deleted++;
-                    } catch (error) {
-                        failed++;
-                        console.error(`Failed to delete component ${id}:`, error);
-                    }
-                }
-                if (deleted > 0) {
-                    utils.showAlert(`Successfully deleted ${deleted} components${failed > 0 ? `, ${failed} failed` : ''}`, deleted === this.selectedItems.size ? 'success' : 'warning');
+                // PERF-N1: one bulk-delete request (batched at 100, the server's own
+                // cap) instead of one request per selected row.
+                const { succeeded, failed } = await api.components.bulkDelete(
+                    this.currentComponent, Array.from(this.selectedItems)
+                );
+                if (succeeded > 0) {
+                    utils.showAlert(`Successfully deleted ${succeeded} components${failed > 0 ? `, ${failed} failed` : ''}`, failed === 0 ? 'success' : 'warning');
                 } else {
                     utils.showAlert('Failed to delete any components', 'error');
                 }
