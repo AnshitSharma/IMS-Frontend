@@ -856,89 +856,75 @@ class Dashboard {
             return parts.length ? parts.join(' · ') : '—';
         };
 
+        // One labelled fact. `value` is already-escaped HTML; `title` is the long form
+        // shown on hover, or '' for none. Every value truncates, so a long platform
+        // name cannot widen the card at any width or zoom level.
+        const factCell = (label, value, title) => `
+                        <div class="min-w-0">
+                            <div class="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-1.5">${label}</div>
+                            <div class="text-sm font-semibold text-text-primary truncate"${title ? ` title="${title}"` : ''}>${value || '—'}</div>
+                        </div>`;
+
+        // One header icon button. They sit in a single bordered cluster, divided
+        // rather than spaced, so the group reads as one control.
+        const iconButton = (icon, hoverClass, onclick, title, aria) => `
+                                <button class="w-9 h-9 flex items-center justify-center text-text-muted transition-colors ${hoverClass}"
+                                        onclick="${onclick}" title="${title}" aria-label="${aria}">
+                                    <i class="fas ${icon} text-xs"></i>
+                                </button>`;
+
         serverCardsGrid.innerHTML = servers.map(server => `
             <div class="bg-surface-card border border-border rounded-xl overflow-hidden flex flex-col cursor-pointer group transition-colors hover:border-primary-light" data-server-uuid="${server.config_uuid}">
-                <!-- Header -->
-                <div class="p-5 pb-4">
-                    <div class="flex items-start gap-3">
-                        <div class="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                            <i class="fas fa-server text-primary text-sm"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="text-base font-semibold text-text-primary truncate leading-snug group-hover:text-primary transition-colors" title="${utils.escapeHtml(server.server_name || 'Unnamed Server')}">
-                                ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
-                            </h3>
-                            <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5">
-                                ${this._serverStatusBadge(server)}
-                                ${getRackLabel(server) !== '—' ? `<span class="inline-flex items-center gap-1 text-xs text-text-muted min-w-0"><i class="fas fa-map-marker-alt text-[10px]"></i><span class="truncate">${getRackLabel(server)}</span></span>` : ''}
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                            ${canOpenEditDialog ? `<button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
-                                    onclick="event.stopPropagation(); dashboard.showServerEditModal('${server.config_uuid}')"
-                                    title="Edit server — name, details, location and status" aria-label="Edit this server's details or change its status">
-                                <i class="fas fa-pen text-xs"></i>
-                            </button>` : ''}
-                            <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-primary/10 hover:text-primary"
-                                    onclick="event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
-                                    title="View change history" aria-label="View server change history">
-                                <i class="fas fa-history text-xs"></i>
-                            </button>
-                            <button class="w-8 h-8 rounded-lg text-text-muted flex items-center justify-center transition-colors hover:bg-danger-light hover:text-danger"
-                                    onclick="event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')"
-                                    title="Delete Server" aria-label="Delete server">
-                                <i class="fas fa-trash text-xs"></i>
-                            </button>
-                        </div>
+                <!-- Header: name and serial on the left, the three actions and the
+                     status on the right. -->
+                <div class="p-5 pb-4 flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-semibold text-text-primary truncate leading-snug group-hover:text-primary transition-colors" title="${utils.escapeHtml(server.server_name || 'Unnamed Server')}">
+                            ${utils.escapeHtml(server.server_name || 'Unnamed Server')}
+                        </h3>
+                        <p class="text-xs font-mono text-text-muted truncate mt-1" title="${utils.escapeHtml(server.serial_number || '')}">${server.serial_number ? utils.escapeHtml(server.serial_number) : '—'}</p>
                     </div>
-                    ${server.description ? `<p class="text-sm text-text-secondary mt-3 line-clamp-2 leading-relaxed">${utils.escapeHtml(server.description)}</p>` : ''}
+                    <div class="flex flex-col items-center gap-2 flex-shrink-0">
+                        <div class="flex items-center rounded-lg border border-border divide-x divide-border overflow-hidden">
+                            ${canOpenEditDialog ? iconButton('fa-pen', 'hover:bg-primary/10 hover:text-primary',
+                                `event.stopPropagation(); dashboard.showServerEditModal('${server.config_uuid}')`,
+                                'Edit server — name, details, location and status',
+                                "Edit this server's details or change its status") : ''}
+                            ${iconButton('fa-history', 'hover:bg-primary/10 hover:text-primary',
+                                `event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})`,
+                                'View change history', 'View server change history')}
+                            ${iconButton('fa-trash', 'hover:bg-danger-light hover:text-danger',
+                                `event.stopPropagation(); dashboard.handleDeleteServer('${server.config_uuid}')`,
+                                'Delete Server', 'Delete server')}
+                        </div>
+                        ${this._serverStatusInline(server)}
+                    </div>
                 </div>
 
-                <!-- Stats -->
-                <div class="mx-5 flex items-center justify-between px-4 py-3 bg-surface-secondary border border-border-light rounded-lg">
-                    <span class="inline-flex items-center gap-2 text-xs font-medium text-text-secondary uppercase tracking-wider">
-                        <i class="fas fa-microchip text-primary"></i>Components
-                    </span>
-                    <span class="text-xl font-bold text-text-primary tabular-nums">${server.total_component_types || 0}</span>
+                <!-- The four facts. Storage and memory come from the list endpoint's
+                     storage_summary / memory_summary; both are absent on an older
+                     backend, and every cell falls back to an em dash. -->
+                <div class="px-5 pt-4 pb-5 flex-1 border-t border-border-light grid grid-cols-2 gap-x-5 gap-y-4">
+                    ${factCell('Location', this._serverLocationCompact(server), getRackLabel(server))}
+                    ${factCell('Server', utils.escapeHtml(server.platform_name || server.motherboard_name || ''), utils.escapeHtml(server.platform_name || server.motherboard_name || ''))}
+                    ${factCell('Storage', utils.escapeHtml(this._serverStorageText(server.storage_summary) || ''), utils.escapeHtml(this._serverStorageTitle(server.storage_summary)))}
+                    ${factCell('RAM', utils.escapeHtml(this._serverMemoryText(server.memory_summary) || ''), utils.escapeHtml(this._serverMemoryTitle(server.memory_summary)))}
                 </div>
 
-                <!-- Meta -->
-                <div class="px-5 py-4 flex-1">
-                    <div class="divide-y divide-border-light">
-                        ${server.serial_number ? `
-                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
-                            <span class="text-text-muted">Serial</span>
-                            <span class="text-text-primary font-medium font-mono truncate" title="${utils.escapeHtml(server.serial_number)}">${utils.escapeHtml(server.serial_number)}</span>
-                        </div>` : ''}
-                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
-                            <span class="text-text-muted">Location</span>
-                            <span class="text-text-primary font-medium truncate tabular-nums">${getRackLabel(server)}</span>
-                        </div>
-                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
-                            <span class="text-text-muted">Created</span>
-                            <span class="text-text-primary font-medium tabular-nums">${utils.formatDate(server.created_at)}</span>
-                        </div>
-                        <div class="flex justify-between items-center gap-3 py-1.5 text-sm">
-                            <span class="text-text-muted">Modified</span>
-                            <span class="text-text-primary font-medium tabular-nums">${utils.formatDate(server.last_modified)}</span>
-                        </div>
-                    </div>
+                <!-- Dates -->
+                <div class="px-5 py-2.5 border-t border-border-light bg-surface-secondary flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                    <span class="truncate">Created <span class="text-text-secondary tabular-nums">${this._serverDate(server.created_at)}</span></span>
+                    <span class="truncate">Modified <span class="text-text-secondary tabular-nums">${this._serverModifiedDate(server)}</span></span>
                 </div>
 
                 <!-- Actions -->
-                <div class="px-5 pb-5 mt-auto">
-                    <div class="flex items-center gap-2">
-                        <button class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                                onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
-                                title="Configure server components">
-                            <i class="fas fa-wrench text-xs"></i> Configure
-                        </button>
-                        ${canManageRacks ? `<button class="flex-1 px-4 py-2.5 bg-surface-card text-text-secondary border border-border rounded-lg hover:bg-surface-hover hover:border-primary hover:text-primary transition-colors font-medium text-sm flex items-center justify-center gap-2"
-                                onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
-                                title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">
-                            <i class="fas fa-th-large text-xs"></i> Move
-                        </button>` : ''}
-                    </div>
+                <div class="p-4 mt-auto grid gap-3 ${canManageRacks ? 'grid-cols-2' : 'grid-cols-1'}">
+                    <button class="px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm truncate"
+                            onclick="event.stopPropagation(); dashboard.showServerBuilder('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
+                            title="Configure server components">Configure</button>
+                    ${canManageRacks ? `<button class="px-4 py-2.5 bg-surface-card text-text-primary border border-border rounded-lg hover:bg-surface-hover hover:border-primary hover:text-primary transition-colors font-medium text-sm truncate"
+                            onclick="event.stopPropagation(); dashboard.showRackPlacementModal('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})"
+                            title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">Move</button>` : ''}
                 </div>
             </div>
         `).join('');
@@ -2562,9 +2548,153 @@ class Dashboard {
         return SERVER_STATUS_V2_PRESENTATION[statusV2]?.label || statusV2;
     }
 
+    /**
+     * The card's status: a plain letterspaced word under the action cluster, in the
+     * status colour. The pill form below is still what the edit dialog shows.
+     */
+    _serverStatusInline(server) {
+        const s = this._serverStatusPresentation(server);
+        return `<span class="text-[10px] font-semibold uppercase tracking-widest ${s.textClass}">${utils.escapeHtml(s.label)}</span>`;
+    }
+
     _serverStatusBadge(server) {
         const s = this._serverStatusPresentation(server);
         return `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${s.textClass}"><span class="w-1.5 h-1.5 rounded-full ${s.dotClass}"></span>${s.label}</span>`;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Server card formatters.
+    //
+    // server-list-configs sends NUMBERS -- storage_summary.groups, memory_summary --
+    // and every string the card prints is built here, where the design lives. Each
+    // returns null when there is nothing to say, and the card renders an em dash.
+    // ---------------------------------------------------------------------------
+
+    /**
+     * "1.92TB", "512GB". `divisor` is 1000 for drives, which are sold in decimal
+     * TB, and 1024 for memory, which is not.
+     */
+    _formatSize(gb, divisor) {
+        const n = Number(gb);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return n >= divisor
+            ? `${parseFloat((n / divisor).toFixed(2))}TB`
+            : `${parseFloat(n.toFixed(2))}GB`;
+    }
+
+    /**
+     * Drive capacity. Decimal TB, which is how drives are sold and how ims-data
+     * writes them (1920 is a 1.92TB NVMe) -- EXCEPT for a capacity that is a whole
+     * number of binary GB, where the spec plainly means the binary figure and the
+     * decimal one would print a 2048GB drive as "2.05TB".
+     */
+    _formatDriveSize(gb) {
+        const n = Number(gb);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        return this._formatSize(n, n % 1024 === 0 ? 1024 : 1000);
+    }
+
+    /** "2× 1.92TB NVMe". The bus is dropped when the spec does not name one. */
+    _formatStorageGroup(group) {
+        if (!group) return null;
+        const parts = [`${group.count}×`, this._formatDriveSize(group.capacity_gb), group.kind];
+        return parts.filter(Boolean).join(' ');
+    }
+
+    /**
+     * The largest backplane group, with a trailing "+" when the server holds more
+     * than one kind of drive -- "2× 1.92TB NVMe +" reads as "two NVMe in the bays,
+     * and there is more inside". The backend has already sorted them.
+     */
+    _serverStorageText(summary) {
+        const groups = summary?.groups;
+        if (!Array.isArray(groups) || groups.length === 0) return null;
+        const first = this._formatStorageGroup(groups[0]);
+        if (!first) return null;
+        return groups.length > 1 ? `${first} +` : first;
+    }
+
+    /** The whole breakdown, for the hover title. */
+    _serverStorageTitle(summary) {
+        const groups = summary?.groups;
+        if (!Array.isArray(groups) || groups.length === 0) return '';
+        return groups
+            .map(g => `${this._formatStorageGroup(g)} (${g.bay ? 'backplane' : 'internal'})`)
+            .join(' · ');
+    }
+
+    /**
+     * Installed over the board's ceiling: "128/512GB" when both sides share a unit,
+     * "512GB/3TB" when they do not, and the installed figure alone for the three
+     * boards in ims-data that state no maximum.
+     */
+    _serverMemoryText(summary) {
+        const installed = this._formatSize(summary?.installed_gb, 1024);
+        if (!installed) return null;
+        const max = this._formatSize(summary?.max_gb, 1024);
+        if (!max) return installed;
+        // Write the unit once only when both sides are in GB: "128/512GB". In TB the
+        // numbers are small enough that "1/4TB" reads as a fraction, so both keep
+        // their unit -- "1TB/4TB", "512GB/3TB".
+        return installed.endsWith('GB') && max.endsWith('GB')
+            ? `${installed.slice(0, -2)}/${max}`
+            : `${installed}/${max}`;
+    }
+
+    /** "4 × DDR4 · 128GB installed of 512GB". */
+    _serverMemoryTitle(summary) {
+        const installed = this._formatSize(summary?.installed_gb, 1024);
+        if (!installed) return '';
+        const max = this._formatSize(summary?.max_gb, 1024);
+        const modules = Number(summary?.modules);
+        const head = [
+            Number.isFinite(modules) && modules > 0 ? `${modules} ×` : '',
+            summary?.type || 'module'
+        ].filter(Boolean).join(' ');
+        return `${head} · ${installed} installed${max ? ` of ${max}` : ''}`;
+    }
+
+    /**
+     * "YN682/28-29U" -- site initials, rack number, U range. The full path is the
+     * hover title. There is no short-code column on locations, so the initials are
+     * derived from the name; if one is ever added, this is the only place to change.
+     */
+    _serverLocationCompact(server) {
+        const site = String(server.location_name || server.location || '').trim();
+        const initials = site
+            .split(/[^A-Za-z0-9]+/)
+            .filter(Boolean)
+            .map(word => word[0].toUpperCase())
+            .join('')
+            .slice(0, 3);
+
+        const rackDigits = String(server.rack_name || '').match(/\d+/g);
+        const rackNumber = rackDigits ? rackDigits[rackDigits.length - 1] : '';
+
+        const startU = parseInt(server.rack_start_u, 10);
+        const height = Math.max(1, parseInt(server.rack_u_height, 10) || 1);
+        const range = startU
+            ? (height > 1 ? `${startU}-${startU + height - 1}U` : `${startU}U`)
+            : String(server.rack_position || '');
+
+        const parts = [initials + rackNumber, range].filter(Boolean);
+        return parts.length ? utils.escapeHtml(parts.join('/')) : null;
+    }
+
+    /** utils.formatDate, with the card's em dash instead of its hyphen. */
+    _serverDate(value) {
+        const text = utils.formatDate(value);
+        return text === '-' ? '—' : utils.escapeHtml(text);
+    }
+
+    /**
+     * Modified shows updated_at, and an em dash when the row has never been touched
+     * since it was created -- repeating the created date there says nothing.
+     */
+    _serverModifiedDate(server) {
+        const updated = server.last_modified || server.updated_at;
+        if (!updated || updated === server.created_at) return '—';
+        return this._serverDate(updated);
     }
 
     async showServerBuilder(configUuid, serverName) {

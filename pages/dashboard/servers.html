@@ -26,9 +26,12 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-4 sm:p-6 flex flex-col overflow-hidden h-full">
+            <!-- The scroll lives on the view below, not on <main>, so the right padding has to
+                 live there too — otherwise the scrollbar renders inside main's padding, flush
+                 against the card edges. -->
+            <main class="main-content flex-1 py-4 pl-4 pr-0 sm:py-6 sm:pl-6 flex flex-col overflow-hidden h-full">
                 <!-- Server View -->
-                <div id="serverView" class="content-section active overflow-y-auto overflow-x-hidden">
+                <div id="serverView" class="content-section active overflow-y-auto overflow-x-hidden pr-4 sm:pr-6">
                     <div class="content-header mb-6">
                         <h2 class="text-2xl font-bold text-text-primary mb-4">Servers</h2>
                         <div class="header-actions flex flex-wrap items-center gap-3">
@@ -62,14 +65,14 @@
 
 
                     <!-- Server Grid -->
-                    <div class="server-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-gap-responsive"
+                    <div class="server-grid server-cards-grid grid grid-gap-responsive"
                         id="serverCardsGrid">
                         <!-- Server cards will be populated here -->
                     </div>
                 </div>
 
                 <!-- Server Builder View -->
-                <div id="serverBuilderView" class="content-section h-full overflow-hidden">
+                <div id="serverBuilderView" class="content-section h-full overflow-hidden pr-4 sm:pr-6">
                     <!-- Header Section -->
                     <div class="content-header mb-6 pb-4 border-b border-border-light">
                         <div class="flex flex-wrap items-center justify-between gap-3">

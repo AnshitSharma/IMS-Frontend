@@ -2026,6 +2026,13 @@
     @apply min-h-10 sm:min-h-11 px-3 sm:px-4 py-2 sm:py-3 inline-flex items-center justify-center;
   }
 
+  /* Server cards — fluid track sizing rather than fixed breakpoint columns, so a
+     card is never squeezed below the width its two-column facts need, at any
+     viewport size or zoom level. The min() keeps a single column below 320px. */
+  .server-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+
   /* Grid Gap - Responsive spacing */
   .grid-gap-responsive {
     @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
