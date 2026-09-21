@@ -306,6 +306,7 @@
 
                                 <h4>Finding things</h4>
                                 <p>Every inventory page carries a search box, a status filter and a <strong>location filter</strong>. The location filter searches the whole inventory for that site, not just the rows currently on screen.</p>
+                                <p>The search box matches an asset tag, a serial number, a UUID, a location, a rack position, anything written in Notes — and, since 2026-09-21, <strong>the model itself</strong>. Searching <em>Samsung</em> now finds every Samsung unit, not only the ones whose Notes happen to mention Samsung. Nothing that used to match has stopped matching; this only widens the net.</p>
 
                                 <h4>Editing, deleting, and bulk actions</h4>
                                 <p>Rows show <strong>Edit</strong> and <strong>Delete</strong> only if your role includes them. Several rows can be selected for a bulk status update or bulk delete — useful when a shipment arrives or a batch is retired. <strong>Add Component</strong> is shown to everyone; without create permission it raises a Request instead of writing the record, and the same is true of the edit form.</p>
@@ -477,6 +478,7 @@
                                 <div class="kb-note">
                                     <span class="kb-note-title">Requests are open to everyone</span>
                                     <p>Every signed-in user can raise a Request, and claim and complete steps on one. Only administrators approve or reject. If your role cannot see the whole queue you will land on <strong>Created by me</strong> rather than My Queue — that is the right tab for you, not an empty system.</p>
+                                    <p>That tab shows every Request you are <strong>involved in</strong>, not only the ones waiting on you right now: one you raised, and one where any step — not just the current step — is assigned to you, to your team, or claimed by you. Before 2026-09-21 a Request where you owned, say, step 3 of five was missing from the list until it reached your step, even though opening it by link worked. <strong>My Queue</strong> is still deliberately narrower: it is what needs your action now.</p>
                                 </div>
 
                                 <h4>Raising one</h4>
