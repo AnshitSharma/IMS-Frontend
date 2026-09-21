@@ -97,6 +97,16 @@ upgrade-insecure-requests"
     <FilesMatch "\.(woff|woff2|ttf|eot|svg|png|jpg|jpeg|gif|ico)$">
         Header always set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
+
+    # ims-data spec JSON. The pickers pull ~540 KB of these, and the files carried
+    # no Cache-Control at all -- only Last-Modified -- so every open re-fetched or
+    # at best revalidated twelve files. Same 300s as JS/CSS: ims-data is uploaded by
+    # hand rather than by the watcher, so a short window still bounds staleness.
+    # (package.json / package-lock.json are denied outright further up, so this
+    # cannot loosen them.)
+    <FilesMatch "\.json$">
+        Header always set Cache-Control "public, max-age=300"
+    </FilesMatch>
 </IfModule>
 
 # ── Block rewrite exploits ────────────────────────────────────

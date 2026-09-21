@@ -164,19 +164,15 @@ class SharedNavbar {
      * Handle change password action
      */
     handleChangePassword() {
-        // Dashboard pages own a #modalContainer and their own implementation;
-        // prefer it so the dialog looks the same everywhere it can.
-        if (typeof dashboard !== 'undefined' && dashboard.showChangePasswordModal) {
-            dashboard.showChangePasswordModal();
-            return;
-        }
-        // Server/builder pages load neither dashboard.js nor a modal container,
-        // so render a self-contained one here.
         this.showChangePasswordModal();
     }
 
     /**
-     * Render the change-password dialog for pages without dashboard.js
+     * The change-password dialog. Self-contained — it builds its own overlay
+     * rather than needing a page's #modalContainer, so it is identical on all
+     * 25 pages. dashboard.js carried a second copy of this (same four strength
+     * rules, different modal shell) that this one was preferred over; it was
+     * deleted 2026-09-21.
      */
     showChangePasswordModal() {
         // The trigger lives inside the user dropdown; leaving it open would
@@ -277,15 +273,9 @@ class SharedNavbar {
             return;
         }
 
-        // Clear authentication data from both storages
-        sessionStorage.removeItem('bdc_token');
-        sessionStorage.removeItem('jwt_token');
-        sessionStorage.removeItem('bdc_refresh_token');
-        sessionStorage.removeItem('bdc_user');
-        localStorage.removeItem('bdc_token');
-        localStorage.removeItem('bdc_refresh_token');
-        localStorage.removeItem('bdc_user');
-        localStorage.removeItem('bdc_remember_me');
+        // api.clearAuth() owns the key list — see the session-storage rules in
+        // CLAUDE.md. This used to be one of six open-coded copies of it.
+        api.clearAuth();
 
         // Redirect to login
         window.location.href = window.BDC_CONFIG?.FRONTEND_LOGIN_URL || 'https://ims.bdcms.bharatdatacenter.com/';

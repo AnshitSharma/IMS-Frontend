@@ -142,28 +142,7 @@ class GlobalLoadingManager {
             this.hide();
         }
     }
-
-    // Reset all loading states (useful for navigation)
-    reset() {
-        this.activeRequests = 0;
-        this.isManualLoading = false;
-        if (this.overlay) {
-            this.overlay.style.opacity = '0';
-            setTimeout(() => {
-                this.overlay.classList.add('hidden');
-            }, 300);
-        }
-    }
 }
 
 // Create global instance
 window.globalLoading = new GlobalLoadingManager();
-
-// Expose global functions for backward compatibility
-window.showLoading = (show = true, message = 'Loading...') => {
-    window.globalLoading.showLoading(show, message);
-};
-
-window.hideLoading = () => {
-    window.globalLoading.hide();
-};

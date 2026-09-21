@@ -9,33 +9,16 @@ class ServerAPI {
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
     }
 
-    // Update token
-    setToken(token) {
-        this.token = token;
-        sessionStorage.setItem('bdc_token', token);
-    }
-
-    // Clear token
-    clearToken() {
-        this.token = null;
-        sessionStorage.removeItem('bdc_token');
-        sessionStorage.removeItem('jwt_token'); // legacy key cleanup (no longer written)
-        sessionStorage.removeItem('bdc_refresh_token');
-        sessionStorage.removeItem('bdc_user');
-        localStorage.removeItem('bdc_token');
-        localStorage.removeItem('bdc_refresh_token');
-        localStorage.removeItem('bdc_user');
-        localStorage.removeItem('bdc_remember_me');
-    }
-
     // Generic API request method.
     //
     // One transport for the whole frontend: window.api.request() already owns the
     // Bearer header, the FormData encoding, the single-flight token refresh with a
     // retry, and the redirect to login when the session is genuinely over. This
     // used to be a second, axios-based copy of all of that.
-    // `options` is threaded through every method below but no caller has ever
-    // populated it; it was an axios request-config bag. Accepted and ignored.
+    // `options` began as an axios request-config bag. What survives of it is read
+    // here — `silent` and `loadingMessage` drive the overlay below — and by three
+    // methods that pull extra FIELDS out of it (`parent_nic_uuid`, `port_index`,
+    // `serial_number`). Anything else in it is ignored.
     async makeRequest(data, options = {}) {
         const { action, ...fields } = data;
         // These pages show the global overlay for every call; axios interceptors
@@ -69,15 +52,6 @@ class ServerAPI {
         }
 
         return await this.makeRequest(requestData, options);
-    }
-
-    async getServerConfigs(limit = 20, offset = 0, status = 1, options = {}) {
-        return await this.makeRequest({
-            action: 'server-list-configs',
-            limit: limit,
-            offset: offset,
-            status: status
-        }, options);
     }
 
     async listTemplates(limit = 100, offset = 0, options = {}) {
@@ -198,15 +172,6 @@ class ServerAPI {
         }, options);
     }
 
-    async getAvailableComponents(componentType, includeInUse = false, limit = 50, options = {}) {
-        return await this.makeRequest({
-            action: 'server-get-available-components',
-            component_type: componentType,
-            include_in_use: includeInUse.toString(),
-            limit: limit.toString()
-        }, options);
-    }
-
     // Server Compute Platform APIs
     // Platforms (HPE ProLiant DL360 Gen10 …) group the system boards a given server
     // product accepts. Specs live in ims-data; the backend serves them with live stock.
@@ -216,15 +181,12 @@ class ServerAPI {
         }, options);
     }
 
-    // Both platform actions pass validateStatus so a 4xx comes back as a RESPONSE BODY
-    // rather than a thrown Error. makeRequest()'s default turns any non-2xx into
-    // `new Error(message)`, which discards `data` — and for these two actions `data` is
-    // the whole point of the refusal: installed_summary is what the confirmation dialog
-    // shows the user. 401 and 5xx still throw, so the token-refresh path is untouched.
-    static get PLATFORM_REQUEST_OPTIONS() {
-        return { validateStatus: status => status < 500 && status !== 401 };
-    }
-
+    // Both platform actions answer a refusal with 409 and put the reason in `data`.
+    // makeRequest() turns any non-2xx into a throw, so PlatformManager.attempt()
+    // catches it and reads `error.data` — that is where the 409 handshake is handled,
+    // not here. (A `validateStatus` option used to sit here for this; it was an axios
+    // request-config key and has been inert since axios was removed.)
+    //
     // Installs a compute platform VERSION: consumes one stocked box and autofills the
     // configuration's system board and chassis from the specs it carries.
     //
@@ -237,7 +199,7 @@ class ServerAPI {
             config_uuid: configUuid,
             version_uuid: versionUuid,
             confirm_wipe: confirmWipe ? 'true' : 'false'
-        }, { ...ServerAPI.PLATFORM_REQUEST_OPTIONS, ...options });
+        }, options);
     }
 
     // Removes the compute platform and releases the whole build with it. Same 409
@@ -247,62 +209,7 @@ class ServerAPI {
             action: 'server-remove-platform',
             config_uuid: configUuid,
             confirm_wipe: confirmWipe ? 'true' : 'false'
-        }, { ...ServerAPI.PLATFORM_REQUEST_OPTIONS, ...options });
-    }
-
-    // Utility methods
-    formatComponentType(type) {
-        const typeMap = {
-            'cpu': 'CPU',
-            'motherboard': 'Motherboard',
-            'ram': 'RAM',
-            'storage': 'Storage',
-            'nic': 'Network Interface',
-            'psu': 'Power Supply',
-            'gpu': 'Graphics Card',
-            'cabinet': 'Cabinet'
-        };
-        return typeMap[type] || type.toUpperCase();
-    }
-
-    getComponentIcon(type) {
-        const iconMap = {
-            'cpu': 'fas fa-microchip',
-            'motherboard': 'fas fa-memory',
-            'ram': 'fas fa-memory',
-            'storage': 'fas fa-hdd',
-            'nic': 'fas fa-network-wired',
-            'psu': 'fas fa-plug',
-            'gpu': 'fas fa-display',
-            'cabinet': 'fas fa-server'
-        };
-        return iconMap[type] || 'fas fa-microchip';
-    }
-
-    formatServerStatus(status) {
-        const statusMap = {
-            '0': { text: 'Draft', class: 'draft' },
-            '1': { text: 'Active', class: 'active' },
-            '2': { text: 'Finalized', class: 'finalized' }
-        };
-        return statusMap[status] || { text: 'Unknown', class: 'draft' };
-    }
-
-    // Component availability types that need motherboard first
-    requiresMotherboard(componentType) {
-        return ['cpu', 'ram'].includes(componentType);
-    }
-
-    // Get next available component types based on current configuration
-    getNextAvailableTypes(currentComponents) {
-        const hasMotherboard = currentComponents.some(c => c.component_type === 'motherboard');
-
-        if (!hasMotherboard) {
-            return ['motherboard'];
-        }
-
-        // After motherboard, all types are available
-        return ['cpu', 'ram', 'storage', 'nic', 'psu', 'gpu', 'cabinet'];
+        }, options);
     }
 }
 

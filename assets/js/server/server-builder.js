@@ -85,14 +85,7 @@ class ServerBuilder {
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
 
         if (!token) {
-            sessionStorage.removeItem('bdc_token');
-            sessionStorage.removeItem('jwt_token');
-            sessionStorage.removeItem('bdc_refresh_token');
-            sessionStorage.removeItem('bdc_user');
-            localStorage.removeItem('bdc_token');
-            localStorage.removeItem('bdc_refresh_token');
-            localStorage.removeItem('bdc_user');
-            localStorage.removeItem('bdc_remember_me');
+            window.api?.clearAuth();
             window.location.href = this.loginURL;
             return false;
         }
@@ -165,14 +158,14 @@ class ServerBuilder {
 
         try {
             this.loading = true;
-            this.showLoading('Loading server configuration...');
+            utils.showLoading(true, 'Loading server configuration...');
 
             // Check if serverAPI is available
             if (typeof serverAPI === 'undefined') {
                 console.error('serverAPI is not available!');
-                this.showAlert('Server API not available', 'danger');
+                utils.showAlert('Server API not available', 'error');
                 this.renderErrorState('Server API not available. Please refresh the page.');
-                this.hideLoading();
+                utils.showLoading(false);
                 return;
             }
 
@@ -213,15 +206,15 @@ class ServerBuilder {
                 this.renderServerBuilderInterface();
             } else {
                 console.error('Failed to load configuration:', result);
-                this.showAlert(result.message || 'Failed to load configuration', 'danger');
+                utils.showAlert(result.message || 'Failed to load configuration', 'error');
                 this.renderErrorState(result.message || 'Failed to load configuration');
             }
         } catch (error) {
             console.error('Error loading configuration:', error);
-            this.showAlert(error.message || 'Failed to load server configuration', 'danger');
+            utils.showAlert(error.message || 'Failed to load server configuration', 'error');
             this.renderErrorState('Failed to load server configuration. Please try again.');
         } finally {
-            this.hideLoading();
+            utils.showLoading(false);
             this.loading = false;
         }
     }
@@ -239,7 +232,7 @@ class ServerBuilder {
                             <i class="fas fa-exclamation-triangle text-3xl text-danger"></i>
                         </div>
                         <h3 class="text-xl font-semibold text-text-primary mb-2">Failed to Load Configuration</h3>
-                        <p class="text-text-secondary mb-6">${this.escapeHtml(errorMessage)}</p>
+                        <p class="text-text-secondary mb-6">${utils.escapeHtml(errorMessage)}</p>
                         <div class="flex flex-col gap-3">
                             <button class="w-full px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-600 transition-colors flex items-center justify-center gap-2" onclick="window.location.reload()">
                                 <i class="fas fa-redo"></i>
@@ -311,36 +304,8 @@ class ServerBuilder {
 
         this.checkCompatibility();
 
-        // Sidebar counts should show inventory totals, not build-specific counts
-        // this.updateSidebarCounts();
     }
 
-    /**
-     * Update sidebar component counts
-     * This updates the count badges in the sidebar to reflect the current configuration
-     */
-    updateSidebarCounts() {
-        const countElements = {
-            'cpu': document.getElementById('cpuCount'),
-            'ram': document.getElementById('ramCount'),
-            'storage': document.getElementById('storageCount'),
-            'motherboard': document.getElementById('motherboardCount'),
-            'nic': document.getElementById('nicCount'),
-            'caddy': document.getElementById('caddyCount'),
-            'chassis': document.getElementById('chassisCount'),
-            'pciecard': document.getElementById('pciecardCount'),
-            'risercard': document.getElementById('risercardCount'),
-            'sfp': document.getElementById('sfpCount'),
-            'hbacard': document.getElementById('hbacardCount'),
-            'servers': document.getElementById('serversCount')
-        };
-
-        for (const [type, element] of Object.entries(countElements)) {
-            if (element && this.selectedComponents[type]) {
-                element.textContent = this.selectedComponents[type].length;
-            }
-        }
-    }
     /**
      * Render chassis details - Dynamic based on chassis JSON
      */
@@ -356,7 +321,7 @@ class ServerBuilder {
                 ${chassisComponents.map(chassis => `
                 <div class="hw-spec">
                     <span class="hw-spec-k">Serial</span>
-                    <span class="hw-spec-v">${this.escapeHtml(chassis.serial_number || '—')}</span>
+                    <span class="hw-spec-v">${utils.escapeHtml(chassis.serial_number || '—')}</span>
                 </div>`).join('')}
             </div>`;
         }
@@ -366,11 +331,11 @@ class ServerBuilder {
         <div class="hw-specs">
             <div class="hw-spec">
                 <span class="hw-spec-k">Model</span>
-                <span class="hw-spec-v" title="${this.escapeHtml(`${chassisData.brand || ''} ${chassisData.series || ''}`.trim())}">${this.escapeHtml(chassisData.model || '—')}</span>
+                <span class="hw-spec-v" title="${utils.escapeHtml(`${chassisData.brand || ''} ${chassisData.series || ''}`.trim())}">${utils.escapeHtml(chassisData.model || '—')}</span>
             </div>
             <div class="hw-spec">
                 <span class="hw-spec-k">Form Factor</span>
-                <span class="hw-spec-v">${this.escapeHtml(chassisData.form_factor || '—')} · ${chassisData.u_size}U</span>
+                <span class="hw-spec-v">${utils.escapeHtml(chassisData.form_factor || '—')} · ${chassisData.u_size}U</span>
             </div>
             <div class="hw-spec">
                 <span class="hw-spec-k">Drive Bays</span>
@@ -380,11 +345,11 @@ class ServerBuilder {
             ${chassisData.backplane ? `
             <div class="hw-spec">
                 <span class="hw-spec-k">Backplane</span>
-                <span class="hw-spec-v" title="${this.escapeHtml(chassisData.backplane.model || '')}">${this.escapeHtml(chassisData.backplane.model || '—')}</span>
+                <span class="hw-spec-v" title="${utils.escapeHtml(chassisData.backplane.model || '')}">${utils.escapeHtml(chassisData.backplane.model || '—')}</span>
             </div>
             <div class="hw-spec">
                 <span class="hw-spec-k">Interface</span>
-                <span class="hw-spec-v">${this.escapeHtml(chassisData.backplane.interface || '—')}</span>
+                <span class="hw-spec-v">${utils.escapeHtml(chassisData.backplane.interface || '—')}</span>
             </div>
             ` : ''}
             ${chassisData.power_supply ? `
@@ -405,7 +370,7 @@ class ServerBuilder {
 
         return driveBays.bay_configuration.map(bay => `
         <div class="hw-spec">
-            <span class="hw-spec-k">${this.escapeHtml(bay.bay_type.replace(/_/g, ' '))}</span>
+            <span class="hw-spec-k">${utils.escapeHtml(bay.bay_type.replace(/_/g, ' '))}</span>
             <span class="hw-spec-v">${bay.count} bays${bay.hot_swap ? ' · Hot-swap' : ''}</span>
         </div>
         `).join('');
@@ -565,7 +530,7 @@ class ServerBuilder {
                 <div class="flex flex-wrap items-center justify-end gap-2 mb-4">
                     <span class="inline-flex items-center gap-2 px-4 py-2 bg-primary/5 border border-primary/10 text-primary rounded text-sm font-medium">
                         <i class="fas fa-server"></i>
-                        ${this.escapeHtml(platformName || 'Compute platform')}
+                        ${utils.escapeHtml(platformName || 'Compute platform')}
                     </span>
                     <button class="inline-flex items-center gap-2 px-3 py-2 bg-surface-card border border-border text-text-secondary rounded text-sm font-medium hover:text-primary hover:border-primary/50 transition-colors duration-150"
                             onclick="window.serverBuilder.openPlatformModal()"
@@ -606,7 +571,7 @@ class ServerBuilder {
 
         if (!modalContainer || !modalTitle || !modalBody) {
             console.error('Modal container elements not found');
-            this.showAlert('Error: Modal template not found', 'danger');
+            utils.showAlert('Error: Modal template not found', 'error');
             return;
         }
 
@@ -743,7 +708,7 @@ class ServerBuilder {
             this.renderPlatformList(this.platformCatalog);
         } catch (error) {
             console.error('Builder: Error loading platforms', error);
-            listContainer.innerHTML = `<p class="text-danger text-center p-3">${this.escapeHtml(error.message || 'Failed to load platforms')}</p>`;
+            listContainer.innerHTML = `<p class="text-danger text-center p-3">${utils.escapeHtml(error.message || 'Failed to load platforms')}</p>`;
         }
     }
 
@@ -811,15 +776,15 @@ class ServerBuilder {
         container.innerHTML = Object.keys(byBrand).sort().map(brand => `
             <div class="mb-2">
                 <div class="sticky top-0 z-10 bg-surface-main -mx-2 px-5 py-1.5 text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
-                    ${this.escapeHtml(brand)}
+                    ${utils.escapeHtml(brand)}
                 </div>
                 ${byBrand[brand].map(platform => `
                     <button type="button"
                             class="platform-item w-full text-left px-3 py-2.5 rounded-lg mb-1 border border-transparent hover:bg-surface-hover hover:border-border-light transition-colors"
-                            onclick="window.serverBuilder.selectPlatform(${this.jsArg(platform.platform_uuid)})"
-                            data-id="${this.escapeHtml(platform.platform_uuid)}">
+                            onclick="window.serverBuilder.selectPlatform(${utils.jsArg(platform.platform_uuid)})"
+                            data-id="${utils.escapeHtml(platform.platform_uuid)}">
                         <div class="flex items-center gap-2">
-                            <span class="flex-1 min-w-0 truncate text-sm font-medium text-text-primary">${this.escapeHtml(platform.platform)}</span>
+                            <span class="flex-1 min-w-0 truncate text-sm font-medium text-text-primary">${utils.escapeHtml(platform.platform)}</span>
                             <i class="fas fa-chevron-right text-[10px] text-text-muted md:hidden"></i>
                         </div>
                         <div class="text-xs text-text-secondary mt-0.5">
@@ -887,9 +852,9 @@ class ServerBuilder {
                         <i class="fas fa-chevron-left text-[10px]"></i>
                         All platforms
                     </button>
-                    <h4 class="text-base font-semibold text-text-primary truncate">${this.escapeHtml(platform.brand)} ${this.escapeHtml(platform.platform)}</h4>
+                    <h4 class="text-base font-semibold text-text-primary truncate">${utils.escapeHtml(platform.brand)} ${utils.escapeHtml(platform.platform)}</h4>
                     <p class="text-xs text-text-secondary mt-0.5">
-                        ${platform.form_factor ? `${this.escapeHtml(platform.form_factor)} · ` : ''}${versions.length} version${versions.length === 1 ? '' : 's'}
+                        ${platform.form_factor ? `${utils.escapeHtml(platform.form_factor)} · ` : ''}${versions.length} version${versions.length === 1 ? '' : 's'}
                     </p>
                 </div>
             `;
@@ -913,32 +878,32 @@ class ServerBuilder {
 
             const status = selectable
                 ? `<span class="text-primary">${version.available_units} in stock</span>`
-                : `<span class="text-text-muted">${this.escapeHtml(version.unavailable_reason || 'Unavailable')}</span>`;
+                : `<span class="text-text-muted">${utils.escapeHtml(version.unavailable_reason || 'Unavailable')}</span>`;
 
             const boardLine = [
-                board.model ? this.escapeHtml(board.model) : '',
-                board.socket_type ? `${this.escapeHtml(board.socket_type)} ×${board.socket_count || 1}` : '',
-                board.memory_type && board.memory_slots ? `${this.escapeHtml(board.memory_type)} ${board.memory_slots} slots` : ''
+                board.model ? utils.escapeHtml(board.model) : '',
+                board.socket_type ? `${utils.escapeHtml(board.socket_type)} ×${board.socket_count || 1}` : '',
+                board.memory_type && board.memory_slots ? `${utils.escapeHtml(board.memory_type)} ${board.memory_slots} slots` : ''
             ].filter(Boolean).join(' · ');
 
             const chassisLine = [
-                chassis.model ? this.escapeHtml(chassis.model) : '',
-                version.bay_summary ? `${this.escapeHtml(version.bay_summary)} bays` : ''
+                chassis.model ? utils.escapeHtml(chassis.model) : '',
+                version.bay_summary ? `${utils.escapeHtml(version.bay_summary)} bays` : ''
             ].filter(Boolean).join(' · ');
 
             return `
                 <button type="button"
                         class="version-item w-full text-left p-3 rounded-lg mb-2 border border-border-light bg-surface-card ${selectable ? 'hover:border-primary/50 transition-colors' : 'opacity-60 cursor-not-allowed'}"
-                        ${selectable ? `onclick="window.serverBuilder.selectVersion(${this.jsArg(version.version_uuid)})"` : 'disabled'}
-                        data-version="${this.escapeHtml(version.version_uuid || '')}">
+                        ${selectable ? `onclick="window.serverBuilder.selectVersion(${utils.jsArg(version.version_uuid)})"` : 'disabled'}
+                        data-version="${utils.escapeHtml(version.version_uuid || '')}">
                     <div class="flex items-start justify-between gap-3">
                         <div class="min-w-0">
-                            <div class="text-sm font-medium text-text-primary">${this.escapeHtml(version.version_name || version.model || 'Version')}</div>
-                            ${version.part_number ? `<div class="text-xs text-text-secondary mt-0.5">P/N ${this.escapeHtml(version.part_number)}</div>` : ''}
+                            <div class="text-sm font-medium text-text-primary">${utils.escapeHtml(version.version_name || version.model || 'Version')}</div>
+                            ${version.part_number ? `<div class="text-xs text-text-secondary mt-0.5">P/N ${utils.escapeHtml(version.part_number)}</div>` : ''}
                             ${boardLine ? `<div class="text-xs text-text-secondary mt-1"><i class="fas fa-microchip me-1 opacity-50"></i>${boardLine}</div>` : ''}
                             ${chassisLine ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-server me-1 opacity-50"></i>${chassisLine}</div>` : ''}
-                            ${version.included_nic ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-network-wired me-1 opacity-50"></i>${this.escapeHtml(version.included_nic.model || 'Included network card')}</div>` : ''}
-                            ${version.included_storage_controller ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-hdd me-1 opacity-50"></i>${this.escapeHtml(version.included_storage_controller.model || 'Included storage controller')}</div>` : ''}
+                            ${version.included_nic ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-network-wired me-1 opacity-50"></i>${utils.escapeHtml(version.included_nic.model || 'Included network card')}</div>` : ''}
+                            ${version.included_storage_controller ? `<div class="text-xs text-text-secondary mt-0.5"><i class="fas fa-hdd me-1 opacity-50"></i>${utils.escapeHtml(version.included_storage_controller.model || 'Included storage controller')}</div>` : ''}
                         </div>
                         <div class="text-xs whitespace-nowrap">${status}</div>
                     </div>
@@ -1035,18 +1000,18 @@ class ServerBuilder {
                 await this.loadExistingConfig(this.currentConfig.config_uuid);
 
                 const released = result.data.components_released || 0;
-                this.showAlert(
+                utils.showAlert(
                     released > 0
                         ? `${result.message}. ${released} component${released === 1 ? '' : 's'} released back to inventory.`
                         : result.message,
                     'success'
                 );
             } else {
-                this.showAlert(result.message, 'danger');
+                utils.showAlert(result.message, 'error');
             }
         } catch (error) {
             console.error('Platform selection error:', error);
-            this.showAlert(error.message || 'An unexpected error occurred while installing the platform.', 'danger');
+            utils.showAlert(error.message || 'An unexpected error occurred while installing the platform.', 'error');
         } finally {
             this.setPlatformBusy(false);
         }
@@ -1058,12 +1023,12 @@ class ServerBuilder {
      */
     async removePlatform() {
         try {
-            this.showLoading('Removing compute platform...');
+            utils.showLoading(true, 'Removing compute platform...');
 
             let result = await platformManager.removePlatform(this.currentConfig.config_uuid, false);
 
             if (result.needsConfirmation) {
-                this.hideLoading();
+                utils.showLoading(false);
 
                 const agreed = confirm(
                     `${result.message}\n\n` +
@@ -1073,21 +1038,21 @@ class ServerBuilder {
 
                 if (!agreed) return;
 
-                this.showLoading('Removing compute platform...');
+                utils.showLoading(true, 'Removing compute platform...');
                 result = await platformManager.removePlatform(this.currentConfig.config_uuid, true);
             }
 
             if (result.success) {
                 await this.loadExistingConfig(this.currentConfig.config_uuid);
-                this.showAlert(result.message, 'success');
+                utils.showAlert(result.message, 'success');
             } else {
-                this.showAlert(result.message, 'danger');
+                utils.showAlert(result.message, 'error');
             }
         } catch (error) {
             console.error('Platform removal error:', error);
-            this.showAlert(error.message || 'An unexpected error occurred while removing the platform.', 'danger');
+            utils.showAlert(error.message || 'An unexpected error occurred while removing the platform.', 'error');
         } finally {
-            this.hideLoading();
+            utils.showLoading(false);
         }
     }
 
@@ -1170,7 +1135,7 @@ class ServerBuilder {
 
         if (!modalContainer || !modalTitle || !modalBody) {
             console.error('Modal container elements not found');
-            this.showAlert('Error: Modal template not found', 'danger');
+            utils.showAlert('Error: Modal template not found', 'error');
             return;
         }
 
@@ -1245,8 +1210,8 @@ class ServerBuilder {
             <div class="template-item p-3 rounded-lg cursor-pointer hover:bg-surface-hover transition-colors mb-2 border border-transparent hover:border-border-light group" 
                  onclick="window.serverBuilder.selectTemplate('${t.config_uuid}')"
                  data-id="${t.config_uuid}">
-                <div class="font-medium text-text-primary group-hover:text-primary transition-colors">${this.escapeHtml(t.server_name)}</div>
-                <div class="text-xs text-text-secondary truncate">${this.escapeHtml(t.description || 'No description')}</div>
+                <div class="font-medium text-text-primary group-hover:text-primary transition-colors">${utils.escapeHtml(t.server_name)}</div>
+                <div class="text-xs text-text-secondary truncate">${utils.escapeHtml(t.description || 'No description')}</div>
             </div>
         `).join('');
     }
@@ -1411,7 +1376,7 @@ class ServerBuilder {
                     <div class="space-y-1">
                         ${items.map(item => `
                             <div class="text-sm text-text-primary bg-surface-card p-2 rounded border border-border-light">
-                                ${this.escapeHtml(item.resolved_name || item.component_name || item.product_name || item.name || item.model || 'Unknown Component')}
+                                ${utils.escapeHtml(item.resolved_name || item.component_name || item.product_name || item.name || item.model || 'Unknown Component')}
                             </div>
                         `).join('')}
                     </div>
@@ -1445,8 +1410,8 @@ class ServerBuilder {
 
         container.innerHTML = `
             <div class="animate-fade-in">
-                <h4 class="text-lg font-bold text-text-primary mb-1">${this.escapeHtml(config.server_name)}</h4>
-                <p class="text-sm text-text-secondary mb-4">${this.escapeHtml(config.description || 'No description provided')}</p>
+                <h4 class="text-lg font-bold text-text-primary mb-1">${utils.escapeHtml(config.server_name)}</h4>
+                <p class="text-sm text-text-secondary mb-4">${utils.escapeHtml(config.description || 'No description provided')}</p>
                 
                 <div class="bg-primary/5 border border-primary/10 rounded-lg p-3 mb-4 text-xs text-primary">
                     <i class="fas fa-info-circle me-1"></i>
@@ -1571,12 +1536,12 @@ class ServerBuilder {
                 // Handle Result Feedback
                 this.handleImportResult(result);
             } else {
-                this.showAlert('Import failed: ' + (result.error || 'Unknown error'), 'danger');
+                utils.showAlert('Import failed: ' + (result.error || 'Unknown error'), 'error');
             }
 
         } catch (error) {
             console.error('Import error:', error);
-            this.showAlert(error.message || 'An unexpected error occurred during import.', 'danger');
+            utils.showAlert(error.message || 'An unexpected error occurred during import.', 'error');
         } finally {
             this.setImportBusy(false, 'Import Template');
         }
@@ -1591,13 +1556,13 @@ class ServerBuilder {
 
         // 1. Success Toast
         if (addedCount > 0) {
-            this.showAlert(`Import Complete: ${addedCount} components added successfully.`, 'success');
+            utils.showAlert(`Import Complete: ${addedCount} components added successfully.`, 'success');
         }
 
         // 2. Warning Toast with details (if partial)
         if (skippedCount > 0) {
             setTimeout(() => {
-                this.showAlert(`Partial Import: ${skippedCount} items skipped. Open browser console (F12) for details.`, 'warning');
+                utils.showAlert(`Partial Import: ${skippedCount} items skipped. Open browser console (F12) for details.`, 'warning');
             }, 500);
 
             // 3. Auto-scroll to first skipped type
@@ -1606,7 +1571,7 @@ class ServerBuilder {
                 this.scrollToComponent(firstSkipped.type);
             }
         } else if (addedCount === 0) {
-            this.showAlert('No matching components were found in inventory.', 'warning');
+            utils.showAlert('No matching components were found in inventory.', 'warning');
         }
     }
 
@@ -1621,7 +1586,7 @@ class ServerBuilder {
 
         if (!modalContainer || !modalTitle || !modalBody) {
             console.error('Modal container elements not found');
-            this.showAlert('Error: Modal template not found', 'error');
+            utils.showAlert('Error: Modal template not found', 'error');
             return;
         }
 
@@ -2129,8 +2094,8 @@ class ServerBuilder {
                     <span class="hw-tag hw-tag-chassis"><i class="fas fa-server mr-1.5"></i>Chassis</span>
                     ${chassisComp ? `
                     <span class="relative inline-flex items-baseline gap-2 cursor-pointer min-w-0" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
-                        <span class="text-sm font-semibold text-text-primary truncate">${this.escapeHtml(chassisName)}</span>
-                        ${chassisComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${this.escapeHtml(chassisComp.serial_number)}</span>` : ''}
+                        <span class="text-sm font-semibold text-text-primary truncate">${utils.escapeHtml(chassisName)}</span>
+                        ${chassisComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${utils.escapeHtml(chassisComp.serial_number)}</span>` : ''}
                         ${this.renderSlotPopover('chassis', chassisComp, 'Chassis')}
                     </span>
                     ` : `
@@ -2149,8 +2114,8 @@ class ServerBuilder {
                         <div class="hw-board-header">
                             <span class="hw-tag hw-tag-board"><i class="fas fa-microchip mr-1.5"></i>Motherboard</span>
                             <span class="relative inline-flex items-baseline gap-2 cursor-pointer min-w-0" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
-                                <span class="text-sm font-semibold text-text-primary truncate">${this.escapeHtml(boardName)}</span>
-                                ${boardComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${this.escapeHtml(boardComp.serial_number)}</span>` : ''}
+                                <span class="text-sm font-semibold text-text-primary truncate">${utils.escapeHtml(boardName)}</span>
+                                ${boardComp.serial_number ? `<span class="font-mono text-[11px] text-text-muted">${utils.escapeHtml(boardComp.serial_number)}</span>` : ''}
                                 ${this.renderSlotPopover('motherboard', boardComp, 'Motherboard')}
                             </span>
                         </div>
@@ -2219,9 +2184,9 @@ class ServerBuilder {
      */
     renderSlotPopover(type, comp, slotLabel = '', extraRows = '') {
         if (!comp) return '';
-        const name = this.escapeHtml(comp.component_name || comp.serial_number || 'Component');
+        const name = utils.escapeHtml(comp.component_name || comp.serial_number || 'Component');
 
-        const row = (k, v) => v ? `<div class="slot-popover-row"><span class="k">${k}</span><span class="v">${this.escapeHtml(v)}</span></div>` : '';
+        const row = (k, v) => v ? `<div class="slot-popover-row"><span class="k">${k}</span><span class="v">${utils.escapeHtml(v)}</span></div>` : '';
 
         return `
         <div class="slot-popover" onclick="event.stopPropagation()">
@@ -2232,7 +2197,7 @@ class ServerBuilder {
             ${extraRows}
             ${type && comp.uuid && !this.isPlatformLocked(type) ? `
             <div class="slot-popover-actions">
-                <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})">
+                <button class="slot-popover-remove" onclick="window.serverBuilder.removeComponent('${type}', '${comp.uuid}', ${utils.jsArg(comp.serial_number)})">
                     <i class="fas fa-trash-alt"></i>
                     Remove
                 </button>
@@ -2248,8 +2213,8 @@ class ServerBuilder {
         const badgeHtml = badge ? `<span class="slot-type-badge">${badge}</span>` : '';
 
         if (component) {
-            const name = this.escapeHtml(component.component_name || component.serial_number || 'Component');
-            const serial = component.component_name && component.serial_number ? `<span class="hw-slot-serial">${this.escapeHtml(component.serial_number)}</span>` : '';
+            const name = utils.escapeHtml(component.component_name || component.serial_number || 'Component');
+            const serial = component.component_name && component.serial_number ? `<span class="hw-slot-serial">${utils.escapeHtml(component.serial_number)}</span>` : '';
             const mainRow = `
                 <div class="hw-slot-main">
                     <span class="hw-slot-label">${label}</span>
@@ -2452,7 +2417,7 @@ class ServerBuilder {
                                     <div class="configuration-summary">
                                         <div class="summary-item">
                                             <span class="summary-label">Server Name:</span>
-                                            <span class="summary-value">${this.escapeHtml(this.currentConfig.server_name || 'Unnamed Server')}</span>
+                                            <span class="summary-value">${utils.escapeHtml(this.currentConfig.server_name || 'Unnamed Server')}</span>
                                         </div>
                                         <div class="summary-item">
                                             <span class="summary-label">Total Components:</span>
@@ -2546,26 +2511,26 @@ class ServerBuilder {
      */
     async saveConfiguration() {
         try {
-            this.showLoading('Saving server configuration...');
+            utils.showLoading(true, 'Saving server configuration...');
 
             // Your API call to save the configuration
             const result = await serverAPI.finalizeServerConfig(this.currentConfig.config_uuid);
 
             if (result.success) {
-                this.showAlert('Server configuration saved successfully!', 'success');
+                utils.showAlert('Server configuration saved successfully!', 'success');
 
                 // Redirect to server list or dashboard
                 setTimeout(() => {
                     window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
                 }, 1500);
             } else {
-                this.showAlert(result.message || 'Failed to save configuration', 'error');
+                utils.showAlert(result.message || 'Failed to save configuration', 'error');
             }
         } catch (error) {
             console.error('Error saving configuration:', error);
-            this.showAlert(error.message || 'An error occurred while saving the configuration', 'error');
+            utils.showAlert(error.message || 'An error occurred while saving the configuration', 'error');
         } finally {
-            this.hideLoading();
+            utils.showLoading(false);
         }
     }
 
@@ -2723,10 +2688,10 @@ class ServerBuilder {
         // remain visible and removable), only the add affordance is withheld.
         const canAdd = !platformLocked && this.buildState.canAdd(componentType.type);
         const capacityBadge = platformLocked
-            ? `<span class="comp-capacity-badge" title="Comes with ${this.escapeHtml(this.currentConfig?.platform_name || 'the compute platform')}. Change or remove the platform to change it."><i class="fas fa-lock text-[9px]"></i>Compute platform</span>`
+            ? `<span class="comp-capacity-badge" title="Comes with ${utils.escapeHtml(this.currentConfig?.platform_name || 'the compute platform')}. Change or remove the platform to change it."><i class="fas fa-lock text-[9px]"></i>Compute platform</span>`
             : (canAdd
                 ? ''
-                : `<span class="comp-capacity-badge"><i class="fas fa-lock text-[9px]"></i>${this.escapeHtml(this.buildState.capacityLabel(componentType.type))}</span>`);
+                : `<span class="comp-capacity-badge"><i class="fas fa-lock text-[9px]"></i>${utils.escapeHtml(this.buildState.capacityLabel(componentType.type))}</span>`);
 
         const labelCell = `
             <td class="px-5 py-3 align-middle">
@@ -2745,9 +2710,9 @@ class ServerBuilder {
         let valueCell;
         if (hasComponents) {
             const chips = components.map(comp => {
-                const displayName = this.escapeHtml(comp.component_name || comp.serial_number || 'Unnamed Component');
-                const subtitle = comp.component_name ? this.escapeHtml(comp.serial_number || '') : '';
-                const position = comp.slot_position ? ` <span class="font-normal text-text-muted">(${this.escapeHtml(comp.slot_position)})</span>` : '';
+                const displayName = utils.escapeHtml(comp.component_name || comp.serial_number || 'Unnamed Component');
+                const subtitle = comp.component_name ? utils.escapeHtml(comp.serial_number || '') : '';
+                const position = comp.slot_position ? ` <span class="font-normal text-text-muted">(${utils.escapeHtml(comp.slot_position)})</span>` : '';
 
                 return `
                 <span class="comp-chip">
@@ -2756,7 +2721,7 @@ class ServerBuilder {
                         ${subtitle ? `<span class="comp-chip-serial">${subtitle}</span>` : ''}
                     </span>
                     ${platformLocked ? '' : `
-                    <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}', ${this.jsArg(comp.serial_number)})" title="Remove">
+                    <button class="comp-chip-remove" onclick="window.serverBuilder.removeComponent('${componentType.type}', '${comp.uuid}', ${utils.jsArg(comp.serial_number)})" title="Remove">
                         <i class="fas fa-times text-xs"></i>
                     </button>`}
                 </span>`;
@@ -2852,8 +2817,8 @@ class ServerBuilder {
                 html += `
                 <div class="dimm-cell is-filled" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
                     <span class="dimm-cell-label">${label} · ${memoryType}</span>
-                    <span class="dimm-cell-name">${this.escapeHtml(ram.component_name || ram.serial_number || 'DIMM')}</span>
-                    ${ram.component_name && ram.serial_number ? `<span class="dimm-cell-serial">${this.escapeHtml(ram.serial_number)}</span>` : ''}
+                    <span class="dimm-cell-name">${utils.escapeHtml(ram.component_name || ram.serial_number || 'DIMM')}</span>
+                    ${ram.component_name && ram.serial_number ? `<span class="dimm-cell-serial">${utils.escapeHtml(ram.serial_number)}</span>` : ''}
                     ${this.renderSlotPopover('ram', ram, label)}
                 </div>`;
             } else {
@@ -3043,8 +3008,8 @@ class ServerBuilder {
                     </div>
                     <div class="hw-slot-main justify-end">
                         <i class="fas fa-network-wired text-primary text-xs"></i>
-                        <span class="hw-slot-name">${this.escapeHtml(displayName)}</span>
-                        <span class="hw-slot-serial">${this.escapeHtml(speedInfo.trim())}</span>
+                        <span class="hw-slot-name">${utils.escapeHtml(displayName)}</span>
+                        <span class="hw-slot-serial">${utils.escapeHtml(speedInfo.trim())}</span>
                     </div>
                 </div>
                 ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
@@ -3117,7 +3082,7 @@ class ServerBuilder {
             const sfp = effectiveSfps[i];
             if (sfp) {
                 html += `
-                <div class="sfp-port populated" title="${this.escapeHtml(sfp.component_name || sfp.serial_number || 'SFP Module')}"></div>`;
+                <div class="sfp-port populated" title="${utils.escapeHtml(sfp.component_name || sfp.serial_number || 'SFP Module')}"></div>`;
             } else {
                 html += `
                 <div class="sfp-port empty-port" title="Port ${i + 1} — Empty, click to add SFP" onclick="event.stopPropagation(); window.serverBuilder.addComponent('sfp')"></div>`;
@@ -3160,7 +3125,7 @@ class ServerBuilder {
             <div class="connection-path">
                 ${hbaCard ? `
                 <i class="fas fa-hdd"></i>
-                <span class="font-medium">${this.escapeHtml(hbaCard.component_name || 'HBA Card')}</span>
+                <span class="font-medium">${utils.escapeHtml(hbaCard.component_name || 'HBA Card')}</span>
                 <i class="fas fa-long-arrow-alt-right"></i>` : ''}
                 <span>Backplane</span>
                 ${backplaneInterface ? `<span class="interface-badge ${this._getInterfaceClass(backplaneInterface)}">${backplaneInterface}</span>` : ''}
@@ -3200,16 +3165,16 @@ class ServerBuilder {
                     : null;
                 const popoverComp = storageComp || { component_name: bayConn.storage_name, serial_number: bayConn.storage_serial || '' };
                 const extraRows = `
-                    ${bayConn.storage_interface ? `<div class="slot-popover-row"><span class="k">Interface</span><span class="v">${this.escapeHtml(bayConn.storage_interface)}</span></div>` : ''}
-                    ${bayConn.compatibility ? `<div class="slot-popover-row"><span class="k">Compatibility</span><span class="v">${this.escapeHtml(bayConn.compatibility.replace(/_/g, ' '))}</span></div>` : ''}`;
+                    ${bayConn.storage_interface ? `<div class="slot-popover-row"><span class="k">Interface</span><span class="v">${utils.escapeHtml(bayConn.storage_interface)}</span></div>` : ''}
+                    ${bayConn.compatibility ? `<div class="slot-popover-row"><span class="k">Compatibility</span><span class="v">${utils.escapeHtml(bayConn.compatibility.replace(/_/g, ' '))}</span></div>` : ''}`;
 
                 html += `
-                <div class="drive-bay-cell occupied" title="${this.escapeHtml(bayConn.description || '')}" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
+                <div class="drive-bay-cell occupied" title="${utils.escapeHtml(bayConn.description || '')}" onclick="window.serverBuilder.toggleSlotPopover(event, this)">
                     <div class="flex items-center justify-between gap-1">
                         <span class="bay-number">${bayLabel}</span>
                         <span class="interface-badge ${interfaceClass} !text-[8px] !px-1 !py-0">${this._shortInterface(bayConn.storage_interface)}</span>
                     </div>
-                    <div class="bay-drive-name">${this.escapeHtml(bayConn.storage_name || 'Drive')}</div>
+                    <div class="bay-drive-name">${utils.escapeHtml(bayConn.storage_name || 'Drive')}</div>
                     <div class="mt-0.5"><i class="${compatIcon} text-[9px]" title="${bayConn.compatibility || ''}"></i></div>
                     ${this.renderSlotPopover(storageComp ? 'storage' : null, popoverComp, bayLabel, extraRows)}
                 </div>`;
@@ -3452,7 +3417,7 @@ class ServerBuilder {
         try {
 
             if (!this.currentConfig || !this.currentConfig.config_uuid) {
-                this.showAlert('No server configuration loaded', 'error');
+                utils.showAlert('No server configuration loaded', 'error');
                 return;
             }
 
@@ -3466,7 +3431,7 @@ class ServerBuilder {
             // backend still refuses the add, and the refusal is logged as a result
             // rather than swallowed by a client-side guard.
             if (!this.isSandbox && !this.buildState.canAdd(type)) {
-                this.showAlert(this.buildState.capacityLabel(type) || `No capacity for ${type} in this build`, 'warning');
+                utils.showAlert(this.buildState.capacityLabel(type) || `No capacity for ${type} in this build`, 'warning');
                 return;
             }
 
@@ -3489,7 +3454,7 @@ class ServerBuilder {
             window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=${returnTo}`;
         } catch (error) {
             console.error('Error adding component:', error);
-            this.showAlert(error.message || 'Failed to open component selection', 'error');
+            utils.showAlert(error.message || 'Failed to open component selection', 'error');
         }
     }
 
@@ -3508,7 +3473,7 @@ class ServerBuilder {
         }
 
         try {
-            this.showLoading('Removing component...');
+            utils.showLoading(true, 'Removing component...');
 
             const result = await serverAPI.removeComponentFromServer(
                 this.currentConfig.config_uuid,
@@ -3518,16 +3483,16 @@ class ServerBuilder {
             );
 
             if (result.success) {
-                this.showAlert('Component removed successfully', 'success');
+                utils.showAlert('Component removed successfully', 'success');
                 await this.loadExistingConfig(this.currentConfig.config_uuid);
             } else {
-                this.showAlert(result.message || 'Failed to remove component', 'danger');
+                utils.showAlert(result.message || 'Failed to remove component', 'error');
             }
         } catch (error) {
             console.error('Error removing component:', error);
-            this.showAlert(error.message || 'Failed to remove component', 'danger');
+            utils.showAlert(error.message || 'Failed to remove component', 'error');
         } finally {
-            this.hideLoading();
+            utils.showLoading(false);
         }
     }
 
@@ -3713,7 +3678,7 @@ class ServerBuilder {
         }
 
         // Show feedback
-        this.showAlert(`Advanced view ${enabled ? 'enabled' : 'disabled'}`, 'info');
+        utils.showAlert(`Advanced view ${enabled ? 'enabled' : 'disabled'}`, 'info');
     }
     /**
      * Show advanced features
@@ -3736,60 +3701,7 @@ class ServerBuilder {
         // Example: You might want to keep motherboard section always visible
         // or conditionally hide it based on your requirements
     }
-    /**
-     * Show loading overlay (delegates to global loading manager)
-     */
-    showLoading(message = 'Loading...', subtext = '') {
-        const fullMessage = subtext ? `${message} - ${subtext}` : message;
-        if (window.globalLoading) {
-            window.globalLoading.showLoading(true, fullMessage);
-        } else {
-        }
-    }
 
-    /**
-     * Hide loading overlay (delegates to global loading manager)
-     */
-    hideLoading() {
-        if (window.globalLoading) {
-            window.globalLoading.hide();
-        }
-    }
-
-    /**
-     * Show alert notification
-     */
-    showAlert(message, type = 'info') {
-        const typeMap = {
-            'danger': 'error',
-            'info': 'info',
-            'success': 'success',
-            'warning': 'warning'
-        };
-
-        const mappedType = typeMap[type] || 'info';
-
-        if (typeof toastNotification !== 'undefined') {
-            toastNotification.show(message, mappedType);
-        } else {
-        }
-    }
-
-    /**
-     * Escape HTML to prevent XSS. Delegates to the one implementation in utils.js;
-     * every page carrying this file loads utils.js before it.
-     */
-    escapeHtml(str) {
-        return window.utils.escapeHtml(str);
-    }
-
-    /**
-     * Render a value as a JS literal safe to drop into an inline onclick
-     * attribute. Delegates to the one implementation in utils.js.
-     */
-    jsArg(value) {
-        return window.utils.jsArg(value);
-    }
 }
 
 // Initialize when DOM is ready

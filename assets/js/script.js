@@ -14,19 +14,19 @@ const alertMessage = document.getElementById('alertMessage');
 const SECURITY_CONFIG = {
     MAX_ATTEMPTS: 5,
     LOCKOUT_TIME: 30 * 1000, // 30 seconds
-    USERNAME_REGEX: /^[a-zA-Z0-9_.-]+$/, // Allow only alphanumeric, dot, underscore, dash
-    // UX-ONLY: These client-side SQL injection pattern checks prevent visibly malformed
-    // input from being submitted and provide user feedback. They are NOT a security control.
-    // The backend must use parameterized/prepared statements to prevent actual SQL injection —
-    // no client-side check can substitute for this.
-    SQL_INJECTION_PATTERNS: [
-        /(\%27)|(\')|(\-\-)|(\%23)|(#)/i,
-        /((\%3D)|(=))[^\n]*((\%27)|(\')|(\-\-)|(\%3B)|(;))/i,
-        /\w*((\%27)|(\'))(\s)*((\%6F)|o|(\%4F))((\%72)|r|(\%52))/i,
-        /((\%27)|(\'))union/i,
-        /exec(\s|\+)+(s|x)p\w+/i
-    ]
+    // The single username rule, enforced both on blur (validateField) and on
+    // submit (handleLogin). Allows alphanumerics, dot, underscore, dash.
+    USERNAME_REGEX: /^[a-zA-Z0-9_.-]+$/
 };
+
+// A SQL_INJECTION_PATTERNS list used to sit here and was applied to the username
+// field. It was removed on 2026-09-21. It was never a security control — the
+// backend uses prepared statements, which is the actual defence, and the comment
+// above it said so. What it did do was reject legitimate input: the first pattern
+// matched `--`, which USERNAME_REGEX explicitly permits, so a username containing
+// a double hyphen was refused with "Security check failed: Suspicious input
+// detected." Client-side pattern-matching on credentials buys nothing an attacker
+// cannot skip by not using the form.
 
 // UX-ONLY: These localStorage-based rate limiting counters provide user feedback
 // (countdown timer, disabled button) and slow down casual manual attempts.
@@ -112,27 +112,25 @@ function validateField(input) {
         }
     }
 
-    // Username validation
+    // Username validation.
+    //
+    // One rule, SECURITY_CONFIG.USERNAME_REGEX — the same one handleLogin()
+    // enforces. This used to carry its own stricter regex (/^[a-zA-Z0-9_]+$/),
+    // so a username containing a dot or a hyphen was marked invalid on blur and
+    // then accepted on submit: two rules in one file, disagreeing.
     if (input.name === 'username') {
         if (value.length < 3) {
             setFieldError(input, 'Username must be at least 3 characters long');
             return false;
         }
 
-        const usernameRegex = /^[a-zA-Z0-9_]+$/;
-        if (!usernameRegex.test(value)) {
-            setFieldError(input, 'Username can only contain letters, numbers, and underscores');
+        if (!SECURITY_CONFIG.USERNAME_REGEX.test(value)) {
+            setFieldError(input, 'Username can only contain letters, numbers, and . _ -');
             return false;
         }
     }
 
     return true;
-}
-
-// Security Helper Functions
-function sanitizeInput(str) {
-    if (!str) return '';
-    return str.replace(/[^\w. -]/gi, ''); // Remove any non-safe characters
 }
 
 function checkLockoutStatus() {
@@ -241,12 +239,6 @@ async function handleLogin(e) {
     // Note: We don't sanitize password as it might contain special chars, but we length check it
     if (!SECURITY_CONFIG.USERNAME_REGEX.test(username)) {
         showAlert('error', 'Invalid characters in username.', 'fas fa-exclamation-circle');
-        return;
-    }
-
-    // Double check for SQL injection patterns
-    if (SECURITY_CONFIG.SQL_INJECTION_PATTERNS.some(pattern => pattern.test(username))) {
-        showAlert('error', 'Security check failed: Suspicious input detected.', 'fas fa-shield-alt');
         return;
     }
 
@@ -735,80 +727,20 @@ window.addEventListener('offline', function () {
     showAlert('error', 'Connection lost. Please check your internet connection.', 'fas fa-wifi');
 });
 
-// Auto-save form data (optional)
-function autoSaveFormData() {
-    const inputs = document.querySelectorAll('input[type="text"], input[type="email"]');
-
-    inputs.forEach(input => {
-        input.addEventListener('input', function () {
-            const key = `bdc_form_${this.id}`;
-            localStorage.setItem(key, this.value);
-        });
-
-        // Restore saved data
-        const savedValue = localStorage.getItem(`bdc_form_${input.id}`);
-        if (savedValue && !input.value) {
-            input.value = savedValue;
-        }
-    });
-}
-
-// Clear auto-saved data on successful submission
+/**
+ * Remove any `bdc_form_*` keys an older build left in localStorage.
+ *
+ * The login page used to mirror every text input — the username included — into
+ * localStorage on each keystroke and restore it on load, which left the last
+ * operator's username sitting on a shared machine indefinitely. The browser's
+ * own autofill already does this, under the user's control, so the auto-save was
+ * removed on 2026-09-21. This sweep stays so the keys it wrote are cleaned up on
+ * the next successful login rather than lingering forever.
+ */
 function clearAutoSavedData() {
     const keys = Object.keys(localStorage).filter(key => key.startsWith('bdc_form_'));
     keys.forEach(key => localStorage.removeItem(key));
 }
 
-// Token refresh functionality
-async function refreshAccessToken() {
-    const staleRefresh = localStorage.getItem('bdc_refresh_token');
-    if (staleRefresh !== null) {
-        localStorage.removeItem('bdc_refresh_token');
-        if (!sessionStorage.getItem('bdc_refresh_token')) {
-            sessionStorage.setItem('bdc_refresh_token', staleRefresh);
-        }
-    }
-    const refreshToken = sessionStorage.getItem('bdc_refresh_token');
-    if (!refreshToken) {
-        return false;
-    }
-
-    try {
-        const formData = new URLSearchParams();
-        formData.append('action', 'auth-refresh');
-        formData.append('refresh_token', refreshToken);
-
-        const response = await fetch(API_CONFIG.baseURL, {
-            method: 'POST',
-            headers: API_CONFIG.headers,
-            body: formData
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-            if (result.success) {
-                const storage = localStorage.getItem('bdc_remember_me') === 'true' ? localStorage : sessionStorage;
-                storage.setItem('bdc_token', result.data.tokens.access_token);
-                sessionStorage.setItem('bdc_refresh_token', result.data.tokens.refresh_token);
-                return true;
-            }
-        }
-    } catch (error) {
-        console.error('Token refresh error:', error);
-    }
-
-    // Refresh failed, clear tokens from both storages
-    sessionStorage.removeItem('bdc_token');
-    sessionStorage.removeItem('bdc_refresh_token');
-    sessionStorage.removeItem('bdc_user');
-    localStorage.removeItem('bdc_token');
-    localStorage.removeItem('bdc_refresh_token');
-    localStorage.removeItem('bdc_user');
-    localStorage.removeItem('bdc_remember_me');
-    return false;
-}
-
-// Initialize auto-save functionality
-document.addEventListener('DOMContentLoaded', function () {
-    autoSaveFormData();
-});
+// Sweep up any keys the removed auto-save left behind on this machine.
+document.addEventListener('DOMContentLoaded', clearAutoSavedData);

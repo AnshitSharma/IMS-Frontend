@@ -84,14 +84,7 @@ class ConfigurationPage {
         const token = window.api ? window.api.getToken()
             : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
         if (!token) {
-            sessionStorage.removeItem('bdc_token');
-            sessionStorage.removeItem('jwt_token');
-            sessionStorage.removeItem('bdc_refresh_token');
-            sessionStorage.removeItem('bdc_user');
-            localStorage.removeItem('bdc_token');
-            localStorage.removeItem('bdc_refresh_token');
-            localStorage.removeItem('bdc_user');
-            localStorage.removeItem('bdc_remember_me');
+            window.api?.clearAuth();
             window.location.href = this.loginURL;
             return false;
         }
@@ -504,7 +497,7 @@ class ConfigurationPage {
      */
     async loadComponents() {
         try {
-            this.showLoading(true);
+            utils.showLoading(true);
 
             // Get config UUID and component type from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -552,7 +545,7 @@ class ConfigurationPage {
             } else {
                 this.components = [];
                 this.filteredComponents = [];
-                this.showAlert('No server configuration selected. Open this page from a server configuration.', 'error');
+                utils.showAlert('No server configuration selected. Open this page from a server configuration.', 'error');
             }
 
             this.renderComponentHeaders();
@@ -561,9 +554,9 @@ class ConfigurationPage {
 
         } catch (error) {
             console.error('Error loading components:', error);
-            this.showAlert(error.message || 'Failed to load components', 'error');
+            utils.showAlert(error.message || 'Failed to load components', 'error');
         } finally {
-            this.showLoading(false);
+            utils.showLoading(false);
         }
     }
 
@@ -598,7 +591,7 @@ class ConfigurationPage {
 
             const label = BuildState.COMPONENT_CATALOG.find(c => c.type === componentType)?.name || componentType;
             const detail = state.capacityLabel(componentType);
-            this.showAlert(
+            utils.showAlert(
                 `This server can't take ${label} right now${detail ? ` — ${detail}` : ''}.`,
                 'warning'
             );
@@ -721,13 +714,13 @@ class ConfigurationPage {
             } else {
                 this.components = [];
                 this.filteredComponents = [];
-                this.showAlert(result.message || 'Failed to load compatible components from the server', 'error');
+                utils.showAlert(result.message || 'Failed to load compatible components from the server', 'error');
             }
         } catch (error) {
             console.error('Error loading real components from API:', error);
             this.components = [];
             this.filteredComponents = [];
-            this.showAlert(error.message || 'Failed to load compatible components — please retry', 'error');
+            utils.showAlert(error.message || 'Failed to load compatible components — please retry', 'error');
         }
     }
 
@@ -1431,13 +1424,13 @@ class ConfigurationPage {
                     </div>
                 </td>
                 <td class="px-4 py-3">
-                    <div class="font-semibold text-sm text-text-primary">${this.escapeHtml(component.name)}</div>
+                    <div class="font-semibold text-sm text-text-primary">${utils.escapeHtml(component.name)}</div>
                     ${component.serial_number && component.serial_number !== 'N/A' ? `
-                        <div class="text-xs text-text-muted mt-1">S/N: ${this.escapeHtml(component.serial_number)}</div>
+                        <div class="text-xs text-text-muted mt-1">S/N: ${utils.escapeHtml(component.serial_number)}</div>
                     ` : ''}
                     ${(component.compatibilityWarnings || []).length ? `
                         <div class="text-xs text-amber-600 dark:text-amber-500 mt-1 flex items-center gap-1"
-                             title="${this.escapeHtml(component.compatibilityWarnings.join(' '))}">
+                             title="${utils.escapeHtml(component.compatibilityWarnings.join(' '))}">
                             <i class="fas fa-exclamation-triangle"></i>
                             <span>Possible issues — hover for detail</span>
                         </div>
@@ -1512,7 +1505,7 @@ class ConfigurationPage {
             result = value;
         }
 
-        return this.escapeHtml(String(result));
+        return utils.escapeHtml(String(result));
     }
 
     /**
@@ -1763,17 +1756,6 @@ class ConfigurationPage {
     }
 
     /**
-     * Render star rating
-     */
-    renderStars(rating) {
-        let stars = '';
-        for (let i = 1; i <= 5; i++) {
-            stars += `<i class="fas fa-star star ${i <= rating ? '' : 'empty'}"></i>`;
-        }
-        return stars;
-    }
-
-    /**
      * Toggle component selection
      */
     toggleComponent(componentId) {
@@ -1796,7 +1778,7 @@ class ConfigurationPage {
     async addComponent(componentId) {
         const component = this.filteredComponents.find(c => c.id === componentId);
         if (!component || !component.compatible) {
-            this.showAlert('Component is not compatible', 'warning');
+            utils.showAlert('Component is not compatible', 'warning');
             return;
         }
 
@@ -1815,7 +1797,7 @@ class ConfigurationPage {
      */
     async performAddComponent(componentId, component, slotPosition = '') {
         try {
-            this.showLoading(true, 'Adding component...');
+            utils.showLoading(true, 'Adding component...');
 
             // Get config UUID from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -1844,12 +1826,6 @@ class ConfigurationPage {
                     options // Pass options with parent_nic_uuid and port_index
                 );
 
-                // If that fails because component doesn't exist in DB, create it first
-                if (!result.success && result.message &&
-                    (result.message.includes('not found') || result.message.includes('Component not found'))) {
-                    result = await this.createAndAddComponent(configUuid, component, slotPosition);
-                }
-
                 // Compatibility warnings the backend attached to the add (e.g. mixing
                 // CPU SKU variants such as 6338 + 6338N — allowed, but flagged).
                 const addWarnings = result.success ? (result.data?.warnings || []) : [];
@@ -1866,8 +1842,8 @@ class ConfigurationPage {
                 );
 
                 if (result.success) {
-                    this.showAlert(`${component.name} added successfully`, 'success');
-                    addWarnings.forEach(warning => this.showAlert(warning, 'warning'));
+                    utils.showAlert(`${component.name} added successfully`, 'success');
+                    addWarnings.forEach(warning => utils.showAlert(warning, 'warning'));
 
                     this.updateCompatibilityBanner();
 
@@ -1881,7 +1857,7 @@ class ConfigurationPage {
                     // Not an error on the bench — a refusal IS the result being sought.
                     // The component is not in the build (the engine rejected it); it is
                     // recorded under Tested parts with this exact reason.
-                    this.showAlert(
+                    utils.showAlert(
                         `${component.name} is not compatible — logged to Tested parts`,
                         'warning'
                     );
@@ -1889,19 +1865,19 @@ class ConfigurationPage {
                         window.location.href = this.returnUrl(configUuid);
                     }, 1800);
                 } else {
-                    this.showAlert(result.message || 'Failed to add component', 'error');
+                    utils.showAlert(result.message || 'Failed to add component', 'error');
                 }
             } else {
                 // Demo mode - just show success message
-                this.showAlert(`${component.name} added successfully (Demo Mode)`, 'success');
+                utils.showAlert(`${component.name} added successfully (Demo Mode)`, 'success');
                 this.updateCompatibilityBanner();
             }
 
         } catch (error) {
             console.error('Error adding component:', error);
-            this.showAlert(error.message || 'Failed to add component', 'error');
+            utils.showAlert(error.message || 'Failed to add component', 'error');
         } finally {
-            this.showLoading(false);
+            utils.showLoading(false);
         }
     }
 
@@ -1986,140 +1962,6 @@ class ConfigurationPage {
     }
 
     /**
-     * Create and add component (for JSON-based components not in database)
-     */
-
-    async createAndAddComponent(configUuid, component, slotPosition = '') {
-        try {
-            // Generate a unique UUID for the JSON component
-            const componentUuid = this.generateComponentUUID(component);
-
-            // Prepare options for SFP modules
-            const options = {};
-            if (this.currentComponentType === 'sfp' && this.parentNicUuid) {
-                options.parent_nic_uuid = this.parentNicUuid;
-                options.port_index = slotPosition; // Port number selected from modal
-            }
-
-            // Use the existing addComponentToServer method (it now handles JSON components)
-            const result = await serverAPI.addComponentToServer(
-                configUuid,
-                this.currentComponentType,
-                componentUuid,
-                1, // quantity
-                slotPosition, // slot position from port selection
-                false, // override
-                options // Pass options with parent_nic_uuid and port_index
-            );
-
-            if (result.success) {
-                return result;
-            } else {
-                console.error('Failed to add JSON component:', result);
-                return {
-                    success: false,
-                    message: result.message || 'Failed to add JSON component'
-                };
-            }
-
-        } catch (error) {
-            console.error('Error creating and adding component:', error);
-            return {
-                success: false,
-                message: 'Failed to add JSON component: ' + error.message
-            };
-        }
-    }
-
-    /**
-     * Generate a unique UUID for JSON components
-     */
-    generateComponentUUID(component) {
-        // Create a deterministic UUID based on component properties
-        const baseString = `${this.currentComponentType}-${component.name}-${component.manufacturer}`;
-        const hash = this.simpleHash(baseString);
-        return `json-${this.currentComponentType}-${hash}`;
-    }
-
-    /**
-     * Simple hash function for generating UUIDs
-     */
-    simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32-bit integer
-        }
-        return Math.abs(hash).toString(36);
-    }
-
-    /**
-     * Get component specs formatted for API
-     */
-    getComponentSpecsForAPI(component) {
-        const specs = {};
-
-        switch (this.currentComponentType) {
-            case 'cpu':
-                specs.cores = component.cores;
-                specs.threads = component.threads;
-                specs.base_clock = component.baseClock;
-                specs.boost_clock = component.boostClock;
-                specs.architecture = component.architecture;
-                specs.tdp = component.tdp;
-                specs.graphics = component.graphics;
-                specs.l2_cache = component.l2Cache;
-                specs.l3_cache = component.l3Cache;
-                specs.max_memory_capacity = component.maxMemoryCapacity;
-                specs.memory_types = component.memoryTypes;
-                break;
-            case 'motherboard':
-                specs.socket = component.socket;
-                specs.form_factor = component.formFactor;
-                specs.chipset = component.chipset;
-                specs.ram_slots = component.ramSlots;
-                specs.pcie_slots = component.pcieSlots;
-                specs.sata_ports = component.sataPorts;
-                break;
-            case 'ram':
-                specs.capacity = component.capacity;
-                specs.speed = component.speed;
-                specs.type = component.type;
-                specs.cas = component.cas;
-                specs.voltage = component.voltage;
-                specs.form_factor = component.formFactor;
-                break;
-            case 'storage':
-                specs.capacity = component.capacity;
-                specs.type = component.type;
-                specs.interface = component.interface;
-                specs.read_speed = component.readSpeed;
-                specs.write_speed = component.writeSpeed;
-                specs.form_factor = component.formFactor;
-                break;
-            case 'nic':
-                specs.speed = component.speed;
-                specs.interface = component.interface;
-                specs.ports = component.ports;
-                specs.connector = component.connector;
-                specs.protocol = component.protocol;
-                specs.features = component.features;
-                break;
-            default:
-                // Generic specs
-                specs.spec1 = component.spec1;
-                specs.spec2 = component.spec2;
-                specs.spec3 = component.spec3;
-                specs.spec4 = component.spec4;
-                specs.spec5 = component.spec5;
-                specs.spec6 = component.spec6;
-        }
-
-        return specs;
-    }
-
-    /**
      * Select all components
      */
     selectAllComponents() {
@@ -2148,7 +1990,7 @@ class ConfigurationPage {
      */
     compareSelectedComponents() {
         if (this.selectedComponents.length < 2) {
-            this.showAlert('Please select at least 2 components to compare', 'warning');
+            utils.showAlert('Please select at least 2 components to compare', 'warning');
             return;
         }
 
@@ -2161,41 +2003,36 @@ class ConfigurationPage {
      */
     async addSelectedComponents() {
         if (this.selectedComponents.length === 0) {
-            this.showAlert('Please select components to add', 'warning');
+            utils.showAlert('Please select components to add', 'warning');
             return;
         }
 
         try {
-            this.showLoading(true, 'Adding selected components...');
+            utils.showLoading(true, 'Adding selected components...');
 
             const urlParams = new URLSearchParams(window.location.search);
             const configUuid = urlParams.get('config');
 
             if (!configUuid) {
-                this.showAlert('No configuration selected', 'error');
+                utils.showAlert('No configuration selected', 'error');
                 return;
             }
 
             for (const component of this.selectedComponents) {
                 if (component.compatible) {
-                    // Add component via API (first try existing component, fall back to create-and-add)
-                    let result = await serverAPI.addComponentToServer(configUuid, this.currentComponentType, component.id);
-                    if (!result.success && result.message &&
-                        (result.message.includes('not found') || result.message.includes('Component not found'))) {
-                        await this.createAndAddComponent(configUuid, component, '');
-                    }
+                    await serverAPI.addComponentToServer(configUuid, this.currentComponentType, component.id);
                 }
             }
 
-            this.showAlert(`${this.selectedComponents.length} components added successfully`, 'success');
+            utils.showAlert(`${this.selectedComponents.length} components added successfully`, 'success');
             this.selectedComponents = [];
             this.updateCompatibilityBanner();
 
         } catch (error) {
             console.error('Error adding components:', error);
-            this.showAlert(error.message || 'Failed to add components', 'error');
+            utils.showAlert(error.message || 'Failed to add components', 'error');
         } finally {
-            this.showLoading(false);
+            utils.showLoading(false);
         }
     }
 
@@ -2334,16 +2171,6 @@ class ConfigurationPage {
     }
 
     /**
-     * Show loading overlay (delegates to global loading manager)
-     */
-    showLoading(show, message = 'Loading...') {
-        if (window.globalLoading) {
-            window.globalLoading.showLoading(show, message);
-        } else {
-        }
-    }
-
-    /**
      * Update page title and header based on component type
      */
     updatePageTitle(componentType) {
@@ -2405,27 +2232,6 @@ class ConfigurationPage {
             // Default fallback
             window.history.back();
         }
-    }
-
-    /**
-     * Show alert notification
-     */
-    showAlert(message, type = 'info') {
-        // Use the existing toast system
-        if (typeof toastNotification !== 'undefined') {
-            toastNotification.show(message, type);
-        } else {
-            // Fallback to alert
-            alert(message);
-        }
-    }
-
-    /**
-     * Escape HTML to prevent XSS. Delegates to the one implementation in utils.js;
-     * configuration.html loads utils.js before this file.
-     */
-    escapeHtml(str) {
-        return window.utils.escapeHtml(str);
     }
 }
 

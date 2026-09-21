@@ -31,9 +31,14 @@ class EditFormComponent {
         if (cancel) cancel.addEventListener('click', () => this.handleCancel());
 
         // The host modal supplies its own footer, so this fragment's Cancel /
-        // Save pair would be a second, conflicting submit. Inline display, not
-        // the `hidden` class: .hidden is emitted before .flex in the compiled
-        // Tailwind, so it would not win against `flex` here.
+        // Save pair would be a second, conflicting submit.
+        //
+        // Inline display rather than the `hidden` class. The reason previously
+        // given for that — ".hidden is emitted before .flex so it would not win"
+        // — is not true: in the compiled Tailwind `.hidden{display:none}` comes
+        // AFTER `.flex{display:flex}` and does win (measured 2026-09-21). The
+        // inline style is kept only because it is what ships and works; either
+        // approach is correct here.
         if (this.embedded) {
             const ownActions = document.querySelector('#editComponentForm .form-actions');
             if (ownActions) ownActions.style.display = 'none';
@@ -148,14 +153,6 @@ class EditFormComponent {
         }
     }
 
-    // Delegates to the one implementation in utils.js. This file is never loaded
-    // as a page script -- dashboard.js and requests.js inject it at runtime, and
-    // both only run on pages that already load utils.js, so window.utils is set
-    // by the time any instance of this class exists.
-    escapeHtml(str) {
-        return window.utils.escapeHtml(str);
-    }
-
     renderCommonFields() {
         return `
             <div class="form-section">
@@ -177,7 +174,7 @@ class EditFormComponent {
                     <div class="form-group">
                         <label for="ServerUUID" class="form-label">Server UUID</label>
                         <input type="text" id="ServerUUID" name="ServerUUID" class="form-input" readonly
-                               value="${this.escapeHtml(this.componentData.ServerUUID || '')}">
+                               value="${utils.escapeHtml(this.componentData.ServerUUID || '')}">
                         <small class="form-hint">Which configuration claims this unit. Set by installing or removing it, never typed.</small>
                     </div>
                     <div class="form-group">
@@ -194,13 +191,13 @@ class EditFormComponent {
                         <!-- The display name goes in Location for every existing
                              reader; this carries the real foreign key alongside it,
                              kept in sync by the change handler in loadLocations(). -->
-                        <input type="hidden" id="location_uuid" name="location_uuid" value="${this.escapeHtml(this.componentData.location_uuid || '')}">
+                        <input type="hidden" id="location_uuid" name="location_uuid" value="${utils.escapeHtml(this.componentData.location_uuid || '')}">
                     </div>
                     ${this.renderTextField('StoreLocation', 'Store / Shelf', this.componentData.StoreLocation)}
                     <div class="form-group">
                         <label for="RackPosition" class="form-label">Rack Position</label>
                         <input type="text" id="RackPosition" name="RackPosition" class="form-input" readonly
-                               value="${this.escapeHtml(this.componentData.RackPosition || '')}">
+                               value="${utils.escapeHtml(this.componentData.RackPosition || '')}">
                         <small class="form-hint">Derived from the server's rack placement \u2014 it updates on its own when the server moves.</small>
                     </div>
                     ${this.renderDateField('PurchaseDate', 'Purchase Date', this.componentData.PurchaseDate)}
@@ -210,7 +207,7 @@ class EditFormComponent {
                     ${this.renderTextField('Flag', 'Flag', this.componentData.Flag)}
                     <div class="form-group form-column-span-2">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea id="notes" name="Notes" class="form-textarea" rows="3">${this.escapeHtml(this.componentData.Notes || '')}</textarea>
+                        <textarea id="notes" name="Notes" class="form-textarea" rows="3">${utils.escapeHtml(this.componentData.Notes || '')}</textarea>
                     </div>
                 </div>
             </div>
@@ -300,7 +297,7 @@ class EditFormComponent {
         return `
             <div class="form-group">
                 <label for="${name}" class="form-label">${label}</label>
-                <input type="text" id="${name}" name="${name}" class="form-input" value="${this.escapeHtml(value || '')}">
+                <input type="text" id="${name}" name="${name}" class="form-input" value="${utils.escapeHtml(value || '')}">
             </div>
         `;
     }

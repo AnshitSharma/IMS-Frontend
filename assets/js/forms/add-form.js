@@ -210,7 +210,7 @@ class AddComponentForm {
 
         try {
             // Show loading
-            this.showLoading(true, 'Loading component specifications...');
+            utils.showLoading(true, 'Loading component specifications...');
 
             // All components now use JSON-based cascading dropdowns
             await this.loadJSONData(componentType);
@@ -232,7 +232,7 @@ class AddComponentForm {
                 toast.error(error.message || 'Failed to load component specifications');
             }
         } finally {
-            this.showLoading(false);
+            utils.showLoading(false);
         }
     }
 
@@ -2281,13 +2281,6 @@ class AddComponentForm {
                     e.target.style.borderColor = '';
                 }
             });
-        }
-    }
-
-    showLoading(show, message = 'Loading...') {
-        if (window.globalLoading) {
-            window.globalLoading.showLoading(show, message);
-        } else {
         }
     }
 }

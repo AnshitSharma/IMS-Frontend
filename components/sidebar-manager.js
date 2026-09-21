@@ -15,7 +15,18 @@ class SidebarManager {
     }
 
     /**
-     * Initialize sidebar manager - loads HTML and sets up handlers
+     * Initialize sidebar manager - loads HTML, sets up handlers, fills the counts.
+     *
+     * The counts used to be fetched by Dashboard.loadSidebarCounts(), which was
+     * seven lines delegating straight back here. That was the only reason seven
+     * pages (ACL, Rack View, Activity Log, Help & Guide, Requests, Request Types)
+     * loaded all 230 KB of dashboard.js — they used nothing else from it. Doing it
+     * here lets those pages drop that script entirely. (Locations still loads it:
+     * locations.js borrows dashboard's showModal/closeModal.)
+     *
+     * Deliberately not awaited: the counts are decoration, and blocking the rest
+     * of init() on a network call would delay the sidebar's own rendering. A
+     * failure is swallowed by getComponentCounts(), which falls back to the cache.
      */
     async init() {
         if (this.isInitialized) return;
@@ -33,6 +44,23 @@ class SidebarManager {
         this.setActiveComponent();
 
         this.isInitialized = true;
+
+        // Paint whatever the cache already holds, then refresh from the API.
+        this.updateSidebarCounts(this.cache || {});
+        this.refreshCounts();
+    }
+
+    /**
+     * Fetch the counts and render them. Fire-and-forget by design; never throws.
+     */
+    async refreshCounts(forceRefresh = false) {
+        try {
+            const counts = await this.getComponentCounts(forceRefresh);
+            this.updateSidebarCounts(counts);
+        } catch (error) {
+            // Counts are not critical — the sidebar works without them.
+            console.error('[SidebarManager] Count refresh failed:', error);
+        }
     }
 
     /**
@@ -367,25 +395,24 @@ class SidebarManager {
     }
 
     /**
-     * Smart cache invalidation for specific component types
-     * @param {string|null} componentType - Specific type to invalidate, or null for full reset
-     */
-    invalidateCache(componentType = null) {
-        if (componentType && this.cache[componentType]) {
-            delete this.cache[componentType];
-        } else {
-            this.cache = {};
-        }
-        this.cacheTimestamp = null;
-    }
-
-    /**
      * Update sidebar UI with current counts
      */
     updateSidebarCounts(counts) {
-        const components = ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'serverplatform', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'servers'];
+        // Derived from utils.componentLabels rather than retyped. The literal
+        // that was here had already gone stale once — it was missing 'sfp', so
+        // 46 stocked units showed no count in the sidebar while the dashboard
+        // tile showed them. 'servers' is appended because it is not a component
+        // type; it is the extra bucket the dashboard response carries alongside
+        // the twelve. The literal stays as a fallback for the (impossible today)
+        // case of this file loading before utils.js.
+        const components = Object.keys(
+            (typeof utils !== 'undefined' && utils.componentLabels) || {}
+        ).concat('servers');
+        const list = components.length > 1 ? components
+            : ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'serverplatform',
+               'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'servers'];
 
-        components.forEach(component => {
+        list.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);
             if (countElement && counts && counts[component]) {
                 countElement.textContent = counts[component].total || 0;
@@ -471,28 +498,6 @@ class SidebarManager {
         }
     }
 
-    /**
-     * Clear all caches
-     */
-    clearCache() {
-        this.cache = {};
-        this.cacheTimestamp = null;
-        this.pendingRequests.clear();
-        localStorage.removeItem(this.localStorageKey);
-    }
-
-    /**
-     * Get cache statistics for debugging
-     */
-    getCacheStats() {
-        return {
-            cachedComponents: Object.keys(this.cache).length,
-            cacheAge: this.cacheTimestamp ? Math.round((Date.now() - this.cacheTimestamp) / 1000) : 'N/A',
-            cacheValid: this.isCacheValid(),
-            activeComponent: this.activeComponent,
-            pendingRequests: Array.from(this.pendingRequests.keys())
-        };
-    }
 }
 
 // Create global instance

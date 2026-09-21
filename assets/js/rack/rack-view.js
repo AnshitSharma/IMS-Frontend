@@ -101,7 +101,7 @@ class RackView {
         const res = await rackAPI.listRacks();
 
         if (!res || !res.success) {
-            this.el.list.innerHTML = `<div class="text-center text-danger text-sm py-6">${this.esc(res?.message || 'Failed to load racks')}</div>`;
+            this.el.list.innerHTML = `<div class="text-center text-danger text-sm py-6">${utils.escapeHtml(res?.message || 'Failed to load racks')}</div>`;
             return;
         }
 
@@ -145,13 +145,13 @@ class RackView {
             const pct = r.total_u > 0 ? Math.min(100, Math.round((r.used_u / r.total_u) * 100)) : 0;
             const active = r.rack_uuid === this.selectedRackUuid ? ' is-active' : '';
             return `
-                <button type="button" class="rk-rackcard${active}" data-rack-uuid="${this.esc(r.rack_uuid)}">
+                <button type="button" class="rk-rackcard${active}" data-rack-uuid="${utils.escapeHtml(r.rack_uuid)}">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="font-semibold text-text-primary truncate">${this.esc(r.name)}</span>
+                        <span class="font-semibold text-text-primary truncate">${utils.escapeHtml(r.name)}</span>
                         <span class="rk-badge"><i class="fas fa-server text-[10px]"></i> ${r.server_count}</span>
                     </div>
                     <div class="text-xs text-text-muted mt-0.5 truncate">
-                        <i class="fas fa-location-dot"></i> ${this.esc(r.location || 'No location')}
+                        <i class="fas fa-location-dot"></i> ${utils.escapeHtml(r.location || 'No location')}
                     </div>
                     <div class="rk-occ mt-2"><div class="rk-occ__fill" style="width:${pct}%"></div></div>
                     <div class="rk-mono text-[11px] text-text-muted mt-1">${r.used_u} / ${r.total_u}U used</div>
@@ -175,7 +175,7 @@ class RackView {
 
         const res = await rackAPI.getRack(uuid);
         if (!res || !res.success) {
-            this.el.elevation.innerHTML = `<div class="text-center text-danger text-sm py-6">${this.esc(res?.message || 'Failed to load rack')}</div>`;
+            this.el.elevation.innerHTML = `<div class="text-center text-danger text-sm py-6">${utils.escapeHtml(res?.message || 'Failed to load rack')}</div>`;
             return;
         }
 
@@ -201,7 +201,7 @@ class RackView {
     renderToolbar() {
         const r = this.currentRack;
         this.el.name.textContent = r.name;
-        this.el.location.innerHTML = `<i class="fas fa-location-dot"></i> ${this.esc(r.location || 'No location')}`;
+        this.el.location.innerHTML = `<i class="fas fa-location-dot"></i> ${utils.escapeHtml(r.location || 'No location')}`;
         this.el.occText.textContent = `${r.used_u} / ${r.total_u}U used`;
         const pct = r.total_u > 0 ? Math.min(100, Math.round((r.used_u / r.total_u) * 100)) : 0;
         this.el.occBar.style.width = `${pct}%`;
@@ -254,14 +254,14 @@ class RackView {
             const top = rowsFromTop(topDown ? s.start_u : s.end_u);
             const statusClass = s.orphaned ? 'st-orphaned' : this.statusClass(s.configuration_status);
             const uLabel = s.u_height > 1 ? `U${s.start_u}–U${s.end_u}` : `U${s.start_u}`;
-            const chassis = s.chassis_name ? `<span class="rk-sled__chassis">${this.esc(s.chassis_name)}</span>` : '';
+            const chassis = s.chassis_name ? `<span class="rk-sled__chassis">${utils.escapeHtml(s.chassis_name)}</span>` : '';
             return `
-                <div class="rk-sled ${statusClass}" data-config-uuid="${this.esc(s.config_uuid)}"
+                <div class="rk-sled ${statusClass}" data-config-uuid="${utils.escapeHtml(s.config_uuid)}"
                     tabindex="0" role="button"
                     style="top:calc(${top} * var(--rk-u)); height:calc(${s.u_height} * var(--rk-u));"
-                    aria-label="${this.esc(s.server_name)} at ${uLabel}, ${s.u_height}U">
+                    aria-label="${utils.escapeHtml(s.server_name)} at ${uLabel}, ${s.u_height}U">
                     <span class="rk-sled__led"></span>
-                    <span class="rk-sled__name">${this.esc(s.server_name)}</span>
+                    <span class="rk-sled__name">${utils.escapeHtml(s.server_name)}</span>
                     ${chassis}
                     <span class="rk-sled__u rk-mono">${uLabel}</span>
                     <span class="rk-sled__h rk-mono">${s.u_height}U</span>
@@ -279,29 +279,29 @@ class RackView {
             const bays = e.slots.map(slot => {
                 if (!slot.occupied) {
                     return `
-                        <button type="button" class="rk-encl__bay" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                        <button type="button" class="rk-encl__bay" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
                             data-slot="${slot.slot_index}"
-                            aria-label="Install a server in bay ${slot.slot_index} of ${this.esc(e.name)}">
+                            aria-label="Install a server in bay ${slot.slot_index} of ${utils.escapeHtml(e.name)}">
                             <span class="rk-slot__hint"><i class="fas fa-plus"></i> Bay ${slot.slot_index}</span>
                         </button>`;
                 }
                 const statusClass = slot.orphaned ? 'st-orphaned' : this.statusClass(slot.configuration_status);
                 return `
-                    <div class="rk-sled rk-sled--bay ${statusClass}" data-config-uuid="${this.esc(slot.config_uuid)}"
+                    <div class="rk-sled rk-sled--bay ${statusClass}" data-config-uuid="${utils.escapeHtml(slot.config_uuid)}"
                         tabindex="0" role="button"
-                        aria-label="${this.esc(slot.server_name)} in bay ${slot.slot_index} of ${this.esc(e.name)}">
+                        aria-label="${utils.escapeHtml(slot.server_name)} in bay ${slot.slot_index} of ${utils.escapeHtml(e.name)}">
                         <span class="rk-sled__led"></span>
-                        <span class="rk-sled__name">${this.esc(slot.server_name)}</span>
+                        <span class="rk-sled__name">${utils.escapeHtml(slot.server_name)}</span>
                         <span class="rk-sled__u rk-mono">B${slot.slot_index}</span>
                     </div>`;
             }).join('');
 
             return `
-                <div class="rk-encl" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
+                <div class="rk-encl" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
                     style="top:calc(${top} * var(--rk-u)); height:calc(${e.u_height} * var(--rk-u));">
-                    <button type="button" class="rk-encl__rail" data-enclosure-uuid="${this.esc(e.enclosure_uuid)}"
-                        aria-label="${this.esc(e.name)}, ${this.esc(e.model || 'enclosure')}, ${uLabel}, ${e.slots_used} of ${e.slot_count} bays used">
-                        <span class="rk-encl__name">${this.esc(e.name)}</span>
+                    <button type="button" class="rk-encl__rail" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
+                        aria-label="${utils.escapeHtml(e.name)}, ${utils.escapeHtml(e.model || 'enclosure')}, ${uLabel}, ${e.slots_used} of ${e.slot_count} bays used">
+                        <span class="rk-encl__name">${utils.escapeHtml(e.name)}</span>
                         <span class="rk-encl__meta rk-mono">${uLabel} · ${e.slots_used}/${e.slot_count}</span>
                     </button>
                     <div class="rk-encl__bays"
@@ -316,7 +316,7 @@ class RackView {
         this.el.elevation.innerHTML = `
             <div class="rk-cabinet">
                 <div class="rk-cabinet__plate">
-                    <span class="rk-cabinet__name">${this.esc(r.name)}</span>
+                    <span class="rk-cabinet__name">${utils.escapeHtml(r.name)}</span>
                     <span class="rk-cabinet__meta rk-mono">${N}U · ${r.used_u} used · ${r.free_u} free</span>
                 </div>
                 <div class="rk-rack">
@@ -349,7 +349,7 @@ class RackView {
             <form id="rackForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-text-primary mb-1">Name <span class="text-danger">*</span></label>
-                    <input id="rf_name" type="text" required maxlength="100" value="${isEdit ? this.esc(rack.name) : ''}"
+                    <input id="rf_name" type="text" required maxlength="100" value="${isEdit ? utils.escapeHtml(rack.name) : ''}"
                         placeholder="e.g. RACK 683" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -361,7 +361,7 @@ class RackView {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-text-primary mb-1">Floor / Room</label>
-                        <input id="rf_floor" type="text" maxlength="50" value="${isEdit ? this.esc(rack.floor || '') : ''}"
+                        <input id="rf_floor" type="text" maxlength="50" value="${isEdit ? utils.escapeHtml(rack.floor || '') : ''}"
                             placeholder="e.g. 2 or DC-1" class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                     </div>
                 </div>
@@ -382,7 +382,7 @@ class RackView {
                 <div>
                     <label class="block text-sm font-medium text-text-primary mb-1">Notes</label>
                     <textarea id="rf_notes" rows="2" maxlength="500"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${isEdit ? this.esc(rack.notes || '') : ''}</textarea>
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${isEdit ? utils.escapeHtml(rack.notes || '') : ''}</textarea>
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" id="rf_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
@@ -444,7 +444,7 @@ class RackView {
         select.innerHTML = '<option value="">-- No location --</option>' + locations.map(loc => {
             const selected = (currentUuid && loc.location_uuid === currentUuid)
                 || (!currentUuid && currentName && loc.name === currentName);
-            return `<option value="${this.esc(loc.location_uuid)}"${selected ? ' selected' : ''}>${this.esc(loc.name)}</option>`;
+            return `<option value="${utils.escapeHtml(loc.location_uuid)}"${selected ? ' selected' : ''}>${utils.escapeHtml(loc.name)}</option>`;
         }).join('');
         select.disabled = false;
     }
@@ -506,10 +506,10 @@ class RackView {
 
         let options = '';
         if (isMove) {
-            options = `<option value="${this.esc(lockedServer.config_uuid)}" data-h="${lockedServer.u_height}" selected>${this.esc(lockedServer.server_name)}</option>`;
+            options = `<option value="${utils.escapeHtml(lockedServer.config_uuid)}" data-h="${lockedServer.u_height}" selected>${utils.escapeHtml(lockedServer.server_name)}</option>`;
         } else {
             const res = await rackAPI.unassignedServers();
-            if (!res || !res.success) { this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load servers')}</p>`; return; }
+            if (!res || !res.success) { this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${utils.escapeHtml(res?.message || 'Failed to load servers')}</p>`; return; }
             const servers = res.data?.servers || [];
             if (servers.length === 0) {
                 this.el.modalBody.innerHTML = `
@@ -522,7 +522,7 @@ class RackView {
                 return;
             }
             options = '<option value="" disabled selected>Select a server…</option>' +
-                servers.map(s => `<option value="${this.esc(s.config_uuid)}" data-h="${s.u_height}">${this.esc(s.server_name)} · ${s.u_height}U · ${this.esc(s.status_text)}</option>`).join('');
+                servers.map(s => `<option value="${utils.escapeHtml(s.config_uuid)}" data-h="${s.u_height}">${utils.escapeHtml(s.server_name)} · ${s.u_height}U · ${utils.escapeHtml(s.status_text)}</option>`).join('');
         }
 
         const defaultHeight = lockedServer ? lockedServer.u_height : 1;
@@ -547,7 +547,7 @@ class RackView {
                             class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                     </div>
                 </div>
-                <p class="text-xs text-text-muted">Height defaults to the server's chassis size. Adjust if needed. It occupies <span id="pf_range" class="rk-mono"></span> in ${this.esc(this.currentRack.name)}.</p>
+                <p class="text-xs text-text-muted">Height defaults to the server's chassis size. Adjust if needed. It occupies <span id="pf_range" class="rk-mono"></span> in ${utils.escapeHtml(this.currentRack.name)}.</p>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" id="pf_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">${isMove ? 'Move here' : 'Place server'}</button>
@@ -647,9 +647,9 @@ class RackView {
                 <div class="flex items-start gap-3">
                     <span class="rk-sled__led ${s.orphaned ? 'st-orphaned' : this.statusClass(s.configuration_status)}" style="margin-top:6px"></span>
                     <div class="min-w-0">
-                        <p class="font-semibold text-text-primary break-words">${this.esc(s.server_name)}</p>
-                        <p class="text-sm text-text-muted rk-mono">${uLabel} · ${s.u_height}U · ${this.esc(s.status_text)}</p>
-                        ${s.chassis_name ? `<p class="text-xs text-text-muted mt-0.5">${this.esc(s.chassis_name)}</p>` : ''}
+                        <p class="font-semibold text-text-primary break-words">${utils.escapeHtml(s.server_name)}</p>
+                        <p class="text-sm text-text-muted rk-mono">${uLabel} · ${s.u_height}U · ${utils.escapeHtml(s.status_text)}</p>
+                        ${s.chassis_name ? `<p class="text-xs text-text-muted mt-0.5">${utils.escapeHtml(s.chassis_name)}</p>` : ''}
                     </div>
                 </div>
                 <div class="grid grid-cols-1 gap-2 pt-1">
@@ -718,7 +718,7 @@ class RackView {
 
         const res = await rackAPI.enclosureModels();
         if (!res || !res.success) {
-            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load enclosure models')}</p>`;
+            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${utils.escapeHtml(res?.message || 'Failed to load enclosure models')}</p>`;
             return;
         }
 
@@ -734,7 +734,7 @@ class RackView {
         }
 
         const options = '<option value="" disabled selected>Select a model…</option>' +
-            models.map(m => `<option value="${this.esc(m.chassis_uuid)}" data-h="${m.u_height}" data-slots="${m.slot_count}">${this.esc(m.model)} · ${m.u_height}U · ${m.slot_count} bays</option>`).join('');
+            models.map(m => `<option value="${utils.escapeHtml(m.chassis_uuid)}" data-h="${m.u_height}" data-slots="${m.slot_count}">${utils.escapeHtml(m.model)} · ${m.u_height}U · ${m.slot_count} bays</option>`).join('');
 
         this.el.modalBody.innerHTML = `
             <form id="enclForm" class="space-y-4">
@@ -762,7 +762,7 @@ class RackView {
                     <input id="ef_serial" type="text" maxlength="50"
                         class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                 </div>
-                <p class="text-xs text-text-muted">It occupies <span id="ef_range" class="rk-mono">—</span> in ${this.esc(this.currentRack.name)}, and holds <span id="ef_bays">—</span> servers. Install servers into its bays afterwards.</p>
+                <p class="text-xs text-text-muted">It occupies <span id="ef_range" class="rk-mono">—</span> in ${utils.escapeHtml(this.currentRack.name)}, and holds <span id="ef_bays">—</span> servers. Install servers into its bays afterwards.</p>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" id="ef_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add enclosure</button>
@@ -836,8 +836,8 @@ class RackView {
                     <span class="rk-mono text-xs text-text-muted w-8 shrink-0">B${slot.slot_index}</span>
                     <span class="rk-sled__led ${slot.orphaned ? 'st-orphaned' : this.statusClass(slot.configuration_status)} shrink-0"></span>
                     <span class="flex-1 min-w-0">
-                        <span class="block text-sm text-text-primary truncate">${this.esc(slot.server_name)}</span>
-                        <span class="block text-xs text-text-muted">${this.esc(this.statusText(slot.configuration_status))} · ${this.esc(count)}</span>
+                        <span class="block text-sm text-text-primary truncate">${utils.escapeHtml(slot.server_name)}</span>
+                        <span class="block text-xs text-text-muted">${utils.escapeHtml(this.statusText(slot.configuration_status))} · ${utils.escapeHtml(count)}</span>
                     </span>
                     ${slot.orphaned ? '' : `<a href="${builderHref}" class="rk-roster__link text-primary text-xs font-medium shrink-0">Open</a>`}
                 </li>`;
@@ -859,17 +859,17 @@ class RackView {
         this.openModal('Enclosure', `
             <div class="space-y-4">
                 <div>
-                    <p class="font-semibold text-text-primary break-words">${this.esc(e.name)}</p>
+                    <p class="font-semibold text-text-primary break-words">${utils.escapeHtml(e.name)}</p>
                     <p class="text-sm text-text-muted rk-mono">${uLabel} · ${e.u_height}U · ${e.slots_used}/${e.slot_count} bays used</p>
-                    ${e.model ? `<p class="text-xs text-text-muted mt-0.5">${this.esc(e.model)}</p>` : ''}
-                    ${e.serial_number ? `<p class="text-xs text-text-muted rk-mono mt-0.5">Service tag ${this.esc(e.serial_number)}</p>` : ''}
+                    ${e.model ? `<p class="text-xs text-text-muted mt-0.5">${utils.escapeHtml(e.model)}</p>` : ''}
+                    ${e.serial_number ? `<p class="text-xs text-text-muted rk-mono mt-0.5">Service tag ${utils.escapeHtml(e.serial_number)}</p>` : ''}
                 </div>
                 ${this.renderEnclosureRoster(e)}
                 <form id="enclEditForm" class="space-y-3">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-text-primary mb-1">Name</label>
-                            <input id="ee_name" type="text" maxlength="100" required value="${this.esc(e.name)}"
+                            <input id="ee_name" type="text" maxlength="100" required value="${utils.escapeHtml(e.name)}"
                                 class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                         </div>
                         <div>
@@ -880,7 +880,7 @@ class RackView {
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-text-primary mb-1">Service tag</label>
-                        <input id="ee_serial" type="text" maxlength="50" value="${this.esc(e.serial_number || '')}"
+                        <input id="ee_serial" type="text" maxlength="50" value="${utils.escapeHtml(e.serial_number || '')}"
                             class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                     </div>
                     ${e.slots_used > 0 ? `<p class="text-xs text-text-muted"><i class="fas fa-circle-info mr-1"></i>Moving this enclosure moves the ${e.slots_used} server(s) in it, and every component inside them.</p>` : ''}
@@ -945,7 +945,7 @@ class RackView {
         // backend already validates and performs.
         const res = await rackAPI.placeableServers();
         if (!res || !res.success) {
-            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${this.esc(res?.message || 'Failed to load servers')}</p>`;
+            this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${utils.escapeHtml(res?.message || 'Failed to load servers')}</p>`;
             return;
         }
 
@@ -964,7 +964,7 @@ class RackView {
         const free = servers.filter(s => !s.is_racked);
         const placed = servers.filter(s => s.is_racked);
         const opt = (s, suffix) =>
-            `<option value="${this.esc(s.config_uuid)}">${this.esc(s.server_name)} · ${this.esc(s.status_text)}${suffix}</option>`;
+            `<option value="${utils.escapeHtml(s.config_uuid)}">${utils.escapeHtml(s.server_name)} · ${utils.escapeHtml(s.status_text)}${suffix}</option>`;
 
         const options = '<option value="" disabled selected>Select a server…</option>'
             + (free.length ? `<optgroup label="Not in a rack">${free.map(s => opt(s, '')).join('')}</optgroup>` : '')
@@ -981,7 +981,7 @@ class RackView {
                         ${options}
                     </select>
                 </div>
-                <p class="text-xs text-text-muted">Goes into bay ${slotIndex} of ${this.esc(e.name)}, which occupies ${e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`} of ${this.esc(this.currentRack.name)}. The bay decides the position — there is no separate U to choose.</p>
+                <p class="text-xs text-text-muted">Goes into bay ${slotIndex} of ${utils.escapeHtml(e.name)}, which occupies ${e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`} of ${utils.escapeHtml(this.currentRack.name)}. The bay decides the position — there is no separate U to choose.</p>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" id="bf_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
                     <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Install here</button>
@@ -1012,18 +1012,18 @@ class RackView {
             this.openModal('Move to another bay', `
                 <div class="text-center py-6">
                     <i class="fas fa-layer-group text-3xl text-text-muted mb-3"></i>
-                    <p class="text-text-primary font-medium mb-1">No free bays in ${this.esc(this.currentRack.name)}</p>
+                    <p class="text-text-primary font-medium mb-1">No free bays in ${utils.escapeHtml(this.currentRack.name)}</p>
                     <p class="text-text-muted text-sm">Every enclosure in this rack is full. Add an enclosure, or free a bay first.</p>
                 </div>`);
             return;
         }
 
         const options = '<option value="" disabled selected>Select a bay…</option>' +
-            choices.map(c => `<option value="${this.esc(c.enclosure.enclosure_uuid)}|${c.slotIndex}">${this.esc(c.enclosure.name)} · bay ${c.slotIndex}</option>`).join('');
+            choices.map(c => `<option value="${utils.escapeHtml(c.enclosure.enclosure_uuid)}|${c.slotIndex}">${utils.escapeHtml(c.enclosure.name)} · bay ${c.slotIndex}</option>`).join('');
 
         this.openModal('Move to another bay', `
             <form id="moveBayForm" class="space-y-4">
-                <p class="text-sm text-text-muted">${this.esc(s.server_name)} is in ${this.esc(s.enclosure.name)} bay ${s.slot_index}.</p>
+                <p class="text-sm text-text-muted">${utils.escapeHtml(s.server_name)} is in ${utils.escapeHtml(s.enclosure.name)} bay ${s.slot_index}.</p>
                 <div>
                     <label class="block text-sm font-medium text-text-primary mb-1">Move to</label>
                     <select id="mb_target" required
@@ -1080,17 +1080,7 @@ class RackView {
     }
 
     spinner(label) {
-        return `<div class="text-center py-8 text-text-muted text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>${this.esc(label)}</div>`;
-    }
-
-    esc(str) {
-        if (str === null || str === undefined) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(str).replace(/[&<>"']/g, m => map[m]);
+        return `<div class="text-center py-8 text-text-muted text-sm"><i class="fas fa-spinner fa-spin mr-2"></i>${utils.escapeHtml(label)}</div>`;
     }
 }
 

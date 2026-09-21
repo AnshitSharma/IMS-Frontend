@@ -73,8 +73,9 @@ class PlatformManager {
      * }
      */
     async installPlatform(configUuid, versionUuid, confirmWipe = false) {
-        const response = await serverAPI.setServerPlatform(configUuid, versionUuid, confirmWipe, { silent: true });
-        return this.interpret(response);
+        return this.interpret(await this.attempt(
+            () => serverAPI.setServerPlatform(configUuid, versionUuid, confirmWipe, { silent: true })
+        ));
     }
 
     /**
@@ -82,8 +83,40 @@ class PlatformManager {
      * Same confirmation handshake as installPlatform.
      */
     async removePlatform(configUuid, confirmWipe = false) {
-        const response = await serverAPI.removeServerPlatform(configUuid, confirmWipe, { silent: true });
-        return this.interpret(response);
+        return this.interpret(await this.attempt(
+            () => serverAPI.removeServerPlatform(configUuid, confirmWipe, { silent: true })
+        ));
+    }
+
+    /**
+     * Run one platform call and hand back an envelope whatever happens.
+     *
+     * `window.api.request()` THROWS on any non-2xx, and the 409 these two actions
+     * answer with IS the confirmation prompt, not a failure — it carries
+     * error_type='confirm_wipe_required' and installed_summary in `data`. So the
+     * throw has to be turned back into the envelope interpret() reads.
+     *
+     * This used to be handled by passing axios a `validateStatus` that let 4xx
+     * through as a response body. axios is gone; makeRequest() ignored the option
+     * from then on, so interpret() never saw a 409 and needsConfirmation could
+     * never be true — the dialog was unreachable and the user got the refusal text
+     * as a red toast with no way to agree to it.
+     *
+     * api.buildError() hangs the API's `code` and `data` on the Error for exactly
+     * this. A 401 or a network failure carries no `data`; those still come back as
+     * a plain failure with the original message, which is what the callers' catch
+     * blocks already did with them.
+     */
+    async attempt(call) {
+        try {
+            return await call();
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message || 'The compute platform could not be changed',
+                data: error.data || {}
+            };
+        }
     }
 
     /**

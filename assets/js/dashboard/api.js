@@ -407,10 +407,6 @@ window.api = {
             return await api.request('dashboard-get_data');
         },
 
-        async getAdminData() {
-            return await api.request('dashboard-get_admin_data');
-        },
-
         async getLogs(params = {}) {
             return await api.request('dashboard-get-logs', params);
         },
@@ -521,10 +517,6 @@ window.api = {
             }
             return { succeeded, failed, total: succeeded + failed, results };
         },
-
-        async getJSONData(componentType) {
-            return await api.request(`${componentType}-get_json_data`);
-        }
     },
 
     /**
@@ -1002,20 +994,6 @@ window.api = {
         }
     },
 
-    // Search endpoints
-    search: {
-        async global(query, params = {}) {
-            return await api.request('search-global', {
-                q: query,
-                ...params
-            });
-        },
-
-        async advanced(filters) {
-            return await api.request('search-advanced', filters);
-        }
-    },
-
     // User management endpoints (for future use)
     users: {
         async list(params = {}) {
@@ -1221,50 +1199,6 @@ window.api = {
                 : userRoles.includes(roles);
         },
 
-        // Get user's primary role
-        getPrimaryRole() {
-            const user = api.getUser();
-            return user ? user.primary_role : null;
-        },
-
-        // Format API error message
-        formatError(result) {
-            if (result.message) {
-                return result.message;
-            }
-
-            if (result.errors && typeof result.errors === 'object') {
-                return Object.values(result.errors).flat().join(', ');
-            }
-
-            return 'An unexpected error occurred';
-        },
-
-        // Handle API response with automatic error display
-        async handleResponse(apiCall, successMessage = null, errorTitle = 'Error') {
-            try {
-                utils.showLoading(true);
-                const result = await apiCall;
-
-                if (result.success) {
-                    if (successMessage) {
-                        utils.showAlert(successMessage, 'success');
-                    }
-                    return result;
-                } else {
-                    const errorMessage = this.formatError(result);
-                    utils.showAlert(errorMessage, 'error', errorTitle);
-                    throw new Error(errorMessage);
-                }
-            } catch (error) {
-                if (error.message !== this.formatError({ message: error.message })) {
-                    utils.showAlert('Network error or server unavailable', 'error', 'Connection Error');
-                }
-                throw error;
-            } finally {
-                utils.showLoading(false);
-            }
-        }
     }
 };
 
@@ -1293,8 +1227,3 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 });
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
-}

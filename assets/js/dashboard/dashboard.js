@@ -82,47 +82,13 @@ class Dashboard {
             this.currentComponent = 'servers';
             this.applyServerCreateGate();
             await this.loadServerList();
-        } else if (page === 'acl.html') {
-            this.currentComponent = 'acl';
-            // ACL is initialized by its own script, but we can double check
-            if (typeof initACL === 'function') {
-                initACL();
-            }
-            // Load sidebar counts for ACL page (uses cache)
-            await this.loadSidebarCounts();
-        } else if (page === 'racks.html') {
-            // Rack View manages its own data via RackView (rack-view.js).
-            // Only load the sidebar counts here; don't treat it as a
-            // component inventory page (which would fire an invalid
-            // `racks-list` action against the API).
-            this.currentComponent = 'racks';
-            await this.loadSidebarCounts();
-        } else if (page === 'activity-log.html') {
-            this.currentComponent = 'activity-log';
-        } else if (page === 'knowledge-base.html') {
-            // Help & Guide is static content with its own inline script (KnowledgeBase).
-            // Claim the page here so it doesn't fall through to the component-page
-            // branch below, which would fire an invalid `knowledge-base-list` action
-            // against the API. No data to load — the sidebar counts already ran above.
-            this.currentComponent = 'knowledge-base';
-        } else if (page === 'requests.html') {
-            // The unified Requests system is open to every role — raising a request
-            // is how a user without a permission asks for it. What each role can DO
-            // with a request is gated per operation by the backend.
-            // RequestsManager (requests.js) loads its own data; only refresh the
-            // sidebar counts here — treating this as a component page would fire
-            // an invalid inventory action against the API.
-            this.currentComponent = 'requests';
-            await this.loadSidebarCounts();
-        } else if (page === 'request-types.html') {
-            // Request Types (Settings) is accessible to admin and super_admin.
-            // RequestTypesManager (request-types.js) loads its own data.
-            this.currentComponent = 'request-types';
-            if (!api.utils.hasRole(['admin', 'super_admin'])) {
-                window.location.href = 'index.html';
-                return;
-            }
-            await this.loadSidebarCounts();
+        // ACL, Rack View, Activity Log, Help & Guide, Requests and Request Types
+        // no longer load this file at all (2026-09-21). Each of them wanted exactly
+        // two things from it — the sidebar counts, and a branch here to stop the
+        // fall-through firing a bogus `{page}-list` action — and SidebarManager now
+        // does the first from its own init(). Their branches are gone with them;
+        // the role gate that was here for Request Types moved into
+        // request-types.js, next to the page it guards.
         } else if (page === 'locations.html') {
             // LocationsManager (locations.js) loads its own data. Claiming the
             // page here is mandatory: the fall-through branch below would treat
@@ -249,10 +215,11 @@ class Dashboard {
         }
 
         // The user dropdown, Change Password and Logout live in the navbar, and
-        // components/navbar.js binds all three. It calls back into
-        // this.showChangePasswordModal() and this.handleLogout() when a page
-        // loads dashboard.js, so the behaviour here is unchanged — binding them
-        // a second time would toggle the dropdown open and shut on one click.
+        // components/navbar.js binds all three. Change Password is entirely the
+        // navbar's now; Logout still calls back into this.handleLogout() when a
+        // page loads dashboard.js, because that path confirms first and asks the
+        // backend to revoke the token. Binding them a second time here would
+        // toggle the dropdown open and shut on one click.
     }
 
     // switchView removed - MPA handles navigation natively via links
@@ -397,15 +364,11 @@ class Dashboard {
         });
     }
 
+    // SidebarManager owns the counts (cache, fetch and render) and refreshes them
+    // from its own init(). Kept as a one-line forwarder because a handful of
+    // dashboard flows re-read them after a write — e.g. deleting a server.
     async loadSidebarCounts(forceRefresh = false) {
-        try {
-            // Use SidebarManager for intelligent caching
-            const counts = await window.sidebarManager.getComponentCounts(forceRefresh);
-            window.sidebarManager.updateSidebarCounts(counts);
-        } catch (error) {
-            console.error('Error loading sidebar counts:', error);
-            // Silently fail - sidebar counts are not critical
-        }
+        return window.sidebarManager?.refreshCounts(forceRefresh);
     }
 
     async loadRecentActivity() {
@@ -630,6 +593,11 @@ class Dashboard {
                 const pageSize = 200;
                 const collected = [];
                 let offset = 0;
+                // The enclosure roster is page-wide, not per-row: every racked blade
+                // chassis, including ones holding nothing, which have no
+                // configuration row to arrive with. Identical on every page, so the
+                // first one that carries it wins.
+                this.allEnclosures = [];
 
                 while (true) {
                     const result = await api.servers.listConfigs({
@@ -644,6 +612,10 @@ class Dashboard {
 
                     const page = result.data.configurations;
                     collected.push(...page);
+
+                    if (!this.allEnclosures.length && Array.isArray(result.data.enclosures)) {
+                        this.allEnclosures = result.data.enclosures;
+                    }
 
                     const pagination = result.data.pagination || {};
                     const hasMore = pagination.has_more === true || pagination.has_more === 1;
@@ -679,6 +651,12 @@ class Dashboard {
         // Get search and filter values
         const search = document.getElementById('serverSearch')?.value?.trim().toLowerCase() || '';
         const status = document.getElementById('serverStatusFilter')?.value || '';
+
+        // Enclosure sections read this: with nothing filtered, the list shows every
+        // blade chassis including the empty ones — an empty chassis is a thing you
+        // need to find. With a filter on, it is not a hit for "prod-04", so only
+        // chassis still holding a matching sled are shown.
+        this.serverFilterActive = !!(search || status);
 
         // Filter servers on frontend (only show non-virtual servers)
         let filteredServers = this.allServers.filter(server => !(server.is_virtual == 1 || server.is_virtual === true));
@@ -801,8 +779,11 @@ class Dashboard {
         const serverCardsGrid = document.getElementById('serverCardsGrid');
         if (!serverCardsGrid) return;
 
-        if (servers.length === 0) {
-            serverCardsGrid.innerHTML = `
+        // Held back rather than returned on straight away: a page with no server
+        // rows can still have something to show — an enclosure standing empty is
+        // exactly the case this list used to be blind to. Rendered below, once the
+        // enclosure sections are known to be empty too.
+        const emptyStateHtml = `
                 <div class="col-span-full flex flex-col items-center text-center py-16 px-6 bg-surface-card border border-dashed border-border rounded-xl">
                     <div class="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
                         <i class="fas fa-server text-primary text-xl"></i>
@@ -819,8 +800,6 @@ class Dashboard {
                         <i class="fas fa-unlock-alt text-xs"></i> Request build access
                     </a>`}
                 </div>`;
-            return;
-        }
 
         // The badge now reads status_v2 first — see _serverStatusPresentation().
         // Editing details and changing status are gated separately: the backend
@@ -873,8 +852,14 @@ class Dashboard {
                                     <i class="fas ${icon} text-xs"></i>
                                 </button>`;
 
-        serverCardsGrid.innerHTML = servers.map(server => `
-            <div class="bg-surface-card border border-border rounded-xl overflow-hidden flex flex-col cursor-pointer group transition-colors hover:border-primary-light" data-server-uuid="${server.config_uuid}">
+        // One server card. `bayIndex` is the sled's bay in its enclosure, or null
+        // for a directly racked server — the only difference the card itself knows
+        // about, and it is one strip. Everything else about a sled's card is
+        // byte-identical to what it rendered before, which is also what a row with
+        // no enclosure_uuid gets on an older backend.
+        const serverCard = (server, bayIndex) => `
+            <div class="bg-surface-card border border-border rounded-xl overflow-hidden flex flex-col cursor-pointer group transition-colors hover:border-primary-light" data-server-uuid="${server.config_uuid}">${bayIndex ? `
+                <div class="px-5 py-2 bg-surface-secondary border-b border-border-light text-[10px] font-semibold uppercase tracking-widest text-text-muted">Bay ${bayIndex}</div>` : ''}
                 <!-- Header: name and serial on the left, the three actions and the
                      status on the right. -->
                 <div class="p-5 pb-4 flex items-start justify-between gap-3">
@@ -927,7 +912,198 @@ class Dashboard {
                             title="Move server — location, rack and U" aria-label="Move server to another location, rack or U position">Move</button>` : ''}
                 </div>
             </div>
-        `).join('');
+        `;
+
+        // ---- Blade enclosures -------------------------------------------------
+        //
+        // A sled mirrors its enclosure's U range, so four blades in one FX2s used
+        // to read as four separate machines stacked in the same two U, and a
+        // chassis holding nothing had no row at all. Sleds lift out of the flat
+        // grid into a section per enclosure; everything else renders below,
+        // unchanged.
+        const sledsInView = servers.filter(s => s.enclosure_uuid);
+        const directServers = servers.filter(s => !s.enclosure_uuid);
+
+        // Occupancy comes from the WHOLE loaded list, not the filtered view: a bay
+        // is full whether or not its sled matches the current search, and the
+        // header must never claim four of four above three tiles.
+        const occupants = new Map();
+        (this.allServers || []).forEach(s => {
+            if (!s.enclosure_uuid || !s.slot_index) return;
+            if (!occupants.has(s.enclosure_uuid)) occupants.set(s.enclosure_uuid, new Map());
+            occupants.get(s.enclosure_uuid).set(parseInt(s.slot_index, 10), s);
+        });
+
+        const inView = new Set(servers.map(s => s.config_uuid));
+
+        // The roster is what makes an EMPTY enclosure visible. When it is missing
+        // (older backend, or the lookup failed) the sleds still group, off their
+        // own rows — one chassis per enclosure_uuid, sized by the highest bay seen.
+        let roster = Array.isArray(this.allEnclosures) ? this.allEnclosures.slice() : [];
+        const known = new Set(roster.map(e => e.enclosure_uuid));
+        sledsInView.forEach(s => {
+            if (known.has(s.enclosure_uuid)) return;
+            known.add(s.enclosure_uuid);
+            const bays = Array.from(occupants.get(s.enclosure_uuid)?.keys() || [parseInt(s.slot_index, 10) || 1]);
+            roster.push({
+                enclosure_uuid: s.enclosure_uuid,
+                name: s.enclosure_name || 'Enclosure',
+                model: s.enclosure_model || null,
+                rack_name: s.rack_name || null,
+                location_name: s.location_name || s.location || null,
+                floor: s.floor || null,
+                start_u: parseInt(s.rack_start_u, 10) || null,
+                u_height: Math.max(1, parseInt(s.rack_u_height, 10) || 1),
+                slot_count: Math.max(1, ...bays)
+            });
+        });
+
+        // A bay strip of squares, filled for occupied. Reads at a glance and works
+        // for any bay count, unlike a fixed 2x2 grid of one chassis's geometry.
+        const occupancyMeter = (slotCount, filledBays) => {
+            const unit = 11, size = 8;
+            const width = Math.max(size, slotCount * unit - (unit - size));
+            let rects = '';
+            for (let bay = 1; bay <= slotCount; bay++) {
+                rects += filledBays.has(bay)
+                    ? `<rect x="${(bay - 1) * unit}" y="0" width="${size}" height="${size}" rx="1.5" fill="currentColor"></rect>`
+                    : `<rect x="${(bay - 1) * unit + 0.5}" y="0.5" width="${size - 1}" height="${size - 1}" rx="1.5" fill="none" stroke="currentColor" stroke-opacity="0.4"></rect>`;
+            }
+            return `<svg width="${width}" height="${size}" viewBox="0 0 ${width} ${size}" aria-hidden="true">${rects}</svg>`;
+        };
+
+        // An enclosure's physical address, built like getRackLabel() but from the
+        // chassis's own row — it is the thing in the rack, not its sleds.
+        const enclosureAddress = (enclosure) => {
+            const startU = parseInt(enclosure.start_u, 10);
+            const height = Math.max(1, parseInt(enclosure.u_height, 10) || 1);
+            const range = startU ? (height > 1 ? `U${startU}-U${startU + height - 1}` : `U${startU}`) : '';
+            return [
+                enclosure.model,
+                enclosure.location_name,
+                enclosure.floor ? `Floor ${enclosure.floor}` : '',
+                enclosure.rack_name,
+                range
+            ].filter(Boolean).map(part => utils.escapeHtml(String(part))).join(' · ');
+        };
+
+        const sectionsHtml = roster.map(enclosure => {
+            const bays = occupants.get(enclosure.enclosure_uuid) || new Map();
+            const matching = sledsInView.filter(s => s.enclosure_uuid === enclosure.enclosure_uuid);
+
+            // With a filter on, an enclosure holding nothing that matches is not a
+            // result. With no filter, every enclosure shows — empty ones included.
+            if (this.serverFilterActive && matching.length === 0) return '';
+
+            const slotCount = Math.max(1, parseInt(enclosure.slot_count, 10) || 1);
+            const filled = new Set(Array.from(bays.keys()).filter(bay => bay >= 1 && bay <= slotCount));
+            // Counted off the same set the meter and the tiles are drawn from, not
+            // off the roster's slots_used: the header must never disagree with the
+            // bays underneath it, even if the two ever drift.
+            const used = filled.size;
+
+            // Collapsed sections survive a re-render: the set is on the dashboard,
+            // not in the markup, so filtering or refreshing the list does not
+            // silently reopen a chassis somebody folded away.
+            const collapsed = this.collapsedEnclosures instanceof Set
+                && this.collapsedEnclosures.has(enclosure.enclosure_uuid);
+
+            let tiles = '';
+            for (let bay = 1; bay <= slotCount; bay++) {
+                const occupant = bays.get(bay);
+                if (occupant && inView.has(occupant.config_uuid)) {
+                    tiles += serverCard(occupant, bay);
+                    continue;
+                }
+
+                // A full bay whose sled the current filter excludes still says so,
+                // by name — otherwise the section would read as having a free bay
+                // that is not free.
+                const label = occupant
+                    ? `<div class="text-sm font-semibold text-text-secondary truncate w-full" title="${utils.escapeHtml(occupant.server_name || '')}">${utils.escapeHtml(occupant.server_name || 'Occupied')}</div>
+                       <div class="text-xs text-text-muted mt-1">Hidden by the current filter</div>`
+                    : `<div class="text-sm font-semibold text-text-secondary">Free</div>
+                       ${canManageRacks ? `<a href="racks.html" class="text-xs text-primary hover:underline mt-1 inline-block">Open rack view</a>` : ''}`;
+
+                tiles += `
+            <div class="bg-surface-card border border-dashed border-border rounded-xl flex flex-col items-center justify-center text-center px-5 py-12 min-w-0">
+                <div class="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-2">Bay ${bay}</div>
+                ${label}
+            </div>`;
+            }
+
+            return `
+        <section class="col-span-full bg-surface-secondary border border-border rounded-xl overflow-hidden" data-enclosure-uuid="${utils.escapeHtml(enclosure.enclosure_uuid)}">
+            <header class="px-5 py-4 bg-surface-card flex flex-wrap items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <h3 class="text-base font-semibold text-text-primary truncate" title="${utils.escapeHtml(enclosure.name || 'Enclosure')}">${utils.escapeHtml(enclosure.name || 'Enclosure')}</h3>
+                    <p class="text-xs text-text-muted truncate mt-1">${enclosureAddress(enclosure) || '—'}</p>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0 text-text-secondary">
+                    ${occupancyMeter(slotCount, filled)}
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-text-muted">${used} of ${slotCount} bays</span>
+                    <button class="w-9 h-9 flex items-center justify-center rounded-lg border border-border text-text-muted hover:bg-surface-hover hover:text-text-primary transition-colors"
+                            onclick="dashboard.toggleEnclosure(this)"
+                            aria-expanded="${collapsed ? 'false' : 'true'}"
+                            title="${collapsed ? 'Show bays' : 'Hide bays'}"
+                            aria-label="${collapsed ? 'Show' : 'Hide'} the bays of ${utils.escapeHtml(enclosure.name || 'this enclosure')}">
+                        <i class="fas ${collapsed ? 'fa-chevron-down' : 'fa-chevron-up'} text-xs"></i>
+                    </button>
+                </div>
+            </header>
+            <div class="p-5 grid server-cards-grid grid-gap-responsive border-t border-border-light" data-enclosure-body${collapsed ? ' style="display:none"' : ''}>${tiles}
+            </div>
+        </section>`;
+        }).join('');
+
+        const directHtml = directServers.map(server => serverCard(server, null)).join('');
+
+        serverCardsGrid.innerHTML = (sectionsHtml || directHtml)
+            ? sectionsHtml + directHtml
+            : emptyStateHtml;
+    }
+
+    /**
+     * Fold an enclosure's bays away, or bring them back.
+     *
+     * Toggles the section in place rather than re-rendering the whole grid — the
+     * list is 74 cards and nothing else about it has changed. The remembered set
+     * is what renderServerList() reads, so the state holds across a filter, a
+     * search or a refresh.
+     *
+     * display is set directly instead of through a utility class: the body is a
+     * grid, and a class that has to beat `display: grid` depends on which rule the
+     * compiled stylesheet emits last.
+     *
+     * The uuid is read off the section's dataset rather than passed in: an inline
+     * handler built by concatenating an identifier into a quoted JS string is one
+     * stray quote away from being an injection point, and the button already knows
+     * where it lives.
+     */
+    toggleEnclosure(button) {
+        const section = button?.closest('[data-enclosure-uuid]');
+        const body = section?.querySelector('[data-enclosure-body]');
+        const enclosureUuid = section?.dataset?.enclosureUuid;
+        if (!body || !enclosureUuid) return;
+
+        if (!(this.collapsedEnclosures instanceof Set)) {
+            this.collapsedEnclosures = new Set();
+        }
+
+        const collapse = !this.collapsedEnclosures.has(enclosureUuid);
+        if (collapse) {
+            this.collapsedEnclosures.add(enclosureUuid);
+        } else {
+            this.collapsedEnclosures.delete(enclosureUuid);
+        }
+
+        body.style.display = collapse ? 'none' : '';
+        button.setAttribute('aria-expanded', collapse ? 'false' : 'true');
+        button.setAttribute('title', collapse ? 'Show bays' : 'Hide bays');
+        const icon = button.querySelector('i');
+        if (icon) {
+            icon.className = `fas ${collapse ? 'fa-chevron-down' : 'fa-chevron-up'} text-xs`;
+        }
     }
 
     renderPagination(pagination) {
@@ -3511,68 +3687,6 @@ class Dashboard {
         delete window.loadDashboard;
     }
 
-    async showChangePasswordModal() {
-        // The trigger lives inside the user dropdown; leaving it open would
-        // float it above the modal backdrop.
-        document.querySelector('.dropdown')?.classList.remove('active');
-
-        const modalContent = `
-            <form id="changePasswordForm" style="max-width: 400px;">
-                <div class="form-group"><label class="form-label required">Current Password</label><input type="password" id="currentPassword" class="form-input" required></div>
-                <div class="form-group"><label class="form-label required">New Password</label><input type="password" id="newPassword" class="form-input" required minlength="8"><div class="form-help">At least 8 characters, with an uppercase letter, a number and a special character.</div></div>
-                <div class="form-group"><label class="form-label required">Confirm New Password</label><input type="password" id="confirmPassword" class="form-input" required></div>
-                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button type="button" class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button type="submit" class="btn btn-primary">Change Password</button></div>
-            </form>
-        `;
-        this.showModal('Change Password', modalContent);
-        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => { e.preventDefault(); await this.handleChangePassword(); });
-    }
-
-    async handleChangePassword() {
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
-        if (newPassword !== confirmPassword) {
-            utils.showAlert('New passwords do not match', 'error');
-            return;
-        }
-        // Mirrors the backend rules in auth_api.php assertPasswordStrength()
-        if (newPassword.length < 8) {
-            utils.showAlert('New password must be at least 8 characters long', 'error');
-            return;
-        }
-        if (!/[A-Z]/.test(newPassword)) {
-            utils.showAlert('New password must contain at least one uppercase letter', 'error');
-            return;
-        }
-        if (!/[0-9]/.test(newPassword)) {
-            utils.showAlert('New password must contain at least one number', 'error');
-            return;
-        }
-        if (!/[^A-Za-z0-9]/.test(newPassword)) {
-            utils.showAlert('New password must contain at least one special character', 'error');
-            return;
-        }
-        try {
-            utils.showLoading(true, 'Changing password...');
-            const result = await api.auth.changePassword(currentPassword, newPassword, confirmPassword);
-            if (result.success) {
-                this.closeModal();
-                // Changing the password invalidates every session, including this
-                // one — the current token stops working immediately, so send the
-                // user back to login rather than leaving a dead tab open.
-                utils.showAlert('Password changed successfully. Please login again.', 'success');
-                api.clearAuth();
-                setTimeout(() => { window.location.href = api.loginURL; }, 2000);
-            }
-        } catch (error) {
-            console.error('Error changing password:', error);
-            utils.showAlert(error.message || 'Failed to change password', 'error');
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
     async handleDeleteServer(configUuid) {
         const confirmed = await utils.confirm('Are you sure you want to delete this server configuration? This action cannot be undone.', 'Delete Server');
         if (!confirmed) return;
@@ -3708,167 +3822,6 @@ class Dashboard {
     }
 
     /**
-     * Load component configuration interface
-     */
-    async loadComponentConfig() {
-        try {
-            const urlParams = utils.getURLParams();
-            const configUuid = urlParams.config;
-            const componentType = urlParams.type;
-
-            if (!configUuid || !componentType) {
-                console.error('Missing configuration UUID or component type');
-                this.showComponentConfigError('Missing configuration parameters');
-                return;
-            }
-
-            // Update header
-            document.getElementById('componentConfigTitle').innerHTML = `<i class="fas fa-cogs"></i> Configure ${componentType.toUpperCase()}`;
-            document.getElementById('componentConfigSubtitle').textContent = `Select ${componentType} components for your server configuration`;
-
-            // Load compatible components
-            await this.loadCompatibleComponents(configUuid, componentType);
-        } catch (error) {
-            console.error('Error loading component configuration:', error);
-            this.showComponentConfigError('Failed to load component configuration: ' + error.message);
-        }
-    }
-
-    /**
-     * Load compatible components for selection
-     */
-    async loadCompatibleComponents(configUuid, componentType) {
-        try {
-            utils.showLoading(true, `Loading compatible ${componentType} components...`);
-
-            const result = await serverAPI.getCompatibleComponents(configUuid, componentType, true);
-
-            if (result.success && result.data && result.data.data && result.data.data.compatible_components) {
-                const components = result.data.data.compatible_components;
-                this.renderComponentSelection(components, componentType, configUuid);
-            } else {
-                this.showComponentConfigError('No compatible components found');
-            }
-        } catch (error) {
-            console.error('Error loading compatible components:', error);
-            this.showComponentConfigError('Failed to load compatible components');
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
-    /**
-     * Render component selection interface
-     */
-    renderComponentSelection(components, componentType, configUuid) {
-        const container = document.getElementById('componentConfigContent');
-
-        if (components.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: 60px 24px;">
-                    <i class="fas fa-inbox" style="font-size: 64px; color: var(--text-muted); margin-bottom: 16px;"></i>
-                    <h3>No Compatible Components</h3>
-                    <p>No compatible ${componentType} components found for this configuration.</p>
-                    <button class="btn btn-secondary" onclick="dashboard.switchView('serverBuilder')">
-                        <i class="fas fa-arrow-left"></i> Back to Server Builder
-                    </button>
-                </div>
-            `;
-            return;
-        }
-
-        const componentCards = components.map(component => `
-            <div class="component-selection-card" data-uuid="${component.uuid}">
-                <div class="component-card-header">
-                    <div class="component-icon">
-                        <i class="fas fa-${this.getComponentIcon(componentType)}"></i>
-                    </div>
-                    <div class="component-info">
-                        <h4>${component.serial_number || component.uuid}</h4>
-                        <p>${component.notes || 'No description available'}</p>
-                    </div>
-                    <div class="component-status">
-                        <span class="status-badge ${component.status === 1 ? 'available' : 'in-use'}">
-                            ${component.status === 1 ? 'Available' : 'In Use'}
-                        </span>
-                    </div>
-                </div>
-                <div class="component-card-details">
-                    ${component.location ? `<div class="detail-item"><i class="fas fa-map-marker-alt"></i> ${utils.escapeHtml(component.location)}</div>` : ''}
-                    ${component.compatibility_score ? `<div class="detail-item"><i class="fas fa-check-circle"></i> ${Math.round(component.compatibility_score * 100)}% Compatible</div>` : ''}
-                    ${component.compatibility_reason ? `<div class="detail-item"><i class="fas fa-info-circle"></i> ${component.compatibility_reason}</div>` : ''}
-                </div>
-                <div class="component-card-actions">
-                    <button class="btn btn-primary" onclick="dashboard.selectComponent('${component.uuid}', '${componentType}', '${configUuid}')">
-                        <i class="fas fa-plus"></i> Add to Configuration
-                    </button>
-                    <button class="btn btn-secondary" onclick="dashboard.viewComponentDetails('${component.uuid}', '${componentType}')">
-                        <i class="fas fa-info-circle"></i> View Details
-                    </button>
-                </div>
-            </div>
-        `).join('');
-
-        container.innerHTML = `
-            <div class="component-selection-grid">
-                ${componentCards}
-            </div>
-        `;
-    }
-
-    /**
-     * Get component icon based on type
-     */
-    getComponentIcon(componentType) {
-        const iconMap = {
-            'cpu': 'microchip',
-            'motherboard': 'th-large',
-            'ram': 'memory',
-            'storage': 'hdd',
-            'chassis': 'server',
-            'caddy': 'box',
-            'pciecard': 'credit-card',
-            'risercard': 'layer-group',
-            'hbacard': 'plug',
-            'nic': 'network-wired',
-            'serverplatform': 'server'
-        };
-        return iconMap[componentType] || 'cog';
-    }
-
-    /**
-     * Select component and add to configuration
-     */
-    async selectComponent(componentUuid, componentType, configUuid) {
-        try {
-            utils.showLoading(true, 'Adding component to configuration...');
-
-            const result = await serverAPI.addComponentToServer(configUuid, componentType, componentUuid, 1, '', false);
-
-            if (result.success) {
-                utils.showAlert('Component added successfully!', 'success');
-                // Go back to server builder
-                await this.switchView('serverBuilder');
-            } else {
-                utils.showAlert('Failed to add component: ' + (result.message || 'Unknown error'), 'error');
-            }
-        } catch (error) {
-            console.error('Error adding component:', error);
-            utils.showAlert(error.message || 'Failed to add component', 'error');
-        } finally {
-            utils.showLoading(false);
-        }
-    }
-
-    /**
-     * View component details
-     */
-    async viewComponentDetails(componentUuid, componentType) {
-        // This would open a modal with detailed component information
-        utils.showAlert('Component details feature coming soon!', 'info');
-    }
-
-    /**
      * Show server builder error
      */
     showServerBuilderError(message) {
@@ -3879,22 +3832,6 @@ class Dashboard {
                 <p>${message}</p>
                 <button class="btn btn-primary" onclick="dashboard.switchView('servers')">
                     <i class="fas fa-arrow-left"></i> Back to Server List
-                </button>
-            </div>
-        `;
-    }
-
-    /**
-     * Show component configuration error
-     */
-    showComponentConfigError(message) {
-        document.getElementById('componentConfigContent').innerHTML = `
-            <div class="empty-state" style="text-align: center; padding: 60px 24px;">
-                <i class="fas fa-exclamation-triangle" style="font-size: 64px; color: var(--danger-color); margin-bottom: 16px;"></i>
-                <h3>Component Configuration Error</h3>
-                <p>${message}</p>
-                <button class="btn btn-primary" onclick="dashboard.switchView('serverBuilder')">
-                    <i class="fas fa-arrow-left"></i> Back to Server Builder
                 </button>
             </div>
         `;
@@ -4385,5 +4322,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 window.addEventListener('popstate', () => { if (dashboard) dashboard.handleInitialView(); });
-
-if (typeof module !== 'undefined' && module.exports) module.exports = Dashboard;

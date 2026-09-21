@@ -170,7 +170,7 @@ class CompatibilityBench {
             this.filteredBuilds = [];
             if (!silentRender) {
                 this.renderBuilds();
-                this.showAlert(error.message || 'Failed to load test builds', 'error');
+                utils.showAlert(error.message || 'Failed to load test builds', 'error');
             }
         }
     }
@@ -325,29 +325,29 @@ class CompatibilityBench {
             const description = document.getElementById('benchDescription').value.trim();
 
             if (!name) {
-                this.showAlert('Please enter a name for the test build', 'warning');
+                utils.showAlert('Please enter a name for the test build', 'warning');
                 return;
             }
 
             try {
-                this.showLoading(true, 'Creating test build...');
+                utils.showLoading(true, 'Creating test build...');
                 // isVirtual=true AND isSandbox=true. The backend forces is_virtual for a
                 // sandbox anyway; passing both keeps the intent readable at the call site.
                 const result = await serverAPI.createServerConfig(name, description, null, true, {}, true);
 
                 if (result.success && result.data?.config_uuid) {
                     this.closeModal();
-                    this.showAlert('Test build created', 'success');
+                    utils.showAlert('Test build created', 'success');
                     await this.loadBuilds({ silentRender: true });
                     await this.openBuild(result.data.config_uuid, name);
                 } else {
-                    this.showAlert(result.message || 'Failed to create test build', 'error');
+                    utils.showAlert(result.message || 'Failed to create test build', 'error');
                 }
             } catch (error) {
                 console.error('CompatibilityBench: create failed', error);
-                this.showAlert(error.message || 'Failed to create test build', 'error');
+                utils.showAlert(error.message || 'Failed to create test build', 'error');
             } finally {
-                this.showLoading(false);
+                utils.showLoading(false);
             }
         });
     }
@@ -358,21 +358,21 @@ class CompatibilityBench {
         }
 
         try {
-            this.showLoading(true, 'Deleting test build...');
+            utils.showLoading(true, 'Deleting test build...');
             const result = await serverAPI.deleteServerConfig(configUuid, { silent: true });
 
             if (result.success) {
                 BenchResults.clear(configUuid);
-                this.showAlert('Test build deleted', 'success');
+                utils.showAlert('Test build deleted', 'success');
                 await this.loadBuilds();
             } else {
-                this.showAlert(result.message || 'Failed to delete test build', 'error');
+                utils.showAlert(result.message || 'Failed to delete test build', 'error');
             }
         } catch (error) {
             console.error('CompatibilityBench: delete failed', error);
-            this.showAlert(error.message || 'Failed to delete test build', 'error');
+            utils.showAlert(error.message || 'Failed to delete test build', 'error');
         } finally {
-            this.showLoading(false);
+            utils.showLoading(false);
         }
     }
 
@@ -390,7 +390,7 @@ class CompatibilityBench {
         }
 
         if (!window.serverBuilder) {
-            this.showAlert('Server builder is not available — please refresh the page', 'error');
+            utils.showAlert('Server builder is not available — please refresh the page', 'error');
             return;
         }
 
@@ -399,7 +399,7 @@ class CompatibilityBench {
             await window.serverBuilder.loadExistingConfig(configUuid);
         } catch (error) {
             console.error('CompatibilityBench: failed to open bench', error);
-            this.showAlert('Failed to open the test build: ' + error.message, 'error');
+            utils.showAlert('Failed to open the test build: ' + error.message, 'error');
         }
     }
 
@@ -525,21 +525,6 @@ class CompatibilityBench {
         modal.classList.remove('active');
         modal.classList.add('hidden');
         modal.style.display = '';
-    }
-
-    showLoading(show, message = 'Loading...') {
-        if (typeof utils !== 'undefined' && utils.showLoading) {
-            utils.showLoading(show, message);
-        }
-    }
-
-    showAlert(message, type = 'info') {
-        if (typeof toast !== 'undefined') {
-            const fn = toast[type] || toast.info;
-            fn.call(toast, message);
-        } else if (typeof utils !== 'undefined' && utils.showAlert) {
-            utils.showAlert(message, type);
-        }
     }
 }
 

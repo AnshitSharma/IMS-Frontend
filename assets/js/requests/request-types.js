@@ -21,6 +21,15 @@ class RequestTypesManager {
     }
 
     init() {
+        // Page-level access gate. This page is admin + super_admin only, and the
+        // redirect used to live in dashboard.js's page router — the single reason
+        // request-types.html loaded that 230 KB file. It belongs with the page it
+        // guards. UI-only, as ever: the backend enforces the same rule.
+        if (window.api?.utils?.hasRole && !window.api.utils.hasRole(['admin', 'super_admin'])) {
+            window.location.href = 'index.html';
+            return;
+        }
+
         if (window.api && window.api.utils) {
             this.canManage = window.api.utils.hasPermission('pipeline.template_manage')
                 || window.api.utils.hasPermission('pipeline.manage');
@@ -37,34 +46,18 @@ class RequestTypesManager {
 
         if (!this.canManage) {
             byId('createTypeBtn')?.classList.add('hidden');
+            // The empty state offers the same action as the header button and
+            // has to obey the same permission — otherwise the only "New Type"
+            // a read-only viewer can see is the one that 403s.
+            byId('createFirstTypeBtn')?.classList.add('hidden');
         }
 
         this.loadUsersAndRoles().finally(() => this.load());
     }
 
-    // ----- API helpers -------------------------------------------------------
-    getToken() {
-        return window.api ? window.api.getToken()
-            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-    }
-
-    // Every call on this page goes through window.api.requestEnvelope(), which
-    // renews an expired token once and retries before giving up, and returns the
-    // API envelope rather than throwing. This class used to carry its own copy of
-    // that fetch logic, byte-for-byte identical to the one in the sibling page.
-    async apiPost(action, fields = {}) {
-        return window.api.requestEnvelope(action, fields);
-    }
-
-    async apiGet(action) {
-        // Was a GET with the action in the query string; the API is POST
-        // FormData throughout and answers these actions the same way.
-        return window.api.requestEnvelope(action);
-    }
-
     async loadUsersAndRoles() {
         try {
-            const [u, r] = await Promise.all([this.apiGet('users-list'), this.apiGet('roles-list')]);
+            const [u, r] = await Promise.all([api.requestEnvelope('users-list'), api.requestEnvelope('roles-list')]);
             this.users = (u.success && u.data?.users) ? u.data.users : [];
             this.roles = (r.success && r.data?.roles) ? r.data.roles : [];
         } catch (e) {
@@ -77,7 +70,7 @@ class RequestTypesManager {
     async load() {
         this.setState('loading');
         try {
-            const result = await this.apiPost('pipeline-template-list', {
+            const result = await api.requestEnvelope('pipeline-template-list', {
                 include_stages: 'true',
                 include_inactive: this.canManage ? 'true' : 'false'
             });
@@ -128,7 +121,7 @@ class RequestTypesManager {
         const flow = stages.length
             ? `<div class="flow-rail mt-3">${stages.map((s) => `
                 <div class="flow-node">
-                    <span class="flow-stage-name text-text-primary">${this.esc(s.name)}</span>
+                    <span class="flow-stage-name text-text-primary">${utils.escapeHtml(s.name)}</span>
                     <span class="flow-owner">${this.ownerBadge(s.default_assignee)}</span>
                 </div>`).join('')}</div>`
             : `<p class="text-xs text-text-muted mt-3 italic">No steps defined</p>`;
@@ -153,11 +146,11 @@ class RequestTypesManager {
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <h3 class="text-lg font-semibold text-text-primary truncate">${this.esc(type.name)}</h3>
+                            <h3 class="text-lg font-semibold text-text-primary truncate">${utils.escapeHtml(type.name)}</h3>
                             ${isSystem ? `<span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Built-in</span>` : ''}
                             ${inactive ? `<span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-surface-secondary text-text-muted border border-border">Archived</span>` : ''}
                         </div>
-                        ${type.description ? `<p class="text-sm text-text-muted mt-1">${this.esc(type.description)}</p>` : ''}
+                        ${type.description ? `<p class="text-sm text-text-muted mt-1">${utils.escapeHtml(type.description)}</p>` : ''}
                     </div>
                     <span class="shrink-0 text-xs font-medium text-text-muted bg-surface-secondary border border-border rounded-full px-2.5 py-1">
                         ${stages.length} step${stages.length === 1 ? '' : 's'}
@@ -172,7 +165,7 @@ class RequestTypesManager {
         if (!owner) return `<span class="text-text-muted"><i class="fas fa-user-slash mr-1"></i>Unassigned</span>`;
         const isRole = owner.type === 'role';
         return `<span class="${isRole ? 'text-primary' : 'text-text-secondary'}">
-            <i class="fas fa-${isRole ? 'users' : 'user'} mr-1"></i>${this.esc(owner.name || (isRole ? 'Role' : 'User'))}
+            <i class="fas fa-${isRole ? 'users' : 'user'} mr-1"></i>${utils.escapeHtml(owner.name || (isRole ? 'Role' : 'User'))}
         </span>`;
     }
 
@@ -223,7 +216,7 @@ class RequestTypesManager {
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-semibold text-text-primary mb-1.5">Name <span class="text-danger">*</span></label>
                         <input type="text" id="typeName" required maxlength="120"
-                            value="${type ? this.esc(type.name) : ''}"
+                            value="${type ? utils.escapeHtml(type.name) : ''}"
                             placeholder="e.g. RAM Upgrade" ${isSystem ? 'readonly' : ''}
                             class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary ${isSystem ? 'opacity-70 cursor-not-allowed' : ''}">
                         ${isSystem ? `<p class="text-xs text-text-muted mt-1">Built-in type — name can't be changed.</p>` : ''}
@@ -241,7 +234,7 @@ class RequestTypesManager {
                     <label class="block text-sm font-semibold text-text-primary mb-1.5">Description</label>
                     <textarea id="typeDescription" rows="2" maxlength="1000"
                         placeholder="What is this request type for?"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${type && type.description ? this.esc(type.description) : ''}</textarea>
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${type && type.description ? utils.escapeHtml(type.description) : ''}</textarea>
                 </div>
 
                 <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover">
@@ -296,14 +289,14 @@ class RequestTypesManager {
                 <div class="shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-1 stage-pos">${idx + 1}</div>
                 <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2">
                     <input type="text" class="stage-name md:col-span-4 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Step name" maxlength="120" value="${stage ? this.esc(stage.name) : ''}">
+                        placeholder="Step name" maxlength="120" value="${stage ? utils.escapeHtml(stage.name) : ''}">
                     <select class="stage-owner-type md:col-span-3 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
                         <option value="role" ${ownerType === 'role' ? 'selected' : ''}>Team (role)</option>
                         <option value="user" ${ownerType === 'user' ? 'selected' : ''}>Person</option>
                     </select>
                     <select class="stage-owner-id md:col-span-5 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></select>
                     <input type="text" class="stage-instructions md:col-span-12 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Instructions for this step (optional)" maxlength="1000" value="${stage && stage.instructions ? this.esc(stage.instructions) : ''}">
+                        placeholder="Instructions for this step (optional)" maxlength="1000" value="${stage && stage.instructions ? utils.escapeHtml(stage.instructions) : ''}">
                     <div class="stage-effect md:col-span-12"></div>
                 </div>
                 <div class="shrink-0 flex flex-col gap-1">
@@ -400,10 +393,10 @@ class RequestTypesManager {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
                         ${list.map((a) => `
                             <label class="flex items-start gap-2 text-xs text-text-primary">
-                                <input type="checkbox" class="stage-action mt-0.5" value="${this.esc(a.action_type)}"
+                                <input type="checkbox" class="stage-action mt-0.5" value="${utils.escapeHtml(a.action_type)}"
                                     ${chosen.includes(a.action_type) ? 'checked' : ''}>
-                                <span>${this.esc(a.label)}
-                                    <code class="text-text-muted">${this.esc(a.action_type)}</code></span>
+                                <span>${utils.escapeHtml(a.label)}
+                                    <code class="text-text-muted">${utils.escapeHtml(a.action_type)}</code></span>
                             </label>`).join('')}
                     </div>
                 </div>`;
@@ -502,11 +495,11 @@ class RequestTypesManager {
         const is_active = document.getElementById('typeActive').value;
         const stages = this.collectStages();
 
-        if (!name) return this.toast('Name is required', 'error');
-        if (stages.length === 0) return this.toast('Add at least one step', 'error');
+        if (!name) return utils.showAlert('Name is required', 'error');
+        if (stages.length === 0) return utils.showAlert('Add at least one step', 'error');
         for (let i = 0; i < stages.length; i++) {
-            if (!stages[i].name) return this.toast(`Step ${i + 1}: name is required`, 'error');
-            if (!stages[i].assignee_id) return this.toast(`Step ${i + 1}: choose an owner`, 'error');
+            if (!stages[i].name) return utils.showAlert(`Step ${i + 1}: name is required`, 'error');
+            if (!stages[i].assignee_id) return utils.showAlert(`Step ${i + 1}: choose an owner`, 'error');
         }
 
         const fields = {
@@ -521,37 +514,37 @@ class RequestTypesManager {
         if (this.editingId) fields.template_id = this.editingId;
 
         try {
-            const result = await this.apiPost(action, fields);
+            const result = await api.requestEnvelope(action, fields);
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Save failed');
-                return this.toast(msg, 'error');
+                return utils.showAlert(msg, 'error');
             }
-            this.toast(this.editingId ? 'Request type updated' : 'Request type created', 'success');
+            utils.showAlert(this.editingId ? 'Request type updated' : 'Request type created', 'success');
             this.closeModal();
             this.load();
         } catch (e) {
-            this.toast('Save failed: ' + e.message, 'error');
+            utils.showAlert('Save failed: ' + e.message, 'error');
         }
     }
 
     async toggleArchive(type) {
         try {
-            const result = await this.apiPost('pipeline-template-update', {
+            const result = await api.requestEnvelope('pipeline-template-update', {
                 template_id: type.id,
                 is_active: type.is_active === 1 ? '0' : '1'
             });
-            if (!result.success) return this.toast(result.message || 'Update failed', 'error');
-            this.toast(type.is_active === 1 ? 'Type archived' : 'Type restored', 'success');
+            if (!result.success) return utils.showAlert(result.message || 'Update failed', 'error');
+            utils.showAlert(type.is_active === 1 ? 'Type archived' : 'Type restored', 'success');
             this.load();
         } catch (e) {
-            this.toast('Update failed: ' + e.message, 'error');
+            utils.showAlert('Update failed: ' + e.message, 'error');
         }
     }
 
     async remove(type) {
         if (!confirm(`Delete request type "${type.name}"? This can't be undone.`)) return;
         try {
-            let result = await this.apiPost('pipeline-template-delete', { template_id: type.id });
+            let result = await api.requestEnvelope('pipeline-template-delete', { template_id: type.id });
 
             // Requests were raised from this type. The backend refuses the first
             // attempt and hands back how many, so the question can name the real
@@ -562,17 +555,17 @@ class RequestTypesManager {
                 if (!confirm(`${used} ${plural} ${used === 1 ? 'was' : 'were'} created from "${type.name}".\n\n`
                     + `Those ${plural} are kept and will still show "${type.name}" as their type. `
                     + `The type itself disappears from the New Request list.\n\nDelete it anyway?`)) return;
-                result = await this.apiPost('pipeline-template-delete', { template_id: type.id, force: '1' });
+                result = await api.requestEnvelope('pipeline-template-delete', { template_id: type.id, force: '1' });
             }
 
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Delete failed');
-                return this.toast(msg, 'error');
+                return utils.showAlert(msg, 'error');
             }
-            this.toast('Request type deleted', 'success');
+            utils.showAlert('Request type deleted', 'success');
             this.load();
         } catch (e) {
-            this.toast('Delete failed: ' + e.message, 'error');
+            utils.showAlert('Delete failed: ' + e.message, 'error');
         }
     }
 
@@ -601,22 +594,6 @@ class RequestTypesManager {
             const el = document.getElementById('typesErrorMessage');
             if (el) el.textContent = message || 'An error occurred';
         }
-    }
-
-    toast(message, type = 'info') {
-        if (window.toastNotification) window.toastNotification.show(message, type);
-        else if (window.toast && window.toast[type]) window.toast[type](message);
-        else alert(message);
-    }
-
-    esc(text) {
-        if (text === null || text === undefined) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 }
 

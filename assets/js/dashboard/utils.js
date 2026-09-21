@@ -59,25 +59,6 @@ window.utils = {
         return date.toLocaleDateString('en-US', options[format] || options.short);
     },
 
-    // Format relative time (e.g., "2 hours ago")
-    formatRelativeTime(dateString) {
-        if (!dateString) return '-';
-        
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-        if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-        if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-        
-        return this.formatDate(dateString);
-    },
-
     // Debounce function for search inputs
     debounce(func, wait, immediate) {
         let timeout;
@@ -91,33 +72,6 @@ window.utils = {
             timeout = setTimeout(later, wait);
             if (callNow) func(...args);
         };
-    },
-
-    // Generate UUID
-    generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    },
-
-    // Validate email format
-    isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    },
-
-    // Validate MAC address format
-    isValidMacAddress(mac) {
-        const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-        return macRegex.test(mac);
-    },
-
-    // Validate IP address format
-    isValidIPAddress(ip) {
-        const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        return ipRegex.test(ip);
     },
 
     // Get status text and color
@@ -179,27 +133,6 @@ window.utils = {
     truncateText(text, maxLength = 50) {
         if (!text || text.length <= maxLength) return text;
         return text.substring(0, maxLength - 3) + '...';
-    },
-
-    // Format file size
-    formatFileSize(bytes) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    },
-
-    // Copy text to clipboard
-    async copyToClipboard(text) {
-        try {
-            await navigator.clipboard.writeText(text);
-            this.showAlert('Copied to clipboard', 'success', '', 2000);
-            return true;
-        } catch (err) {
-            this.showAlert('Failed to copy to clipboard', 'error');
-            return false;
-        }
     },
 
     // Confirm dialog
@@ -386,18 +319,6 @@ window.utils = {
         serverplatform: '/ims-data/serverplatform/server-platform-level-3.json'
     },
 
-    updateURLParams(params) {
-        const url = new URL(window.location);
-        Object.keys(params).forEach(key => {
-            if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
-                url.searchParams.set(key, params[key]);
-            } else {
-                url.searchParams.delete(key);
-            }
-        });
-        window.history.replaceState({}, '', url);
-    },
-
     getURLParams() {
         const params = {};
         const urlParams = new URLSearchParams(window.location.search);
@@ -472,118 +393,6 @@ window.utils = {
         }
     },
 
-    // Validation helpers
-    validate: {
-        required(value, fieldName = 'Field') {
-            if (!value || (typeof value === 'string' && value.trim() === '')) {
-                return `${fieldName} is required`;
-            }
-            return null;
-        },
-
-        minLength(value, min, fieldName = 'Field') {
-            if (value && value.length < min) {
-                return `${fieldName} must be at least ${min} characters`;
-            }
-            return null;
-        },
-
-        maxLength(value, max, fieldName = 'Field') {
-            if (value && value.length > max) {
-                return `${fieldName} must not exceed ${max} characters`;
-            }
-            return null;
-        },
-
-        email(value, fieldName = 'Email') {
-            if (value && !utils.isValidEmail(value)) {
-                return `${fieldName} format is invalid`;
-            }
-            return null;
-        },
-
-        macAddress(value, fieldName = 'MAC Address') {
-            if (value && !utils.isValidMacAddress(value)) {
-                return `${fieldName} format is invalid (e.g., 00:1A:2B:3C:4D:5F)`;
-            }
-            return null;
-        },
-
-        ipAddress(value, fieldName = 'IP Address') {
-            if (value && !utils.isValidIPAddress(value)) {
-                return `${fieldName} format is invalid`;
-            }
-            return null;
-        }
-    },
-
-    // Animation helpers
-    animate: {
-        fadeIn(element, duration = 300) {
-            element.style.opacity = '0';
-            element.style.display = 'block';
-            
-            let start = null;
-            const animate = (timestamp) => {
-                if (!start) start = timestamp;
-                const progress = (timestamp - start) / duration;
-                
-                element.style.opacity = Math.min(progress, 1);
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                }
-            };
-            
-            requestAnimationFrame(animate);
-        },
-
-        fadeOut(element, duration = 300) {
-            let start = null;
-            const initialOpacity = parseFloat(getComputedStyle(element).opacity);
-            
-            const animate = (timestamp) => {
-                if (!start) start = timestamp;
-                const progress = (timestamp - start) / duration;
-                
-                element.style.opacity = initialOpacity * (1 - Math.min(progress, 1));
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    element.style.display = 'none';
-                }
-            };
-            
-            requestAnimationFrame(animate);
-        },
-
-        slideDown(element, duration = 300) {
-            element.style.height = '0';
-            element.style.overflow = 'hidden';
-            element.style.display = 'block';
-            
-            const targetHeight = element.scrollHeight;
-            let start = null;
-            
-            const animate = (timestamp) => {
-                if (!start) start = timestamp;
-                const progress = (timestamp - start) / duration;
-                
-                element.style.height = Math.min(progress * targetHeight, targetHeight) + 'px';
-                
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
-                } else {
-                    element.style.height = 'auto';
-                    element.style.overflow = 'visible';
-                }
-            };
-            
-            requestAnimationFrame(animate);
-        }
-    },
-
     // Logger utility — gates debug output on BDC_CONFIG.DEBUG_MODE.
     // SECURITY: Use utils.logger.log() instead of bare console.log() for any output
     // that could expose internal state (user objects, tokens, permission names).
@@ -623,6 +432,34 @@ window.utils = {
         serverplatform: 'Server Compute Platforms'
     },
 
+    /**
+     * The same twelve types named in the SINGULAR, for referring to one unit
+     * inside a label or a sentence fragment ("Add CPU to inventory").
+     *
+     * Deliberately a second map rather than a clever de-pluralisation of the one
+     * above: "RAM", "Chassis" and "Storage" do not inflect, and "Caddies" ->
+     * "Drive Caddy" and "SFP Modules" -> "SFP Transceiver" are not derivable at
+     * all. The wording here is exactly what the Requests page already showed, so
+     * nothing reads differently — except `serverplatform`, which that page's own
+     * copy of this list was missing, so a compute platform rendered as the raw
+     * "SERVERPLATFORM". That is the drift this map exists to stop: add a type
+     * once, here and above, not in eleven places.
+     */
+    componentLabelsSingular: {
+        cpu: 'CPU',
+        ram: 'RAM',
+        storage: 'Storage',
+        motherboard: 'Motherboard',
+        nic: 'Network Card',
+        caddy: 'Drive Caddy',
+        chassis: 'Chassis',
+        pciecard: 'PCIe Card',
+        risercard: 'Riser Card',
+        hbacard: 'HBA Card',
+        sfp: 'SFP Transceiver',
+        serverplatform: 'Server Compute Platform'
+    },
+
     // Which page this is, as the slug the rest of the app keys off.
     //
     // The 12 component inventories were 12 near-identical HTML files; they are now
@@ -651,8 +488,3 @@ window.addEventListener('unhandledrejection', (event) => {
     utils.showAlert('An unexpected error occurred. Please try again.', 'error');
     event.preventDefault();
 });
-
-// Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = utils;
-}

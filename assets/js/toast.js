@@ -174,8 +174,3 @@ const toastNotification = new ToastNotification();
 
 // Create convenient global alias
 window.toast = toastNotification;
-
-// Export for module systems if needed
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = ToastNotification;
-}

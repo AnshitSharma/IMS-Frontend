@@ -45,6 +45,16 @@ class RequestsManager {
         this.currentUsername = null;
 
         this.scope = 'my_queue';
+        // Every list fetch carries a sequence number. Switching tabs or typing in
+        // the search box can leave two requests in flight, and the slower one used
+        // to win — painting the scope the user had already left. A late answer is
+        // dropped instead.
+        this.loadSeq = 0;
+        // Same guard for the detail modal.
+        this.detailSeq = 0;
+        // Whether the first list fetch of the session has landed. Only that one
+        // is allowed the empty-My-Queue fallback below.
+        this.firstLoadDone = false;
         this.page = 1;
         this.limit = 20;
         this.total = 0;
@@ -124,13 +134,26 @@ class RequestsManager {
                 t.classList.toggle('active', t.dataset.scope === 'created');
             });
         }
-        if (this.perms.templateManage || this.perms.manage) {
+        // The link has to obey the gate the DESTINATION enforces, not a looser
+        // one. request-types.html bounces anyone who is not admin/super_admin
+        // (dashboard.js), while pipeline.template_manage is granted to manager
+        // and technician as well — so those two were shown a link that threw
+        // them back to the dashboard. Both conditions, so the link only appears
+        // when the page will actually open.
+        const canReachTypes = (window.api?.utils?.hasRole)
+            ? window.api.utils.hasRole(['admin', 'super_admin'])
+            : true;
+        if ((this.perms.templateManage || this.perms.manage) && canReachTypes) {
             const link = document.getElementById('typesLink');
             link?.classList.remove('hidden');
             link?.classList.add('flex');
         }
         if (!this.perms.create && !this.perms.manage) {
             document.getElementById('createPipelineBtn')?.classList.add('hidden');
+            // The empty state offers the same thing as the header button, so it
+            // has to obey the same permission — otherwise the only "New Request"
+            // a user without pipeline.create can see is the one that 403s.
+            document.getElementById('createFirstPipelineBtn')?.classList.add('hidden');
         }
 
         this.wireEvents();
@@ -146,10 +169,10 @@ class RequestsManager {
 
         document.querySelectorAll('.scope-tab').forEach((tab) => {
             tab.addEventListener('click', () => {
-                document.querySelectorAll('.scope-tab').forEach((t) => t.classList.remove('active'));
-                tab.classList.add('active');
-                this.scope = tab.dataset.scope;
-                this.page = 1;
+                // A manual click is a decision: the first-load fallback must not
+                // second-guess it afterwards.
+                this.firstLoadDone = true;
+                this.setScopeTab(tab.dataset.scope);
                 this.load();
             });
         });
@@ -174,39 +197,32 @@ class RequestsManager {
         byId('detailClose')?.addEventListener('click', () => this.closeModal('detailModal'));
         byId('modalContainer')?.addEventListener('click', (e) => { if (e.target.id === 'modalContainer') this.closeModal('modalContainer'); });
         byId('detailModal')?.addEventListener('click', (e) => { if (e.target.id === 'detailModal') this.closeModal('detailModal'); });
-    }
 
-    // ----- API helpers -------------------------------------------------------
-    getToken() {
-        return window.api ? window.api.getToken()
-            : (localStorage.getItem('bdc_token') || sessionStorage.getItem('bdc_token'));
-    }
-
-    // Every call on this page goes through window.api.requestEnvelope(), which
-    // renews an expired token once and retries before giving up, and returns the
-    // API envelope rather than throwing. This class used to carry its own copy of
-    // that fetch logic, byte-for-byte identical to the one in the sibling page.
-    async apiPost(action, fields = {}) {
-        return window.api.requestEnvelope(action, fields);
-    }
-
-    async apiGet(action) {
-        // Was a GET with the action in the query string; the API is POST
-        // FormData throughout and answers these actions the same way.
-        return window.api.requestEnvelope(action);
+        // Escape closes the topmost open modal. A click on the backdrop already
+        // did this; the keyboard had no way out of a request at all.
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const open = ['modalContainer', 'detailModal']
+                .filter((id) => !byId(id)?.classList.contains('hidden'));
+            if (!open.length) return;
+            // The create form sits on top of the detail when it was raised from
+            // inside one, so close it first.
+            this.closeModal(open.includes('modalContainer') ? 'modalContainer' : 'detailModal');
+        });
     }
 
     async loadSupportData() {
         try {
             const [t, u, r] = await Promise.all([
-                this.apiPost('pipeline-template-list', { include_stages: 'true' }),
-                this.apiGet('users-list'),
-                this.apiGet('roles-list')
+                api.requestEnvelope('pipeline-template-list', { include_stages: 'true' }),
+                api.requestEnvelope('users-list'),
+                api.requestEnvelope('roles-list')
             ]);
             this.types = (t.success && t.data?.templates) ? t.data.templates : [];
             this.actionTypes = (t.success && t.data?.action_types) ? t.data.action_types : [];
             this.users = (u.success && u.data?.users) ? u.data.users : [];
             this.roles = (r.success && r.data?.roles) ? r.data.roles : [];
+            this.resolveRoleIdentity();
 
             const typeFilter = document.getElementById('pipelineTypeFilter');
             if (typeFilter) {
@@ -224,10 +240,12 @@ class RequestsManager {
 
     // ----- List --------------------------------------------------------------
     async load() {
+        const seq = ++this.loadSeq;
+        const scope = this.scope;
         this.setState('loading');
         try {
-            const result = await this.apiPost('pipeline-list', {
-                scope: this.scope,
+            const result = await api.requestEnvelope('pipeline-list', {
+                scope,
                 page: this.page,
                 limit: this.limit,
                 search: this.filters.search,
@@ -235,13 +253,61 @@ class RequestsManager {
                 priority: this.filters.priority,
                 pipeline_template_id: this.filters.pipeline_template_id
             });
+            // A newer fetch has been issued since — this answer describes a view
+            // the user has already left, so it must not paint anything.
+            if (seq !== this.loadSeq) return;
             if (!result.success) throw new Error(result.message || 'Failed to load');
             this.pipelines = result.data?.pipelines || [];
             this.total = result.data?.total || 0;
+
+            // First load only: "My Queue" is the right default because it is the
+            // actionable view, but an admin whose queue happens to be empty was
+            // being shown "nothing here" while hundreds of requests they can see
+            // sat one tab away. Fall through to All once, rather than making them
+            // find the tab. Never on a manual tab click — that would make the
+            // tab they pressed unpressable.
+            if (!this.firstLoadDone) {
+                this.firstLoadDone = true;
+                if (scope === 'my_queue' && this.total === 0 && (this.perms.viewAll || this.perms.manage)) {
+                    this.setScopeTab('all');
+                    return this.load();
+                }
+            }
+
             this.renderList();
         } catch (e) {
+            if (seq !== this.loadSeq) return;
+            this.pipelines = [];
+            this.total = 0;
+            this.clearList();
             this.setState('error', e.message);
+            this.renderPagination();
         }
+    }
+
+    // Move the list to a scope and keep the tab strip saying the same thing.
+    // Both halves used to live in the click handler, so every other caller that
+    // changed this.scope left the highlighted tab lying.
+    setScopeTab(scope) {
+        this.scope = scope;
+        this.page = 1;
+        document.querySelectorAll('.scope-tab').forEach((t) => {
+            t.classList.toggle('active', t.dataset.scope === scope);
+        });
+    }
+
+    clearList() {
+        const list = document.getElementById('pipelinesList');
+        if (list) list.innerHTML = '';
+    }
+
+    // Refresh after raising a request. Under "My Queue" the new request is
+    // invisible by definition — it is waiting on somebody else's step — so the
+    // requester was left looking at a list that did not contain what they had
+    // just created. Move them to the view that does.
+    loadAfterCreate() {
+        if (this.scope === 'my_queue') this.setScopeTab('created');
+        this.load();
     }
 
     renderList() {
@@ -249,11 +315,22 @@ class RequestsManager {
         if (!list) return;
 
         if (this.pipelines.length === 0) {
+            // The rows of the PREVIOUS view used to be left standing here: this
+            // branch returned without touching the list, and setState('empty')
+            // un-hides it. That is why My Queue could show completed requests
+            // after a trip through All — the backend never returns a completed
+            // request under my_queue, those rows were All's, still in the DOM
+            // underneath the "nothing here" panel.
+            this.clearList();
             const hint = document.getElementById('pipelinesEmptyHint');
             if (hint) {
-                hint.textContent = this.scope === 'my_queue'
-                    ? 'No steps are waiting on you or your team right now.'
-                    : (this.scope === 'created' ? "You haven't created any requests yet." : 'No requests match this view.');
+                const filtered = !!(this.filters.search || this.filters.status
+                    || this.filters.priority || this.filters.pipeline_template_id);
+                hint.textContent = filtered
+                    ? 'No requests match the current filters. Clear them to see the rest of this view.'
+                    : (this.scope === 'my_queue'
+                        ? 'No steps are waiting on you or your team right now.'
+                        : (this.scope === 'created' ? "You haven't created any requests yet." : 'No requests match this view.'));
             }
             this.setState('empty');
             this.renderPagination();
@@ -261,64 +338,186 @@ class RequestsManager {
         }
 
         this.setState('ready');
-        list.innerHTML = this.pipelines.map((p) => this.renderCard(p)).join('');
+
+        // The queue is split by who has to move next, because that is the first
+        // question this page answers. Under 'my_queue' the server has already
+        // made that split, so a second one would just print one empty group.
+        const ledger = (rows) => `<div class="rq-ledger">${rows.map((p) => this.renderRow(p)).join('')}</div>`;
+        if (this.scope === 'my_queue') {
+            list.innerHTML = ledger(this.pipelines);
+        } else {
+            const mine = this.pipelines.filter((p) => this.waitingOnMe(p));
+            const rest = this.pipelines.filter((p) => !this.waitingOnMe(p));
+            list.innerHTML =
+                (mine.length ? `<div class="rq-group">Waiting on you <span class="n">${mine.length}</span></div>${ledger(mine)}` : '')
+                + (rest.length ? `<div class="rq-group">Moving elsewhere <span class="n">${rest.length}</span></div>${ledger(rest)}` : '');
+        }
+
         list.querySelectorAll('[data-pipeline-id]').forEach((el) => {
-            el.addEventListener('click', () => this.openDetail(parseInt(el.dataset.pipelineId, 10)));
+            const open = () => this.openDetail(parseInt(el.dataset.pipelineId, 10));
+            el.addEventListener('click', open);
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+            });
         });
         this.renderPagination();
     }
 
-    renderCard(p) {
+    // A step is waiting on me when it is assigned to me, to one of my teams, or
+    // I have claimed it. Deliberately NOT eligibleForStage(), which answers a
+    // different question: that one lets pipeline.manage act on anything, and an
+    // admin does not want every open request filed under "Waiting on you".
+    waitingOnMe(p) {
         const stage = p.current_stage;
-        const pct = p.progress && p.progress.total ? Math.round((p.progress.done / p.progress.total) * 100) : (p.status === 'completed' ? 100 : 0);
-        const stageLine = stage
-            ? `<span class="text-text-secondary"><i class="fas fa-circle-dot text-primary text-[10px] mr-1"></i>${this.esc(stage.name)}</span>
-               <span class="text-text-muted mx-1.5">→</span>${this.ownerBadge(stage.owner, stage.claimed_by)}`
-            : `<span class="text-text-muted">${p.status === 'completed' ? 'All steps complete' : 'No active step'}</span>`;
+        if (p.status !== 'in_progress' || !stage) return false;
+        if (stage.claimed_by) return Number(stage.claimed_by.id) === Number(this.currentUserId);
+        const o = stage.owner;
+        if (!o) return false;
+        if (o.type === 'user') return Number(o.id) === Number(this.currentUserId);
+        return this.ownsRole(o);
+    }
+
+    /**
+     * The session stores roles the way auth-login ships them — a list of SLUGS
+     * (`["admin"]`), with no ids. A stage owner arrives as `{id, name}` where the
+     * name is the role's DISPLAY name (`"Administrator"`, from roles.display_name).
+     * Comparing those two directly never matches, which filed every role-owned
+     * step under "Moving elsewhere" and hid the act buttons from anyone who holds
+     * a step by role rather than by name. The roles catalogue loaded alongside the
+     * list is what joins the two, so resolve ids once and keep both spellings.
+     */
+    resolveRoleIdentity() {
+        if (!Array.isArray(this.roles) || !this.roles.length) return;
+        const known = this.currentRoleNames.map((n) => String(n).toLowerCase());
+        if (!known.length) return;
+        this.roles.forEach((r) => {
+            const slug = String(r.name || '').toLowerCase();
+            const display = String(r.display_name || '').toLowerCase();
+            if (!known.includes(slug) && !known.includes(display)) return;
+            const id = Number(r.id);
+            if (id && !this.currentRoleIds.includes(id)) this.currentRoleIds.push(id);
+            [r.name, r.display_name].forEach((n) => {
+                if (n && !this.currentRoleNames.includes(n)) this.currentRoleNames.push(n);
+            });
+        });
+    }
+
+    // Does the caller hold this role-owned step? Three keys, because no single
+    // one is always available: the id (only after the roles catalogue resolves,
+    // which needs roles.view), the slug (what the session itself carries, and
+    // what `owner.slug` now ships), and the display name. hardware_carrier and
+    // developer hold pipeline.act but NOT roles.view, so the slug is the only
+    // key that works for them — and they are exactly the roles that own steps
+    // without pipeline.manage to fall back on.
+    ownsRole(owner) {
+        if (!owner || owner.type !== 'role') return false;
+        if (this.currentRoleIds.includes(Number(owner.id))) return true;
+        const held = this.currentRoleNames.map((n) => String(n).toLowerCase());
+        return [owner.slug, owner.name]
+            .some((k) => k && held.includes(String(k).toLowerCase()));
+    }
+
+    // What the left rail says. Failure and a frozen prerequisite outrank
+    // "in progress" — they are why a row stops moving.
+    rowState(p) {
+        if (p.status === 'completed') return 'done';
+        if (p.status === 'rejected' || p.status === 'cancelled') return 'stopped';
+        if (p.last_attempt_failed) return 'failed';
+        if (p.is_blocked) return 'blocked';
+        return p.status === 'in_progress' ? 'now' : 'idle';
+    }
+
+    // Age of the CURRENT step, not of the request: updated_at moves on every
+    // stage transition, so it reads as "has been sitting here this long".
+    ageLabel(p) {
+        const src = p.updated_at || p.created_at;
+        if (!src) return '';
+        const then = new Date(String(src).replace(' ', 'T') + 'Z').getTime();
+        if (isNaN(then)) return '';
+        const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+        if (mins < 60) return `${mins}m`;
+        if (mins < 1440) return `${Math.round(mins / 60)}h`;
+        const days = Math.round(mins / 1440);
+        return days < 90 ? `${days}d` : `${Math.round(days / 30)}mo`;
+    }
+
+    // ONE ROW PER REQUEST, not a card. Three cells behind the state rail: what
+    // it is, where it has reached and who holds it, and what you do about it.
+    // Everything here comes off the pipeline-list row as it already ships —
+    // no new field, no backend change.
+    renderRow(p) {
+        const stage = p.current_stage;
+        const state = this.rowState(p);
+        const mine = this.waitingOnMe(p);
+        const total = p.progress?.total || 0;
+        const done = p.progress?.done || 0;
+        const at = Math.min(done, Math.max(total - 1, 0));
+
+        // The pips are the progress bar rewritten as steps, because a request
+        // has four of them, not a percentage. The step being waited on carries
+        // the row's state, so a frozen or rolled-back step reads without
+        // hunting for the badge that says so.
+        const pips = total
+            ? `<div class="rq-pips">${Array.from({ length: total }, (_, i) => {
+                let cls = i < done ? 'is-done' : '';
+                if (i === at && done < total) {
+                    cls = (state === 'blocked' || state === 'failed') ? `is-${state}` : (state === 'now' ? 'is-now' : '');
+                }
+                return `<i class="${cls}"></i>`;
+            }).join('')}</div>`
+            : '';
+
+        const flags = [
+            p.priority === 'urgent'
+                ? `<span class="rq-flag text-danger bg-danger-light">Urgent</span>` : '',
+            p.last_attempt_failed
+                ? `<span class="rq-flag text-danger bg-danger-light" title="The last approval was rolled back. Open the request for the reason.">Last approval rolled back</span>` : '',
+            p.is_blocked
+                ? `<span class="rq-flag text-amber-600 dark:text-amber-400 bg-surface-secondary" title="Waiting on a prerequisite request. Open it to see which.">Frozen</span>` : '',
+            p.parent_ticket_number
+                ? `<span class="rq-flag text-text-muted bg-surface-secondary" title="Raised as a prerequisite for #${utils.escapeHtml(p.parent_ticket_number)}">Clears #${utils.escapeHtml(p.parent_ticket_number)}</span>` : '',
+            (p.status && p.status !== 'in_progress')
+                ? `<span class="rq-flag text-text-muted bg-surface-secondary">${utils.escapeHtml(this.statusLabel(p.status))}</span>` : ''
+        ].join('');
+
+        const where = stage
+            ? `Step ${Math.min(done + 1, total)} of ${total} &middot; ${utils.escapeHtml(stage.name)}`
+            : (p.status === 'completed' ? 'All steps complete' : 'No active step');
+
+        const action = mine
+            ? `<button type="button" class="rq-btn is-act" tabindex="-1">${p.last_attempt_failed ? 'Open &amp; retry' : 'Open &amp; act'}</button>`
+            : `<button type="button" class="rq-btn" tabindex="-1">Open</button>`;
 
         return `
-            <div data-pipeline-id="${p.id}" role="button" tabindex="0"
-                class="bg-surface-card border border-border rounded-xl p-4 shadow-sm hover:border-primary/40 hover:shadow transition-all cursor-pointer">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="font-mono text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">#${this.esc(p.ticket_number)}</span>
-                            <span class="text-xs text-text-muted">${this.esc(p.pipeline_type || 'Request')}</span>
-                            ${p.created_at ? `
-                            <span class="text-xs text-text-muted" title="Created ${this.esc(p.created_at)} UTC">
-                                <i class="fas fa-clock mr-1"></i>${this.esc(this.fmtDate(p.created_at))}
-                            </span>` : ''}
-                            ${p.last_attempt_failed ? `
-                            <span class="text-[11px] text-danger bg-danger-light border border-danger rounded px-2 py-0.5"
-                                title="The last approval was rolled back. Open the request for the reason.">
-                                <i class="fas fa-rotate-left"></i> Last attempt failed
-                            </span>` : ''}
-                            ${p.is_blocked ? `
-                            <span class="text-[11px] text-amber-600 dark:text-amber-400 bg-surface-secondary border border-border rounded px-2 py-0.5"
-                                title="Waiting on a prerequisite request. Open it to see which.">
-                                <i class="fas fa-lock"></i> Blocked
-                            </span>` : ''}
-                            ${p.parent_ticket_number ? `
-                            <span class="text-[11px] text-text-muted bg-surface-secondary border border-border rounded px-2 py-0.5"
-                                title="Raised as a prerequisite for #${this.esc(p.parent_ticket_number)}">
-                                <i class="fas fa-link"></i> for #${this.esc(p.parent_ticket_number)}
-                            </span>` : ''}
-                        </div>
-                        <h3 class="text-base font-semibold text-text-primary mt-1 truncate">${this.esc(p.title)}</h3>
-                    </div>
-                    <div class="flex flex-col items-end gap-1.5 shrink-0">
-                        ${this.statusBadge(p.status)}
-                        ${this.priorityBadge(p.priority)}
+            <div data-pipeline-id="${p.id}" role="button" tabindex="0" class="rq-row"
+                title="${utils.escapeHtml(p.title)}">
+                <div class="rq-rail is-${state}"></div>
+                <div class="rq-main">
+                    <div class="rq-title">${utils.escapeHtml(p.title)}</div>
+                    <div class="rq-meta">
+                        <span class="rq-age">${utils.escapeHtml(p.ticket_number)}</span>
+                        <span class="text-xs text-text-muted">${utils.escapeHtml(p.pipeline_type || 'Request')}</span>
+                        ${flags}
                     </div>
                 </div>
-                <div class="text-sm mt-3 flex items-center flex-wrap gap-y-1">${stageLine}</div>
-                <div class="flex items-center gap-3 mt-3">
-                    <div class="flex-1 h-1.5 bg-surface-secondary rounded-full overflow-hidden">
-                        <div class="h-full bg-primary rounded-full transition-all" style="width:${pct}%"></div>
-                    </div>
-                    <span class="text-[11px] ${p.is_blocked ? 'text-amber-600 dark:text-amber-400' : 'text-text-muted'} shrink-0">${p.progress ? `${p.progress.done}/${p.progress.total}` : ''} steps${p.is_blocked ? ' &middot; frozen' : ''}</span>
+                <div class="rq-step">
+                    <div class="rq-where">${where}</div>
+                    <div class="text-xs text-text-muted">${stage ? this.ownerBadge(stage.owner, stage.claimed_by) : ''}</div>
+                    ${pips}
+                </div>
+                <div class="rq-act">
+                    <span class="rq-age" title="Last moved ${utils.escapeHtml(this.fmtDate(p.updated_at || p.created_at))}">${utils.escapeHtml(this.ageLabel(p))}</span>
+                    ${action}
                 </div>
             </div>`;
+    }
+
+    statusLabel(status) {
+        const map = {
+            in_progress: 'In progress', completed: 'Completed',
+            cancelled: 'Cancelled', rejected: 'Rejected', draft: 'Draft'
+        };
+        return map[status] || status || 'Unknown';
     }
 
     renderPagination() {
@@ -340,7 +539,7 @@ class RequestsManager {
         if (!this.perms.create && !this.perms.manage) return;
         const activeTypes = this.types.filter((t) => t.is_active !== 0);
         if (activeTypes.length === 0) {
-            return this.toast('No active request types. Ask an admin to create one first.', 'warning');
+            return utils.showAlert('No active request types. Ask an admin to create one first.', 'warning');
         }
         await Promise.all([this.loadComponentData(), this.loadServers()]);
 
@@ -359,8 +558,8 @@ class RequestsManager {
                 <i class="fas fa-link text-primary mt-0.5"></i>
                 <div class="text-sm min-w-0">
                     <div class="text-text-primary">Prerequisite for
-                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(parent.ticket_number)}</span>
-                        &mdash; ${this.esc(parent.title)}
+                        <span class="font-mono text-xs font-semibold text-primary">#${utils.escapeHtml(parent.ticket_number)}</span>
+                        &mdash; ${utils.escapeHtml(parent.title)}
                     </div>
                     <div class="text-xs text-text-muted mt-1">
                         That request stays frozen until this one is resolved, and still needs its own
@@ -398,7 +597,7 @@ class RequestsManager {
                             <label for="plType" class="${EYEBROW}">Request type <span class="text-danger">*</span></label>
                             <select id="plType" required class="${SELECT}">
                                 <option value="">Select a type...</option>
-                                ${activeTypes.map((t) => `<option value="${t.id}">${this.esc(t.name)}</option>`).join('')}
+                                ${activeTypes.map((t) => `<option value="${t.id}">${utils.escapeHtml(t.name)}</option>`).join('')}
                             </select>
                         </div>
                         <div>
@@ -619,7 +818,7 @@ class RequestsManager {
      */
     async loadServers(search = '') {
         try {
-            const result = await this.apiPost('pipeline-servers', { search, limit: 100 });
+            const result = await api.requestEnvelope('pipeline-servers', { search, limit: 100 });
             this.servers = (result.success && result.data?.servers) ? result.data.servers : [];
             this.serversTotal = result.data?.total ?? this.servers.length;
             this.serversTruncated = !!result.data?.truncated;
@@ -763,24 +962,24 @@ class RequestsManager {
 
     serverRow(srv) {
         const uuid = String(srv.config_uuid || '');
-        const tag = (text, tone) => `<span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${tone}">${this.esc(text)}</span>`;
+        const tag = (text, tone) => `<span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border ${tone}">${utils.escapeHtml(text)}</span>`;
         const bits = [srv.location, srv.rack_position, srv.platform_name].filter(Boolean);
         const haystack = [srv.server_name, uuid, srv.location, srv.rack_position, srv.platform_name]
             .filter(Boolean).join(' ').toLowerCase();
 
         return `
-            <label class="pl-server-row flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-hover" data-haystack="${this.esc(haystack)}">
-                <input type="radio" name="plServerPick" value="${this.esc(uuid)}" class="mt-1 shrink-0">
+            <label class="pl-server-row flex items-start gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-hover" data-haystack="${utils.escapeHtml(haystack)}">
+                <input type="radio" name="plServerPick" value="${utils.escapeHtml(uuid)}" class="mt-1 shrink-0">
                 <span class="min-w-0 flex-1">
                     <span class="flex items-center gap-1.5 flex-wrap">
-                        <span class="text-sm font-medium text-text-primary">${this.esc(srv.server_name || 'Unnamed server')}</span>
+                        <span class="text-sm font-medium text-text-primary">${utils.escapeHtml(srv.server_name || 'Unnamed server')}</span>
                         ${srv.status ? tag(srv.status, 'border-border text-text-secondary') : ''}
                         ${srv.is_sandbox ? tag('sandbox', 'border-border text-text-muted') : ''}
                         ${(!srv.is_sandbox && srv.is_virtual) ? tag('virtual', 'border-border text-text-muted') : ''}
                         ${srv.is_own ? tag('yours', 'border-primary/30 text-primary') : ''}
                     </span>
                     <span class="block text-xs text-text-muted mt-0.5 truncate">
-                        ${bits.map((b) => this.esc(b)).join(' · ')}${bits.length ? ' · ' : ''}<code title="${this.esc(uuid)}">${this.esc(uuid.slice(-8))}</code>
+                        ${bits.map((b) => utils.escapeHtml(b)).join(' · ')}${bits.length ? ' · ' : ''}<code title="${utils.escapeHtml(uuid)}">${utils.escapeHtml(uuid.slice(-8))}</code>
                     </span>
                 </span>
             </label>`;
@@ -1051,7 +1250,7 @@ class RequestsManager {
         // A type normally allows exactly one action, so there is nothing to
         // choose — preselect it and let the dropdown just say what will happen.
         const options = this.actionCeiling.map((a) =>
-            `<option value="${this.esc(a.action_type)}">${this.esc(a.label)}</option>`).join('');
+            `<option value="${utils.escapeHtml(a.action_type)}">${utils.escapeHtml(a.label)}</option>`).join('');
         select.innerHTML = this.actionCeiling.length === 1
             ? options
             : `<option value="">Choose what should happen...</option>${options}`;
@@ -1116,7 +1315,7 @@ class RequestsManager {
         }
 
         locationSelect.innerHTML = '<option value="">Choose a location...</option>' + locations.map(loc =>
-            `<option value="${this.esc(loc.location_uuid)}" data-name="${this.esc(loc.name)}">${this.esc(loc.name)}</option>`
+            `<option value="${utils.escapeHtml(loc.location_uuid)}" data-name="${utils.escapeHtml(loc.name)}">${utils.escapeHtml(loc.name)}</option>`
         ).join('');
         locationSelect.disabled = false;
 
@@ -1153,10 +1352,10 @@ class RequestsManager {
             // server. The largest single opening is what decides whether a
             // machine fits, so both are shown.
             rackSelect.innerHTML = '<option value="">-- No rack --</option>' + racks.map(rack => {
-                const floor = rack.floor ? ` \u00b7 Floor ${this.esc(rack.floor)}` : '';
+                const floor = rack.floor ? ` \u00b7 Floor ${utils.escapeHtml(rack.floor)}` : '';
                 const biggest = Number.isFinite(rack.largest_free_u)
                     ? `, largest gap ${rack.largest_free_u}U` : '';
-                return `<option value="${this.esc(rack.rack_uuid)}" data-name="${this.esc(rack.name)}">${this.esc(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U${biggest})</option>`;
+                return `<option value="${utils.escapeHtml(rack.rack_uuid)}" data-name="${utils.escapeHtml(rack.name)}">${utils.escapeHtml(rack.name)}${floor} (${rack.free_u}U free of ${rack.total_u}U${biggest})</option>`;
             }).join('');
 
             // Keep the racks so the Bay dropdown can be filled without a second
@@ -1196,7 +1395,7 @@ class RequestsManager {
         baySelect.innerHTML = '<option value="">-- Not in a bay --</option>' + enclosures.map((e) => {
             const label = `${e.name}${e.model ? ` (${e.model})` : ''}`;
             return e.free_slots.map((slot) =>
-                `<option value="${this.esc(e.enclosure_uuid)}:${slot}" data-name="${this.esc(e.name)}">${this.esc(label)} \u00b7 bay ${slot}</option>`
+                `<option value="${utils.escapeHtml(e.enclosure_uuid)}:${slot}" data-name="${utils.escapeHtml(e.name)}">${utils.escapeHtml(label)} \u00b7 bay ${slot}</option>`
             ).join('');
         }).join('');
         baySelect.disabled = false;
@@ -1393,7 +1592,7 @@ class RequestsManager {
         mount.innerHTML = `<p class="text-xs text-text-muted">Loading the record…</p>`;
 
         try {
-            const result = await this.apiPost('pipeline-inventory-record', {
+            const result = await api.requestEnvelope('pipeline-inventory-record', {
                 component_type: componentType,
                 inventory_id: inventoryId
             });
@@ -1428,7 +1627,7 @@ class RequestsManager {
             this.editForm = form;
         } catch (e) {
             if (!this.stillEditing(inventoryId)) return;
-            mount.innerHTML = `<p class="text-xs text-danger">${this.esc(e.message || 'Could not load that record.')} Pick the record again to retry.</p>`;
+            mount.innerHTML = `<p class="text-xs text-danger">${utils.escapeHtml(e.message || 'Could not load that record.')} Pick the record again to retry.</p>`;
         }
     }
 
@@ -1473,7 +1672,7 @@ class RequestsManager {
 
         let units = [];
         try {
-            const result = await this.apiPost('pipeline-inventory-record', {
+            const result = await api.requestEnvelope('pipeline-inventory-record', {
                 component_type: componentType,
                 component_uuid: componentUuid
             });
@@ -1499,7 +1698,7 @@ class RequestsManager {
                 const name = u.serial_number || u.asset_tag || `#${id}`;
                 const where = u.server_name || u.address_text || u.location_name || 'location unknown';
                 const state = STATUS[u.status] || 'status unknown';
-                return `<option value="${this.esc(id)}">${this.esc(name)} · ${this.esc(where)} · ${this.esc(state)}</option>`;
+                return `<option value="${utils.escapeHtml(id)}">${utils.escapeHtml(name)} · ${utils.escapeHtml(where)} · ${utils.escapeHtml(state)}</option>`;
             }).join('');
     }
 
@@ -1783,7 +1982,7 @@ class RequestsManager {
      */
     actionComponentTypeOptions() {
         return Object.keys(this.componentSpecPaths())
-            .map((t) => `<option value="${t}">${this.esc(this.componentTypeLabel(t))}</option>`).join('');
+            .map((t) => `<option value="${t}">${utils.escapeHtml(this.componentTypeLabel(t))}</option>`).join('');
     }
 
     /**
@@ -1879,7 +2078,7 @@ class RequestsManager {
         await Promise.all(jobs.map(async (job) => {
             let data = null;
             try {
-                const result = await this.apiPost('pipeline-component-options', job.params);
+                const result = await api.requestEnvelope('pipeline-component-options', job.params);
                 if (result?.success) data = result.data;
             } catch (e) {
                 data = null;
@@ -1939,7 +2138,7 @@ class RequestsManager {
      * failure mode to avoid is an empty dropdown with no explanation.
      */
     setSelectNotice(select, text) {
-        select.innerHTML = `<option value="">${this.esc(text)}</option>`;
+        select.innerHTML = `<option value="">${utils.escapeHtml(text)}</option>`;
         select.value = '';
         select.disabled = true;
     }
@@ -2021,8 +2220,8 @@ class RequestsManager {
                     bits.push(c.here > 0 ? `${c.here} at this site` : 'none at this site');
                 }
                 const name = [m.brand, m.name].filter(Boolean).join(' ') || m.uuid.slice(0, 8);
-                return `<option value="${this.esc(m.uuid)}" data-free="${c.free}" data-here="${c.here}"
-                                data-location-aware="${locationAware ? '1' : '0'}">${this.esc(name)} · ${this.esc(bits.join(', '))}</option>`;
+                return `<option value="${utils.escapeHtml(m.uuid)}" data-free="${c.free}" data-here="${c.here}"
+                                data-location-aware="${locationAware ? '1' : '0'}">${utils.escapeHtml(name)} · ${utils.escapeHtml(bits.join(', '))}</option>`;
             }).join('');
         select.disabled = false;
         this.restoreSelection(select, keep);
@@ -2054,7 +2253,7 @@ class RequestsManager {
                 if (locationAware) {
                     bits.push(m.here_count > 0 ? `${m.here_count} at this site` : 'none at this site');
                 }
-                return `<option value="${this.esc(m.component_uuid)}">${this.esc(this.optionModelName(m))} \u00b7 ${this.esc(bits.join(', '))}</option>`;
+                return `<option value="${utils.escapeHtml(m.component_uuid)}">${utils.escapeHtml(this.optionModelName(m))} \u00b7 ${utils.escapeHtml(bits.join(', '))}</option>`;
             }).join('');
         select.disabled = false;
         this.restoreSelection(select, keep);
@@ -2091,7 +2290,7 @@ class RequestsManager {
                 if (u.slot_position) bits.push(u.slot_position);
                 const invId = (u.inventory_id === null || u.inventory_id === undefined)
                     ? '' : String(u.inventory_id);
-                return `<option value="${this.esc(u.component_uuid)}" data-serial="${this.esc(u.serial_number || '')}" data-inventory-id="${this.esc(invId)}">${this.esc(this.optionModelName(u))} \u00b7 ${this.esc(bits.join(' \u00b7 '))}</option>`;
+                return `<option value="${utils.escapeHtml(u.component_uuid)}" data-serial="${utils.escapeHtml(u.serial_number || '')}" data-inventory-id="${utils.escapeHtml(invId)}">${utils.escapeHtml(this.optionModelName(u))} \u00b7 ${utils.escapeHtml(bits.join(' \u00b7 '))}</option>`;
             }).join('');
         select.disabled = false;
         this.restoreSelection(select, keep);
@@ -2230,7 +2429,7 @@ class RequestsManager {
 
         let data = null;
         try {
-            const result = await this.apiPost('pipeline-component-location', params);
+            const result = await api.requestEnvelope('pipeline-component-location', params);
             if (result?.success) data = result.data;
         } catch (e) {
             data = null;   // a courtesy that failed is still only a courtesy
@@ -2306,8 +2505,8 @@ class RequestsManager {
                         <i class="fas fa-box-open mr-1.5 text-warning"></i>We have none of these free
                     </div>
                     <p class="text-xs text-text-secondary mt-1">
-                        No <span class="font-medium text-text-primary">${this.esc(typeLabel)}</span> unit of
-                        <span class="font-medium text-text-primary">${this.esc(label)}</span> is available to fit —
+                        No <span class="font-medium text-text-primary">${utils.escapeHtml(typeLabel)}</span> unit of
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(label)}</span> is available to fit —
                         either we have never had one, or every one we hold is in another server or marked failed.
                         Record the unit first: an admin approves that, the unit exists, and this request unfreezes.
                     </p>
@@ -2359,10 +2558,10 @@ class RequestsManager {
             const only = units.length === 1;
             return `
                 <label class="flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-surface-hover">
-                    <input type="radio" name="plUnitPick" value="${this.esc(id)}" class="mt-1 shrink-0"${only || i === 0 ? ' checked' : ''}>
+                    <input type="radio" name="plUnitPick" value="${utils.escapeHtml(id)}" class="mt-1 shrink-0"${only || i === 0 ? ' checked' : ''}>
                     <span class="text-xs min-w-0">
-                        <span class="font-mono text-text-primary">${this.esc(name)}</span>
-                        <span class="text-text-muted"> \u00b7 ${this.esc(where)}</span>
+                        <span class="font-mono text-text-primary">${utils.escapeHtml(name)}</span>
+                        <span class="text-text-muted"> \u00b7 ${utils.escapeHtml(where)}</span>
                     </span>
                 </label>`;
         }).join('');
@@ -2374,7 +2573,7 @@ class RequestsManager {
                         <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>This part is not at the server's site
                     </div>
                     <p class="text-xs text-text-secondary mt-1">
-                        The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                        The server is at <span class="font-medium text-text-primary">${utils.escapeHtml(serverWhere)}</span>.
                         Every free unit of this model is somewhere else. Move one there first: an admin approves the
                         handover, the person carrying it confirms it has arrived, and only then does this request unfreeze.
                     </p>
@@ -2448,7 +2647,7 @@ class RequestsManager {
 
         let users = [];
         try {
-            const result = await this.apiPost('pipeline-users', { limit: 200 });
+            const result = await api.requestEnvelope('pipeline-users', { limit: 200 });
             if (result?.success) users = result.data?.users || [];
         } catch (e) {
             users = [];
@@ -2464,7 +2663,7 @@ class RequestsManager {
 
         select.disabled = false;
         select.innerHTML = '<option value="">Choose a person...</option>' + users.map((u) =>
-            `<option value="${this.esc(String(u.id))}">${this.esc(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
+            `<option value="${utils.escapeHtml(String(u.id))}">${utils.escapeHtml(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
         ).join('');
     }
 
@@ -2496,7 +2695,7 @@ class RequestsManager {
         }
 
         select.innerHTML = '<option value="">Choose a location...</option>' + locations.map((loc) =>
-            `<option value="${this.esc(loc.location_uuid)}" data-name="${this.esc(loc.name)}">${this.esc(loc.name)}</option>`
+            `<option value="${utils.escapeHtml(loc.location_uuid)}" data-name="${utils.escapeHtml(loc.name)}">${utils.escapeHtml(loc.name)}</option>`
         ).join('');
         select.disabled = false;
 
@@ -2527,8 +2726,8 @@ class RequestsManager {
                 const id = String(u.inventory_id ?? '');
                 const name = u.serial_number || u.asset_tag || `#${id}`;
                 const where = u.address_text || u.location_name || 'location unknown';
-                return `<option value="${this.esc(id)}" data-serial="${this.esc(u.serial_number || '')}"
-                                data-where="${this.esc(u.location_name || '')}">${this.esc(name)} \u00b7 ${this.esc(where)}</option>`;
+                return `<option value="${utils.escapeHtml(id)}" data-serial="${utils.escapeHtml(u.serial_number || '')}"
+                                data-where="${utils.escapeHtml(u.location_name || '')}">${utils.escapeHtml(name)} \u00b7 ${utils.escapeHtml(where)}</option>`;
             }).join('');
         if (keep) select.value = keep;
     }
@@ -2546,7 +2745,7 @@ class RequestsManager {
 
         let users = [];
         try {
-            const result = await this.apiPost('pipeline-users', { limit: 200 });
+            const result = await api.requestEnvelope('pipeline-users', { limit: 200 });
             if (result?.success) users = result.data?.users || [];
         } catch (e) {
             users = [];
@@ -2560,7 +2759,7 @@ class RequestsManager {
 
         select.disabled = false;
         select.innerHTML = '<option value="">Choose a person...</option>' + users.map((u) =>
-            `<option value="${this.esc(String(u.id))}">${this.esc(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
+            `<option value="${utils.escapeHtml(String(u.id))}">${utils.escapeHtml(u.display_name)}${u.is_self ? ' (you)' : ''}</option>`
         ).join('');
 
         if (this.handoverPrefill?.handover_user_id) {
@@ -2586,7 +2785,7 @@ class RequestsManager {
             this.handoverPrefill = null;
             // The type has not been seeded yet. The offer said what to raise;
             // leaving the form blank is better than half-filling the wrong type.
-            this.toast('No "Hardware Handover" request type exists yet \u2014 ask an admin to add it', 'warning');
+            utils.showAlert('No "Hardware Handover" request type exists yet \u2014 ask an admin to add it', 'warning');
             return;
         }
 
@@ -2711,25 +2910,25 @@ class RequestsManager {
             const parent = await this.createFromForm();
             if (!parent) return;                               // createFromForm() toasted
 
-            const result = await this.apiPost('pipeline-create', Object.assign({
+            const result = await api.requestEnvelope('pipeline-create', Object.assign({
                 parent_ticket_id: parent.pipeline_id
             }, child.fields));
 
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed');
-                this.toast(`#${parent.ticket_number} was created, but the prerequisite failed: ${msg}`, 'error');
+                utils.showAlert(`#${parent.ticket_number} was created, but the prerequisite failed: ${msg}`, 'error');
             } else {
-                this.toast('Request and its prerequisite created', 'success');
+                utils.showAlert('Request and its prerequisite created', 'success');
             }
 
             this.closeModal('modalContainer');
             this.resetPrereqState();
-            this.load();
+            this.loadAfterCreate();
             // The PARENT, not the child: the frozen request is what the
             // requester came here for, and it now shows what it waits on.
             this.openDetail(parent.pipeline_id);
         } catch (e) {
-            this.toast('Failed: ' + e.message, 'error');
+            utils.showAlert('Failed: ' + e.message, 'error');
         } finally {
             if (button) { button.disabled = false; button.classList.remove('opacity-60'); }
         }
@@ -2759,12 +2958,12 @@ class RequestsManager {
     async createFromForm() {
         const pipeline_template_id = document.getElementById('plType').value;
         const title = document.getElementById('plTitle').value.trim();
-        if (!pipeline_template_id) { this.toast('Choose a request type', 'error'); return null; }
-        if (!title) { this.toast('Title is required', 'error'); return null; }
+        if (!pipeline_template_id) { utils.showAlert('Choose a request type', 'error'); return null; }
+        if (!title) { utils.showAlert('Title is required', 'error'); return null; }
 
         const problems = this.actionProblems();
         if (problems.length) {
-            if (problems[0]) this.toast(problems[0], 'error');
+            if (problems[0]) utils.showAlert(problems[0], 'error');
             return null;
         }
 
@@ -2781,10 +2980,10 @@ class RequestsManager {
         const action = this.collectAction();
         if (action) fields.actions = JSON.stringify([action]);
 
-        const result = await this.apiPost('pipeline-create', fields);
+        const result = await api.requestEnvelope('pipeline-create', fields);
         if (!result.success || !result.data?.pipeline_id) {
             const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed to create');
-            this.toast(msg, 'error');
+            utils.showAlert(msg, 'error');
             return null;
         }
         return { pipeline_id: result.data.pipeline_id, ticket_number: result.data.ticket_number || '' };
@@ -2799,7 +2998,7 @@ class RequestsManager {
      */
     buildStockChild() {
         if (!this.prereqForm || !this.prereqForm.currentComponentType) {
-            this.toast('The component form has not finished loading', 'error');
+            utils.showAlert('The component form has not finished loading', 'error');
             return null;
         }
         if (typeof this.prereqForm.validateForm === 'function' && !this.prereqForm.validateForm()) {
@@ -2809,7 +3008,7 @@ class RequestsManager {
         const type = this.types.find((t) => t.is_active !== 0
             && this.typeActionCeiling(t).some((a) => a.action_type === 'inventory.component.add'));
         if (!type) {
-            this.toast('No request type can add to inventory yet — ask an admin to add one', 'warning');
+            utils.showAlert('No request type can add to inventory yet — ask an admin to add one', 'warning');
             return null;
         }
 
@@ -2845,23 +3044,23 @@ class RequestsManager {
         const destination = warn?.server?.location_uuid || '';
 
         if (!unit || !unit.inventory_id) {
-            this.toast('Choose which unit is being moved', 'error');
+            utils.showAlert('Choose which unit is being moved', 'error');
             return null;
         }
         if (!destination) {
-            this.toast('The server has no location on record, so nothing can be sent to it', 'error');
+            utils.showAlert('The server has no location on record, so nothing can be sent to it', 'error');
             return null;
         }
 
         const carrier = (document.getElementById('plPrereqCarrier')?.value || '').trim();
         if (!carrier) {
-            this.toast('Choose who is transferring it', 'error');
+            utils.showAlert('Choose who is transferring it', 'error');
             return null;
         }
 
         const type = this.types.find((t) => t.is_active !== 0 && /hardware handover/i.test(t.name || ''));
         if (!type) {
-            this.toast('No "Hardware Handover" request type exists yet — ask an admin to add it', 'warning');
+            utils.showAlert('No "Hardware Handover" request type exists yet — ask an admin to add it', 'warning');
             return null;
         }
 
@@ -2933,7 +3132,7 @@ class RequestsManager {
             <div class="space-y-4">
                 <div class="px-3 py-2.5 rounded-lg border border-border bg-surface-hover">
                     <div class="text-sm text-text-primary">
-                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(created.ticket_number || '')}</span>
+                        <span class="font-mono text-xs font-semibold text-primary">#${utils.escapeHtml(created.ticket_number || '')}</span>
                         was created.
                     </div>
                 </div>
@@ -2942,9 +3141,9 @@ class RequestsManager {
                         <i class="fas fa-triangle-exclamation mr-1.5 text-warning"></i>The part is not there yet
                     </div>
                     <p class="text-xs text-text-secondary">
-                        <span class="font-medium text-text-primary">${this.esc(what)}</span> is at
-                        <span class="font-medium text-text-primary">${this.esc(partWhere)}</span>,
-                        and the server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(what)}</span> is at
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(partWhere)}</span>,
+                        and the server is at <span class="font-medium text-text-primary">${utils.escapeHtml(serverWhere)}</span>.
                     </p>
                     <p class="text-xs text-text-secondary">
                         Approving this request as it stands would be refused. Raise a Hardware Handover to move the
@@ -3028,7 +3227,7 @@ class RequestsManager {
             <div class="space-y-4">
                 <div class="px-3 py-2.5 rounded-lg border border-border bg-surface-hover">
                     <div class="text-sm text-text-primary">
-                        <span class="font-mono text-xs font-semibold text-primary">#${this.esc(created.ticket_number || '')}</span>
+                        <span class="font-mono text-xs font-semibold text-primary">#${utils.escapeHtml(created.ticket_number || '')}</span>
                         was created.
                     </div>
                 </div>
@@ -3037,8 +3236,8 @@ class RequestsManager {
                         <i class="fas fa-box-open mr-1.5 text-warning"></i>This part is not in inventory yet
                     </div>
                     <p class="text-xs text-text-secondary">
-                        No <span class="font-medium text-text-primary">${this.esc(typeLabel)}</span> unit of
-                        <span class="font-medium text-text-primary">${this.esc(label)}</span> exists in stock, so
+                        No <span class="font-medium text-text-primary">${utils.escapeHtml(typeLabel)}</span> unit of
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(label)}</span> exists in stock, so
                         approving this request as it stands would be refused.
                     </p>
                     <p class="text-xs text-text-secondary">
@@ -3103,7 +3302,7 @@ class RequestsManager {
             this.stockPrefill = null;
             // Nothing seeded can perform it. The offer said what to raise;
             // leaving the form blank beats half-filling the wrong type.
-            this.toast('No request type can add to inventory yet \u2014 ask an admin to add one', 'warning');
+            utils.showAlert('No request type can add to inventory yet \u2014 ask an admin to add one', 'warning');
             return;
         }
 
@@ -3129,11 +3328,11 @@ class RequestsManager {
             mount.insertAdjacentHTML('beforebegin', `
                 <div id="plStockWanted" class="mb-3 px-3 py-2.5 rounded-lg border border-warning/30 bg-warning/10">
                     <div class="text-sm font-medium text-text-primary">
-                        <i class="fas fa-crosshairs mr-1.5 text-warning"></i>#${this.esc(pre.ticket_number)} needs this model
+                        <i class="fas fa-crosshairs mr-1.5 text-warning"></i>#${utils.escapeHtml(pre.ticket_number)} needs this model
                     </div>
                     <p class="text-xs text-text-secondary mt-1">
-                        <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(pre.component_type))}</span>
-                        &mdash; <span class="font-medium text-text-primary">${this.esc(pre.label)}</span>${pre.serial_number ? `, serial <span class="font-mono">${this.esc(pre.serial_number)}</span>` : ''}.
+                        <span class="font-medium text-text-primary">${utils.escapeHtml(this.componentTypeLabel(pre.component_type))}</span>
+                        &mdash; <span class="font-medium text-text-primary">${utils.escapeHtml(pre.label)}</span>${pre.serial_number ? `, serial <span class="font-mono">${utils.escapeHtml(pre.serial_number)}</span>` : ''}.
                         Pick it in the dropdowns below. A different model is allowed &mdash; that request will just
                         still be short of the part it named.
                     </p>
@@ -3415,7 +3614,7 @@ class RequestsManager {
         if (!type || !type.stages || !type.stages.length) { box.classList.add('hidden'); return; }
         box.classList.remove('hidden');
         box.innerHTML = `<span class="text-text-muted">Approval path:</span> ` + type.stages.map((s, i) =>
-            `${i ? '<span class="text-text-muted mx-1">→</span>' : ''}<span class="text-text-primary font-medium">${this.esc(s.name)}</span> <span class="text-text-muted">(${this.esc(s.default_assignee?.name || 'unassigned')})</span>`
+            `${i ? '<span class="text-text-muted mx-1">→</span>' : ''}<span class="text-text-primary font-medium">${utils.escapeHtml(s.name)}</span> <span class="text-text-muted">(${utils.escapeHtml(s.default_assignee?.name || 'unassigned')})</span>`
         ).join('');
     }
 
@@ -3427,8 +3626,8 @@ class RequestsManager {
         const target_server_uuid = this.selectedServerUuid();
         const items = this.collectComponentItems();
 
-        if (!pipeline_template_id) return this.toast('Choose a request type', 'error');
-        if (!title) return this.toast('Title is required', 'error');
+        if (!pipeline_template_id) return utils.showAlert('Choose a request type', 'error');
+        if (!title) return utils.showAlert('Title is required', 'error');
 
         // A half-filled action would be refused by the backend anyway — it
         // shape-checks every action and dry-runs the command-backed ones — but
@@ -3438,7 +3637,7 @@ class RequestsManager {
         if (problems.length) {
             // An empty message means the field's own form already said what is
             // wrong and put the cursor in it.
-            if (problems[0]) this.toast(problems[0], 'error');
+            if (problems[0]) utils.showAlert(problems[0], 'error');
             return;
         }
 
@@ -3458,16 +3657,16 @@ class RequestsManager {
         const wanted = this.stockWanted;
         if (wanted && action && action.action_type === 'inventory.component.add'
             && action.payload?.data?.UUID && action.payload.data.UUID !== wanted.component_uuid) {
-            this.toast(`Note: this adds a different model from the one #${wanted.ticket_number} needs (${wanted.label}). Raising it anyway.`, 'warning');
+            utils.showAlert(`Note: this adds a different model from the one #${wanted.ticket_number} needs (${wanted.label}). Raising it anyway.`, 'warning');
         }
 
         try {
-            const result = await this.apiPost('pipeline-create', fields);
+            const result = await api.requestEnvelope('pipeline-create', fields);
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Failed to create');
-                return this.toast(msg, 'error');
+                return utils.showAlert(msg, 'error');
             }
-            this.toast(parent ? 'Prerequisite raised' : 'Request created', 'success');
+            utils.showAlert(parent ? 'Prerequisite raised' : 'Request created', 'success');
 
             // Nobody has the part at all. Checked BEFORE the wrong-site offer
             // below: a model with no units cannot be at the wrong site, and if
@@ -3478,7 +3677,7 @@ class RequestsManager {
                 this.parentContext = null;
                 this.locationWarn = null;
                 this.stockWanted = null;
-                this.load();
+                this.loadAfterCreate();
                 this.offerStockAdd({
                     pipeline_id: result.data.pipeline_id,
                     ticket_number: result.data.ticket_number,
@@ -3495,7 +3694,7 @@ class RequestsManager {
             // hole nobody asked for.
             if (!parent && this.locationWarn && result.data?.pipeline_id) {
                 this.parentContext = null;
-                this.load();
+                this.loadAfterCreate();
                 this.offerHandover({
                     pipeline_id: result.data.pipeline_id,
                     ticket_number: result.data.ticket_number,
@@ -3509,22 +3708,27 @@ class RequestsManager {
             this.parentContext = null;
             this.locationWarn = null;
             this.stockWanted = null;
-            this.load();
+            this.loadAfterCreate();
             // Back to the PARENT, not the new child: the frozen request is where
             // the user came from, and it now shows the prerequisite it is
             // waiting on. The child is one click away from there.
             if (parent) this.openDetail(parent.id);
             else if (result.data?.pipeline_id) this.openDetail(result.data.pipeline_id);
         } catch (e) {
-            this.toast('Failed to create request: ' + e.message, 'error');
+            utils.showAlert('Failed to create request: ' + e.message, 'error');
         }
     }
 
     // ----- Detail + stepper --------------------------------------------------
     async openDetail(id) {
+        // Two clicks on the same row (or a row clicked while another request is
+        // still loading) used to run two pipeline-get calls and render whichever
+        // came back last. Only the newest open wins.
+        const seq = ++this.detailSeq;
         try {
-            const result = await this.apiPost('pipeline-get', { pipeline_id: id });
-            if (!result.success) return this.toast(result.message || 'Failed to load request', 'error');
+            const result = await api.requestEnvelope('pipeline-get', { pipeline_id: id });
+            if (seq !== this.detailSeq) return;
+            if (!result.success) return utils.showAlert(result.message || 'Failed to load request', 'error');
             this.currentDetail = result.data.pipeline;
             this.historyFilter = { q: '', action: '', user: '', from: '', to: '' };
             // Only when there is a gap to name: loading the catalogue is eleven
@@ -3537,7 +3741,7 @@ class RequestsManager {
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
         } catch (e) {
-            this.toast('Failed to load request: ' + e.message, 'error');
+            utils.showAlert('Failed to load request: ' + e.message, 'error');
         }
     }
 
@@ -3556,10 +3760,10 @@ class RequestsManager {
                         </thead>
                         <tbody class="divide-y divide-border">
                             ${p.items.map((it) => `<tr>
-                                <td class="px-3 py-2 text-text-secondary">${this.esc(it.component_type)}</td>
-                                <td class="px-3 py-2 text-text-primary">${this.esc(it.component_name || 'N/A')}</td>
-                                <td class="px-3 py-2 text-text-secondary">${this.esc(it.quantity)}</td>
-                                <td class="px-3 py-2 capitalize text-text-secondary">${this.esc(it.action)}</td>
+                                <td class="px-3 py-2 text-text-secondary">${utils.escapeHtml(it.component_type)}</td>
+                                <td class="px-3 py-2 text-text-primary">${utils.escapeHtml(it.component_name || 'N/A')}</td>
+                                <td class="px-3 py-2 text-text-secondary">${utils.escapeHtml(it.quantity)}</td>
+                                <td class="px-3 py-2 capitalize text-text-secondary">${utils.escapeHtml(it.action)}</td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
@@ -3579,7 +3783,7 @@ class RequestsManager {
                     <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested (historical)
                 </div>
                 <ul class="text-xs text-text-secondary space-y-0.5">
-                    ${asked.map((a) => `<li>&bull; <code class="font-mono">${this.esc(a)}</code></li>`).join('')}
+                    ${asked.map((a) => `<li>&bull; <code class="font-mono">${utils.escapeHtml(a)}</code></li>`).join('')}
                 </ul>
                 <div class="text-xs text-text-muted mt-2">
                     Raised under the old model, where approval handed these permissions over for
@@ -3611,16 +3815,16 @@ class RequestsManager {
         body.innerHTML = `
             <div class="flex flex-wrap items-center gap-2 mb-1">
                 ${this.statusBadge(p.status)} ${this.priorityBadge(p.priority)}
-                <span class="text-xs text-text-muted">${this.esc(p.pipeline_type?.name || 'Request')}</span>
+                <span class="text-xs text-text-muted">${utils.escapeHtml(p.pipeline_type?.name || 'Request')}</span>
             </div>
-            <h3 class="text-lg font-semibold text-text-primary">${this.esc(p.title)}</h3>
-            ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${this.esc(p.description)}</p>` : ''}
+            <h3 class="text-lg font-semibold text-text-primary">${utils.escapeHtml(p.title)}</h3>
+            ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${utils.escapeHtml(p.description)}</p>` : ''}
             <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
-                <span><i class="fas fa-user-pen mr-1"></i>Created by ${this.esc(p.created_by?.username || 'N/A')}</span>
-                ${p.created_at ? `<span title="${this.esc(p.created_at)} UTC"><i class="fas fa-clock mr-1"></i>Created ${this.esc(this.fmtDate(p.created_at))}</span>` : ''}
-                ${p.target_server_uuid ? `<span title="${this.esc(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${this.esc(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
-                ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${this.esc(p.parent.ticket_number)}</button></span>` : ''}
-                ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${this.esc(p.cancel_reason)}</span>` : ''}
+                <span><i class="fas fa-user-pen mr-1"></i>Created by ${utils.escapeHtml(p.created_by?.username || 'N/A')}</span>
+                ${p.created_at ? `<span title="${utils.escapeHtml(p.created_at)} UTC"><i class="fas fa-clock mr-1"></i>Created ${utils.escapeHtml(this.fmtDate(p.created_at))}</span>` : ''}
+                ${p.target_server_uuid ? `<span title="${utils.escapeHtml(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${utils.escapeHtml(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
+                ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${utils.escapeHtml(p.parent.ticket_number)}</button></span>` : ''}
+                ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${utils.escapeHtml(p.cancel_reason)}</span>` : ''}
             </div>
             ${this.blockedBanner(p)}
             ${actionsBlock}
@@ -3664,12 +3868,12 @@ class RequestsManager {
         const inputCls = 'px-2 py-1 text-xs border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
         const actions = [...new Set(entries.map((h) => h.action).filter(Boolean))].sort();
         const users = [...new Set(entries.map((h) => h.changed_by || 'system'))].sort();
-        const opt = (v, label, sel) => `<option value="${this.esc(v)}"${sel === v ? ' selected' : ''}>${this.esc(label)}</option>`;
+        const opt = (v, label, sel) => `<option value="${utils.escapeHtml(v)}"${sel === v ? ' selected' : ''}>${utils.escapeHtml(label)}</option>`;
 
         // A single entry is nothing to sift through; the bar would be clutter.
         const bar = entries.length > 1 ? `
             <div class="flex flex-wrap items-center gap-2 mb-2">
-                <input id="plHistorySearch" type="search" placeholder="Search activity..." value="${this.esc(f.q)}"
+                <input id="plHistorySearch" type="search" placeholder="Search activity..." value="${utils.escapeHtml(f.q)}"
                     class="flex-1 min-w-0 ${inputCls}">
                 <select id="plHistoryAction" class="${inputCls}">
                     ${opt('', 'All events', f.action)}${actions.map((a) => opt(a, a.replace(/_/g, ' '), f.action)).join('')}
@@ -3677,8 +3881,8 @@ class RequestsManager {
                 <select id="plHistoryUser" class="${inputCls}">
                     ${opt('', 'Anyone', f.user)}${users.map((u) => opt(u, u, f.user)).join('')}
                 </select>
-                <input id="plHistoryFrom" type="date" title="From date" value="${this.esc(f.from)}" class="${inputCls}">
-                <input id="plHistoryTo" type="date" title="To date" value="${this.esc(f.to)}" class="${inputCls}">
+                <input id="plHistoryFrom" type="date" title="From date" value="${utils.escapeHtml(f.from)}" class="${inputCls}">
+                <input id="plHistoryTo" type="date" title="To date" value="${utils.escapeHtml(f.to)}" class="${inputCls}">
             </div>` : '';
 
         return `
@@ -3721,7 +3925,7 @@ class RequestsManager {
 
         list.innerHTML = shown.length ? shown.map((h) => `<li class="text-xs text-text-muted flex gap-2">
             <i class="fas fa-circle text-[5px] mt-1.5 text-text-muted"></i>
-            <span><span class="text-text-secondary font-medium">${this.esc((h.action || '').replace(/_/g, ' '))}</span>${h.notes ? ` — ${this.esc(h.notes)}` : ''} <span class="text-text-disabled">· ${this.esc(h.changed_by || 'system')} · ${this.fmtDate(h.created_at)}</span></span>
+            <span><span class="text-text-secondary font-medium">${utils.escapeHtml((h.action || '').replace(/_/g, ' '))}</span>${h.notes ? ` — ${utils.escapeHtml(h.notes)}` : ''} <span class="text-text-disabled">· ${utils.escapeHtml(h.changed_by || 'system')} · ${this.fmtDate(h.created_at)}</span></span>
         </li>`).join('') : '<li class="text-xs text-text-muted">No activity matches these filters.</li>';
 
         const count = document.getElementById('plHistoryCount');
@@ -3753,8 +3957,8 @@ class RequestsManager {
 
         const rows = blockers.map((b) => `
             <li class="flex items-center gap-2 flex-wrap">
-                <button type="button" data-open-request="${b.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${this.esc(b.ticket_number)}</button>
-                <span class="text-xs text-text-secondary">${this.esc(b.pipeline_type_name || 'Request')}</span>
+                <button type="button" data-open-request="${b.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${utils.escapeHtml(b.ticket_number)}</button>
+                <span class="text-xs text-text-secondary">${utils.escapeHtml(b.pipeline_type_name || 'Request')}</span>
                 ${this.statusBadge(b.status)}
                 ${(b.status === 'rejected' && this.perms.manage) ? `
                     <button type="button" data-unlink-child="${b.id}"
@@ -3811,8 +4015,8 @@ class RequestsManager {
                 : '';
             return `
             <li class="text-xs text-text-secondary">
-                &bull; <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(g.component_type))}</span>
-                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>${g.serial_number ? `, serial <span class="font-mono">${this.esc(g.serial_number)}</span>` : ''}${holding}
+                &bull; <span class="font-medium text-text-primary">${utils.escapeHtml(this.componentTypeLabel(g.component_type))}</span>
+                &mdash; <span class="font-medium text-text-primary">${utils.escapeHtml(this.modelLabel(g.component_type, g.component_uuid))}</span>${g.serial_number ? `, serial <span class="font-mono">${utils.escapeHtml(g.serial_number)}</span>` : ''}${holding}
             </li>`;
         }).join('');
 
@@ -3835,9 +4039,9 @@ class RequestsManager {
                     </div>
                     ${canRaise ? `
                         <button type="button" id="plRaiseStockRecord"
-                            data-stock-type="${this.esc(first.component_type)}"
-                            data-stock-uuid="${this.esc(first.component_uuid)}"
-                            data-stock-serial="${this.esc(first.serial_number || '')}"
+                            data-stock-type="${utils.escapeHtml(first.component_type)}"
+                            data-stock-uuid="${utils.escapeHtml(first.component_uuid)}"
+                            data-stock-serial="${utils.escapeHtml(first.serial_number || '')}"
                             class="mt-3 px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:bg-surface-hover transition-colors flex items-center gap-1.5">
                             <i class="fas fa-plus"></i> Add it to inventory
                         </button>` : ''}
@@ -3874,9 +4078,9 @@ class RequestsManager {
             const unique = [...new Set(where)];
             return `
             <li class="text-xs text-text-secondary">
-                &bull; <span class="font-medium text-text-primary">${this.esc(this.componentTypeLabel(g.component_type))}</span>
-                &mdash; <span class="font-medium text-text-primary">${this.esc(this.modelLabel(g.component_type, g.component_uuid))}</span>
-                ${unique.length ? `is at <span class="font-medium text-text-primary">${this.esc(unique.join(', '))}</span>` : 'is somewhere else'}
+                &bull; <span class="font-medium text-text-primary">${utils.escapeHtml(this.componentTypeLabel(g.component_type))}</span>
+                &mdash; <span class="font-medium text-text-primary">${utils.escapeHtml(this.modelLabel(g.component_type, g.component_uuid))}</span>
+                ${unique.length ? `is at <span class="font-medium text-text-primary">${utils.escapeHtml(unique.join(', '))}</span>` : 'is somewhere else'}
             </li>`;
         }).join('');
 
@@ -3887,7 +4091,7 @@ class RequestsManager {
                     <div class="text-sm font-medium text-text-primary">The part is not at the server's site</div>
                     <ul class="mt-1.5 space-y-0.5">${rows}</ul>
                     <div class="text-xs text-text-secondary mt-2">
-                        The server is at <span class="font-medium text-text-primary">${this.esc(serverWhere)}</span>.
+                        The server is at <span class="font-medium text-text-primary">${utils.escapeHtml(serverWhere)}</span>.
                         Approving this will be refused until the hardware is there. Raise a Hardware Handover as a
                         prerequisite: an admin approves it, the person carrying it confirms it has arrived, and this
                         request unfreezes on its own.
@@ -3918,12 +4122,12 @@ class RequestsManager {
             <li class="flex items-start justify-between gap-3 px-3 py-2 rounded-lg border border-border ${c.blocks ? 'bg-surface-hover' : 'bg-surface-card'}">
                 <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <button type="button" data-open-request="${c.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${this.esc(c.ticket_number)}</button>
-                        <span class="text-xs text-text-muted">${this.esc(c.pipeline_type_name || 'Request')}</span>
+                        <button type="button" data-open-request="${c.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${utils.escapeHtml(c.ticket_number)}</button>
+                        <span class="text-xs text-text-muted">${utils.escapeHtml(c.pipeline_type_name || 'Request')}</span>
                     </div>
-                    <div class="text-sm text-text-primary mt-0.5">${this.esc(c.title)}</div>
+                    <div class="text-sm text-text-primary mt-0.5">${utils.escapeHtml(c.title)}</div>
                     ${(c.status === 'rejected' && c.rejection_reason)
-                        ? `<div class="text-xs text-danger mt-1"><i class="fas fa-xmark mr-1"></i>${this.esc(c.rejection_reason)}</div>`
+                        ? `<div class="text-xs text-danger mt-1"><i class="fas fa-xmark mr-1"></i>${utils.escapeHtml(c.rejection_reason)}</div>`
                         : ''}
                 </div>
                 <div class="shrink-0">${this.statusBadge(c.status)}</div>
@@ -3993,9 +4197,9 @@ class RequestsManager {
                 <li class="flex items-start gap-2 px-3 py-2 rounded-lg border ${border} ${bg}">
                     <span class="mt-0.5">${icon}</span>
                     <div class="min-w-0">
-                        <div class="text-sm text-text-primary">${this.esc(a.summary || a.action_type)}</div>
+                        <div class="text-sm text-text-primary">${utils.escapeHtml(a.summary || a.action_type)}</div>
                         <div class="text-xs text-text-muted mt-0.5">
-                            <code class="font-mono">${this.esc(a.action_type)}</code>
+                            <code class="font-mono">${utils.escapeHtml(a.action_type)}</code>
                         </div>
                         ${this.renderActionPayload(a)}
                         ${this.renderActionResult(a)}
@@ -4064,8 +4268,8 @@ class RequestsManager {
             .map((k) => {
                 const value = k === 'Status' ? (STATUS[String(values[k])] || values[k]) : values[k];
                 return `<div class="text-xs">
-                    <span class="text-text-muted">${this.esc(LABELS[k])}:</span>
-                    <span class="text-text-secondary">${this.esc(String(value))}</span>
+                    <span class="text-text-muted">${utils.escapeHtml(LABELS[k])}:</span>
+                    <span class="text-text-secondary">${utils.escapeHtml(String(value))}</span>
                 </div>`;
             }).join('');
 
@@ -4101,8 +4305,8 @@ class RequestsManager {
 
         const rows = component.specs.map((s) => `
             <div class="text-xs min-w-0">
-                <span class="text-text-muted">${this.esc(s.label)}:</span>
-                <span class="text-text-secondary break-words">${this.esc(s.value)}</span>
+                <span class="text-text-muted">${utils.escapeHtml(s.label)}:</span>
+                <span class="text-text-secondary break-words">${utils.escapeHtml(s.value)}</span>
             </div>`).join('');
 
         const subtitle = [component.series, (component.type || '').toUpperCase()]
@@ -4110,8 +4314,8 @@ class RequestsManager {
 
         return `
             <div class="mt-2 pt-2 border-t border-border">
-                <div class="text-xs font-semibold text-text-primary break-words">${this.esc(component.name)}</div>
-                ${subtitle ? `<div class="text-[11px] text-text-muted">${this.esc(subtitle)}</div>` : ''}
+                <div class="text-xs font-semibold text-text-primary break-words">${utils.escapeHtml(component.name)}</div>
+                ${subtitle ? `<div class="text-[11px] text-text-muted">${utils.escapeHtml(subtitle)}</div>` : ''}
                 <div class="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">${rows}</div>
             </div>`;
     }
@@ -4122,8 +4326,8 @@ class RequestsManager {
 
         if (a.status === 'failed') {
             const code = a.result.error_code
-                ? `<code class="font-mono">${this.esc(a.result.error_code)}</code> — ` : '';
-            return `<div class="text-xs text-danger mt-1">${code}${this.esc(a.result.message || 'Failed')}</div>`;
+                ? `<code class="font-mono">${utils.escapeHtml(a.result.error_code)}</code> — ` : '';
+            return `<div class="text-xs text-danger mt-1">${code}${utils.escapeHtml(a.result.message || 'Failed')}</div>`;
         }
 
         // Named facts, not raw JSON: an approver reading back what happened
@@ -4140,7 +4344,7 @@ class RequestsManager {
             .filter((k) => a.result[k] !== undefined && a.result[k] !== null && a.result[k] !== '')
             .map((k) => {
                 const raw = Array.isArray(a.result[k]) ? a.result[k].join(', ') : a.result[k];
-                return `${LABELS[k]}: ${this.esc(String(raw))}`;
+                return `${LABELS[k]}: ${utils.escapeHtml(String(raw))}`;
             });
 
         return facts.length
@@ -4200,10 +4404,10 @@ class RequestsManager {
         if (!failure) return '';
 
         const where = failure.position
-            ? `Action ${failure.position}${failure.action_type ? ` (${this.esc(failure.action_type)})` : ''}`
+            ? `Action ${failure.position}${failure.action_type ? ` (${utils.escapeHtml(failure.action_type)})` : ''}`
             : 'An action';
         const code = failure.error_code
-            ? ` <code class="font-mono">${this.esc(failure.error_code)}</code>` : '';
+            ? ` <code class="font-mono">${utils.escapeHtml(failure.error_code)}</code>` : '';
 
         return `
             <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-danger bg-danger-light">
@@ -4211,7 +4415,7 @@ class RequestsManager {
                 <div class="text-sm">
                     <div class="font-medium text-danger">Approval was rolled back — nothing was changed</div>
                     <div class="text-xs text-text-secondary mt-1">
-                        ${where} failed:${code} ${this.esc(failure.message || 'no reason given')}
+                        ${where} failed:${code} ${utils.escapeHtml(failure.message || 'no reason given')}
                     </div>
                     <div class="text-xs text-text-muted mt-1">
                         The request is still open and the step is still active. Fix the cause and approve again.
@@ -4224,11 +4428,11 @@ class RequestsManager {
     serverIdentity(p) {
         const ts = p.target_server;
         const uuid = p.target_server_uuid || '';
-        if (!ts || !ts.name) return `<code>${this.esc(uuid)}</code>`;
+        if (!ts || !ts.name) return `<code>${utils.escapeHtml(uuid)}</code>`;
         const bits = [ts.status, ts.location, ts.rack_position].filter(Boolean).join(' · ');
-        return `<span class="font-medium text-text-primary">${this.esc(ts.name)}</span>`
-            + (bits ? ` <span class="text-text-muted">(${this.esc(bits)})</span>` : '')
-            + ` <code class="text-text-muted">${this.esc(uuid)}</code>`;
+        return `<span class="font-medium text-text-primary">${utils.escapeHtml(ts.name)}</span>`
+            + (bits ? ` <span class="text-text-muted">(${utils.escapeHtml(bits)})</span>` : '')
+            + ` <code class="text-text-muted">${utils.escapeHtml(uuid)}</code>`;
     }
 
     renderStep(stage, pipeline, terminal) {
@@ -4244,16 +4448,16 @@ class RequestsManager {
         const isActive = stage.status === 'active';
         let meta = '';
         if (stage.status === 'completed') {
-            meta = `<span class="text-text-muted">Done by ${this.esc(stage.completed_by?.username || 'N/A')} · ${this.fmtDate(stage.completed_at)}</span>`;
-            if (stage.notes) meta += `<div class="text-text-secondary mt-1 bg-surface-secondary/40 border border-border rounded-md px-2.5 py-1.5">${this.esc(stage.notes)}</div>`;
+            meta = `<span class="text-text-muted">Done by ${utils.escapeHtml(stage.completed_by?.username || 'N/A')} · ${this.fmtDate(stage.completed_at)}</span>`;
+            if (stage.notes) meta += `<div class="text-text-secondary mt-1 bg-surface-secondary/40 border border-border rounded-md px-2.5 py-1.5">${utils.escapeHtml(stage.notes)}</div>`;
         } else if (isActive) {
             meta = stage.claimed_by
-                ? `<span class="text-text-secondary"><i class="fas fa-hand mr-1 text-primary"></i>Claimed by ${this.esc(stage.claimed_by.username)}</span>`
+                ? `<span class="text-text-secondary"><i class="fas fa-hand mr-1 text-primary"></i>Claimed by ${utils.escapeHtml(stage.claimed_by.username)}</span>`
                 : `<span class="text-text-muted">Waiting to be accepted</span>`;
         }
 
         const instructions = (isActive && stage.instructions)
-            ? `<p class="text-xs text-text-muted mt-1.5"><i class="fas fa-circle-info mr-1"></i>${this.esc(stage.instructions)}</p>` : '';
+            ? `<p class="text-xs text-text-muted mt-1.5"><i class="fas fa-circle-info mr-1"></i>${utils.escapeHtml(stage.instructions)}</p>` : '';
 
         const actions = isActive && !terminal ? this.stepActions(stage, pipeline) : '';
 
@@ -4262,7 +4466,7 @@ class RequestsManager {
                 <div class="pl-node">${nodeIcon}</div>
                 <div class="${isActive ? 'bg-surface-secondary/40 border border-border rounded-lg p-3' : 'py-1'}">
                     <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <span class="text-sm font-semibold ${isActive ? 'text-text-primary' : (stage.status === 'completed' ? 'text-text-primary' : 'text-text-secondary')}">${this.esc(stage.name)}</span>
+                        <span class="text-sm font-semibold ${isActive ? 'text-text-primary' : (stage.status === 'completed' ? 'text-text-primary' : 'text-text-secondary')}">${utils.escapeHtml(stage.name)}</span>
                         ${this.ownerBadge(stage.owner, stage.claimed_by)}
                     </div>
                     <div class="text-xs mt-1">${meta}</div>
@@ -4315,7 +4519,7 @@ class RequestsManager {
         const showReassign = this.perms.reassign || this.perms.manage;
 
         if (!showAccept && !showComplete && !showReassign) {
-            return `<p class="text-xs text-text-muted mt-2 italic">This step is with ${this.esc(stage.owner?.name || 'someone else')}.</p>`;
+            return `<p class="text-xs text-text-muted mt-2 italic">This step is with ${utils.escapeHtml(stage.owner?.name || 'someone else')}.</p>`;
         }
 
         // Does completing THIS step perform the request's work? Only the step
@@ -4463,7 +4667,7 @@ class RequestsManager {
             } else if (act === 'reject') {
                 btn.addEventListener('click', () => {
                     const reason = body.querySelector(`[data-reject-reason="${stageId}"]`)?.value.trim() || '';
-                    if (!reason) return this.toast('Give a reason — the requester will see it', 'error');
+                    if (!reason) return utils.showAlert('Give a reason — the requester will see it', 'error');
                     this.rejectStage(p.id, stageId, reason);
                 });
             } else if (act === 'reassign-toggle') {
@@ -4481,7 +4685,7 @@ class RequestsManager {
                 btn.addEventListener('click', () => {
                     const type = body.querySelector(`[data-reassign-type="${stageId}"]`).value;
                     const id = body.querySelector(`[data-reassign-id="${stageId}"]`).value;
-                    if (!id) return this.toast('Pick who to reassign to', 'error');
+                    if (!id) return utils.showAlert('Pick who to reassign to', 'error');
                     this.reassignStage(p.id, stageId, type, id);
                 });
             }
@@ -4503,7 +4707,7 @@ class RequestsManager {
         if (this.perms.manage) return true;
         const o = stage.owner;
         if (o && o.type === 'user' && Number(o.id) === Number(this.currentUserId)) return true;
-        if (o && o.type === 'role' && (this.currentRoleIds.includes(Number(o.id)) || this.currentRoleNames.includes(o.name))) return true;
+        if (this.ownsRole(o)) return true;
         if (stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId)) return true;
         return false;
     }
@@ -4567,7 +4771,7 @@ class RequestsManager {
 
     async stageAction(action, fields, successMsg) {
         try {
-            const result = await this.apiPost(action, fields);
+            const result = await api.requestEnvelope(action, fields);
 
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Action failed');
@@ -4586,7 +4790,7 @@ class RequestsManager {
                         this.currentDetail = result.data.pipeline;
                         this.renderDetail(this.currentDetail);
                     }
-                    this.toast('Approval was rolled back — nothing was changed', 'error');
+                    utils.showAlert('Approval was rolled back — nothing was changed', 'error');
                     return;
                 }
 
@@ -4598,17 +4802,17 @@ class RequestsManager {
                     this.currentDetail = result.data.pipeline;
                     this.renderDetail(this.currentDetail);
                 }
-                return this.toast(msg, 'error');
+                return utils.showAlert(msg, 'error');
             }
 
-            this.toast(successMsg || result.message || 'Done', 'success');
+            utils.showAlert(successMsg || result.message || 'Done', 'success');
             if (result.data?.pipeline) {
                 this.currentDetail = result.data.pipeline;
                 this.renderDetail(this.currentDetail);
             }
             this.load();
         } catch (e) {
-            this.toast('Action failed: ' + e.message, 'error');
+            utils.showAlert('Action failed: ' + e.message, 'error');
         }
     }
 
@@ -4633,34 +4837,42 @@ class RequestsManager {
      * different things on two screens.
      */
     componentTypeLabel(type) {
-        const LABELS = {
-            cpu: 'CPU',
-            motherboard: 'Motherboard',
-            ram: 'RAM',
-            storage: 'Storage',
-            nic: 'Network Card',
-            hbacard: 'HBA Card',
-            pciecard: 'PCIe Card',
-            risercard: 'Riser Card',
-            chassis: 'Chassis',
-            caddy: 'Drive Caddy',
-            sfp: 'SFP Transceiver'
-        };
-        return LABELS[type] || String(type || '').toUpperCase();
+        // utils.componentLabelsSingular is the one copy of this vocabulary. The
+        // local map this replaced was missing `serverplatform`, so a compute
+        // platform showed as "SERVERPLATFORM" via the fallback below.
+        return (utils.componentLabelsSingular || {})[type]
+            || String(type || '').toUpperCase();
     }
 
+    /**
+     * Pull every component type's spec file so the model pickers can be filled.
+     *
+     * This is ~540 KB across twelve files. It USED to fetch them one after another
+     * with `await` inside the loop, so the twelve round trips were serialised and
+     * the Create dialog waited for all of them end to end; they are independent, so
+     * they now go out together. Twelve parallel requests, one slowest-file wait.
+     *
+     * The real fix is to stop shipping the catalogue to the browser at all and use
+     * `api.models.search()` (the `search-models` endpoint exists and returns ~20
+     * ranked matches). That changes what the pickers show, so it is a separate
+     * change with its own click-through -- see the audit's Phase G.
+     *
+     * A single type failing is non-fatal: it keeps its empty array, exactly as
+     * the sequential version did.
+     */
     async loadComponentData() {
         if (this.componentData) return;
         this._specPaths = await utils.specPaths();
         const paths = this.componentSpecPaths();
         this.componentData = {};
         Object.keys(paths).forEach((type) => { this.componentData[type] = []; });
-        for (const [type, path] of Object.entries(paths)) {
+
+        await Promise.all(Object.entries(paths).map(async ([type, path]) => {
             try {
                 const res = await fetch(path);
                 if (res.ok) this.componentData[type] = this.flattenComponents(await res.json());
             } catch (e) { /* optional */ }
-        }
+        }));
     }
 
     /**
@@ -4725,7 +4937,7 @@ class RequestsManager {
 
     componentTypeOptions(types) {
         return `<option value="">Type</option>`
-            + types.map((t) => `<option value="${t}">${this.esc(this.componentTypeLabel(t))}</option>`).join('');
+            + types.map((t) => `<option value="${t}">${utils.escapeHtml(this.componentTypeLabel(t))}</option>`).join('');
     }
 
     /**
@@ -4815,11 +5027,11 @@ class RequestsManager {
     // ----- Shared UI helpers -------------------------------------------------
     ownerBadge(owner, claimedBy) {
         if (claimedBy) {
-            return `<span class="text-xs text-primary"><i class="fas fa-user-check mr-1"></i>${this.esc(claimedBy.username)}</span>`;
+            return `<span class="text-xs text-primary"><i class="fas fa-user-check mr-1"></i>${utils.escapeHtml(claimedBy.username)}</span>`;
         }
         if (!owner) return `<span class="text-xs text-text-muted"><i class="fas fa-user-slash mr-1"></i>Unassigned</span>`;
         const isRole = owner.type === 'role';
-        return `<span class="text-xs ${isRole ? 'text-primary' : 'text-text-secondary'}"><i class="fas fa-${isRole ? 'users' : 'user'} mr-1"></i>${this.esc(owner.name || (isRole ? 'Role' : 'User'))}</span>`;
+        return `<span class="text-xs ${isRole ? 'text-primary' : 'text-text-secondary'}"><i class="fas fa-${isRole ? 'users' : 'user'} mr-1"></i>${utils.escapeHtml(owner.name || (isRole ? 'Role' : 'User'))}</span>`;
     }
 
     statusBadge(status) {
@@ -4831,7 +5043,7 @@ class RequestsManager {
             draft: { c: 'text-text-muted', i: 'fa-file', l: 'Draft' }
         };
         const cfg = map[status] || { c: 'text-text-muted', i: 'fa-circle', l: status || 'Unknown' };
-        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${cfg.c}"><i class="fas ${cfg.i} text-[9px]"></i>${this.esc(cfg.l)}</span>`;
+        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${cfg.c}"><i class="fas ${cfg.i} text-[9px]"></i>${utils.escapeHtml(cfg.l)}</span>`;
     }
 
     priorityBadge(priority) {
@@ -4843,7 +5055,7 @@ class RequestsManager {
         };
         const cfg = map[priority] || { c: 'text-text-muted', i: 'fa-circle' };
         const label = priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Normal';
-        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${cfg.c}"><i class="fas ${cfg.i} text-[9px]"></i>${this.esc(label)}</span>`;
+        return `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${cfg.c}"><i class="fas ${cfg.i} text-[9px]"></i>${utils.escapeHtml(label)}</span>`;
     }
 
     closeModal(id) {
@@ -4854,10 +5066,11 @@ class RequestsManager {
         ['pipelinesLoadingState', 'pipelinesErrorState', 'pipelinesEmptyState'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
         const list = document.getElementById('pipelinesList');
         if (state === 'ready') { list?.classList.remove('hidden'); return; }
-        if (state !== 'empty') list?.classList.add('hidden');
+        // Every non-ready state hides the list. It used to be left visible under
+        // the empty panel, which only ever showed the previous view's rows.
+        list?.classList.add('hidden');
         const map = { loading: 'pipelinesLoadingState', error: 'pipelinesErrorState', empty: 'pipelinesEmptyState' };
         if (map[state]) document.getElementById(map[state])?.classList.remove('hidden');
-        if (state === 'empty') list?.classList.remove('hidden');
         if (state === 'error') {
             const el = document.getElementById('pipelinesErrorMessage');
             if (el) el.textContent = message || 'An error occurred';
@@ -4880,22 +5093,6 @@ class RequestsManager {
             timeZone: 'Asia/Kolkata',
             month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-    }
-
-    toast(message, type = 'info') {
-        if (window.toastNotification) window.toastNotification.show(message, type);
-        else if (window.toast && window.toast[type]) window.toast[type](message);
-        else alert(message);
-    }
-
-    esc(text) {
-        if (text === null || text === undefined) return '';
-        // Character map rather than textContent -> innerHTML: HTML text-node
-        // serialisation escapes only & < > and leaves both quote characters
-        // intact, which is unsafe wherever this value lands inside an attribute
-        // (title=, data-*, aria-label=, value=).
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return String(text).replace(/[&<>"']/g, m => map[m]);
     }
 }
 
