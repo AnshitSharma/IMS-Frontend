@@ -1042,9 +1042,17 @@ window.api = {
 
     // ACL & Roles management endpoints
     acl: {
-        // Get all roles
+        // Get all roles.
+        //
+        // E.2 (backend audit 2026-09-21 §3.5): this called acl-get_all_roles,
+        // one of two API surfaces answering the same question. roles-list is the
+        // survivor — it returns the same seven roles with the same display_name
+        // and description, plus user_count and permission_count, and names the
+        // slug `name` where the retired action said `role_name`. The only reader
+        // of role_name in this codebase (acl-manager.js:208) already falls back
+        // through `role.name`, so nothing downstream changes.
         async getAllRoles() {
-            return await api.request('acl-get_all_roles');
+            return await api.request('roles-list');
         },
 
         // Get all permissions (grouped by category)
