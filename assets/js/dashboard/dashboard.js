@@ -674,13 +674,17 @@ class Dashboard {
                 // fallback below also matches it server-side, which is what finds
                 // a server whose page of the list has not been loaded.
                 const serial = (server.serial_number || '').toLowerCase();
+                // Recorded public/private IPs, so "10.0.4." or a full address
+                // finds the server. search-by-serial matches them server-side too.
+                const ips = (server.ip_addresses || []).map(ip => (ip.ip_address || '').toLowerCase());
 
                 return name.includes(search) ||
                     description.includes(search) ||
                     location.includes(search) ||
                     notes.includes(search) ||
                     uuid.includes(search) ||
-                    serial.includes(search);
+                    serial.includes(search) ||
+                    ips.some(ip => ip.includes(search));
             });
 
             if (localMatches.length > 0) {
@@ -844,6 +848,18 @@ class Dashboard {
                             <div class="text-sm font-semibold text-text-primary truncate"${title ? ` title="${title}"` : ''}>${value || '—'}</div>
                         </div>`;
 
+        // Recorded IPs of one type (server-list-configs' ip_addresses; absent on an
+        // older backend). The first address, "+N" for the rest, all of them with
+        // their labels on hover.
+        const ipCell = (server, type, label) => {
+            const ips = (server.ip_addresses || []).filter(ip => ip.ip_type === type);
+            if (!ips.length) return factCell(label, '', '');
+            const value = utils.escapeHtml(ips[0].ip_address)
+                + (ips.length > 1 ? ` <span class="text-text-muted font-normal">+${ips.length - 1}</span>` : '');
+            const title = ips.map(ip => ip.label ? `${ip.ip_address} (${ip.label})` : ip.ip_address).join(', ');
+            return factCell(label, value, utils.escapeHtml(title));
+        };
+
         // One header icon button. They sit in a single bordered cluster, divided
         // rather than spaced, so the group reads as one control.
         const iconButton = (icon, hoverClass, onclick, title, aria) => `
@@ -873,7 +889,7 @@ class Dashboard {
                         <div class="flex items-center rounded-lg border border-border divide-x divide-border overflow-hidden">
                             ${canOpenEditDialog ? iconButton('fa-pen', 'hover:bg-primary/10 hover:text-primary',
                                 `event.stopPropagation(); dashboard.showServerEditModal('${server.config_uuid}')`,
-                                'Edit server — name, details, location and status',
+                                'Edit server — name, details, location, IPs and status',
                                 "Edit this server's details or change its status") : ''}
                             ${iconButton('fa-history', 'hover:bg-primary/10 hover:text-primary',
                                 `event.stopPropagation(); dashboard.showServerLogs('${server.config_uuid}', ${utils.jsArg(server.server_name || 'Unnamed Server')})`,
@@ -894,6 +910,8 @@ class Dashboard {
                     ${factCell('Server', utils.escapeHtml(server.platform_name || server.motherboard_name || ''), utils.escapeHtml(server.platform_name || server.motherboard_name || ''))}
                     ${factCell('Storage', utils.escapeHtml(this._serverStorageText(server.storage_summary) || ''), utils.escapeHtml(this._serverStorageTitle(server.storage_summary)))}
                     ${factCell('RAM', utils.escapeHtml(this._serverMemoryText(server.memory_summary) || ''), utils.escapeHtml(this._serverMemoryTitle(server.memory_summary)))}
+                    ${ipCell(server, 'public', 'Public IP')}
+                    ${ipCell(server, 'private', 'Private IP')}
                 </div>
 
                 <!-- Dates -->
@@ -1002,11 +1020,10 @@ class Dashboard {
             // bays underneath it, even if the two ever drift.
             const used = filled.size;
 
-            // Collapsed sections survive a re-render: the set is on the dashboard,
-            // not in the markup, so filtering or refreshing the list does not
-            // silently reopen a chassis somebody folded away.
-            const collapsed = this.collapsedEnclosures instanceof Set
-                && this.collapsedEnclosures.has(enclosure.enclosure_uuid);
+            // Collapsed sections survive a re-render and a reload: the set is kept
+            // in localStorage, not in the markup, so filtering, refreshing or
+            // reopening the page does not reopen a chassis somebody folded away.
+            const collapsed = this.getCollapsedEnclosures().has(enclosure.enclosure_uuid);
 
             let tiles = '';
             for (let bay = 1; bay <= slotCount; bay++) {
@@ -1069,7 +1086,7 @@ class Dashboard {
      * Toggles the section in place rather than re-rendering the whole grid — the
      * list is 74 cards and nothing else about it has changed. The remembered set
      * is what renderServerList() reads, so the state holds across a filter, a
-     * search or a refresh.
+     * search, a refresh or a reload.
      *
      * display is set directly instead of through a utility class: the body is a
      * grid, and a class that has to beat `display: grid` depends on which rule the
@@ -1086,16 +1103,16 @@ class Dashboard {
         const enclosureUuid = section?.dataset?.enclosureUuid;
         if (!body || !enclosureUuid) return;
 
-        if (!(this.collapsedEnclosures instanceof Set)) {
-            this.collapsedEnclosures = new Set();
-        }
-
-        const collapse = !this.collapsedEnclosures.has(enclosureUuid);
+        const collapsedEnclosures = this.getCollapsedEnclosures();
+        const collapse = !collapsedEnclosures.has(enclosureUuid);
         if (collapse) {
-            this.collapsedEnclosures.add(enclosureUuid);
+            collapsedEnclosures.add(enclosureUuid);
         } else {
-            this.collapsedEnclosures.delete(enclosureUuid);
+            collapsedEnclosures.delete(enclosureUuid);
         }
+        try {
+            localStorage.setItem('collapsed_enclosures', JSON.stringify(Array.from(collapsedEnclosures)));
+        } catch (e) { /* storage blocked: the fold still holds for this visit */ }
 
         body.style.display = collapse ? 'none' : '';
         button.setAttribute('aria-expanded', collapse ? 'false' : 'true');
@@ -1104,6 +1121,21 @@ class Dashboard {
         if (icon) {
             icon.className = `fas ${collapse ? 'fa-chevron-down' : 'fa-chevron-up'} text-xs`;
         }
+    }
+
+    /**
+     * The enclosures this browser has folded away. Read from localStorage once,
+     * so a fold outlives closing the tab and only the toggle reopens it.
+     */
+    getCollapsedEnclosures() {
+        if (!(this.collapsedEnclosures instanceof Set)) {
+            let saved = [];
+            try {
+                saved = JSON.parse(localStorage.getItem('collapsed_enclosures') || '[]');
+            } catch (e) { /* unreadable or blocked storage: start with none folded */ }
+            this.collapsedEnclosures = new Set(Array.isArray(saved) ? saved : []);
+        }
+        return this.collapsedEnclosures;
     }
 
     renderPagination(pagination) {
@@ -2543,10 +2575,93 @@ class Dashboard {
                 </div>
 
                 <div>
+                    <h4 class="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4 pb-2 border-b border-border-light">IP addresses</h4>
+                    <p class="text-xs text-text-muted mb-3">Optional, for records. Still editable after the server is finalized.</p>
+                    <div id="serverEditIpRows" class="space-y-3">
+                        ${(server.ip_addresses || []).map(ip => this._renderServerIpRow(ip, !canEditDetails)).join('')}
+                    </div>
+                    ${canEditDetails ? `
+                    <div class="flex items-center justify-between gap-3 pt-4">
+                        <button type="button" class="px-4 py-2 bg-surface-secondary text-text-primary rounded-lg font-medium text-sm hover:bg-surface-hover transition-colors flex items-center gap-2"
+                                onclick="dashboard.addServerIpRow()">
+                            <i class="fas fa-plus text-xs"></i> Add IP
+                        </button>
+                        <button type="button" class="px-5 py-2.5 bg-primary text-white rounded-lg font-medium text-sm hover:bg-primary-hover transition-colors flex items-center gap-2"
+                                onclick="dashboard.saveServerIps()">
+                            <i class="fas fa-save text-xs"></i> Save IPs
+                        </button>
+                    </div>` : `${(server.ip_addresses || []).length ? '' : '<p class="text-sm text-text-secondary">None recorded.</p>'}`}
+                </div>
+
+                <div>
                     <h4 class="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4 pb-2 border-b border-border-light">Status</h4>
                     ${statusBody}
                 </div>
             </div>`;
+    }
+
+    // One editable IP row in the edit dialog. Read by saveServerIps() through
+    // the data-ip-* hooks, so the markup can change without touching the save.
+    _renderServerIpRow(ip = {}, disabled = false) {
+        const type = ip.ip_type === 'public' ? 'public' : 'private';
+        return `
+            <div class="flex flex-col sm:flex-row gap-2" data-ip-row>
+                <input type="text" class="form-input flex-1 min-w-0 font-mono" data-ip-address maxlength="45"
+                    placeholder="e.g. 10.0.4.12" value="${utils.escapeHtml(ip.ip_address || '')}" ${disabled ? 'disabled' : ''}>
+                <select class="form-select flex-1 min-w-0" data-ip-type ${disabled ? 'disabled' : ''}>
+                    <option value="private" ${type === 'private' ? 'selected' : ''}>Private</option>
+                    <option value="public" ${type === 'public' ? 'selected' : ''}>Public</option>
+                </select>
+                <input type="text" class="form-input flex-1 min-w-0" data-ip-label maxlength="100"
+                    placeholder="Label (optional), e.g. iDRAC" value="${utils.escapeHtml(ip.label || '')}" ${disabled ? 'disabled' : ''}>
+                ${disabled ? '' : `
+                <button type="button" class="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors"
+                        onclick="this.closest('[data-ip-row]').remove()" title="Remove this IP" aria-label="Remove this IP">
+                    <i class="fas fa-times text-xs"></i>
+                </button>`}
+            </div>`;
+    }
+
+    addServerIpRow() {
+        const rows = document.getElementById('serverEditIpRows');
+        if (!rows) return;
+        rows.insertAdjacentHTML('beforeend', this._renderServerIpRow());
+        rows.lastElementChild?.querySelector('[data-ip-address]')?.focus();
+    }
+
+    /**
+     * Save the IP addresses half of the edit dialog. Its own endpoint
+     * (server-update-ips), which replaces the whole set; a blank row is skipped,
+     * and no rows at all clears them. The backend validates each address.
+     */
+    async saveServerIps() {
+        const ctx = this.serverEditContext;
+        if (!ctx) return;
+
+        const ips = [...document.querySelectorAll('#serverEditIpRows [data-ip-row]')]
+            .map(row => ({
+                ip_address: (row.querySelector('[data-ip-address]')?.value || '').trim(),
+                ip_type: row.querySelector('[data-ip-type]')?.value || 'private',
+                label: (row.querySelector('[data-ip-label]')?.value || '').trim()
+            }))
+            .filter(ip => ip.ip_address !== '');
+
+        try {
+            utils.showLoading(true, 'Saving IP addresses...');
+            const result = await api.servers.updateIps(ctx.configUuid, ips);
+            if (!result?.success) {
+                utils.showAlert(result?.message || 'Failed to save the IP addresses', 'error');
+                return;
+            }
+            utils.showAlert('IP addresses saved', 'success');
+            this.closeModal();
+            await this.loadServerList(true);
+        } catch (error) {
+            console.error('Save server IPs error:', error);
+            utils.showAlert(error.message || 'An error occurred while saving the IP addresses', 'error');
+        } finally {
+            utils.showLoading(false);
+        }
     }
 
     /**

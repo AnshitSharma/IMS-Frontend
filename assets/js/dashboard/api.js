@@ -765,6 +765,16 @@ window.api = {
             return await api.request('server-update-config', payload);
         },
 
+        // Replace the server's recorded IP addresses -- record-only, optional,
+        // and editable on a finalized server too. `ips` is an array of
+        // {ip_address, ip_type: 'public'|'private', label}; [] clears them.
+        async updateIps(configUuid, ips = []) {
+            return await api.request('server-update-ips', {
+                config_uuid: configUuid,
+                ip_addresses: JSON.stringify(ips)
+            });
+        },
+
         // The lifecycle moves this user could make on this build RIGHT NOW, read
         // from config_status_transitions with the same ACL checker the command
         // itself uses. Ask before offering a status change -- the legal graph is
