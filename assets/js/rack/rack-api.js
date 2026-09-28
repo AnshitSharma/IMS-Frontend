@@ -158,6 +158,31 @@ class RackAPI {
     removeEnclosure(enclosureUuid, options = {}) {
         return this.makeRequest({ action: 'rack-enclosure-remove', enclosure_uuid: enclosureUuid }, options);
     }
+
+    /* ---- Network devices: routers, switches, MUXes (seeder 2026_09_29_001) ---- */
+
+    // Available stock at any site. Passing the rack lets the backend flag units
+    // already at that rack's site and list them first.
+    placeableDevices(rackUuid = '', options = {}) {
+        const data = { action: 'rack-placeable-devices' };
+        if (rackUuid) { data.rack_uuid = rackUuid; }
+        return this.makeRequest(data, options);
+    }
+
+    // Rack a device, or move one that is already racked: a device is in one place,
+    // so assigning a racked unit is a move.
+    assignDevice(rackUuid, inventoryId, startU, options = {}) {
+        return this.makeRequest({
+            action: 'rack-device-assign',
+            rack_uuid: rackUuid,
+            inventory_id: inventoryId,
+            start_u: startU
+        }, options);
+    }
+
+    unassignDevice(inventoryId, options = {}) {
+        return this.makeRequest({ action: 'rack-device-unassign', inventory_id: inventoryId }, options);
+    }
 }
 
 // Global instance

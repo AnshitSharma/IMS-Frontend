@@ -256,7 +256,7 @@
                             <!-- 04 -->
                             <section class="kb-section" id="kb-inventory">
                                 <h3><span class="kb-eyebrow">04</span>Managing Inventory</h3>
-                                <p>Twelve kinds of hardware are tracked, each with its own page:</p>
+                                <p>Thirteen kinds of hardware are tracked, each with its own page:</p>
 
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
@@ -274,6 +274,7 @@
                                             <tr><td>HBA Cards</td><td>Host bus adapters for storage connectivity.</td></tr>
                                             <tr><td>SFP Modules</td><td>Optical and direct-attach network transceivers.</td></tr>
                                             <tr><td>Compute Platforms</td><td>Whole server boxes stocked as single units. See <em>Building a Server</em>.</td></tr>
+                                            <tr><td>Network Devices</td><td>Routers, switches and MUXes. They are racked beside servers, never built into one. See <em>Rack View</em>.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -459,6 +460,9 @@
                                 <h4>Blade enclosures and bays</h4>
                                 <p><strong>Add enclosure</strong> installs a chassis such as an FX2s at a start U, optionally with its service tag. It is drawn in the elevation as a framed box with a grid of numbered bays. Clicking an empty bay installs a server into it — there is no U to choose, because the bay decides the position. Clicking the enclosure's rail opens a dialog with the roster of what is inside, and lets you rename it, re-tag it, move it to a different start U, or remove it. A server already in a bay can be moved to another bay, or out into the rack directly.</p>
 
+                                <h4>Network devices</h4>
+                                <p><strong>Place network device</strong> racks a router, switch or MUX in the current rack. Choose the device from stock and the start U; its height comes from the catalogue, so there is no height to type. It is drawn in the elevation like a server, in its own colour, and occupies U space exactly as a server does, so a switch and a server can never claim the same U. Clicking one lets you move it to another position or remove it from the rack, and removing it leaves it at the same site, back in stock. A device from a different site can be racked here: the rack decides where it is, so it takes the rack's site and the move is recorded in its history. A device that is racked cannot be edited to a different status or site, or deleted, until it is removed from the rack.</p>
+
                                 <div class="kb-note">
                                     <span class="kb-note-title">Two servers can share a U — inside an enclosure</span>
                                     <p>Four sleds in one FX2s legitimately occupy the same rack units. Overlap checking treats the enclosure as the thing occupying that space, and the servers inside it as belonging to the enclosure rather than to the rack.</p>
@@ -486,7 +490,7 @@
                                 <div class="kb-steps">
                                     <div class="kb-step"><div class="kb-step-dot">1</div><div>
                                         <h5>Say what should happen</h5>
-                                        <p>The form opens with a dropdown of concrete actions rather than a blank box: add, remove or replace a part in a server; create, update or re-status a server; move a server; add, edit or relocate an inventory record. Each choice renders its own fields. For inventory records the real Add or Edit Component form is embedded directly in the request.</p>
+                                        <p>The form opens with a dropdown of concrete actions rather than a blank box: add, remove or replace a part in a server; create, update or re-status a server; move a server; add, edit or relocate an inventory record; rack, move or remove a network device. Each choice renders its own fields. For inventory records the real Add or Edit Component form is embedded directly in the request.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">2</div><div>
                                         <h5>Pick the server</h5>
@@ -637,6 +641,7 @@
                                             <tr><td>Compute platform</td><td>A whole server box stocked as one unit, supplying its own board and chassis.</td></tr>
                                             <tr><td>Version</td><td>The specific SKU of a compute platform that we hold in stock.</td></tr>
                                             <tr><td>Enclosure / bay</td><td>A blade chassis placed in a rack, and the numbered slots inside it that each hold a server.</td></tr>
+                                            <tr><td>Network device</td><td>A router, switch or MUX. Stocked like any component, racked like a server, and never installed inside one.</td></tr>
                                             <tr><td>Prerequisite</td><td>A Request raised inside another that must be resolved before the parent can move.</td></tr>
                                             <tr><td>Hardware handover</td><td>A Request tracking a part being physically carried between sites; the carrier confirms arrival.</td></tr>
                                             <tr><td>Store / Shelf</td><td>Where a loose unit physically sits at its site — a shelf or bin reference.</td></tr>

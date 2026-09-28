@@ -211,6 +211,7 @@
         .st-validated { --st: #f59e0b; }
         .st-built     { --st: #10b981; }
         .st-finalized { --st: #14b8a6; }
+        .st-device    { --st: #6366f1; }
         .st-orphaned  { --st: #ef4444; }
         .rk-sled.st-orphaned { background: linear-gradient(180deg, #3a2630, #271a20); }
 
@@ -310,6 +311,9 @@
                                         <button id="addEnclosureBtn" class="px-3 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-sm text-text-primary flex items-center gap-2" title="Install a blade enclosure">
                                             <i class="fas fa-layer-group"></i> Add enclosure
                                         </button>
+                                        <button id="placeDeviceBtn" class="px-3 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-sm text-text-primary flex items-center gap-2" title="Rack a router, switch or MUX">
+                                            <i class="fas fa-sitemap"></i> Place network device
+                                        </button>
                                         <button id="editRackBtn" class="px-3 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-sm text-text-primary" title="Edit rack">
                                             <i class="fas fa-pen"></i>
                                         </button>
@@ -330,6 +334,7 @@
                                     <span class="rk-legend__item st-validated"><span class="rk-legend__dot"></span> Validated</span>
                                     <span class="rk-legend__item st-built"><span class="rk-legend__dot"></span> Built</span>
                                     <span class="rk-legend__item st-finalized"><span class="rk-legend__dot"></span> Finalized</span>
+                                    <span class="rk-legend__item st-device"><span class="rk-legend__dot"></span> Network device</span>
                                 </div>
                             </div>
                         </div>

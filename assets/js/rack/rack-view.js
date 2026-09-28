@@ -13,6 +13,8 @@ class RackView {
         // currentEnclosures[].slots, which is where the elevation draws them.
         this.currentServers = [];
         this.currentEnclosures = [];
+        // Routers, switches and MUXes racked here. Empty until seeder 2026_09_29_001.
+        this.currentDevices = [];
     }
 
     init() {
@@ -60,6 +62,7 @@ class RackView {
         document.getElementById('newRackBtn')?.addEventListener('click', () => this.openRackForm());
         document.getElementById('placeServerBtn')?.addEventListener('click', () => this.openPlaceServer());
         document.getElementById('addEnclosureBtn')?.addEventListener('click', () => this.openEnclosureForm());
+        document.getElementById('placeDeviceBtn')?.addEventListener('click', () => this.openPlaceDevice());
         document.getElementById('editRackBtn')?.addEventListener('click', () => this.openRackForm(this.currentRack));
         document.getElementById('deleteRackBtn')?.addEventListener('click', () => this.deleteRack());
 
@@ -78,6 +81,7 @@ class RackView {
         // .rk-encl, so it must be tested before the enclosure rail.
         this.el.elevation?.addEventListener('click', (e) => {
             const sled = e.target.closest('.rk-sled');
+            if (sled && sled.dataset.deviceId) { this.openDeviceActions(parseInt(sled.dataset.deviceId, 10)); return; }
             if (sled && sled.dataset.configUuid) { this.openServerActions(sled.dataset.configUuid); return; }
 
             const bay = e.target.closest('.rk-encl__bay');
@@ -148,7 +152,10 @@ class RackView {
                 <button type="button" class="rk-rackcard${active}" data-rack-uuid="${utils.escapeHtml(r.rack_uuid)}">
                     <div class="flex items-center justify-between gap-2">
                         <span class="font-semibold text-text-primary truncate">${utils.escapeHtml(r.name)}</span>
-                        <span class="rk-badge"><i class="fas fa-server text-[10px]"></i> ${r.server_count}</span>
+                        <span class="flex items-center gap-1">
+                            ${r.device_count > 0 ? `<span class="rk-badge" title="Network devices"><i class="fas fa-sitemap text-[10px]"></i> ${r.device_count}</span>` : ''}
+                            <span class="rk-badge"><i class="fas fa-server text-[10px]"></i> ${r.server_count}</span>
+                        </span>
                     </div>
                     <div class="text-xs text-text-muted mt-0.5 truncate">
                         <i class="fas fa-location-dot"></i> ${utils.escapeHtml(r.location || 'No location')}
@@ -184,6 +191,7 @@ class RackView {
         // Absent until seeder 2026_09_03_003 has been run; the elevation then
         // renders exactly as it did before, with no enclosures to draw.
         this.currentEnclosures = res.data.enclosures || [];
+        this.currentDevices = res.data.network_devices || [];
         this.renderToolbar();
         this.renderElevation();
     }
@@ -192,6 +200,7 @@ class RackView {
         this.currentRack = null;
         this.currentServers = [];
         this.currentEnclosures = [];
+        this.currentDevices = [];
         this.el.detail.classList.add('hidden');
         this.el.detailEmpty.classList.remove('hidden');
     }
@@ -213,6 +222,7 @@ class RackView {
         const topDown = r.numbering_top_down === 1;
         const servers = this.currentServers;
         const enclosures = this.currentEnclosures;
+        const devices = this.currentDevices;
 
         // Map every covered U so we know which rows are empty. Enclosures count:
         // their U is occupied by the box whether or not any bay is filled, so a
@@ -223,6 +233,9 @@ class RackView {
         });
         enclosures.forEach(e => {
             for (let u = e.start_u; u <= e.end_u; u++) covered.add(u);
+        });
+        devices.forEach(d => {
+            for (let u = d.start_u; u <= d.end_u; u++) covered.add(u);
         });
 
         // Vertical offset (in U rows from the top of the bay) for a given U number.
@@ -265,6 +278,27 @@ class RackView {
                     ${chassis}
                     <span class="rk-sled__u rk-mono">${uLabel}</span>
                     <span class="rk-sled__h rk-mono">${s.u_height}U</span>
+                </div>`;
+        });
+
+        // ---- network devices ----
+        // Drawn with the server block's own markup and classes, so a switch reads
+        // as the same kind of object; only the hue and the data attribute differ.
+        const deviceBlocks = devices.map(d => {
+            const top = rowsFromTop(topDown ? d.start_u : d.end_u);
+            const uLabel = d.u_height > 1 ? `U${d.start_u}–U${d.end_u}` : `U${d.start_u}`;
+            const tag = d.serial_number || d.asset_tag || '';
+            const kind = d.device_type ? ` (${d.device_type})` : '';
+            return `
+                <div class="rk-sled st-device" data-device-id="${d.inventory_id}"
+                    tabindex="0" role="button"
+                    style="top:calc(${top} * var(--rk-u)); height:calc(${d.u_height} * var(--rk-u));"
+                    aria-label="${utils.escapeHtml(d.model_name)}${utils.escapeHtml(kind)} at ${uLabel}, ${d.u_height}U">
+                    <span class="rk-sled__led"></span>
+                    <span class="rk-sled__name">${utils.escapeHtml(d.model_name)}</span>
+                    ${tag ? `<span class="rk-sled__chassis">${utils.escapeHtml(tag)}</span>` : ''}
+                    <span class="rk-sled__u rk-mono">${uLabel}</span>
+                    <span class="rk-sled__h rk-mono">${d.u_height}U</span>
                 </div>`;
         });
 
@@ -325,6 +359,7 @@ class RackView {
                         <div class="rk-grid" style="height:calc(${N} * var(--rk-u));">
                             ${slots.join('')}
                             ${sleds.join('')}
+                            ${deviceBlocks.join('')}
                             ${enclosureFrames.join('')}
                         </div>
                     </div>
@@ -335,7 +370,11 @@ class RackView {
         // Keyboard activation for sleds
         this.el.elevation.querySelectorAll('.rk-sled').forEach(sled => {
             sled.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.openServerActions(sled.dataset.configUuid); }
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (sled.dataset.deviceId) { this.openDeviceActions(parseInt(sled.dataset.deviceId, 10)); }
+                    else { this.openServerActions(sled.dataset.configUuid); }
+                }
             });
         });
     }
@@ -703,6 +742,154 @@ class RackView {
         }
     }
 
+
+    /* ---------------- modals: network devices ---------------- */
+
+    /**
+     * Rack a network device, or (with lockedDevice) move one that is already racked.
+     *
+     * The list is available stock at ANY site, same-site units first. Racking a unit
+     * from another site is allowed -- the rack decides where it is -- and the dialog
+     * says so plainly, because it is a site change as well as a placement.
+     */
+    async openPlaceDevice(prefillStartU = null, lockedDevice = null) {
+        if (!this.currentRack) return;
+        const isMove = !!lockedDevice;
+        this.openModal(isMove ? 'Move network device' : 'Place network device', this.spinner('Loading…'));
+
+        let options = '';
+        let devices = [];
+        if (isMove) {
+            options = `<option value="${lockedDevice.inventory_id}" data-h="${lockedDevice.u_height}" selected>${utils.escapeHtml(lockedDevice.model_name)}${lockedDevice.serial_number ? ' · ' + utils.escapeHtml(lockedDevice.serial_number) : ''}</option>`;
+        } else {
+            const res = await rackAPI.placeableDevices(this.currentRack.rack_uuid);
+            if (!res || !res.success) {
+                this.el.modalBody.innerHTML = `<p class="text-danger text-sm">${utils.escapeHtml(res?.message || 'Failed to load network devices')}</p>`;
+                return;
+            }
+            devices = res.data?.devices || [];
+            if (devices.length === 0) {
+                this.el.modalBody.innerHTML = `
+                    <div class="text-center py-6">
+                        <i class="fas fa-sitemap text-3xl text-text-muted mb-3"></i>
+                        <p class="text-text-primary font-medium mb-1">No network devices in stock</p>
+                        <p class="text-text-muted text-sm">Add the router, switch or MUX to inventory first, then rack it here.</p>
+                        <a href="component.html?type=networkdevice" class="inline-block mt-3 text-primary text-sm font-medium hover:underline">Go to Network Devices</a>
+                    </div>`;
+                return;
+            }
+            options = '<option value="" disabled selected>Select a device…</option>' + devices.map(d => {
+                const where = d.location_name ? ` · ${d.location_name}` : '';
+                const size = d.u_height ? `${d.u_height}U` : 'no rack height';
+                const label = `${d.model_name}${d.serial_number ? ' · ' + d.serial_number : (d.asset_tag ? ' · ' + d.asset_tag : '')} · ${size}${where}`;
+                return `<option value="${d.inventory_id}" data-h="${d.u_height || ''}" data-site="${utils.escapeHtml(d.location_name || '')}" data-same="${d.same_site ? '1' : '0'}">${utils.escapeHtml(label)}</option>`;
+            }).join('');
+        }
+
+        this.el.modalBody.innerHTML = `
+            <form id="deviceForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Device</label>
+                    <select id="df_device" ${isMove ? 'disabled' : ''} required
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                        ${options}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-text-primary mb-1">Start U</label>
+                    <input id="df_start" type="number" min="1" max="${this.currentRack.total_u}" value="${prefillStartU || ''}" required
+                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
+                </div>
+                <p class="text-xs text-text-muted">Its height comes from the catalogue. It occupies <span id="df_range" class="rk-mono">—</span> in ${utils.escapeHtml(this.currentRack.name)}.</p>
+                <p id="df_note" class="text-xs text-warning hidden"></p>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" id="df_cancel" class="px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover">Cancel</button>
+                    <button type="submit" id="df_submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">${isMove ? 'Move here' : 'Place device'}</button>
+                </div>
+            </form>`;
+
+        const sel = document.getElementById('df_device');
+        const startInput = document.getElementById('df_start');
+        const rangeLabel = document.getElementById('df_range');
+        const note = document.getElementById('df_note');
+        const submit = document.getElementById('df_submit');
+        const rackSite = this.currentRack.location_name || this.currentRack.location || 'this rack\'s site';
+
+        const refresh = () => {
+            const opt = sel.options[sel.selectedIndex];
+            const h = opt && opt.dataset.h ? parseInt(opt.dataset.h, 10) : NaN;
+            const start = parseInt(startInput.value, 10);
+            rangeLabel.textContent = (start >= 1 && h >= 1)
+                ? (h > 1 ? `U${start}–U${start + h - 1}` : `U${start}`)
+                : '—';
+
+            let msg = '';
+            if (opt && opt.value && !(h >= 1)) {
+                msg = 'This model has no rack height in the catalogue, so it cannot be placed yet.';
+            } else if (!isMove && opt && opt.dataset.same === '0' && opt.dataset.site) {
+                msg = `This device is at ${opt.dataset.site}. Racking it here moves it to ${rackSite}.`;
+            }
+            note.textContent = msg;
+            note.classList.toggle('hidden', msg === '');
+            submit.disabled = !!(opt && opt.value && !(h >= 1));
+        };
+        sel.addEventListener('change', refresh);
+        startInput.addEventListener('input', refresh);
+        refresh();
+
+        document.getElementById('df_cancel').addEventListener('click', () => this.closeModal());
+        document.getElementById('deviceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inventoryId = isMove ? lockedDevice.inventory_id : parseInt(sel.value, 10);
+            const startU = parseInt(startInput.value, 10);
+            if (!inventoryId) { toast.error('Select a device'); return; }
+            if (!startU || startU < 1) { toast.error('Enter a valid start U'); return; }
+
+            const res = await rackAPI.assignDevice(this.currentRack.rack_uuid, inventoryId, startU);
+            if (!res || !res.success) { toast.error(res?.message || 'Could not place the device'); return; }
+
+            toast.success(res.data?.moved === false ? 'Nothing changed' : (isMove ? 'Device moved' : 'Device placed'));
+            this.closeModal();
+            await this.loadRackDetail(this.selectedRackUuid);
+            await this.refreshRackOccupancy();
+        });
+    }
+
+    /** What can be done with one racked device: move it, take it out, or open its record. */
+    openDeviceActions(inventoryId) {
+        const d = this.currentDevices.find(x => x.inventory_id === inventoryId);
+        if (!d) return;
+        const uLabel = d.u_height > 1 ? `U${d.start_u}–U${d.end_u}` : `U${d.start_u}`;
+
+        this.openModal('Network device', `
+            <div class="space-y-4">
+                <div class="flex items-start gap-3">
+                    <span class="rk-sled__led st-device" style="margin-top:6px"></span>
+                    <div class="min-w-0">
+                        <p class="font-semibold text-text-primary break-words">${utils.escapeHtml(d.model_name)}</p>
+                        <p class="text-sm text-text-muted rk-mono">${uLabel} · ${d.u_height}U${d.device_type ? ' · ' + utils.escapeHtml(d.device_type) : ''}</p>
+                        ${d.serial_number ? `<p class="text-xs text-text-muted rk-mono mt-0.5">Serial ${utils.escapeHtml(d.serial_number)}</p>` : ''}
+                        ${d.asset_tag ? `<p class="text-xs text-text-muted rk-mono mt-0.5">${utils.escapeHtml(d.asset_tag)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-2 pt-1">
+                    <a href="component.html?type=networkdevice" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-list"></i> Open in inventory</a>
+                    <button id="da_move" class="w-full px-4 py-2 border border-border rounded-lg text-text-primary hover:bg-surface-hover flex items-center gap-2"><i class="fas fa-arrows-up-down"></i> Move to another position</button>
+                    <button id="da_remove" class="w-full px-4 py-2 border border-danger/40 text-danger rounded-lg hover:bg-danger/10 flex items-center gap-2"><i class="fas fa-trash"></i> Remove from rack</button>
+                </div>
+            </div>`);
+
+        document.getElementById('da_move').addEventListener('click', () => this.openPlaceDevice(d.start_u, d));
+        document.getElementById('da_remove').addEventListener('click', async () => {
+            if (!confirm(`Remove ${d.model_name} from ${this.currentRack.name}? It stays at the same site, back in stock.`)) return;
+            const res = await rackAPI.unassignDevice(d.inventory_id);
+            if (!res || !res.success) { toast.error(res?.message || 'Could not remove the device'); return; }
+            toast.success('Device removed from rack');
+            this.closeModal();
+            await this.loadRackDetail(this.selectedRackUuid);
+            await this.refreshRackOccupancy();
+        });
+    }
 
     /* ---------------- modals: enclosures and bays ---------------- */
 

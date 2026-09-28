@@ -288,7 +288,7 @@ class Dashboard {
 
     updateDashboardStats(stats) {
         const components = this.componentTypes
-            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform'];
+            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform', 'networkdevice'];
         components.forEach(component => {
             if (stats[component]) {
                 const stat = stats[component];
@@ -354,7 +354,7 @@ class Dashboard {
         // 'servers' is not a component type; it is the extra bucket the dashboard response
         // adds alongside the twelve, so it is appended to whichever list is in use.
         const components = (this.componentTypes
-            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform']
+            || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform', 'networkdevice']
         ).concat(['servers']);
         components.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);
@@ -3327,6 +3327,13 @@ class Dashboard {
                 ['part_number', 'Part Number'], ['bay_summary', 'Drive Bays'],
                 ['system_board.model', 'System Board'], ['system_board.socket.type', 'Socket'],
                 ['chassis.model', 'Chassis'], ['chassis.form_factor', 'Form Factor'],
+            ],
+            // A router, switch or MUX: what it is, how tall, and what it connects.
+            networkdevice: [
+                ['_brand', 'Brand'], ['_series', 'Series'], ['model', 'Model'],
+                ['device_type', 'Type'], ['u_size', 'U Size'], ['port_summary', 'Ports'],
+                ['power.psu_count', 'PSUs'], ['power.max_watts', 'Max Power (W)'],
+                ['channels', 'Channels'], ['grid', 'Grid'],
             ],
         };
 

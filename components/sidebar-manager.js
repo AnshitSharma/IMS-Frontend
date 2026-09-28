@@ -410,7 +410,7 @@ class SidebarManager {
         ).concat('servers');
         const list = components.length > 1 ? components
             : ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'serverplatform',
-               'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'servers'];
+               'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'networkdevice', 'servers'];
 
         list.forEach(component => {
             const countElement = document.getElementById(`${component}Count`);

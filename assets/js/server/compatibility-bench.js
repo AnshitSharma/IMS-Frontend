@@ -359,11 +359,22 @@ class CompatibilityBench {
 
         try {
             utils.showLoading(true, 'Deleting test build...');
-            const result = await serverAPI.deleteServerConfig(configUuid, { silent: true });
+            // force: without it the backend refuses to delete a build that still has parts
+            // in it, which is every test build worth deleting. A test build reserves
+            // nothing, so the confirmation above is the only one it needs.
+            const result = await serverAPI.deleteServerConfig(configUuid, { silent: true, force: true });
 
             if (result.success) {
                 BenchResults.clear(configUuid);
-                utils.showAlert('Test build deleted', 'success');
+                // Zero for any build made since test builds stopped claiming stock. An
+                // older one may have held real units, which force releases.
+                const released = result.data?.components_released ?? 0;
+                utils.showAlert(
+                    released > 0
+                        ? `Test build deleted. ${released} component${released === 1 ? '' : 's'} released back to available.`
+                        : 'Test build deleted',
+                    'success'
+                );
                 await this.loadBuilds();
             } else {
                 utils.showAlert(result.message || 'Failed to delete test build', 'error');

@@ -11,9 +11,13 @@
 // (an 8 x 2.5" SFF build, say). Its spec file uses the standard brand → series →
 // models[] shape, so it needs no dropdown special case: Brand → Platform family →
 // Version.
+//
+// 'networkdevice' (a router, switch or MUX) uses the same brand -> series -> models[]
+// shape, so it needs no special case either: Brand -> Series -> Model.
 const ADD_FORM_COMPONENT_TYPES = [
     'cpu', 'motherboard', 'ram', 'storage', 'nic',
-    'hbacard', 'pciecard', 'risercard', 'chassis', 'caddy', 'sfp', 'serverplatform'
+    'hbacard', 'pciecard', 'risercard', 'chassis', 'caddy', 'sfp', 'serverplatform',
+    'networkdevice'
 ];
 
 // Types whose units are always identified by their manufacturer serial, so the

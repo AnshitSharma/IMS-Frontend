@@ -87,11 +87,19 @@ class ServerAPI {
         }, options);
     }
 
+    // options.force is the caller's "yes, release whatever it still holds too". Without it
+    // the backend refuses to delete a build that has components (409) rather than let the
+    // release be a side effect. Only the Compatibility Bench passes it: its builds
+    // reserve nothing, so there is nothing to lose by not asking twice.
     async deleteServerConfig(configUuid, options = {}) {
-        return await this.makeRequest({
+        const requestData = {
             action: 'server-delete-config',
             config_uuid: configUuid
-        }, options);
+        };
+        if (options.force) {
+            requestData.force = 'true';
+        }
+        return await this.makeRequest(requestData, options);
     }
 
     // Per-server activity log (change history) for a single configuration
@@ -175,10 +183,16 @@ class ServerAPI {
     // Server Compute Platform APIs
     // Platforms (HPE ProLiant DL360 Gen10 …) group the system boards a given server
     // product accepts. Specs live in ims-data; the backend serves them with live stock.
-    async listServerPlatforms(options = {}) {
-        return await this.makeRequest({
-            action: 'server-list-platforms'
-        }, options);
+    //
+    // configUuid names the build the list is for. Only a Compatibility Bench build changes
+    // the answer: the backend then offers every catalogued version whatever is in stock,
+    // because a bench holds models, not boxes. For any other build it is ignored.
+    async listServerPlatforms(options = {}, configUuid = null) {
+        const requestData = { action: 'server-list-platforms' };
+        if (configUuid) {
+            requestData.config_uuid = configUuid;
+        }
+        return await this.makeRequest(requestData, options);
     }
 
     // Both platform actions answer a refusal with 409 and put the reason in `data`.

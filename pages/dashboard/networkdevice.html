@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline';">
+    <title>Network Devices - BDC Inventory</title>
+    <!--
+      This page's content lives at component.html?type=networkdevice, which serves every
+      component inventory from one copy of the markup. The file stays as a redirect so
+      links and bookmarks work. replace() rather than assign() so Back does not bounce
+      the user straight here again.
+    -->
+    <script>
+        location.replace('component.html?type=networkdevice' + location.hash);
+    </script>
+</head>
+
+<body>
+    <noscript><a href="component.html?type=networkdevice">Continue to Network Devices</a></noscript>
+</body>
+
+</html>

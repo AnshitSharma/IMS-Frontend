@@ -27,12 +27,12 @@ class PlatformManager {
      * selectable and unavailable_reason.
      * @returns {Promise<Array>}
      */
-    async getPlatforms(forceReload = false) {
+    async getPlatforms(forceReload = false, configUuid = null) {
         if (this.platforms && !forceReload) {
             return this.platforms;
         }
 
-        const result = await serverAPI.listServerPlatforms({ silent: true });
+        const result = await serverAPI.listServerPlatforms({ silent: true }, configUuid);
 
         if (result && result.success && result.data) {
             this.platforms = result.data.platforms || [];

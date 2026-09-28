@@ -630,6 +630,7 @@ class ConfigurationPage {
                                 model: model.model,
                                 ports: model.ports,
                                 port_type: model.port_type,
+                                port_groups: model.port_groups,
                                 speeds: model.speeds,
                                 interface: model.interface,
                                 uuid: nicUuid
@@ -1796,6 +1797,10 @@ class ConfigurationPage {
      * Perform the actual component addition
      */
     async performAddComponent(componentId, component, slotPosition = '') {
+        // Read outside the try so the catch below can still name the build when the
+        // engine refuses the add.
+        const benchConfigUuid = new URLSearchParams(window.location.search).get('config');
+
         try {
             utils.showLoading(true, 'Adding component...');
 
@@ -1875,7 +1880,30 @@ class ConfigurationPage {
 
         } catch (error) {
             console.error('Error adding component:', error);
-            utils.showAlert(error.message || 'Failed to add component', 'error');
+
+            // The engine's refusal is HTTP 422, and api.request() THROWS on any non-2xx --
+            // so it lands here, not in the `else if (this.isBench)` branch above (which a
+            // 200 with success:false is the only way to reach). On the bench that refusal
+            // is the result being sought: log it under Tested parts and go back. Only 422
+            // is a compatibility verdict; a 409 (revision, platform-owned), 404, 503 or a
+            // network failure says nothing about the part and stays an error.
+            if (this.isBench && error.code === 422 && benchConfigUuid) {
+                this.logBenchResult(
+                    benchConfigUuid,
+                    component,
+                    false,
+                    error.message || 'The compatibility engine rejected this component'
+                );
+                utils.showAlert(
+                    `${component.name} is not compatible — logged to Tested parts`,
+                    'warning'
+                );
+                setTimeout(() => {
+                    window.location.href = this.returnUrl(benchConfigUuid);
+                }, 1800);
+            } else {
+                utils.showAlert(error.message || 'Failed to add component', 'error');
+            }
         } finally {
             utils.showLoading(false);
         }
@@ -1889,8 +1917,21 @@ class ConfigurationPage {
         modal.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
         modal.id = 'portSelectionModal';
 
-        const portCount = this.parentNicDetails.ports || 4;
-        const portOptions = Array.from({ length: portCount }, (_, i) => i + 1);
+        let portCount = this.parentNicDetails.ports || 4;
+        let portOptions = Array.from({ length: portCount }, (_, i) => i + 1);
+
+        // A card with mixed ports (rNDC: 2x SFP+, 2x RJ45) lists them in port_groups;
+        // only its SFP ports can take a module, so offer just those.
+        let sfpOnly = false;
+        const groups = this.parentNicDetails.port_groups;
+        if (Array.isArray(groups) && groups.length > 0) {
+            const cages = groups.flatMap(g => Array(Number(g.count) || 0).fill(g.type || ''));
+            if (cages.length === portCount) {
+                portOptions = cages.map((cage, i) => (/sfp/i.test(cage) ? i + 1 : null)).filter(Boolean);
+                portCount = portOptions.length;
+                sfpOnly = true;
+            }
+        }
 
         modal.innerHTML = `
             <div class="bg-surface-card rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -1900,7 +1941,7 @@ class ConfigurationPage {
                         Select Port for SFP Module
                     </h3>
                     <p class="text-sm text-text-secondary mt-2">
-                        ${this.parentNicDetails.model} has ${portCount} ports. Select which port to install this SFP module into.
+                        ${this.parentNicDetails.model} has ${portCount} ${sfpOnly ? 'SFP ' : ''}ports. Select which port to install this SFP module into.
                     </p>
                 </div>
                 <div class="p-6">

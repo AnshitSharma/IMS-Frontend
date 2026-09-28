@@ -704,7 +704,12 @@ class ServerBuilder {
         `;
 
         try {
-            this.platformCatalog = await platformManager.getPlatforms(forceReload);
+            // A test build is named so the backend can offer every catalogued version;
+            // any other build asks with none and gets the stock-gated list.
+            this.platformCatalog = await platformManager.getPlatforms(
+                forceReload,
+                this.isSandbox ? this.currentConfig?.config_uuid : null
+            );
             this.renderPlatformList(this.platformCatalog);
         } catch (error) {
             console.error('Builder: Error loading platforms', error);
@@ -789,8 +794,8 @@ class ServerBuilder {
                         </div>
                         <div class="text-xs text-text-secondary mt-0.5">
                             ${platform.version_count
-                                ? `${platform.version_count} version${platform.version_count === 1 ? '' : 's'}
-                                   · ${platform.available_units > 0 ? `${platform.available_units} in stock` : 'no stock'}`
+                                ? `${platform.version_count} version${platform.version_count === 1 ? '' : 's'}${this.isSandbox ? '' : `
+                                   · ${platform.available_units > 0 ? `${platform.available_units} in stock` : 'no stock'}`}`
                                 : 'No versions defined'}
                         </div>
                     </button>
@@ -876,8 +881,10 @@ class ServerBuilder {
             const chassis = version.chassis || {};
             const selectable = version.selectable;
 
+            // A test build holds no box, so a stock count beside a version would only
+            // suggest it has to own one.
             const status = selectable
-                ? `<span class="text-primary">${version.available_units} in stock</span>`
+                ? (this.isSandbox ? '' : `<span class="text-primary">${version.available_units} in stock</span>`)
                 : `<span class="text-text-muted">${utils.escapeHtml(version.unavailable_reason || 'Unavailable')}</span>`;
 
             const boardLine = [
@@ -915,7 +922,9 @@ class ServerBuilder {
             ${versionHtml}
             <p class="text-xs text-text-secondary mt-3">
                 <i class="fas fa-info-circle me-1"></i>
-                Installing a platform takes one unit from stock and fits its system board and chassis into this build. Both are then part of the platform and can only be changed by changing the platform.
+                ${this.isSandbox
+                    ? 'Installing a platform fits its system board and chassis into this test build. Nothing is taken from stock. Both are then part of the platform and can only be changed by changing the platform.'
+                    : 'Installing a platform takes one unit from stock and fits its system board and chassis into this build. Both are then part of the platform and can only be changed by changing the platform.'}
             </p>
         `;
     }
@@ -980,7 +989,7 @@ class ServerBuilder {
                 const agreed = confirm(
                     `${result.message}\n\n` +
                     `Currently installed: ${result.installedSummary}\n\n` +
-                    `These will be released back to available inventory. Continue?`
+                    `${this.isSandbox ? 'These will be removed from this test build.' : 'These will be released back to available inventory.'} Continue?`
                 );
 
                 if (!agreed) {
@@ -1033,7 +1042,7 @@ class ServerBuilder {
                 const agreed = confirm(
                     `${result.message}\n\n` +
                     `Currently installed: ${result.installedSummary}\n\n` +
-                    `These will be released back to available inventory. Continue?`
+                    `${this.isSandbox ? 'These will be removed from this test build.' : 'These will be released back to available inventory.'} Continue?`
                 );
 
                 if (!agreed) return;
@@ -2982,6 +2991,7 @@ class ServerBuilder {
             const portCount = specs.ports || 0;
             const connectorType = specs.connector || specs.port_type || '';
             const isSfpConnector = /sfp/i.test(connectorType);
+            const split = this.nicPortSplit(nic);
 
             // Display name: onboard uses controller, component uses model
             const displayName = isOnboard
@@ -3012,8 +3022,8 @@ class ServerBuilder {
                         <span class="hw-slot-serial">${utils.escapeHtml(speedInfo.trim())}</span>
                     </div>
                 </div>
-                ${isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : ''}
-                ${!isSfpConnector && portCount > 0 ? this.renderRJ45Ports(portCount, connectorType) : ''}
+                ${split ? (split.sfp > 0 ? this.renderSFPPorts(nic.uuid, split.sfp) : '') : (isSfpConnector ? this.renderSFPPorts(nic.uuid, portCount) : '')}
+                ${split ? (split.other > 0 ? this.renderRJ45Ports(split.other, split.otherType, split.otherFirst) : '') : (!isSfpConnector && portCount > 0 ? this.renderRJ45Ports(portCount, connectorType) : '')}
                 ${nicComp ? this.renderSlotPopover('nic', nicComp, isOnboard ? 'Onboard' : 'Add-in NIC') : ''}
             </div>`;
         });
@@ -3022,10 +3032,31 @@ class ServerBuilder {
     }
 
     /**
-     * Render RJ45 port indicators for copper NICs.
-     * Shows port count with visual indicators.
+     * Split a NIC's ports into SFP cages and the rest, from the per-port `cage`
+     * the backend sends when the card states its port groups (an rNDC with 2x SFP+
+     * and 2x RJ45). Null when it doesn't, so callers keep the whole-card rendering.
      */
-    renderRJ45Ports(portCount, connectorType) {
+    nicPortSplit(nic) {
+        const mapping = nic.port_mapping || {};
+        const ports = Object.keys(mapping).map(Number).sort((a, b) => a - b)
+            .filter(index => mapping[index] && mapping[index].cage);
+        if (ports.length === 0) return null;
+
+        const others = ports.filter(index => !/sfp/i.test(mapping[index].cage));
+        return {
+            sfp: ports.length - others.length,
+            other: others.length,
+            otherType: others.length ? mapping[others[0]].cage : '',
+            otherFirst: others.length ? others[0] : 1
+        };
+    }
+
+    /**
+     * Render RJ45 port indicators for copper NICs.
+     * Shows port count with visual indicators. `firstPort` numbers the row when
+     * these are not ports 1..N (the copper half of a mixed card).
+     */
+    renderRJ45Ports(portCount, connectorType, firstPort = 1) {
         if (portCount === 0) return '';
 
         let html = `
@@ -3034,8 +3065,8 @@ class ServerBuilder {
 
         for (let i = 0; i < portCount; i++) {
             html += `
-            <div class="rj45-port active" title="Port ${i + 1} - ${connectorType || 'RJ45'}">
-                ${i + 1}
+            <div class="rj45-port active" title="Port ${firstPort + i} - ${connectorType || 'RJ45'}">
+                ${firstPort + i}
             </div>`;
         }
 

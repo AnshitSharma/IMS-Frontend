@@ -1162,6 +1162,8 @@ class RequestsManager {
             case 'server.config.update':     what = `Update details${where}`; break;
             case 'server.config.transition': what = `Set${where || ' server'} to ${p.to_status || 'a new status'}`; break;
             case 'inventory.component.add':  what = `Add ${model} to inventory`; break;
+            case 'inventory.device.rack':    what = `Rack ${p.device_name || 'network device'}${p.rack_name ? ` in ${p.rack_name}` : ''}${p.start_u ? ` at U${p.start_u}` : ''}`; break;
+            case 'inventory.device.unrack':  what = `Remove ${p.device_name || 'network device'} from ${p.rack_name || 'its rack'}`; break;
             case 'inventory.component.edit': {
                 // Named, not just typed: "Update STORAGE record SN-4471" is a
                 // title an approver can act on; "a storage record" is not.
@@ -1408,6 +1410,52 @@ class RequestsManager {
         baySelect.onchange();
     }
 
+    /**
+     * The network-device dropdown on the rack / unrack forms.
+     *
+     * scope 'all' for the rack form -- loose stock AND racked units, because racking
+     * an already-racked unit is a move -- and 'racked' for unrack. A racked unit is
+     * labelled with where it sits, so the requester can tell two identical switches
+     * apart. The list is kept in this.deviceUnits: collectAction() reads the
+     * display-only name/serial/rack snapshots off it.
+     *
+     * Carries the sequence guard the other async fillers use: the requester can
+     * change the action while the fetch is in flight, and a late answer must not
+     * overwrite a form that is about a different question.
+     */
+    async fillDeviceUnits(scope) {
+        const actionAtStart = this.actionType;
+        const select = document.getElementById('plDeviceUnit');
+        if (!select) return;
+
+        let devices = [];
+        try {
+            const result = await api.requestEnvelope('rack-placeable-devices', { scope });
+            if (result?.success) devices = result.data?.devices || [];
+        } catch (e) {
+            devices = [];
+        }
+
+        if (this.actionType !== actionAtStart) return;
+        const live = document.getElementById('plDeviceUnit');
+        if (!live) return;
+
+        this.deviceUnits = devices;
+        if (!devices.length) {
+            live.innerHTML = `<option value="">${scope === 'racked' ? 'No network device is racked' : 'No network devices in stock or racked'}</option>`;
+            return;
+        }
+
+        live.innerHTML = '<option value="">Choose the device...</option>' + devices.map((d) => {
+            const id = String(d.inventory_id ?? '');
+            const name = d.serial_number || d.asset_tag || `#${id}`;
+            const where = d.racked
+                ? `in ${d.rack_name || 'a rack'} \u00b7 U${d.start_u}`
+                : (d.location_name || 'location unknown');
+            return `<option value="${utils.escapeHtml(id)}">${utils.escapeHtml(d.model_name)} \u00b7 ${utils.escapeHtml(name)} \u00b7 ${utils.escapeHtml(where)}</option>`;
+        }).join('');
+    }
+
     /** Which action this request is building, and the fields it needs. */
     setActionType(actionType) {
         this.actionType = actionType || '';
@@ -1451,6 +1499,13 @@ class RequestsManager {
             this.fillHandoverLocations();
             this.loadHandoverUsers();
         }
+        if (this.actionType === 'inventory.device.rack') {
+            this.fillRelocateLocations();
+            this.fillDeviceUnits('all');
+        }
+        if (this.actionType === 'inventory.device.unrack') {
+            this.fillDeviceUnits('racked');
+        }
         // Picking the record is what mounts the form it will be edited on.
         if (this.actionType === 'inventory.component.edit') {
             const record = document.getElementById('plEditRecord');
@@ -1466,6 +1521,7 @@ class RequestsManager {
         this.locationWarn = null;
         this.pickedUnit = null;
         this.handoverUnits = [];
+        this.deviceUnits = [];
         this.relocateRacks = [];
         // The create/update forms ask for a location by NAME (that is the column
         // they write), so they get the same list rendered with names as values.
@@ -1749,13 +1805,13 @@ class RequestsManager {
         const INPUT = 'w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary';
         const LABEL = 'block text-xs font-medium text-text-secondary mb-1';
 
-        const componentPair = (typeField, modelField, modelLabel) => `
+        const componentPair = (typeField, modelField, modelLabel, serverScope = false) => `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="${LABEL}">Component type <span class="text-danger">*</span></label>
                     <select data-action-field="${typeField}" class="${INPUT}">
                         <option value="">Choose a type...</option>
-                        ${this.actionComponentTypeOptions()}
+                        ${this.actionComponentTypeOptions(serverScope)}
                     </select>
                 </div>
                 <div>
@@ -1769,7 +1825,7 @@ class RequestsManager {
         switch (actionType) {
             case 'server.component.add':
                 return `
-                    ${componentPair('component_type', 'component_uuid', 'Model')}
+                    ${componentPair('component_type', 'component_uuid', 'Model', true)}
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label class="${LABEL}">Serial number</label>
@@ -1789,7 +1845,7 @@ class RequestsManager {
                 // executor actually sends, so hiding it would hide which physical
                 // part the request names.
                 return `
-                    ${componentPair('component_type', 'component_uuid', 'Unit to remove')}
+                    ${componentPair('component_type', 'component_uuid', 'Unit to remove', true)}
                     <div>
                         <label class="${LABEL}">Serial number</label>
                         <input type="text" data-action-field="serial_number" maxlength="100" class="${INPUT}"
@@ -1803,7 +1859,7 @@ class RequestsManager {
                 // inventory row id) off the option. A typed serial could name a
                 // unit that is not in this server at all; a picked one cannot.
                 return `
-                    ${componentPair('component_type', 'old_component_uuid', 'Unit to take out')}
+                    ${componentPair('component_type', 'old_component_uuid', 'Unit to take out', true)}
                     <div>
                         <label class="${LABEL}">Model to put in <span class="text-danger">*</span></label>
                         <select data-action-field="new_component_uuid" class="${INPUT}">
@@ -1953,6 +2009,65 @@ class RequestsManager {
                     </div>
                     <p class="text-xs text-text-muted">Only loose stock can be handed over. A component installed in a server travels with that server, so ask for the server to be moved instead.</p>`;
 
+            case 'inventory.device.rack':
+                // Device, then site -> rack -> U: the same cascade as Move server, and
+                // it reuses that form's element ids so fillRelocateLocations() drives
+                // both. The location select carries NO data-action-field on purpose --
+                // the executor refuses a parameter it does not declare, and the site
+                // is the rack's business. Its name rides along as a display snapshot.
+                return `
+                    <div>
+                        <label class="${LABEL}">Network device <span class="text-danger">*</span></label>
+                        <select data-action-field="inventory_id" id="plDeviceUnit" class="${INPUT}">
+                            <option value="">Loading devices\u2026</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Location <span class="text-danger">*</span></label>
+                            <select id="plRelocateLocation" class="${INPUT}">
+                                <option value="">Loading locations\u2026</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Rack <span class="text-danger">*</span></label>
+                            <select data-action-field="rack_uuid" id="plRelocateRack" class="${INPUT}">
+                                <option value="">Choose a location first</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Start U <span class="text-danger">*</span></label>
+                            <input type="number" min="1" max="100" data-action-field="start_u" class="${INPUT}" id="plRelocateStartU" placeholder="e.g. 40">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Reason</label>
+                            <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-muted">Its height comes from the catalogue. Choosing a device that is already racked asks for it to be moved, and a device from another site takes the rack's site. The position is checked against the rack when the request is approved, so a slot that fills up in the meantime means the request is refused rather than forced.</p>`;
+
+            case 'inventory.device.unrack':
+                return `
+                    <div>
+                        <label class="${LABEL}">Network device <span class="text-danger">*</span></label>
+                        <select data-action-field="inventory_id" id="plDeviceUnit" class="${INPUT}">
+                            <option value="">Loading devices\u2026</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="${LABEL}">Shelf or bin afterwards</label>
+                            <input type="text" data-action-field="store_location" maxlength="100" class="${INPUT}" placeholder="Optional, e.g. Shelf B3">
+                        </div>
+                        <div>
+                            <label class="${LABEL}">Reason</label>
+                            <input type="text" data-action-field="reason" maxlength="255" class="${INPUT}" placeholder="Optional">
+                        </div>
+                    </div>
+                    <p class="text-xs text-text-muted">The device stays at the same site and goes back to stock.</p>`;
+
             case 'inventory.component.edit':
                 // Type -> model -> the exact RECORD, then the real Edit Component
                 // form for that record, mounted by mountEditForm(). Unlike the
@@ -1980,8 +2095,12 @@ class RequestsManager {
      * and takes an explicit list — two same-named methods in one class body
      * collapse into whichever is declared last, silently.
      */
-    actionComponentTypeOptions() {
+    actionComponentTypeOptions(serverScope = false) {
+        // A network device is racked, never installed in a server -- the backend
+        // refuses it at preflight, so the server-build pickers do not offer it.
+        // Handover and edit are about stock and keep the full list.
         return Object.keys(this.componentSpecPaths())
+            .filter((t) => !(serverScope && t === 'networkdevice'))
             .map((t) => `<option value="${t}">${utils.escapeHtml(this.componentTypeLabel(t))}</option>`).join('');
     }
 
@@ -3470,6 +3589,25 @@ class RequestsManager {
             if (unitSelect && !payload.inventory_id) delete payload.inventory_id;
         }
 
+        // Device actions name a UNIT. The names ride along as display-only snapshots
+        // -- the list and the approver's confirmation read them, and the executor
+        // never does: it acts on the ids.
+        if (this.actionType === 'inventory.device.rack' || this.actionType === 'inventory.device.unrack') {
+            const unit = (this.deviceUnits || []).find(
+                (u) => String(u.inventory_id) === String(payload.inventory_id));
+            if (unit?.model_name) payload.device_name = unit.model_name;
+            if (unit?.serial_number) payload.serial_number = unit.serial_number;
+
+            if (this.actionType === 'inventory.device.rack') {
+                const locName = document.getElementById('plRelocateLocation')?.selectedOptions?.[0]?.dataset?.name;
+                const rackName = document.getElementById('plRelocateRack')?.selectedOptions?.[0]?.dataset?.name;
+                if (locName) payload.location_name = locName;
+                if (rackName) payload.rack_name = rackName;
+            } else if (unit?.rack_name) {
+                payload.rack_name = unit.rack_name;
+            }
+        }
+
         // A swap names the unit coming out by the option picked, not by anything
         // typed: old_component_uuid is a MODEL, and a build with four identical
         // DIMMs offers four choices that would otherwise produce one identical
@@ -3558,14 +3696,19 @@ class RequestsManager {
             // optional: without a named carrier the confirmation step has no
             // owner, so nobody could ever close the request and the parent would
             // stay frozen with no visible cause.
-            'inventory.component.relocate': ['component_type', 'inventory_id', 'location_uuid', 'handover_user_id']
+            'inventory.component.relocate': ['component_type', 'inventory_id', 'location_uuid', 'handover_user_id'],
+            'inventory.device.rack': ['inventory_id', 'rack_uuid', 'start_u'],
+            'inventory.device.unrack': ['inventory_id']
         };
         // The take-out and put-in fields no longer hold what their payload names
         // suggest, so they are asked for in the words the form uses.
         const FIELD_ASKS = {
             old_component_uuid: 'Choose the unit to take out',
             new_component_uuid: 'Choose the model to put in',
-            component_uuid: 'Choose a model'
+            component_uuid: 'Choose a model',
+            inventory_id: 'Choose which unit',
+            rack_uuid: 'Choose the rack',
+            start_u: 'Enter the start U'
         };
         (REQUIRED[this.actionType] || []).forEach((f) => {
             if (p[f]) return;

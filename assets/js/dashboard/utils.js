@@ -316,7 +316,8 @@ window.utils = {
         hbacard: '/ims-data/hbacard/hbacard-level-3.json',
         sfp: '/ims-data/sfp/sfp-level-3.json',
         chassis: '/ims-data/chassis/chasis-level-3.json',
-        serverplatform: '/ims-data/serverplatform/server-platform-level-3.json'
+        serverplatform: '/ims-data/serverplatform/server-platform-level-3.json',
+        networkdevice: '/ims-data/networkdevice/network-device-level-3.json'
     },
 
     getURLParams() {
@@ -429,7 +430,8 @@ window.utils = {
         risercard: 'Riser Cards',
         hbacard: 'HBA Cards',
         sfp: 'SFP Modules',
-        serverplatform: 'Server Compute Platforms'
+        serverplatform: 'Server Compute Platforms',
+        networkdevice: 'Network Devices'
     },
 
     /**
@@ -457,7 +459,8 @@ window.utils = {
         risercard: 'Riser Card',
         hbacard: 'HBA Card',
         sfp: 'SFP Transceiver',
-        serverplatform: 'Server Compute Platform'
+        serverplatform: 'Server Compute Platform',
+        networkdevice: 'Network Device'
     },
 
     // Which page this is, as the slug the rest of the app keys off.
