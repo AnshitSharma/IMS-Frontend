@@ -1142,7 +1142,7 @@ class Dashboard {
         const paginationContainer = document.getElementById('pagination');
         const paginationInfo = document.getElementById('paginationInfo');
         if (!paginationContainer || !pagination) return;
-        const start = pagination.offset + 1;
+        const start = pagination.total === 0 ? 0 : pagination.offset + 1;
         const end = Math.min(pagination.offset + pagination.limit, pagination.total);
         paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} items`;
         const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -1197,6 +1197,10 @@ class Dashboard {
     }
 
     handleSearch(query) {
+        // Locations and Vendors reuse the #componentSearch box but filter their own
+        // lists. Reloading here sent `locations-list` / `vendors-list`, which the API
+        // rejects, so every keystroke raised an "Invalid module" error toast.
+        if (this.currentComponent === 'locations' || this.currentComponent === 'vendors') return;
         this.currentPage = 1;
         this.loadComponentList(this.currentComponent, true);
     }
@@ -3158,6 +3162,7 @@ class Dashboard {
 
     async _fetchComponentSpecsByUUID(componentType, uuid) {
         if (!uuid) return null;
+        const typeLower = String(componentType).toLowerCase();
 
         // One map, served by dashboard-type-manifest from ComponentSpecPaths.php.
         const jsonPath = await utils.specPathFor(componentType);

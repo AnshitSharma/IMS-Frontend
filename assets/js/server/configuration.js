@@ -549,8 +549,9 @@ class ConfigurationPage {
             }
 
             this.renderComponentHeaders();
-            this.renderComponents();
-            this.updateComponentCount();
+            // Through applyFilters, not a bare render: the Compatibility Filter box
+            // starts ticked, so the first view must already hide incompatible parts.
+            this.applyFilters();
 
         } catch (error) {
             console.error('Error loading components:', error);
@@ -1246,6 +1247,8 @@ class ConfigurationPage {
         const compatibilityFilter = document.getElementById('compatibilityFilter');
         const isCompatibilityFilterEnabled = compatibilityFilter ? compatibilityFilter.checked : true;
         const filterConfig = this.getFiltersForComponentType(this.currentComponentType);
+        const searchInput = document.getElementById('componentSearch');
+        const searchTerm = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
         // Property mapping for filters to component properties
         const propertyMap = {
@@ -1307,6 +1310,12 @@ class ConfigurationPage {
                 return false;
             }
 
+            // Search. Only CPUs carry an architecture, so it may be undefined.
+            if (searchTerm && ![component.name, component.architecture]
+                .some(value => value && String(value).toLowerCase().includes(searchTerm))) {
+                return false;
+            }
+
             return true;
         });
 
@@ -1319,19 +1328,9 @@ class ConfigurationPage {
      * Search components
      */
     searchComponents(query) {
-        if (!query.trim()) {
-            this.applyFilters();
-            return;
-        }
-
-        const searchTerm = query.toLowerCase();
-        this.filteredComponents = this.components.filter(component => {
-            return component.name.toLowerCase().includes(searchTerm) ||
-                component.architecture.toLowerCase().includes(searchTerm);
-        });
-
-        this.renderComponents();
-        this.updateComponentCount();
+        // applyFilters reads the search box itself, so search narrows the filtered
+        // view instead of replacing it.
+        this.applyFilters();
     }
 
     /**
@@ -2082,7 +2081,9 @@ class ConfigurationPage {
      */
     updateComponentCount() {
         const count = this.filteredComponents.length;
-        document.getElementById('componentCount').textContent = `${count} Compatible Products`;
+        // With the filter off the list includes incompatible parts, so don't call them compatible.
+        const filterOn = document.getElementById('compatibilityFilter')?.checked !== false;
+        document.getElementById('componentCount').textContent = `${count} ${filterOn ? 'Compatible ' : ''}Products`;
     }
 
     /**

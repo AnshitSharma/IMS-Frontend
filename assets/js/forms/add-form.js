@@ -987,6 +987,19 @@ class AddComponentForm {
     // ==================== STANDARD DROPDOWNS (CPU, Motherboard, NIC, HBA) ====================
     // Flow: Brand → Series → Model
 
+    // Can anything under this catalogue entry actually be stocked? Placeholder
+    // families ship with `models: []` (14 of the 28 server platforms do), and
+    // offering their brand or series only leads to an empty Model list. An entry
+    // of an unknown shape is kept, so this can hide dead ends but never real models.
+    hasPickableModel(item) {
+        const pickable = (m) => (m.UUID || m.uuid || m.inventory?.UUID) && (m.model || m.name);
+        if (Array.isArray(item.models)) return item.models.some(pickable);
+        if (Array.isArray(item.series)) {
+            return item.series.some(s => Array.isArray(s.models) && s.models.some(pickable));
+        }
+        return true;
+    }
+
     populateStandardDropdown1() {
         this.configureDropdownLabels({
             d1: 'Brand',
@@ -1000,7 +1013,9 @@ class AddComponentForm {
         dropdown1.innerHTML = '<option value="">Select Brand</option>';
 
         const brandField = this.currentComponentType === 'chassis' ? 'manufacturer' : 'brand';
-        const brands = [...new Set(this.jsonData.map(item => item[brandField]))].filter(Boolean);
+        const brands = [...new Set(this.jsonData
+            .filter(item => this.hasPickableModel(item))
+            .map(item => item[brandField]))].filter(Boolean);
 
         const fragStdBrand = document.createDocumentFragment();
         brands.sort().forEach(brand => {
@@ -1221,10 +1236,10 @@ class AddComponentForm {
             });
         } else if (this.currentComponentType === 'hbacard') {
             // HBA cards have series field directly
-            series = [...new Set(this.jsonData.filter(item => item.brand === brand).map(item => item.series))].filter(Boolean);
+            series = [...new Set(this.jsonData.filter(item => item.brand === brand && this.hasPickableModel(item)).map(item => item.series))].filter(Boolean);
         } else {
             // Standard: CPU, Motherboard
-            series = [...new Set(this.jsonData.filter(item => item.brand === brand).map(item => item.series))].filter(Boolean);
+            series = [...new Set(this.jsonData.filter(item => item.brand === brand && this.hasPickableModel(item)).map(item => item.series))].filter(Boolean);
         }
 
         const fragStdSeries = document.createDocumentFragment();

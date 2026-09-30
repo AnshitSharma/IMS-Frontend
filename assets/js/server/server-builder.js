@@ -2528,9 +2528,10 @@ class ServerBuilder {
             if (result.success) {
                 utils.showAlert('Server configuration saved successfully!', 'success');
 
-                // Redirect to server list or dashboard
+                // Back to the servers list. This used to build a part-picker URL from
+                // two undefined names, so it threw and the page never left.
                 setTimeout(() => {
-                    window.location.href = `../../pages/server/configuration.html?config=${configUuid}&type=${type}&return=builder`;
+                    window.location.href = '../dashboard/servers.html';
                 }, 1500);
             } else {
                 utils.showAlert(result.message || 'Failed to save configuration', 'error');
@@ -2866,14 +2867,17 @@ class ServerBuilder {
 
         const noSlotsHtml = '<div class="hw-slot is-empty"><div class="hw-slot-main"><span class="hw-slot-label">No expansion slots</span></div></div>';
         const slotData = this.slotAssignments?.pcie;
-        const slotTypes = ['x16', 'x8', 'x4'];
+        // Every width the engine reports, widest first. A fixed x16/x8/x4 list dropped
+        // x1 slots: counted in the header, never drawn, and a card in one was invisible.
+        const slotTypesOf = (total) => Object.keys(total || {})
+            .sort((a, b) => (parseInt(b.replace(/\D/g, ''), 10) || 0) - (parseInt(a.replace(/\D/g, ''), 10) || 0));
 
         // If we have API slot data, use it for correct placement
         if (slotData && slotData.total_slots) {
             let html = '';
             const usedSlots = slotData.used_slots || {};
 
-            slotTypes.forEach(type => {
+            slotTypesOf(slotData.total_slots).forEach(type => {
                 const slots = slotData.total_slots[type];
                 if (!slots || slots.length === 0) return;
 
@@ -2907,7 +2911,7 @@ class ServerBuilder {
                         <span class="flex items-center gap-2">${this.renderMeter(riserData.used_count || 0, riserData.total_count || 0)}</span>
                     </div>`;
 
-                    slotTypes.forEach(type => {
+                    slotTypesOf(riserData.total_slots).forEach(type => {
                         const slots = riserData.total_slots[type];
                         if (!slots || slots.length === 0) return;
 
