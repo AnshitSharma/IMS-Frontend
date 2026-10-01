@@ -31,6 +31,27 @@ const NAVBAR_HTML = `
 
         <div class="nav-menu flex items-center gap-4">
             <div class="nav-user flex items-center gap-3">
+                <!-- Notifications. Stays hidden until the API answers for this user. -->
+                <div class="notif-bell hidden" id="notifBell">
+                    <button id="notifBellBtn" class="theme-toggle-btn relative" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" title="Notifications">
+                        <i class="fas fa-bell"></i>
+                        <span id="notifBadge" class="notif-badge hidden"></span>
+                    </button>
+                    <div class="notif-panel" id="notifPanel" role="region" aria-label="Notifications">
+                        <div class="notif-panel-header">
+                            <span class="text-sm font-semibold text-text-primary">Notifications</span>
+                            <button type="button" id="notifMarkAll" class="notif-link-btn">Mark all as read</button>
+                        </div>
+                        <div class="notif-list" id="notifList"></div>
+                        <div class="notif-prefs" id="notifPrefs">
+                            <span>Also notify me by</span>
+                            <label id="notifEmailLabel"><input type="checkbox" id="notifEmailToggle"> Email</label>
+                            <label id="notifTeamsLabel"><input type="checkbox" id="notifTeamsToggle"> Teams</label>
+                            <button type="button" id="notifSendTest" class="notif-link-btn ml-auto hidden">Send test</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Theme Toggle Button -->
                 <button id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark mode">
                     <i class="fas fa-moon" id="themeToggleIcon"></i>
@@ -309,11 +330,325 @@ class SharedNavbar {
     }
 }
 
+/**
+ * The notification bell.
+ *
+ * Starts on DOMContentLoaded, not at mount: navbar.js is parsed before api.js on
+ * most pages. The bell stays hidden unless notification-unread-count answers, so
+ * a role without notification.view — or a server whose seeder has not run —
+ * simply shows no bell. Unread count is polled once a minute while the tab is
+ * visible; that poll is also what drives the backend's email/Teams retries.
+ *
+ * Items are built with textContent, never innerHTML — titles carry Request
+ * names typed by users.
+ */
+class NotificationBell {
+    constructor() {
+        this.root = document.getElementById('notifBell');
+        this.unread = 0;
+        this.prefs = null;
+        this.listLoaded = false;
+        if (!this.root) {
+            return;
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => this.start());
+        } else {
+            setTimeout(() => this.start(), 0);
+        }
+    }
+
+    el(id) {
+        return document.getElementById(id);
+    }
+
+    async start() {
+        if (typeof api === 'undefined' || !api.notifications || !api.getToken()) {
+            return;
+        }
+        try {
+            const result = await api.notifications.unreadCount();
+            this.setUnread(result.data?.unread_count || 0);
+        } catch (error) {
+            return;
+        }
+
+        this.root.classList.remove('hidden');
+        this.bind();
+        setInterval(() => this.poll(), 60000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) this.poll();
+        });
+    }
+
+    bind() {
+        const btn = this.el('notifBellBtn');
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.isOpen() ? this.close() : this.open();
+        });
+
+        // Capture phase: the user-menu button stops propagation, and opening it
+        // must still close this panel.
+        document.addEventListener('click', (e) => {
+            if (this.isOpen() && !e.target.closest('#notifBell')) this.close();
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen()) {
+                this.close();
+                btn.focus();
+            }
+        });
+
+        this.el('notifMarkAll').addEventListener('click', () => this.markAllRead());
+        this.el('notifEmailToggle').addEventListener('change', (e) => this.savePref('email_enabled', e.target));
+        this.el('notifTeamsToggle').addEventListener('change', (e) => this.savePref('teams_enabled', e.target));
+
+        const testBtn = this.el('notifSendTest');
+        if (api.utils?.hasPermission('notification.manage')) {
+            testBtn.classList.remove('hidden');
+            testBtn.addEventListener('click', () => this.sendTest(testBtn));
+        }
+    }
+
+    isOpen() {
+        return this.root.classList.contains('active');
+    }
+
+    open() {
+        document.querySelectorAll('.dropdown.active').forEach((d) => d.classList.remove('active'));
+        this.root.classList.add('active');
+        this.el('notifBellBtn').setAttribute('aria-expanded', 'true');
+        this.loadList();
+        if (!this.prefs) {
+            this.loadPrefs();
+        }
+    }
+
+    close() {
+        this.root.classList.remove('active');
+        this.el('notifBellBtn').setAttribute('aria-expanded', 'false');
+    }
+
+    setUnread(count) {
+        this.unread = Number(count) || 0;
+        const badge = this.el('notifBadge');
+        badge.textContent = this.unread > 99 ? '99+' : String(this.unread);
+        badge.classList.toggle('hidden', this.unread === 0);
+        this.el('notifMarkAll').disabled = this.unread === 0;
+        this.el('notifBellBtn').setAttribute(
+            'aria-label',
+            this.unread ? `Notifications, ${this.unread} unread` : 'Notifications'
+        );
+    }
+
+    async poll() {
+        if (document.hidden) return;
+        try {
+            const result = await api.notifications.unreadCount();
+            const previous = this.unread;
+            this.setUnread(result.data?.unread_count || 0);
+            if (this.isOpen() && this.unread !== previous) {
+                this.loadList();
+            }
+        } catch (error) {
+            // A missed poll is not worth a toast; the next one will try again.
+        }
+    }
+
+    async loadList() {
+        if (!this.listLoaded) {
+            this.renderMessage('Loading…');
+        }
+        try {
+            const result = await api.notifications.list({ limit: 20 });
+            this.listLoaded = true;
+            this.setUnread(result.data?.unread_count || 0);
+            this.renderItems(result.data?.items || []);
+        } catch (error) {
+            this.renderMessage("Couldn't load notifications. Try again in a moment.");
+        }
+    }
+
+    renderMessage(text) {
+        const list = this.el('notifList');
+        list.replaceChildren();
+        const empty = document.createElement('div');
+        empty.className = 'notif-empty';
+        empty.textContent = text;
+        list.appendChild(empty);
+    }
+
+    renderItems(items) {
+        if (!items.length) {
+            this.renderMessage("You're all caught up. Requests that need you will show up here.");
+            return;
+        }
+
+        const list = this.el('notifList');
+        list.replaceChildren();
+        items.forEach((item) => {
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'notif-item' + (item.read ? '' : ' is-unread');
+
+            const dot = document.createElement('span');
+            dot.className = 'notif-dot';
+            dot.setAttribute('aria-hidden', 'true');
+
+            const text = document.createElement('span');
+            text.className = 'flex-1 min-w-0';
+
+            const title = document.createElement('span');
+            title.className = 'notif-item-title';
+            title.textContent = item.title;
+            text.appendChild(title);
+
+            if (item.body) {
+                const body = document.createElement('span');
+                body.className = 'notif-item-body';
+                body.textContent = item.body;
+                text.appendChild(body);
+            }
+
+            const time = document.createElement('span');
+            time.className = 'notif-item-time';
+            time.textContent = this.formatTime(item.created_at);
+            text.appendChild(time);
+
+            row.append(dot, text);
+            row.addEventListener('click', () => this.openItem(item, row));
+            list.appendChild(row);
+        });
+    }
+
+    async openItem(item, row) {
+        if (!item.read) {
+            try {
+                const result = await api.notifications.markRead(item.id);
+                item.read = true;
+                row.classList.remove('is-unread');
+                this.setUnread(result.data?.unread_count ?? Math.max(0, this.unread - 1));
+            } catch (error) {
+                // Opening the request matters more than the read flag.
+            }
+        }
+        if (item.link) {
+            // Every page sits two levels below the UI root.
+            window.location.href = '../../' + item.link;
+        }
+    }
+
+    async markAllRead() {
+        const btn = this.el('notifMarkAll');
+        btn.disabled = true;
+        try {
+            await api.notifications.markAllRead();
+            this.setUnread(0);
+            this.el('notifList').querySelectorAll('.notif-item.is-unread')
+                .forEach((row) => row.classList.remove('is-unread'));
+        } catch (error) {
+            toast.error(error.message || "Couldn't mark notifications as read");
+            btn.disabled = this.unread === 0;
+        }
+    }
+
+    async loadPrefs() {
+        try {
+            const result = await api.notifications.getPreferences();
+            this.applyPrefs(result.data);
+        } catch (error) {
+            this.el('notifPrefs').classList.add('hidden');
+        }
+    }
+
+    applyPrefs(prefs) {
+        if (!prefs) return;
+        this.prefs = prefs;
+        const noEmail = 'Your IMS account has no email address';
+        this.applyToggle('notifEmail', prefs.email_enabled, prefs.email_available, noEmail);
+        this.applyToggle(
+            'notifTeams',
+            prefs.teams_enabled,
+            prefs.teams_available,
+            prefs.has_email ? "Teams notifications aren't set up yet" : noEmail
+        );
+    }
+
+    applyToggle(prefix, enabled, available, unavailableReason) {
+        const input = this.el(prefix + 'Toggle');
+        const label = this.el(prefix + 'Label');
+        input.checked = Boolean(enabled && available);
+        input.disabled = !available;
+        label.classList.toggle('is-unavailable', !available);
+        label.title = available ? '' : unavailableReason;
+    }
+
+    async savePref(key, input) {
+        const wanted = input.checked;
+        input.disabled = true;
+        try {
+            const result = await api.notifications.setPreferences({ [key]: wanted ? 1 : 0 });
+            this.applyPrefs(result.data);
+            const channel = key === 'email_enabled' ? 'Email' : 'Teams';
+            toast.success(`${channel} notifications turned ${wanted ? 'on' : 'off'}`);
+        } catch (error) {
+            input.checked = !wanted;
+            input.disabled = false;
+            toast.error(error.message || "Couldn't save your notification preference");
+        }
+    }
+
+    async sendTest(btn) {
+        btn.disabled = true;
+        try {
+            const result = await api.notifications.sendTest();
+            const d = result.data || {};
+            const email = d.email?.sent
+                ? `Email: sent (${d.email.transport === 'graph' ? 'Microsoft 365' : 'server mail'})`
+                : `Email: failed — ${d.email?.error || 'unknown error'}`;
+            const teams = !d.teams?.configured
+                ? "Teams: isn't set up yet"
+                : (d.teams.sent ? 'Teams: sent' : `Teams: failed — ${d.teams.error || 'unknown error'}`);
+            const message = `Test notification sent. ${email}. ${teams}.`;
+            if (d.email?.sent && d.teams?.sent) {
+                toast.success(message);
+            } else {
+                toast.warning(message);
+            }
+            this.loadList();
+        } catch (error) {
+            toast.error(error.message || "Couldn't send the test notification");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    /**
+     * Timestamps are UTC without an offset (see requests.js fmtDate); shown
+     * relative while recent, then as an IST date.
+     */
+    formatTime(value) {
+        if (!value) return '';
+        const d = new Date(String(value).replace(' ', 'T') + 'Z');
+        if (isNaN(d.getTime())) return value;
+        const minutes = Math.round((Date.now() - d.getTime()) / 60000);
+        if (minutes < 1) return 'Just now';
+        if (minutes < 60) return `${minutes} min ago`;
+        if (minutes < 24 * 60) return `${Math.round(minutes / 60)} h ago`;
+        return d.toLocaleDateString('en-US', {
+            timeZone: 'Asia/Kolkata',
+            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+    }
+}
+
 // Mount as soon as the placeholder exists — at parse time when the <script> tag
 // follows it, otherwise on DOMContentLoaded.
 function _mountNavbar() {
     if (!window.sharedNavbar) {
         window.sharedNavbar = new SharedNavbar();
+        window.notificationBell = new NotificationBell();
     }
 }
 

@@ -662,6 +662,96 @@
     @apply block !important;
   }
 
+  /* Notification bell (2026-10-02). The button reuses .theme-toggle-btn and the
+     panel reuses the user dropdown's shell, so neither introduces a new look. */
+  .notif-bell {
+    @apply relative;
+  }
+
+  .notif-badge {
+    @apply absolute -top-1.5 -right-1.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-primary text-white text-[0.625rem] font-semibold leading-[1.125rem] text-center pointer-events-none;
+  }
+
+  .notif-panel {
+    @apply hidden absolute right-0 mt-2 w-[22rem] bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown overflow-hidden;
+  }
+
+  .notif-bell.active .notif-panel {
+    @apply block;
+  }
+
+  .notif-panel-header {
+    @apply flex items-center justify-between gap-3 px-4 py-3 border-b border-border-light;
+  }
+
+  .notif-link-btn {
+    @apply text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-default;
+  }
+
+  .notif-list {
+    @apply max-h-[22rem] overflow-y-auto;
+  }
+
+  .notif-item {
+    @apply flex gap-3 w-full text-left px-4 py-3 border-b border-border-light hover:bg-surface-hover transition-colors duration-150;
+  }
+
+  .notif-item:last-child {
+    @apply border-b-0;
+  }
+
+  .notif-dot {
+    @apply mt-1.5 w-2 h-2 rounded-full flex-shrink-0;
+  }
+
+  .notif-item.is-unread .notif-dot {
+    @apply bg-primary;
+  }
+
+  .notif-item-title {
+    @apply block text-sm text-text-secondary;
+  }
+
+  .notif-item.is-unread .notif-item-title {
+    @apply text-text-primary font-medium;
+  }
+
+  .notif-item-body {
+    @apply text-xs text-text-muted mt-0.5 line-clamp-2;
+  }
+
+  .notif-item-time {
+    @apply block text-xs text-text-muted mt-1;
+  }
+
+  .notif-empty {
+    @apply px-4 py-8 text-center text-sm text-text-muted;
+  }
+
+  .notif-prefs {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 border-t border-border-light bg-surface-secondary text-xs text-text-secondary;
+  }
+
+  .notif-prefs label {
+    @apply inline-flex items-center gap-1.5 cursor-pointer;
+  }
+
+  .notif-prefs label.is-unavailable {
+    @apply cursor-default text-text-muted;
+  }
+
+  /* Phones: the bell is not at the screen edge, so an anchored 22rem panel would
+     run off the left side. Pin it under the navbar instead. */
+  @media (max-width: 639px) {
+    .notif-panel {
+      position: fixed;
+      top: 4rem;
+      left: 1rem;
+      right: 1rem;
+      width: auto;
+    }
+  }
+
   /* Table Base Styles with Fixed Heights */
   .table-base th {
     @apply h-12 align-middle;

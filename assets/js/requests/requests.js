@@ -157,7 +157,14 @@ class RequestsManager {
         }
 
         this.wireEvents();
-        this.loadSupportData().finally(() => this.load());
+        this.loadSupportData().finally(() => {
+            this.load();
+            // ?request=42 — the link every notification (bell, email, Teams)
+            // carries. openDetail() fetches the request itself and enforces the
+            // same access as clicking it in the list.
+            const linked = parseInt(new URLSearchParams(window.location.search).get('request'), 10);
+            if (linked > 0) this.openDetail(linked);
+        });
     }
 
     wireEvents() {

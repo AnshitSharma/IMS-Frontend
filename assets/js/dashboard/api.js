@@ -1139,6 +1139,38 @@ window.api = {
     },
 
     // Utility methods
+    // Notifications — the navbar bell. Every action is scoped to the caller
+    // server-side; nothing here takes a user id.
+    notifications: {
+        async list(params = {}) {
+            return await api.request('notification-list', params);
+        },
+
+        async unreadCount() {
+            return await api.request('notification-unread-count');
+        },
+
+        async markRead(id) {
+            return await api.request('notification-mark-read', { id });
+        },
+
+        async markAllRead() {
+            return await api.request('notification-mark-all-read');
+        },
+
+        async getPreferences() {
+            return await api.request('notification-get-preferences');
+        },
+
+        async setPreferences(prefs) {
+            return await api.request('notification-set-preferences', prefs);
+        },
+
+        async sendTest() {
+            return await api.request('notification-test');
+        }
+    },
+
     utils: {
         // Check if user is authenticated
         isAuthenticated() {
