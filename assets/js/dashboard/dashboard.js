@@ -4335,6 +4335,10 @@ class Dashboard {
     }
 
     setupVendorEventListeners() {
+        // loadVendorList() runs again after every add/edit/delete; bind once.
+        if (this._vendorListenersBound) return;
+        this._vendorListenersBound = true;
+
         const searchInput = document.getElementById('componentSearch');
         if (searchInput) {
             searchInput.addEventListener('input', utils.debounce(() => {
@@ -4347,9 +4351,21 @@ class Dashboard {
             addBtn.addEventListener('click', () => this.showAddVendorForm());
         }
 
-        const refreshBtn = document.getElementById('refreshVendors');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.loadVendorList());
+        // One delegated listener for every card: open, edit, delete.
+        const grid = document.getElementById('vendorGrid');
+        if (grid) {
+            grid.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-vendor-act]');
+                if (!btn) return;
+                const vendor = (this.allVendors || []).find(v => String(v.id) === btn.dataset.vendorId);
+                const name = vendor?.name || 'Unnamed Vendor';
+                const act = btn.dataset.vendorAct;
+                if (act === 'add') this.showAddVendorForm();
+                else if (!vendor) return;
+                else if (act === 'open') this.showVendorComponents(vendor.id, name);
+                else if (act === 'edit') this.showEditVendorForm(vendor.id);
+                else if (act === 'delete') this.handleDeleteVendor(vendor.id, name);
+            });
         }
     }
 
@@ -4365,78 +4381,98 @@ class Dashboard {
             );
         }
 
-        this.renderVendorTable(filtered);
+        this.renderVendorCards(filtered);
     }
 
-    renderVendorTable(vendors) {
-        const tbody = document.getElementById('vendorsTableBody');
-        if (!tbody) return;
+    // Short chip labels for the vendor cards — the sidebar's names are too long
+    // to sit three to a row.
+    static VENDOR_TAG_LABELS = {
+        cpu: 'CPU', ram: 'RAM', storage: 'Storage', motherboard: 'Motherboards', nic: 'NIC',
+        caddy: 'Caddies', chassis: 'Chassis', pciecard: 'PCIe', risercard: 'Risers', hbacard: 'HBA',
+        sfp: 'SFP', serverplatform: 'Platforms', networkdevice: 'Network devices'
+    };
+
+    vendorInitials(name) {
+        const words = String(name || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+        if (!words.length) return '?';
+        const letters = words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2);
+        return letters.toUpperCase();
+    }
+
+    // "2 Oct" this year, "Sep 2025" before that — the day stops mattering and
+    // the shorter form keeps the stat on one line. PurchaseDate is a plain date,
+    // so it is read as one, not shifted through a timezone.
+    vendorDeliveryLabel(value) {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+        if (!m) return '—';
+        const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(m[2]) - 1];
+        return Number(m[1]) === new Date().getFullYear() ? `${Number(m[3])} ${month}` : `${month} ${m[1]}`;
+    }
+
+    renderVendorCards(vendors) {
+        const grid = document.getElementById('vendorGrid');
+        if (!grid) return;
 
         const totalVendors = (this.allVendors || []).length;
-
         const infoEl = document.getElementById('vendorPaginationInfo');
         if (infoEl) {
-            infoEl.textContent = `Showing ${vendors.length} of ${totalVendors} vendor${totalVendors === 1 ? '' : 's'}`;
-        }
-
-        const countBadge = document.getElementById('vendorCountBadge');
-        if (countBadge) {
-            countBadge.textContent = totalVendors;
-            countBadge.classList.remove('hidden');
-            countBadge.classList.add('inline-flex');
+            infoEl.textContent = totalVendors
+                ? `Showing ${vendors.length} of ${totalVendors} vendor${totalVendors === 1 ? '' : 's'}`
+                : '';
         }
 
         if (vendors.length === 0) {
             const isUnfiltered = totalVendors === 0;
-            const icon = isUnfiltered ? 'fa-truck' : 'fa-search';
-            const heading = isUnfiltered ? 'No vendors yet' : 'No matching vendors';
-            const message = isUnfiltered
-                ? 'Add your first vendor to start tracking suppliers.'
-                : 'Try a different name, email or phone number.';
-            const action = isUnfiltered
-                ? `<button class="inline-flex items-center gap-2 h-10 px-4 mt-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 transition-colors" onclick="dashboard.showAddVendorForm()">
-                       <i class="fas fa-plus text-xs"></i> Add Vendor
-                   </button>`
-                : '';
-            tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-16 text-center">
-                <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-surface-secondary flex items-center justify-center">
-                    <i class="fas ${icon} text-2xl text-text-muted"></i>
-                </div>
-                <h3 class="text-base font-semibold text-text-primary mb-1">${heading}</h3>
-                <p class="text-sm text-text-muted">${message}</p>
-                ${action}
-            </td></tr>`;
+            grid.innerHTML = `<div class="vdx-state">
+                <h3>${isUnfiltered ? 'No vendors yet' : 'No matching vendors'}</h3>
+                <div>${isUnfiltered
+                    ? 'Add the suppliers you buy from, then pick them when you add stock.'
+                    : 'Try a different name, email or phone number.'}</div>
+                ${isUnfiltered ? `<button type="button" class="vdx-primary" data-vendor-act="add"><i class="fas fa-plus text-xs" aria-hidden="true"></i> Add vendor</button>` : ''}
+            </div>`;
             return;
         }
 
-        tbody.innerHTML = vendors.map(vendor => `
-            <tr class="hover:bg-surface-hover transition-colors">
-                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Name">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary dark:text-primary-light flex items-center justify-center text-sm font-semibold uppercase">
-                            ${utils.escapeHtml((vendor.name || '?').trim().charAt(0))}
-                        </div>
-                        <span class="font-semibold text-text-primary">${utils.escapeHtml(vendor.name)}</span>
-                    </div>
-                </td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-secondary" data-label="Email">${vendor.email ? utils.escapeHtml(vendor.email) : '<span class="text-text-muted">—</span>'}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm font-mono tabular-nums text-text-secondary" data-label="Phone">${vendor.phone ? utils.escapeHtml(vendor.phone) : '<span class="font-sans text-text-muted">—</span>'}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-muted whitespace-nowrap" data-label="Created">${utils.formatDate(vendor.created_at)}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Actions">
-                    <div class="flex items-center justify-end gap-1">
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-surface-hover transition-colors" onclick="dashboard.showVendorComponents(${vendor.id}, ${utils.jsArg(vendor.name || 'Unnamed Vendor')})" title="View Components">
-                            <i class="fas fa-boxes text-sm"></i>
-                        </button>
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-info hover:bg-info/10 transition-colors" onclick="dashboard.showEditVendorForm(${vendor.id})" title="Edit">
-                            <i class="fas fa-edit text-sm"></i>
-                        </button>
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" onclick="dashboard.handleDeleteVendor(${vendor.id}, ${utils.jsArg(vendor.name || 'Unnamed Vendor')})" title="Delete">
-                            <i class="fas fa-trash text-sm"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        const labels = Dashboard.VENDOR_TAG_LABELS;
+        grid.innerHTML = vendors.map(vendor => {
+            const id = utils.escapeHtml(String(vendor.id));
+            const name = vendor.name || 'Unnamed Vendor';
+            // What they say they sell; failing that, what has actually come from them.
+            const declared = (vendor.sells || '').split(',').map(s => s.trim()).filter(Boolean);
+            const types = declared.length ? declared : (vendor.supplied_types || []);
+            const tags = types.length
+                ? types.map(t => `<span class="vdx-tag">${utils.escapeHtml(labels[t] || t)}</span>`).join('')
+                : '<span class="vdx-tag is-none">Nothing listed yet</span>';
+
+            const parts = Number(vendor.parts) || 0;
+            const failed = Number(vendor.failed) || 0;
+            const rate = parts ? (failed / parts) * 100 : 0;
+            // 2% and up is worth a second look; one bad part in a tiny batch is not.
+            const rateClass = !parts ? 'is-quiet' : (rate >= 2 && failed > 1 ? 'is-bad' : '');
+            const contact = vendor.email || vendor.phone || '';
+
+            return `<article class="vdx-card">
+                <button type="button" class="vdx-open" data-vendor-act="open" data-vendor-id="${id}" aria-label="${utils.escapeHtml(`${name}: show supplied parts`)}">
+                    <span class="vdx-who">
+                        <span class="vdx-av" aria-hidden="true">${utils.escapeHtml(this.vendorInitials(name))}</span>
+                        <span class="min-w-0">
+                            <span class="vdx-name block">${utils.escapeHtml(name)}</span>
+                            <span class="vdx-email vdx-mono block">${contact ? utils.escapeHtml(contact) : 'No contact on file'}</span>
+                        </span>
+                    </span>
+                    <span class="vdx-tags">${tags}</span>
+                    <span class="vdx-stats">
+                        <span><span class="vdx-num vdx-mono block ${parts ? '' : 'is-quiet'}">${parts.toLocaleString('en-IN')}</span><span class="vdx-lbl">parts</span></span>
+                        <span><span class="vdx-num vdx-mono block ${rateClass}">${parts ? rate.toFixed(1) + '%' : '—'}</span><span class="vdx-lbl">failure rate</span></span>
+                        <span><span class="vdx-num vdx-mono block ${vendor.last_delivery ? '' : 'is-quiet'}">${this.vendorDeliveryLabel(vendor.last_delivery)}</span><span class="vdx-lbl">last delivery</span></span>
+                    </span>
+                </button>
+                <div class="vdx-acts">
+                    <button type="button" class="vdx-icon" data-vendor-act="edit" data-vendor-id="${id}" title="Edit vendor" aria-label="Edit ${utils.escapeHtml(name)}"><i class="fas fa-pen"></i></button>
+                    <button type="button" class="vdx-icon is-danger" data-vendor-act="delete" data-vendor-id="${id}" title="Delete vendor" aria-label="Delete ${utils.escapeHtml(name)}"><i class="fas fa-trash"></i></button>
+                </div>
+            </article>`;
+        }).join('');
     }
 
     // Component types a vendor can sell — keys match VALID_COMPONENT_TYPES in the

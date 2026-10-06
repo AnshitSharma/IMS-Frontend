@@ -662,18 +662,28 @@
     @apply block !important;
   }
 
-  /* Notification bell (2026-10-02). The button reuses .theme-toggle-btn and the
-     panel reuses the user dropdown's shell, so neither introduces a new look. */
+  /* Notification bell (2026-10-02; panel redesigned 2026-10-06). The button
+     reuses .theme-toggle-btn. The panel splits what needs the reader from what
+     is only for their information. Plain CSS on the theme variables, which
+     carry dark mode. */
   .notif-bell {
     @apply relative;
+    --notif-accent: #0F766E;
+    --notif-tint: rgba(15, 118, 110, .045);
+  }
+
+  [data-theme="dark"] .notif-bell {
+    --notif-accent: #2DD4BF;
+    --notif-tint: rgba(45, 212, 191, .06);
   }
 
   .notif-badge {
-    @apply absolute -top-1.5 -right-1.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full bg-primary text-white text-[0.625rem] font-semibold leading-[1.125rem] text-center pointer-events-none;
+    @apply absolute -top-1.5 -right-1.5 min-w-[1.125rem] h-[1.125rem] px-1 rounded-full text-white text-[0.625rem] font-semibold leading-[1.125rem] text-center pointer-events-none;
+    background: #DC2626;
   }
 
   .notif-panel {
-    @apply hidden absolute right-0 mt-2 w-[22rem] bg-surface-card border border-border-light rounded-lg shadow-dropdown z-dropdown overflow-hidden;
+    @apply hidden absolute right-0 mt-2 w-[24rem] bg-surface-card border border-border-light rounded-xl shadow-dropdown z-dropdown overflow-hidden;
   }
 
   .notif-bell.active .notif-panel {
@@ -681,67 +691,243 @@
   }
 
   .notif-panel-header {
-    @apply flex items-center justify-between gap-3 px-4 py-3 border-b border-border-light;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-border-light);
+  }
+
+  .notif-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  .notif-tabs {
+    display: flex;
+    gap: 2px;
+  }
+
+  .notif-tab {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+
+  .notif-tab:hover {
+    color: var(--color-text-primary);
+  }
+
+  .notif-tab[aria-selected="true"] {
+    background: var(--color-text-primary);
+    color: var(--color-surface-card);
   }
 
   .notif-link-btn {
-    @apply text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-default;
+    margin-left: auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--notif-accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .notif-link-btn:disabled {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    cursor: default;
   }
 
   .notif-list {
-    @apply max-h-[22rem] overflow-y-auto;
+    max-height: min(30rem, calc(100vh - 11rem));
+    overflow-y: auto;
+  }
+
+  .notif-section {
+    padding: 12px 14px 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .notif-section + .notif-item,
+  .notif-item:first-child {
+    border-top: 0;
   }
 
   .notif-item {
-    @apply flex gap-3 w-full text-left px-4 py-3 border-b border-border-light hover:bg-surface-hover transition-colors duration-150;
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    border-top: 1px solid var(--color-border-light);
+    cursor: pointer;
+    transition: background-color .15s;
   }
 
-  .notif-item:last-child {
-    @apply border-b-0;
+  .notif-item:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .notif-item.is-action {
+    background: var(--notif-tint);
+  }
+
+  .notif-item.is-action:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .notif-item:focus-visible,
+  .notif-panel button:focus-visible,
+  .notif-panel input:focus-visible {
+    outline: 2px solid #0F766E;
+    outline-offset: -2px;
   }
 
   .notif-dot {
-    @apply mt-1.5 w-2 h-2 rounded-full flex-shrink-0;
+    margin-top: 6px;
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 999px;
+    background: var(--color-border);
   }
 
   .notif-item.is-unread .notif-dot {
-    @apply bg-primary;
+    background: var(--notif-accent);
+  }
+
+  .notif-item.is-alert .notif-dot {
+    background: #DC2626;
+  }
+
+  .notif-item-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .notif-item-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
   }
 
   .notif-item-title {
-    @apply block text-sm text-text-secondary;
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
   }
 
-  .notif-item.is-unread .notif-item-title {
-    @apply text-text-primary font-medium;
-  }
-
-  .notif-item-body {
-    @apply text-xs text-text-muted mt-0.5 line-clamp-2;
+  .notif-item.is-unread .notif-item-title,
+  .notif-item.is-action .notif-item-title {
+    color: var(--color-text-primary);
+    font-weight: 600;
   }
 
   .notif-item-time {
-    @apply block text-xs text-text-muted mt-1;
+    flex-shrink: 0;
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .notif-item-body {
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .notif-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .notif-btn {
+    height: 28px;
+    padding: 0 11px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-card);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .notif-btn:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .notif-btn.is-primary {
+    border-color: #0F766E;
+    background: #0F766E;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .notif-btn.is-primary:hover {
+    background: #115E59;
+  }
+
+  .notif-btn:disabled {
+    opacity: .6;
+    cursor: progress;
   }
 
   .notif-empty {
-    @apply px-4 py-8 text-center text-sm text-text-muted;
+    padding: 36px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--color-text-muted);
   }
 
   .notif-prefs {
-    @apply flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 border-t border-border-light bg-surface-secondary text-xs text-text-secondary;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 14px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--color-border-light);
+    background: var(--color-surface-secondary);
+    font-size: 12px;
+    color: var(--color-text-secondary);
   }
 
   .notif-prefs label {
-    @apply inline-flex items-center gap-1.5 cursor-pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+  }
+
+  .notif-prefs input[type="checkbox"] {
+    accent-color: #0F766E;
   }
 
   .notif-prefs label.is-unavailable {
-    @apply cursor-default text-text-muted;
+    cursor: default;
+    color: var(--color-text-muted);
   }
 
-  /* Phones: the bell is not at the screen edge, so an anchored 22rem panel would
-     run off the left side. Pin it under the navbar instead. */
+  /* Phones: the bell is not at the screen edge, so an anchored panel would run
+     off the left side. Pin it under the navbar instead. */
   @media (max-width: 639px) {
     .notif-panel {
       position: fixed;

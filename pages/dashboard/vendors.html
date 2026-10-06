@@ -14,6 +14,82 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
+    <style>
+        /* Vendors — one card per supplier: who they are, what they supply, and
+           how their parts hold up. Plain CSS on the theme variables, which carry
+           dark mode. */
+        .vdx { color: var(--color-text-primary); font-size: 14px; display: flex; flex-direction: column; gap: 18px; --vdx-accent: #0F766E; --vdx-tint: rgba(15, 118, 110, .10); }
+        [data-theme="dark"] .vdx { --vdx-accent: #2DD4BF; --vdx-tint: rgba(45, 212, 191, .12); }
+        .vdx .hidden { display: none !important; }
+        .vdx-mono { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+        .vdx button:focus-visible, .vdx input:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+
+        .vdx-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+        .vdx-head h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+        .vdx-sub { margin-top: 4px; font-size: 13px; color: var(--color-text-muted); }
+        .vdx-tools { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+        .vdx-search {
+            display: flex; align-items: center; gap: 10px; width: 240px; height: 40px; padding: 0 12px;
+            border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card); color: var(--color-text-muted);
+        }
+        .vdx-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .vdx-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--color-text-primary); outline: none; }
+        .vdx-search input:focus-visible { outline: none; }
+        .vdx-primary {
+            display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 8px;
+            background: #0F766E; color: #fff; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+        }
+        .vdx-primary:hover { background: #115E59; }
+
+        .vdx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 14px; }
+        .vdx-card {
+            position: relative; display: flex; flex-direction: column; background: var(--color-surface-card);
+            border: 1px solid var(--color-border); border-radius: 10px; transition: border-color .15s;
+        }
+        .vdx-card:hover, .vdx-card:focus-within { border-color: var(--color-border-dark); }
+        .vdx-open {
+            display: flex; flex-direction: column; gap: 12px; flex: 1; width: 100%; padding: 16px 16px 14px; border: 0; border-radius: 10px;
+            background: none; text-align: left; font: inherit; color: inherit; cursor: pointer;
+        }
+        .vdx-who { display: flex; gap: 12px; align-items: center; min-width: 0; padding-right: 60px; }
+        .vdx-av {
+            width: 36px; height: 36px; flex: 0 0 36px; border-radius: 8px; background: var(--vdx-tint); color: var(--vdx-accent);
+            display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+        }
+        .vdx-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .vdx-email { font-size: 12px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .vdx-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 22px; }
+        .vdx-tag { padding: 2px 9px; border-radius: 999px; background: var(--color-surface-secondary); color: var(--color-text-secondary); font-size: 12px; }
+        .vdx-tag.is-none { background: none; padding-left: 0; color: var(--color-text-muted); }
+        .vdx-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding-top: 12px; margin-top: auto; border-top: 1px solid var(--color-border-light); }
+        .vdx-num { font-size: 18px; line-height: 1.2; white-space: nowrap; }
+        .vdx-num.is-bad { color: #DC2626; }
+        [data-theme="dark"] .vdx-num.is-bad { color: #F87171; }
+        .vdx-num.is-quiet { color: var(--color-text-muted); }
+        .vdx-lbl { font-size: 12px; color: var(--color-text-muted); }
+        .vdx-acts { position: absolute; top: 10px; right: 10px; display: flex; gap: 2px; }
+        .vdx-icon {
+            width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px;
+            background: none; color: var(--color-text-muted); font-size: 12.5px; cursor: pointer;
+        }
+        .vdx-icon:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+        .vdx-icon.is-danger:hover { color: #DC2626; }
+        /* Pointer devices get the actions on hover/focus; touch keeps them visible. */
+        @media (hover: hover) {
+            .vdx-acts { opacity: 0; transition: opacity .15s; }
+            .vdx-card:hover .vdx-acts, .vdx-card:focus-within .vdx-acts { opacity: 1; }
+        }
+
+        .vdx-state { grid-column: 1 / -1; padding: 56px 16px; text-align: center; color: var(--color-text-muted); border: 1px dashed var(--color-border); border-radius: 10px; }
+        .vdx-state h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+        .vdx-state .vdx-primary { margin-top: 16px; }
+        .vdx-foot { font-size: 12.5px; color: var(--color-text-muted); }
+
+        @media (max-width: 639px) {
+            .vdx-tools { width: 100%; margin-left: 0; }
+            .vdx-search { flex: 1; width: auto; }
+        }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -26,72 +102,25 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
-                <div id="componentView" class="content-section active">
-                    <!-- Page Header -->
-                    <div class="content-header mb-5">
-                        <div class="flex items-baseline gap-3">
-                            <h2 id="componentTitle" class="text-2xl font-bold text-text-primary tracking-tight">Vendors</h2>
-                            <span id="vendorCountBadge"
-                                class="hidden items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums"></span>
+                <div id="componentView" class="content-section active vdx">
+                    <div class="vdx-head">
+                        <div>
+                            <h1 id="componentTitle">Vendors</h1>
+                            <div class="vdx-sub">Who you buy from, what they supply, and how their parts hold up</div>
                         </div>
-                        <p class="text-sm text-text-muted mt-1">Manage suppliers and the components linked to them.</p>
-                    </div>
-
-                    <!-- Vendors Card -->
-                    <div class="bg-surface-card border border-border rounded-lg shadow-card overflow-hidden">
-                        <!-- Toolbar -->
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-4 border-b border-border">
-                            <div class="relative w-full sm:max-w-md sm:flex-1">
-                                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none"></i>
-                                <input type="text" id="componentSearch" placeholder="Search by name, email or phone..."
-                                    class="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-surface-main text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors">
-                            </div>
-                            <div class="flex items-center gap-2 sm:ml-auto">
-                                <button id="refreshVendors" title="Refresh list"
-                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-border bg-surface-card text-text-secondary text-sm font-medium hover:bg-surface-hover hover:text-text-primary transition-colors">
-                                    <i class="fas fa-sync-alt text-xs"></i>
-                                    <span class="hidden md:inline">Refresh</span>
-                                </button>
-                                <button id="addVendorBtn"
-                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 shadow-sm transition-colors">
-                                    <i class="fas fa-plus text-xs"></i>
-                                    <span>Add Vendor</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Table -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full table-base components-table table-responsive" id="vendorsTable">
-                                <thead>
-                                    <tr class="border-b border-border bg-surface-secondary">
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Vendor
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Email
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Phone
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Created
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Actions
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vendorsTableBody" class="divide-y divide-border [&_tr:last-child_td]:border-b-0">
-                                </tbody>
-                            </table>
-                        </div>
-
-                        <!-- Card Footer -->
-                        <div class="px-4 sm:px-5 py-3 border-t border-border bg-surface-secondary/50">
-                            <span id="vendorPaginationInfo" class="text-xs text-text-muted tabular-nums"></span>
+                        <div class="vdx-tools">
+                            <label class="vdx-search">
+                                <i class="fas fa-search text-xs" aria-hidden="true"></i>
+                                <input type="search" id="componentSearch" placeholder="Name, email or phone…" aria-label="Search vendors">
+                            </label>
+                            <button type="button" id="addVendorBtn" class="vdx-primary">
+                                <i class="fas fa-plus text-xs" aria-hidden="true"></i> Add vendor
+                            </button>
                         </div>
                     </div>
+
+                    <div id="vendorGrid" class="vdx-grid" aria-live="polite"></div>
+                    <div id="vendorPaginationInfo" class="vdx-foot"></div>
                 </div>
             </main>
         </div>

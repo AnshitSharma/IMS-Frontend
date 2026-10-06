@@ -153,96 +153,238 @@ class ACLManager {
     // ======================
 
     async renderRolesTable() {
-        const tableBody = document.getElementById('rolesTableBody');
+        const head = document.getElementById('aclMatrixHead');
+        const body = document.getElementById('rolesTableBody');
         const emptyState = document.getElementById('emptyState');
-        const tableContainer = document.querySelector('.table-container');
+        const card = document.querySelector('#roleManagementView .aclx-card');
+        this.updateTabCounts();
 
         if (!this.roles || this.roles.length === 0) {
-            if (tableBody) tableBody.innerHTML = '';
-            if (emptyState) emptyState.classList.remove('hidden');
-            if (tableContainer) tableContainer.classList.add('hidden');
+            if (body) body.innerHTML = '';
+            emptyState?.classList.remove('hidden');
+            card?.classList.add('hidden');
             return;
         }
+        emptyState?.classList.add('hidden');
+        card?.classList.remove('hidden');
+        if (!head || !body) return;
 
-        if (emptyState) emptyState.classList.add('hidden');
-        if (tableContainer) tableContainer.classList.remove('hidden');
+        // Each role's granted set. roles-list carries counts only, so this is
+        // one roles-get per role, run together.
+        const full = await Promise.all(this.roles.map(async (role) => {
+            try { return (await this.getRoleById(role.id)) || role; } catch (e) { return role; }
+        }));
+        this.matrixRoles = full.map((r, i) => {
+            const base = this.roles[i];
+            const granted = new Set((r.permissions || [])
+                .filter((x) => x.granted === 1 || x.granted === true || x.granted === '1')
+                .map((x) => Number(x.id)));
+            return {
+                id: Number(base.id),
+                name: base.name || r.name || '',
+                label: base.display_name || r.display_name || base.name || 'Role',
+                people: Number(base.user_count ?? (Array.isArray(r.users) ? r.users.length : 0)),
+                bypass: this.isBypassRole(base.name || r.name),
+                granted
+            };
+        });
+        if (!this.expandedGroups) this.expandedGroups = new Set();
+        this.renderMatrix();
+    }
 
-        if (tableBody) {
-            // Fetch full role data (with users and permissions) for each role for display
-            const fullRoleData = await Promise.all(
-                this.roles.map(async (role) => {
-                    try {
-                        const fullRole = await this.getRoleById(role.id);
-                        return fullRole || role;
-                    } catch (error) {
-                        return role;
-                    }
-                })
-            );
+    /**
+     * Acl::hasPermission() lets admin and super_admin through every check
+     * whatever their rows say, so their boxes would be decoration. They are
+     * drawn as "always allowed" and cannot be clicked.
+     */
+    isBypassRole(name) {
+        return ['admin', 'super_admin'].includes(String(name || '').toLowerCase());
+    }
 
-            tableBody.innerHTML = fullRoleData.map(role => this.createRoleRow(role)).join('');
+    /**
+     * Permissions whose absence still leaves a way through: the Add and Edit
+     * component forms and Build Server raise a request for approval instead
+     * of refusing (dashboard.applyPermissionGate, edit-form.js). Everything
+     * else missing is simply not allowed.
+     */
+    becomesRequest(permName) {
+        return /^(cpu|ram|storage|motherboard|nic|caddy|chassis|pciecard|risercard|hbacard|sfp|serverplatform|networkdevice)\.(create|edit)$/.test(permName)
+            || permName === 'server.create';
+    }
+
+    categoryLabel(key) {
+        const s = String(key || 'Other').replace(/_/g, ' ');
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    renderMatrix() {
+        const head = document.getElementById('aclMatrixHead');
+        const body = document.getElementById('rolesTableBody');
+        if (!head || !body || !this.matrixRoles) return;
+        const roles = this.matrixRoles;
+        const q = (this.permFilter || '').trim().toLowerCase();
+
+        head.innerHTML = `<th scope="col">Permission</th>` + roles.map((r) => `
+            <th scope="col">
+                <button type="button" class="aclx-role" data-role-menu="${r.id}" aria-haspopup="menu"
+                    title="${utils.escapeHtml(r.name)}">
+                    <span>${utils.escapeHtml(r.label)}</span>
+                    <small class="${r.bypass ? 'is-full' : ''}">${r.bypass ? 'full access · ' : ''}${r.people} ${r.people === 1 ? 'person' : 'people'}</small>
+                </button>
+            </th>`).join('');
+
+        const cell = (role, perm) => {
+            const label = `${role.label}: ${perm.display_name || perm.name}`;
+            if (role.bypass) {
+                return `<td><button type="button" class="aclx-cell is-locked" disabled aria-label="${utils.escapeHtml(label)}, always allowed" title="${utils.escapeHtml(role.label)} has every permission whatever is ticked here">✓</button></td>`;
+            }
+            const on = role.granted.has(Number(perm.id));
+            const req = !on && this.becomesRequest(perm.name);
+            const cls = on ? 'is-on' : (req ? 'is-req' : '');
+            const state = on ? 'allowed' : (req ? 'not allowed, raised as a request' : 'not allowed');
+            return `<td><button type="button" class="aclx-cell ${cls}" data-role="${role.id}" data-perm="${perm.id}"
+                aria-pressed="${on}" aria-label="${utils.escapeHtml(label)}, ${state}"
+                title="${on ? 'Allowed. Click to remove' : (req ? 'Not allowed, so it becomes a request. Click to allow' : 'Not allowed. Click to allow')}">${on ? '✓' : (req ? 'R' : '')}</button></td>`;
+        };
+
+        let html = '';
+        let shown = 0;
+        (this.permissions || []).forEach((group) => {
+            const perms = (group.permissions || []).filter((perm) => !q
+                || `${perm.display_name || ''} ${perm.name || ''} ${perm.description || ''}`.toLowerCase().includes(q));
+            if (!perms.length) return;
+            shown += perms.length;
+            const key = group.category_name;
+            const open = !!q || this.expandedGroups.has(key);
+            const ids = perms.map((x) => Number(x.id));
+            html += `
+                <tr class="aclx-grp">
+                    <td><button type="button" class="aclx-grp-btn" data-group="${utils.escapeHtml(key)}" aria-expanded="${open}">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>${utils.escapeHtml(this.categoryLabel(key))} <span class="n">${perms.length}</span>
+                    </button></td>
+                    ${roles.map((r) => {
+                        const n = r.bypass ? ids.length : ids.filter((id) => r.granted.has(id)).length;
+                        return `<td><span class="aclx-count ${n === ids.length ? 'is-all' : ''}" data-count-role="${r.id}" data-count-group="${utils.escapeHtml(key)}">${n}/${ids.length}</span></td>`;
+                    }).join('')}
+                </tr>`;
+            if (!open) return;
+            html += perms.map((perm) => `
+                <tr class="aclx-row">
+                    <td><span class="aclx-perm" title="${utils.escapeHtml(perm.description || '')}">
+                        <span>${utils.escapeHtml(perm.display_name || perm.name)}</span><code>${utils.escapeHtml(perm.name)}</code>
+                    </span></td>
+                    ${roles.map((r) => cell(r, perm)).join('')}
+                </tr>`).join('');
+        });
+        body.innerHTML = shown
+            ? html
+            : `<tr><td colspan="${roles.length + 1}" class="aclx-empty">No permission matches “${utils.escapeHtml(q)}”.</td></tr>`;
+    }
+
+    updateTabCounts() {
+        const set = (id, n) => {
+            const el = document.querySelector(`#${id} .aclx-tabn`);
+            if (el) el.textContent = Number.isFinite(n) ? `· ${n}` : '';
+        };
+        set('tabRolesBtn', (this.roles || []).length);
+        set('tabUsersBtn', (this.users || []).length);
+    }
+
+    /** Flip one role × permission and save that role's whole set. */
+    async toggleCell(btn) {
+        const roleId = Number(btn.dataset.role);
+        const permId = Number(btn.dataset.perm);
+        const role = (this.matrixRoles || []).find((r) => r.id === roleId);
+        if (!role || role.bypass || btn.classList.contains('is-busy')) return;
+
+        const next = new Set(role.granted);
+        const allow = !next.has(permId);
+        if (allow) next.add(permId); else next.delete(permId);
+
+        btn.classList.add('is-busy');
+        try {
+            const result = await window.api.acl.updateRolePermissions(roleId, Array.from(next));
+            if (!result || !result.success) throw new Error(result?.message || 'The change was not saved');
+            role.granted = next;
+            const perm = this.findPermission(permId);
+            toast.success(`${role.label} ${allow ? 'can now' : 'can no longer'} ${(perm?.display_name || perm?.name || 'do this').replace(/^./, (c) => c.toLowerCase())}`);
+            // Repaint in place: the open groups and the scroll position stay put.
+            const scroller = document.querySelector('.aclx-scroll');
+            const top = scroller ? scroller.scrollTop : 0;
+            const left = scroller ? scroller.scrollLeft : 0;
+            this.renderMatrix();
+            if (scroller) { scroller.scrollTop = top; scroller.scrollLeft = left; }
+            document.querySelector(`.aclx-cell[data-role="${roleId}"][data-perm="${permId}"]`)?.focus();
+        } catch (error) {
+            btn.classList.remove('is-busy');
+            toast.error(error.message || 'The change was not saved');
         }
     }
 
-    createRoleRow(role) {
-        // Get users count - try multiple possible fields from API
-        let usersCount = 0;
-        if (role.users && Array.isArray(role.users)) {
-            usersCount = role.users.length;
-        } else if (role.users_count !== undefined) {
-            usersCount = role.users_count;
-        } else if (role.assigned_users && Array.isArray(role.assigned_users)) {
-            usersCount = role.assigned_users.length;
+    findPermission(id) {
+        for (const g of this.permissions || []) {
+            const hit = (g.permissions || []).find((x) => Number(x.id) === Number(id));
+            if (hit) return hit;
         }
+        return null;
+    }
 
-        // Count granted permissions (permissions with granted=1 or granted=true)
-        let permissionsCount = 0;
-        if (role.permissions && Array.isArray(role.permissions)) {
-            // Filter for granted permissions only
-            permissionsCount = role.permissions.filter(p => p.granted === 1 || p.granted === true).length;
-        } else if (role.permission_count !== undefined) {
-            permissionsCount = role.permission_count;
+    /** Edit / People / Delete for one role, from its column header. */
+    openRoleMenu(btn) {
+        this.closeRoleMenu();
+        const id = Number(btn.dataset.roleMenu);
+        const role = (this.matrixRoles || []).find((r) => r.id === id);
+        if (!role) return;
+        const menu = document.createElement('div');
+        menu.className = 'aclx-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = `
+            <button type="button" role="menuitem" data-act="edit"><i class="fas fa-pen" aria-hidden="true"></i>Edit role</button>
+            <button type="button" role="menuitem" data-act="people"><i class="fas fa-users" aria-hidden="true"></i>People in this role</button>
+            ${role.bypass ? '' : '<button type="button" role="menuitem" data-act="delete" class="is-danger"><i class="fas fa-trash" aria-hidden="true"></i>Delete role</button>'}`;
+        document.body.appendChild(menu);
+        const r = btn.getBoundingClientRect();
+        menu.style.top = `${Math.min(r.bottom + 4, window.innerHeight - menu.offsetHeight - 8)}px`;
+        menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))}px`;
+        this._roleMenu = menu;
+        menu.addEventListener('click', (e) => {
+            const act = e.target.closest('[data-act]')?.dataset.act;
+            if (!act) return;
+            this.closeRoleMenu();
+            if (act === 'edit') this.openEditRoleModal(id);
+            else if (act === 'people') this.openRoleDetailsModal(id);
+            else if (act === 'delete') this.handleDeleteRole(id);
+        });
+        menu.addEventListener('keydown', (e) => {
+            const items = [...menu.querySelectorAll('button')];
+            const i = items.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+            else if (e.key === 'Escape') { e.preventDefault(); this.closeRoleMenu(); btn.focus(); }
+            else if (e.key === 'Tab') this.closeRoleMenu();
+        });
+        menu.querySelector('button').focus();
+        this._roleMenuDismiss = (e) => {
+            if (e.type === 'mousedown' && (menu.contains(e.target) || btn.contains(e.target))) return;
+            this.closeRoleMenu();
+        };
+        setTimeout(() => {
+            if (this._roleMenu !== menu) return;
+            document.addEventListener('mousedown', this._roleMenuDismiss);
+            document.addEventListener('scroll', this._roleMenuDismiss, true);
+            window.addEventListener('resize', this._roleMenuDismiss);
+        });
+    }
+
+    closeRoleMenu() {
+        if (this._roleMenuDismiss) {
+            document.removeEventListener('mousedown', this._roleMenuDismiss);
+            document.removeEventListener('scroll', this._roleMenuDismiss, true);
+            window.removeEventListener('resize', this._roleMenuDismiss);
+            this._roleMenuDismiss = null;
         }
-
-        // Get display name - try multiple possible fields (API returns role_name)
-        const displayName = role.display_name || role.displayName || role.role_name || role.name || 'Unnamed Role';
-        const description = role.description || '-';
-        const isDefault = role.is_default || role.isDefault || false;
-
-        return `
-            <tr class="hover:bg-surface-hover transition-colors">
-                <td class="px-4 py-3" data-label="Group Name">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-shield-alt text-primary"></i>
-                        <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
-                        ${isDefault ? '<span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary text-green-600 dark:text-green-400"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Default</span>' : ''}
-                    </div>
-                </td>
-                <td class="px-4 py-3 text-text-secondary text-sm" data-label="Description">
-                    ${utils.escapeHtml(description)}
-                </td>
-                <td class="px-4 py-3" data-label="Assigned Admin Users">
-                    <button class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors" onclick="aclManager.openRoleDetailsModal(${role.id})">
-                        <i class="fas fa-users text-xs"></i> ${usersCount} user${usersCount !== 1 ? 's' : ''}
-                    </button>
-                </td>
-                <td class="px-4 py-3" data-label="Permissions">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 tabular-nums">
-                        ${permissionsCount} permission${permissionsCount !== 1 ? 's' : ''}
-                    </span>
-                </td>
-                <td class="px-4 py-3" data-label="Actions">
-                    <div class="action-buttons flex items-center gap-1.5">
-                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-primary/10 hover:text-primary transition-colors flex items-center justify-center" onclick="aclManager.openEditRoleModal(${role.id})" title="Edit" aria-label="Edit role">
-                            <i class="fas fa-pen text-sm"></i>
-                        </button>
-                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center" onclick="aclManager.handleDeleteRole(${role.id})" title="Delete" aria-label="Delete role">
-                            <i class="fas fa-trash text-sm"></i>
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
+        this._roleMenu?.remove();
+        this._roleMenu = null;
     }
 
     // ======================
@@ -279,6 +421,15 @@ class ACLManager {
             inactive.classList.remove(...activeClasses);
             inactive.classList.add(...inactiveClasses);
             inactive.setAttribute('aria-selected', 'false');
+        }
+
+        document.getElementById('createRoleBtn')?.classList.toggle('hidden', isUsers);
+        document.getElementById('refreshRolesBtn')?.classList.toggle('hidden', isUsers);
+        const sub = document.getElementById('aclSubtitle');
+        if (sub) {
+            sub.textContent = isUsers
+                ? 'Everyone with an account, and the role each one holds.'
+                : 'What each role can do, at a glance. Click a cell to change it.';
         }
 
         if (isUsers) {
@@ -1118,6 +1269,36 @@ class ACLManager {
         // Assign user button
         document.getElementById('assignUserBtn')?.addEventListener('click', () => {
             this.handleAssignUser();
+        });
+
+        // The matrix: cells, group headers and role headers are delegated,
+        // because every repaint replaces them.
+        document.getElementById('rolesTable')?.addEventListener('click', (e) => {
+            const cellBtn = e.target.closest('.aclx-cell[data-perm]');
+            if (cellBtn) { this.toggleCell(cellBtn); return; }
+            const grp = e.target.closest('[data-group]');
+            if (grp) {
+                const key = grp.dataset.group;
+                if (this.expandedGroups.has(key)) this.expandedGroups.delete(key); else this.expandedGroups.add(key);
+                this.renderMatrix();
+                document.querySelector(`[data-group="${CSS.escape(key)}"]`)?.focus();
+                return;
+            }
+            const roleBtn = e.target.closest('[data-role-menu]');
+            if (roleBtn) this.openRoleMenu(roleBtn);
+        });
+        let filterTimer = null;
+        document.getElementById('aclPermSearch')?.addEventListener('input', (e) => {
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(() => { this.permFilter = e.target.value; this.renderMatrix(); }, 150);
+        });
+        document.getElementById('aclExpandAll')?.addEventListener('click', () => {
+            this.expandedGroups = new Set((this.permissions || []).map((g) => g.category_name));
+            this.renderMatrix();
+        });
+        document.getElementById('aclCollapseAll')?.addEventListener('click', () => {
+            this.expandedGroups = new Set();
+            this.renderMatrix();
         });
 
         // Roles / Users tab switcher

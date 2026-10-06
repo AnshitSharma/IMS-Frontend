@@ -39,15 +39,19 @@ const NAVBAR_HTML = `
                     </button>
                     <div class="notif-panel" id="notifPanel" role="region" aria-label="Notifications">
                         <div class="notif-panel-header">
-                            <span class="text-sm font-semibold text-text-primary">Notifications</span>
-                            <button type="button" id="notifMarkAll" class="notif-link-btn">Mark all as read</button>
+                            <span class="notif-heading">Notifications</span>
+                            <div class="notif-tabs" role="tablist" aria-label="Show">
+                                <button type="button" role="tab" class="notif-tab" id="notifTabUnread" data-tab="unread" aria-selected="true">Unread <span id="notifTabCount"></span></button>
+                                <button type="button" role="tab" class="notif-tab" id="notifTabAll" data-tab="all" aria-selected="false">All</button>
+                            </div>
+                            <button type="button" id="notifMarkAll" class="notif-link-btn">Mark all read</button>
                         </div>
                         <div class="notif-list" id="notifList"></div>
                         <div class="notif-prefs" id="notifPrefs">
-                            <span>Also notify me by</span>
+                            <span>Also send to</span>
                             <label id="notifEmailLabel"><input type="checkbox" id="notifEmailToggle"> Email</label>
                             <label id="notifTeamsLabel"><input type="checkbox" id="notifTeamsToggle"> Teams</label>
-                            <button type="button" id="notifSendTest" class="notif-link-btn ml-auto hidden">Send test</button>
+                            <button type="button" id="notifSendTest" class="notif-link-btn hidden">Send test</button>
                         </div>
                     </div>
                 </div>
@@ -343,11 +347,22 @@ class SharedNavbar {
  * names typed by users.
  */
 class NotificationBell {
+    // Events that hand the reader a step. Whether one still "needs you" is
+    // checked against the request itself (see needsYou), not the read flag.
+    static ACTION_EVENTS = ['stage_activated', 'stage_reassigned'];
+    static ALERT_EVENTS = ['pipeline_rejected', 'pipeline_cancelled'];
+
     constructor() {
         this.root = document.getElementById('notifBell');
         this.unread = 0;
         this.prefs = null;
         this.listLoaded = false;
+        this.items = [];
+        this.tab = 'unread';
+        this.tabChosen = false;
+        // ticket_id -> { pipeline, at }: the requests behind action items, so
+        // the panel can say which step is waiting and offer to accept it.
+        this.requests = new Map();
         if (!this.root) {
             return;
         }
@@ -400,6 +415,14 @@ class NotificationBell {
             }
         });
 
+        ['notifTabUnread', 'notifTabAll'].forEach((id) => {
+            this.el(id).addEventListener('click', (e) => {
+                this.tabChosen = true;
+                this.setTab(e.currentTarget.dataset.tab);
+                this.render();
+            });
+        });
+
         this.el('notifMarkAll').addEventListener('click', () => this.markAllRead());
         this.el('notifEmailToggle').addEventListener('change', (e) => this.savePref('email_enabled', e.target));
         this.el('notifTeamsToggle').addEventListener('change', (e) => this.savePref('teams_enabled', e.target));
@@ -419,6 +442,9 @@ class NotificationBell {
         document.querySelectorAll('.dropdown.active').forEach((d) => d.classList.remove('active'));
         this.root.classList.add('active');
         this.el('notifBellBtn').setAttribute('aria-expanded', 'true');
+        // Opens on Unread when there is something unread, unless the reader
+        // has picked a tab this page view.
+        if (!this.tabChosen) this.setTab(this.unread ? 'unread' : 'all');
         this.loadList();
         if (!this.prefs) {
             this.loadPrefs();
@@ -430,11 +456,19 @@ class NotificationBell {
         this.el('notifBellBtn').setAttribute('aria-expanded', 'false');
     }
 
+    setTab(tab) {
+        this.tab = tab === 'all' ? 'all' : 'unread';
+        this.el('notifTabUnread').setAttribute('aria-selected', String(this.tab === 'unread'));
+        this.el('notifTabAll').setAttribute('aria-selected', String(this.tab === 'all'));
+    }
+
     setUnread(count) {
         this.unread = Number(count) || 0;
+        const label = this.unread > 99 ? '99+' : String(this.unread);
         const badge = this.el('notifBadge');
-        badge.textContent = this.unread > 99 ? '99+' : String(this.unread);
+        badge.textContent = label;
         badge.classList.toggle('hidden', this.unread === 0);
+        this.el('notifTabCount').textContent = this.unread ? label : '';
         this.el('notifMarkAll').disabled = this.unread === 0;
         this.el('notifBellBtn').setAttribute(
             'aria-label',
@@ -461,13 +495,91 @@ class NotificationBell {
             this.renderMessage('Loading…');
         }
         try {
-            const result = await api.notifications.list({ limit: 20 });
+            const result = await api.notifications.list({ limit: 30 });
             this.listLoaded = true;
+            this.items = result.data?.items || [];
             this.setUnread(result.data?.unread_count || 0);
-            this.renderItems(result.data?.items || []);
+            this.render();
+            this.loadRequests();
         } catch (error) {
             this.renderMessage("Couldn't load notifications. Try again in a moment.");
         }
+    }
+
+    /**
+     * Fetch the requests behind the newest action items (at most six, each
+     * reused for a minute) so the panel can tell whether the step is still
+     * waiting on the reader. A request the reader cannot open simply stays
+     * unknown, and the item falls back to its read flag.
+     */
+    async loadRequests() {
+        const now = Date.now();
+        const ids = [...new Set(this.items
+            .filter((i) => NotificationBell.ACTION_EVENTS.includes(i.event) && i.ticket_id)
+            .map((i) => i.ticket_id))]
+            .filter((id) => !(this.requests.get(id)?.at > now - 60000))
+            .slice(0, 6);
+        if (!ids.length) return;
+
+        await Promise.all(ids.map(async (id) => {
+            try {
+                const result = await api.requestEnvelope('pipeline-get', { pipeline_id: id });
+                this.requests.set(id, { pipeline: result.success ? result.data?.pipeline || null : null, at: Date.now() });
+            } catch (error) {
+                this.requests.set(id, { pipeline: null, at: Date.now() });
+            }
+        }));
+        if (this.isOpen()) this.render();
+    }
+
+    currentStage(p) {
+        const stages = Array.isArray(p?.stages) ? p.stages : [];
+        return stages.find((s) => Number(s.id) === Number(p.current_stage_progress_id))
+            || stages.find((s) => s.status === 'active')
+            || null;
+    }
+
+    me() {
+        return (typeof api !== 'undefined' && api.getUser && api.getUser()) || {};
+    }
+
+    // Same three keys as RequestsManager.ownsRole(): the session carries role
+    // slugs, a step owner carries id, slug and display name.
+    ownsRole(owner) {
+        if (!owner || owner.type !== 'role') return false;
+        const roles = Array.isArray(this.me().roles) ? this.me().roles : [];
+        const ids = roles.map((r) => (typeof r === 'object' ? Number(r.id) : null)).filter(Boolean);
+        if (ids.includes(Number(owner.id))) return true;
+        const held = roles.map((r) => String(typeof r === 'string' ? r : (r.name || r.display_name || '')).toLowerCase());
+        return [owner.slug, owner.name].some((k) => k && held.includes(String(k).toLowerCase()));
+    }
+
+    waitingOnMe(p) {
+        const stage = this.currentStage(p);
+        if (!p || p.status !== 'in_progress' || !stage) return false;
+        const myId = Number(this.me().id);
+        if (stage.claimed_by) return Number(stage.claimed_by.id) === myId;
+        const o = stage.owner;
+        if (!o) return false;
+        if (o.type === 'user') return Number(o.id) === myId;
+        return this.ownsRole(o);
+    }
+
+    // A team step nobody has taken yet: the one case the bell can act on.
+    canAccept(p) {
+        const stage = this.currentStage(p);
+        return Boolean(p && p.status === 'in_progress' && stage && !stage.claimed_by && this.ownsRole(stage.owner));
+    }
+
+    requestFor(item) {
+        return item.ticket_id ? this.requests.get(item.ticket_id)?.pipeline || null : null;
+    }
+
+    needsYou(item) {
+        if (!NotificationBell.ACTION_EVENTS.includes(item.event)) return false;
+        const known = item.ticket_id && this.requests.has(item.ticket_id) ? this.requestFor(item) : undefined;
+        if (known === undefined || known === null) return !item.read;
+        return this.waitingOnMe(known);
     }
 
     renderMessage(text) {
@@ -479,63 +591,162 @@ class NotificationBell {
         list.appendChild(empty);
     }
 
-    renderItems(items) {
-        if (!items.length) {
-            this.renderMessage("You're all caught up. Requests that need you will show up here.");
+    /**
+     * Items are built with textContent, never innerHTML — titles carry Request
+     * names typed by users.
+     */
+    render() {
+        if (!this.listLoaded) return;
+        const shown = this.tab === 'unread' ? this.items.filter((i) => !i.read) : this.items;
+        if (!shown.length) {
+            this.renderMessage(this.tab === 'unread' && this.items.length
+                ? "You're all caught up."
+                : "You're all caught up. Requests that need you will show up here.");
             return;
         }
 
+        const needs = shown.filter((i) => this.needsYou(i));
+        const info = shown.filter((i) => !needs.includes(i));
         const list = this.el('notifList');
         list.replaceChildren();
-        items.forEach((item) => {
-            const row = document.createElement('button');
-            row.type = 'button';
-            row.className = 'notif-item' + (item.read ? '' : ' is-unread');
-
-            const dot = document.createElement('span');
-            dot.className = 'notif-dot';
-            dot.setAttribute('aria-hidden', 'true');
-
-            const text = document.createElement('span');
-            text.className = 'flex-1 min-w-0';
-
-            const title = document.createElement('span');
-            title.className = 'notif-item-title';
-            title.textContent = item.title;
-            text.appendChild(title);
-
-            if (item.body) {
-                const body = document.createElement('span');
-                body.className = 'notif-item-body';
-                body.textContent = item.body;
-                text.appendChild(body);
-            }
-
-            const time = document.createElement('span');
-            time.className = 'notif-item-time';
-            time.textContent = this.formatTime(item.created_at);
-            text.appendChild(time);
-
-            row.append(dot, text);
-            row.addEventListener('click', () => this.openItem(item, row));
-            list.appendChild(row);
-        });
+        const section = (label, items, build) => {
+            if (!items.length) return;
+            const head = document.createElement('div');
+            head.className = 'notif-section';
+            head.textContent = label;
+            list.appendChild(head);
+            items.forEach((item) => list.appendChild(build(item)));
+        };
+        section('Needs you', needs, (item) => this.buildAction(item));
+        section('For your information', info, (item) => this.buildInfo(item));
     }
 
-    async openItem(item, row) {
-        if (!item.read) {
-            try {
-                const result = await api.notifications.markRead(item.id);
-                item.read = true;
-                row.classList.remove('is-unread');
-                this.setUnread(result.data?.unread_count ?? Math.max(0, this.unread - 1));
-            } catch (error) {
-                // Opening the request matters more than the read flag.
-            }
+    buildMain(item, bodyText) {
+        const main = document.createElement('span');
+        main.className = 'notif-item-main';
+
+        const top = document.createElement('span');
+        top.className = 'notif-item-top';
+        const title = document.createElement('span');
+        title.className = 'notif-item-title';
+        title.textContent = item.title;
+        const time = document.createElement('span');
+        time.className = 'notif-item-time';
+        time.textContent = this.formatTime(item.created_at);
+        time.title = this.formatFullTime(item.created_at);
+        top.append(title, time);
+        main.appendChild(top);
+
+        if (bodyText) {
+            const body = document.createElement('span');
+            body.className = 'notif-item-body';
+            body.textContent = bodyText;
+            main.appendChild(body);
         }
+        return main;
+    }
+
+    dot() {
+        const dot = document.createElement('span');
+        dot.className = 'notif-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        return dot;
+    }
+
+    // A plain row: the whole thing opens the request.
+    buildInfo(item) {
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'notif-item'
+            + (item.read ? '' : ' is-unread')
+            + (!item.read && NotificationBell.ALERT_EVENTS.includes(item.event) ? ' is-alert' : '');
+        row.append(this.dot(), this.buildMain(item, item.body));
+        row.addEventListener('click', () => this.openItem(item));
+        return row;
+    }
+
+    // A step waiting on the reader: which step, and the buttons to act on it.
+    // A div, not a button — it holds buttons of its own.
+    buildAction(item) {
+        const p = this.requestFor(item);
+        const stage = this.currentStage(p);
+        let body = item.body;
+        if (p && stage) {
+            const parts = [`Step ${stage.position || '?'} · ${stage.name}`, p.title];
+            if (p.priority === 'urgent' || p.priority === 'high') parts.push(p.priority);
+            body = parts.filter(Boolean).join(' · ');
+        }
+
+        const row = document.createElement('div');
+        row.className = 'notif-item is-action' + (item.read ? '' : ' is-unread');
+        row.addEventListener('click', (e) => {
+            if (!e.target.closest('button')) this.openItem(item);
+        });
+
+        const main = this.buildMain(item, body);
+        const actions = document.createElement('span');
+        actions.className = 'notif-actions';
+        if (this.canAccept(p)) {
+            const accept = document.createElement('button');
+            accept.type = 'button';
+            accept.className = 'notif-btn is-primary';
+            accept.textContent = 'Accept step';
+            accept.addEventListener('click', () => this.acceptStep(item, p, stage, accept));
+            actions.appendChild(accept);
+        }
+        const openBtn = document.createElement('button');
+        openBtn.type = 'button';
+        openBtn.className = 'notif-btn';
+        openBtn.textContent = 'Open';
+        openBtn.addEventListener('click', () => this.openItem(item));
+        actions.appendChild(openBtn);
+        main.appendChild(actions);
+
+        row.append(this.dot(), main);
+        return row;
+    }
+
+    async acceptStep(item, p, stage, btn) {
+        btn.disabled = true;
+        try {
+            const result = await api.requestEnvelope('pipeline-claim', {
+                pipeline_id: p.id,
+                stage_progress_id: stage.id
+            });
+            if (!result.success) {
+                toast.error(result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || "Couldn't accept the step"));
+                btn.disabled = false;
+                return;
+            }
+            toast.success('Step accepted');
+            this.requests.delete(item.ticket_id);
+            await this.markRead(item);
+            await this.loadRequests();
+            this.render();
+        } catch (error) {
+            toast.error(error.message || "Couldn't accept the step");
+            btn.disabled = false;
+        }
+    }
+
+    async markRead(item) {
+        if (item.read) return;
+        try {
+            const result = await api.notifications.markRead(item.id);
+            item.read = true;
+            this.setUnread(result.data?.unread_count ?? Math.max(0, this.unread - 1));
+        } catch (error) {
+            // The read flag matters less than whatever the reader is doing.
+        }
+    }
+
+    async openItem(item) {
+        await this.markRead(item);
         if (item.link) {
             // Every page sits two levels below the UI root.
             window.location.href = '../../' + item.link;
+        } else {
+            this.render();
         }
     }
 
@@ -544,9 +755,9 @@ class NotificationBell {
         btn.disabled = true;
         try {
             await api.notifications.markAllRead();
+            this.items.forEach((i) => { i.read = true; });
             this.setUnread(0);
-            this.el('notifList').querySelectorAll('.notif-item.is-unread')
-                .forEach((row) => row.classList.remove('is-unread'));
+            this.render();
         } catch (error) {
             toast.error(error.message || "Couldn't mark notifications as read");
             btn.disabled = this.unread === 0;
@@ -625,21 +836,39 @@ class NotificationBell {
     }
 
     /**
-     * Timestamps are UTC without an offset (see requests.js fmtDate); shown
-     * relative while recent, then as an IST date.
+     * Timestamps are UTC without an offset (see requests.js fmtDate); shown as
+     * a compact age while recent ("12m", "3h", "2d"), then as an IST date.
      */
+    parseTime(value) {
+        const d = new Date(String(value || '').replace(' ', 'T') + 'Z');
+        return isNaN(d.getTime()) ? null : d;
+    }
+
     formatTime(value) {
-        if (!value) return '';
-        const d = new Date(String(value).replace(' ', 'T') + 'Z');
-        if (isNaN(d.getTime())) return value;
+        const d = this.parseTime(value);
+        if (!d) return value || '';
         const minutes = Math.round((Date.now() - d.getTime()) / 60000);
-        if (minutes < 1) return 'Just now';
-        if (minutes < 60) return `${minutes} min ago`;
-        if (minutes < 24 * 60) return `${Math.round(minutes / 60)} h ago`;
-        return d.toLocaleDateString('en-US', {
-            timeZone: 'Asia/Kolkata',
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
+        if (minutes < 1) return 'now';
+        if (minutes < 60) return `${minutes}m`;
+        if (minutes < 24 * 60) return `${Math.round(minutes / 60)}h`;
+        if (minutes < 7 * 24 * 60) return `${Math.round(minutes / 1440)}d`;
+        return this.istParts(d, { day: 'numeric', month: 'short' }, '{day} {month}');
+    }
+
+    formatFullTime(value) {
+        const d = this.parseTime(value);
+        if (!d) return '';
+        return this.istParts(d, {
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+        }, '{day} {month} {year}, {hour}:{minute} IST');
+    }
+
+    // en-US parts in day-month order: en-GB spells September "Sept".
+    istParts(d, options, pattern) {
+        const parts = {};
+        new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', ...options })
+            .formatToParts(d).forEach((p) => { parts[p.type] = p.value; });
+        return pattern.replace(/\{(\w+)\}/g, (_, k) => parts[k] || '');
     }
 }
 

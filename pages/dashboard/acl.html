@@ -14,6 +14,118 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
+    <style>
+        /* Access control — the "A · Refined" access matrix: permissions down,
+           roles across, a cell per pair. Plain CSS on the theme variables (the
+           Tailwind build is hand-compiled; the variables carry dark mode). */
+        .aclx {
+            --aclx-accent: #0F766E; --aclx-accent-soft: #E6F2F0; --aclx-req-bg: #FCEFD8; --aclx-req-ink: #92400E; --aclx-req-line: #E7C27A;
+            color: var(--color-text-primary); font-size: 14px;
+        }
+        [data-theme="dark"] .aclx {
+            --aclx-accent: #14B8A6; --aclx-accent-soft: rgba(45, 212, 191, .12); --aclx-req-bg: rgba(251, 191, 36, .14); --aclx-req-ink: #FCD34D; --aclx-req-line: rgba(251, 191, 36, .45);
+        }
+        [data-theme="dark"] .aclx input, [data-theme="dark"] .aclx select { color-scheme: dark; }
+        .aclx .hidden, .aclx.hidden { display: none !important; }
+        .aclx-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+        .aclx-head h1 { margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -.01em; }
+        .aclx-sub { display: block; color: var(--color-text-muted); font-size: 13px; margin-top: 2px; }
+        .aclx-head-right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .aclx-seg { display: flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; background: var(--color-surface-card); }
+        .aclx-seg button {
+            height: 34px; padding: 0 14px; border: 0; background: transparent; color: var(--color-text-secondary);
+            font: inherit; font-size: 13px; cursor: pointer; box-shadow: none;
+        }
+        .aclx-seg button + button { border-left: 1px solid var(--color-border-light); }
+        .aclx-seg button[aria-selected="true"] { background: var(--color-text-primary); color: var(--color-surface-card); }
+        .aclx-btn {
+            height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border);
+            background: var(--color-surface-card); color: var(--color-text-primary);
+            font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+        }
+        .aclx-btn:hover { background: var(--color-surface-hover); }
+        .aclx-btn i { font-size: 12px; }
+        .aclx-btn-icon { width: 36px; padding: 0; justify-content: center; color: var(--color-text-secondary); }
+        .aclx-btn-primary { border-color: transparent; background: #0F766E; color: #fff; }
+        .aclx-btn-primary:hover { background: #0C5D57; }
+        .aclx button:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+
+        .aclx-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .aclx-search {
+            display: flex; align-items: center; gap: 8px; height: 34px; width: 300px; max-width: 100%;
+            padding: 0 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface-card);
+            color: var(--color-text-muted); font-size: 12px;
+        }
+        .aclx-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .aclx-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--color-text-primary); outline: none; }
+        .aclx-link { border: 0; background: none; padding: 0 4px; font: inherit; font-size: 13px; color: var(--aclx-accent); cursor: pointer; }
+        .aclx-link:hover { text-decoration: underline; }
+
+        .aclx-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; }
+        .aclx-scroll { overflow: auto; max-height: calc(100vh - 290px); min-height: 240px; position: relative; }
+        .aclx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+        .aclx-table th {
+            position: sticky; top: 0; z-index: 2; background: var(--color-surface-hover);
+            font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-align: center;
+            padding: 10px 8px; border-bottom: 1px solid var(--color-border); white-space: nowrap; vertical-align: bottom;
+        }
+        .aclx-table th:first-child, .aclx-table td:first-child { position: sticky; left: 0; z-index: 1; text-align: left; }
+        .aclx-table th:first-child { z-index: 3; padding-left: 16px; min-width: 260px; }
+        .aclx-table td { text-align: center; height: 42px; border-bottom: 1px solid var(--color-border-light); background: var(--color-surface-card); padding: 0 8px; }
+        .aclx-role {
+            display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 8px; border-radius: 6px;
+            border: 0; background: transparent; font: inherit; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); cursor: pointer;
+        }
+        .aclx-role:hover { background: var(--color-surface-secondary); color: var(--color-text-primary); }
+        .aclx-role small { font-size: 11px; font-weight: 400; color: var(--color-text-muted); }
+        .aclx-role small.is-full { color: var(--aclx-accent); }
+
+        .aclx-grp td { background: var(--color-surface-hover); height: 38px; }
+        .aclx-grp td:first-child { padding-left: 12px; }
+        .aclx-grp-btn {
+            display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px; cursor: pointer;
+            font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-primary);
+        }
+        .aclx-grp-btn i { width: 10px; font-size: 10px; color: var(--color-text-muted); transition: transform .15s ease; }
+        .aclx-grp-btn[aria-expanded="true"] i { transform: rotate(90deg); }
+        .aclx-grp-btn .n { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 400; letter-spacing: 0; color: var(--color-text-muted); }
+        .aclx-count { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--color-text-muted); }
+        .aclx-count.is-all { color: var(--aclx-accent); }
+        .aclx-row td:first-child { padding-left: 34px; }
+        .aclx-perm { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .aclx-perm code { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11px; color: var(--color-text-muted); }
+
+        .aclx-cell {
+            display: inline-flex; width: 22px; height: 22px; border-radius: 6px; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; padding: 0; cursor: pointer;
+            border: 1px solid var(--color-border-dark); background: var(--color-surface-card); color: transparent;
+        }
+        .aclx-cell:hover { border-color: var(--aclx-accent); }
+        .aclx-cell.is-on { background: var(--aclx-accent); border-color: var(--aclx-accent); color: #fff; }
+        .aclx-cell.is-req { background: var(--aclx-req-bg); border-color: var(--aclx-req-line); color: var(--aclx-req-ink); }
+        .aclx-cell.is-locked { background: var(--aclx-accent-soft); border-color: transparent; color: var(--aclx-accent); cursor: default; }
+        .aclx-cell.is-busy { opacity: .45; cursor: progress; }
+        .aclx-cell:disabled { cursor: default; }
+
+        .aclx-legend { display: flex; gap: 16px; align-items: center; padding: 12px 16px; font-size: 12.5px; color: var(--color-text-muted); flex-wrap: wrap; border-top: 1px solid var(--color-border-light); }
+        .aclx-legend span { display: inline-flex; gap: 6px; align-items: center; }
+        .aclx-legend .aclx-cell { width: 16px; height: 16px; border-radius: 4px; cursor: default; font-size: 9px; }
+        .aclx-empty { padding: 32px 16px; text-align: center; color: var(--color-text-muted); }
+
+        .aclx-menu {
+            position: fixed; z-index: 1001; min-width: 168px; padding: 4px; border-radius: 8px;
+            background: var(--color-surface-card); border: 1px solid var(--color-border); box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+        }
+        .aclx-menu button {
+            display: flex; width: 100%; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px;
+            background: transparent; color: var(--color-text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+        }
+        .aclx-menu button:hover, .aclx-menu button:focus-visible { background: var(--color-surface-hover); outline: none; }
+        .aclx-menu button i { width: 14px; font-size: 12px; color: var(--color-text-muted); }
+        .aclx-menu .is-danger, .aclx-menu .is-danger i { color: var(--color-danger); }
+        @media (max-width: 640px) { .aclx-table th:first-child { min-width: 190px; } .aclx-scroll { max-height: none; } }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -27,81 +139,59 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
-                <!-- Shared page header + tab switcher -->
-                <div class="content-header mb-6">
-                    <div class="min-w-0 mb-4">
-                        <h2 class="text-2xl font-bold text-text-primary mb-2">
-                            <i class="fas fa-shield-alt"></i> Access Control Management
-                        </h2>
-                        <p class="text-sm text-text-muted">Manage roles, permissions, and users</p>
-                    </div>
-
-                    <!-- Roles / Users tabs -->
-                    <div class="inline-flex items-center gap-1 p-1 bg-surface-hover rounded-lg border border-border"
-                        role="tablist" aria-label="Access control views">
-                        <button id="tabRolesBtn" role="tab" aria-selected="true"
-                            class="acl-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium bg-surface-card text-primary shadow-sm transition-colors">
-                            <i class="fas fa-user-shield"></i> Roles
-                        </button>
-                        <button id="tabUsersBtn" role="tab" aria-selected="false"
-                            class="acl-tab flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-text-secondary hover:text-text-primary transition-colors">
-                            <i class="fas fa-users"></i> Users
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Role Management View -->
-                <div id="roleManagementView" class="content-section active">
-                    <!-- Action bar -->
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <p class="text-sm text-text-muted">Roles bundle permissions and can be assigned to users.</p>
-                        <div class="flex flex-wrap gap-3">
-                            <button
-                                class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="createRoleBtn">
-                                <i class="fas fa-plus"></i> Create Role
+                <div class="aclx">
+                    <div class="aclx-head">
+                        <div>
+                            <h1>Access control</h1>
+                            <span class="aclx-sub" id="aclSubtitle">What each role can do, at a glance. Click a cell to change it.</span>
+                        </div>
+                        <div class="aclx-head-right">
+                            <div class="aclx-seg" role="tablist" aria-label="Access control views">
+                                <button type="button" id="tabRolesBtn" role="tab" aria-selected="true">Roles <span class="aclx-tabn"></span></button>
+                                <button type="button" id="tabUsersBtn" role="tab" aria-selected="false">People <span class="aclx-tabn"></span></button>
+                            </div>
+                            <button type="button" class="aclx-btn aclx-btn-icon" id="refreshRolesBtn" title="Refresh" aria-label="Refresh">
+                                <i class="fas fa-sync-alt" aria-hidden="true"></i>
                             </button>
-                            <button
-                                class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshRolesBtn">
-                                <i class="fas fa-sync-alt"></i> Refresh
+                            <button type="button" class="aclx-btn aclx-btn-primary" id="createRoleBtn">
+                                <i class="fas fa-plus" aria-hidden="true"></i> New role
                             </button>
                         </div>
                     </div>
 
-                    <!-- Roles Table -->
-                    <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base table-responsive" id="rolesTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Group Name
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
-                                        Description</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Assigned
-                                        Admin Users</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">
-                                        Permissions</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody id="rolesTableBody" class="divide-y divide-border">
-                                <!-- Role rows will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <!-- Role Management View: the permission matrix -->
+                    <div id="roleManagementView" class="content-section active">
+                        <div class="aclx-tools">
+                            <label class="aclx-search">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input type="search" id="aclPermSearch" placeholder="Find a permission" aria-label="Find a permission" autocomplete="off">
+                            </label>
+                            <button type="button" class="aclx-link" id="aclExpandAll">Expand all</button>
+                            <button type="button" class="aclx-link" id="aclCollapseAll">Collapse all</button>
+                        </div>
+                        <section class="aclx-card table-container">
+                            <div class="aclx-scroll">
+                                <table class="aclx-table" id="rolesTable">
+                                    <thead><tr id="aclMatrixHead"></tr></thead>
+                                    <tbody id="rolesTableBody"></tbody>
+                                </table>
+                            </div>
+                            <div class="aclx-legend">
+                                <span><span class="aclx-cell is-on">✓</span>Allowed</span>
+                                <span><span class="aclx-cell is-req">R</span>Not allowed: becomes a request for approval</span>
+                                <span><span class="aclx-cell"></span>Not allowed</span>
+                                <span><span class="aclx-cell is-locked">✓</span>Always allowed (admin roles)</span>
+                            </div>
+                        </section>
 
-                    <!-- Empty State -->
-                    <div id="emptyState" class="hidden bg-surface-card rounded-lg shadow-sm p-12 text-center">
-                        <i class="fas fa-shield-alt text-6xl text-text-muted mb-4"></i>
-                        <h3 class="text-xl font-semibold text-text-secondary mb-2">No Roles Found</h3>
-                        <p class="text-text-muted mb-6">Get started by creating your first role</p>
-                        <button
-                            class="btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 mx-auto"
-                            onclick="aclManager.openCreateRoleModal()">
-                            <i class="fas fa-plus"></i> Create Role
-                        </button>
+                        <!-- Empty State -->
+                        <div id="emptyState" class="hidden aclx-card aclx-empty">
+                            <p class="font-semibold text-text-primary mb-2">No roles yet</p>
+                            <p class="mb-4">Create a role, then tick what it can do.</p>
+                            <button type="button" class="aclx-btn aclx-btn-primary" onclick="aclManager.openCreateRoleModal()">
+                                <i class="fas fa-plus" aria-hidden="true"></i> New role
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -510,7 +600,7 @@
     <script defer src="../../components/sidebar-manager.js"></script>
     <script defer src="../../components/navbar.js"></script>
     <!-- Load ACL manager AFTER sidebar is being loaded -->
-    <script defer src="../../assets/js/server/acl-manager.js?v=20260720"></script>
+    <script defer src="../../assets/js/server/acl-manager.js?v=20261006"></script>
     <script>
         // Password show/hide is handled by the delegated [data-toggle-password]
         // listener in acl-manager.js. A second handler here double-toggled it.

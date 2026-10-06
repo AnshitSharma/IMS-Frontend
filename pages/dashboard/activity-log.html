@@ -15,6 +15,66 @@
     </script>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <style>
+        /* Activity — the feed: who did what to which thing, grouped by day.
+           Plain CSS on the theme variables (the Tailwind build is hand-compiled;
+           the variables carry dark mode). */
+        .alx { color: var(--color-text-primary); font-size: 14px; max-width: 920px; display: flex; flex-direction: column; gap: 16px; --alx-accent: #0F766E; }
+        [data-theme="dark"] .alx { --alx-accent: #2DD4BF; }
+        [data-theme="dark"] .alx input, [data-theme="dark"] .alx select { color-scheme: dark; }
+        .alx .hidden { display: none !important; }
+        .alx-mono { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+        .alx-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+        .alx-head h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+        .alx-sub { font-size: 13px; color: var(--color-text-muted); }
+        .alx-head-right { margin-left: auto; display: flex; gap: 14px; align-items: baseline; }
+        .alx-link { border: 0; background: none; padding: 0; font: inherit; font-size: 13px; color: var(--alx-accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+        .alx-link:disabled { color: var(--color-text-muted); cursor: progress; text-decoration: none; }
+        .alx-search {
+            display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px;
+            border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-card); color: var(--color-text-muted);
+        }
+        .alx-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .alx-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--color-text-primary); outline: none; }
+        .alx-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .alx-pill {
+            height: 32px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 999px;
+            background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-size: 13px; cursor: pointer;
+        }
+        .alx-pill:hover { background: var(--color-surface-hover); }
+        .alx-pill[aria-pressed="true"] { background: var(--color-text-primary); color: var(--color-surface-card); border-color: var(--color-text-primary); }
+        select.alx-pill {
+            appearance: none; -webkit-appearance: none; padding-right: 28px; max-width: 200px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none' stroke='%236B7680' stroke-width='1.4'%3E%3Cpath d='M2 4l3 3 3-3'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 11px center;
+        }
+        select.alx-pill.is-active { border-color: #0F766E; color: var(--alx-accent); }
+        .alx-dates { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--color-text-muted); }
+        .alx-dates input { height: 32px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 8px; font: inherit; font-size: 12.5px; background: var(--color-surface-card); color: var(--color-text-primary); }
+        .alx button:focus-visible, .alx select:focus-visible, .alx a:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+
+        .alx-day { font-size: 12px; font-weight: 500; color: var(--color-text-muted); padding: 14px 0 4px; }
+        .alx-ev { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--color-border-light); align-items: flex-start; }
+        .alx-av {
+            width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; background: var(--color-surface-secondary);
+            display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--color-text-secondary);
+        }
+        .alx-av.is-system { background: transparent; border: 1px dashed var(--color-border-dark); }
+        .alx-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+        .alx-line { overflow-wrap: anywhere; }
+        .alx-line b { font-weight: 500; }
+        .alx-line a { color: var(--alx-accent); text-underline-offset: 2px; }
+        .alx-detail { font-size: 12.5px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+        .alx-time { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-size: 12px; color: var(--color-text-muted); white-space: nowrap; padding-top: 2px; }
+        .alx-state { padding: 40px 0; text-align: center; color: var(--color-text-muted); }
+        .alx-more { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; font-size: 13px; color: var(--color-text-muted); }
+        .alx-btn {
+            height: 36px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border);
+            background: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+        }
+        .alx-btn:hover { background: var(--color-surface-hover); }
+        .alx-btn:disabled { opacity: .55; cursor: progress; }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -27,85 +87,59 @@
 
             <main class="main-content flex-1 p-4 sm:p-6">
                 <div id="activityLogView" class="content-section active">
-                    <!-- Header -->
-                    <div class="content-header mb-6">
-                        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                            <div class="min-w-0">
-                                <h2 class="text-2xl font-bold text-text-primary mb-2">
-                                    <i class="fas fa-history"></i> Activity Log
-                                </h2>
-                                <p class="text-sm text-text-muted">All inventory and system changes (admin only)</p>
+                    <div class="alx">
+                        <div class="alx-head">
+                            <h1>Activity</h1>
+                            <span class="alx-sub">Every change to parts, servers, racks and access</span>
+                            <div class="alx-head-right">
+                                <button type="button" class="alx-link" id="refreshLogsBtn">Refresh</button>
+                                <button type="button" class="alx-link" id="logExportBtn">Export CSV</button>
                             </div>
-                            <button
-                                class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshLogsBtn">
-                                <i class="fas fa-sync-alt"></i> Refresh
-                            </button>
                         </div>
-                    </div>
 
-                    <!-- Access Denied message (hidden by default) -->
-                    <div id="accessDeniedMsg" class="hidden text-center py-16">
-                        <i class="fas fa-lock text-5xl text-text-muted mb-4"></i>
-                        <h3 class="text-xl font-semibold text-text-primary mb-2">Access Restricted</h3>
-                        <p class="text-text-secondary">Activity logs are only available to administrators.</p>
-                    </div>
+                        <!-- Access Denied message (hidden by default) -->
+                        <div id="accessDeniedMsg" class="hidden alx-state">
+                            <p class="text-text-primary font-semibold mb-1">Activity is for administrators</p>
+                            <p>Ask an administrator if you need to see who changed what.</p>
+                        </div>
 
-                    <!-- Filters -->
-                    <div id="logFilterBar" class="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-5">
-                        <input type="text" id="logSearchInput" placeholder="Search logs..."
-                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] w-full sm:w-auto sm:flex-1 bg-surface-card text-text-primary">
-                        <input type="date" id="logDateFrom" title="From date"
-                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                        <input type="date" id="logDateTo" title="To date"
-                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                        <select id="logUserFilter" class="hidden px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                            <option value="">All Users</option>
-                        </select>
-                        <button id="logClearFiltersBtn"
-                            class="hidden px-4 py-2 text-sm bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors min-h-[44px]">
-                            <i class="fas fa-times mr-1"></i> Clear Filters
-                        </button>
-                    </div>
+                        <div id="logFilterBar" style="display:flex;flex-direction:column;gap:12px">
+                            <label class="alx-search">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input type="search" id="logSearchInput" placeholder="Search by person, action, server or note" aria-label="Search activity" autocomplete="off">
+                            </label>
+                            <div class="alx-chips">
+                                <div class="alx-chips" role="group" aria-label="Kind of change" id="logCategory">
+                                    <button type="button" class="alx-pill" data-category="" aria-pressed="true">Everything</button>
+                                    <button type="button" class="alx-pill" data-category="installs" aria-pressed="false">Installs &amp; removals</button>
+                                    <button type="button" class="alx-pill" data-category="moves" aria-pressed="false">Moves</button>
+                                    <button type="button" class="alx-pill" data-category="access" aria-pressed="false">Access</button>
+                                    <button type="button" class="alx-pill" data-category="changes" aria-pressed="false">Records &amp; settings</button>
+                                </div>
+                                <select id="logRange" class="alx-pill" aria-label="When">
+                                    <option value="">Any time</option>
+                                    <option value="0">Today</option>
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30">Last 30 days</option>
+                                    <option value="custom">Pick dates…</option>
+                                </select>
+                                <select id="logUserFilter" class="alx-pill hidden" aria-label="Who">
+                                    <option value="">Anyone</option>
+                                </select>
+                                <button type="button" class="alx-link hidden" id="logClearFiltersBtn">Clear filters</button>
+                            </div>
+                            <div class="alx-dates hidden" id="logCustomDates">
+                                <label for="logDateFrom">From</label><input type="date" id="logDateFrom">
+                                <label for="logDateTo">to</label><input type="date" id="logDateTo">
+                            </div>
+                        </div>
 
-                    <!-- Log Table -->
-                    <div id="logTableContainer" class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base table-responsive" id="activityLogTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Time</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">User</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Component Type</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Component ID</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Action</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Notes</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">IP Address</th>
-                                </tr>
-                            </thead>
-                            <tbody id="activityLogTableBody" class="divide-y divide-border">
-                                <tr>
-                                    <td colspan="7" class="px-4 py-8 text-center text-text-muted">
-                                        <i class="fas fa-spinner fa-spin mr-2"></i> Loading logs...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4" id="logPagination">
-                        <span id="logPaginationInfo" class="text-sm text-text-muted"></span>
-                        <div class="flex gap-2">
-                            <button id="logPrevBtn"
-                                class="px-4 py-2 text-sm bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled>
-                                <i class="fas fa-chevron-left mr-1"></i> Previous
-                            </button>
-                            <button id="logNextBtn"
-                                class="px-4 py-2 text-sm bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                disabled>
-                                Next <i class="fas fa-chevron-right ml-1"></i>
-                            </button>
+                        <div id="logFeed" aria-live="polite">
+                            <div class="alx-state"><i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Loading activity…</div>
+                        </div>
+                        <div class="alx-more hidden" id="logPagination">
+                            <span id="logPaginationInfo"></span>
+                            <button type="button" class="alx-btn" id="logMoreBtn">Load more</button>
                         </div>
                     </div>
                 </div>
@@ -114,37 +148,179 @@
     </div>
 
     <script defer src="../../components/global-loading.js"></script>
+    <script defer src="../../assets/js/config.js"></script>
     <script defer src="../../assets/js/toast.js"></script>
     <script defer src="../../assets/js/dashboard/utils.js"></script>
     <script defer src="../../assets/js/dashboard/api.js"></script>
-    <script defer src="../../assets/js/config.js"></script>
     <script defer src="../../components/sidebar-manager.js"></script>
     <script defer src="../../components/navbar.js"></script>
     <script>
-        // Activity Log Page
+        // Activity page. The list is one feed with "Load more"; every filter is
+        // server-side (dashboard-get-logs: search, user_id, date_from, date_to,
+        // category), so the counts and the export cover the whole log, not the
+        // page that happens to be loaded.
         (function () {
-            const LIMIT = 50;
-            let currentOffset = 0;
-            let totalLogs = 0;
-            let filters = { search: '', user_id: '', date_from: '', date_to: '' };
+            const LIMIT = 100;
+            let offset = 0;
+            let total = 0;
+            let loaded = [];
+            let seq = 0;
+            let filters = { search: '', user_id: '', date_from: '', date_to: '', category: '' };
+            const TZ = 'Asia/Kolkata';
+            const $ = (id) => document.getElementById(id);
 
             function hasActiveFilters() {
-                return !!(filters.search || filters.user_id || filters.date_from || filters.date_to);
+                return !!(filters.search || filters.user_id || filters.date_from || filters.date_to || filters.category);
             }
 
-            function updateClearFiltersVisibility() {
-                document.getElementById('logClearFiltersBtn').classList.toggle('hidden', !hasActiveFilters());
+            // Every timestamp the API returns is UTC (PHP and MySQL both run on
+            // UTC), with no offset in the string; the 'Z' makes it an instant.
+            // Shown in IST, where this system is operated.
+            function toDate(s) {
+                const d = new Date(String(s || '').replace(' ', 'T') + 'Z');
+                return isNaN(d.getTime()) ? null : d;
+            }
+            const dayKey = (d) => d.toLocaleDateString('en-CA', { timeZone: TZ });
+            function dayLabel(d) {
+                const key = dayKey(d);
+                const now = new Date();
+                if (key === dayKey(now)) return 'Today';
+                if (key === dayKey(new Date(now.getTime() - 86400000))) return 'Yesterday';
+                return d.toLocaleDateString('en-GB', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            }
+            const timeOf = (d) => d.toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+
+            function initials(name) {
+                if (!name) return 'SY';
+                const parts = String(name).split(/[\s._-]+/).filter(Boolean);
+                return ((parts[0] || '')[0] + ((parts[1] || '')[0] || (parts[0] || '')[1] || '')).toUpperCase();
+            }
+
+            const UUID = /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+            /**
+             * The thing an entry is about, as a link where there is a page for
+             * it. Server entries name their configuration's UUID in the note;
+             * that is what the builder opens on.
+             */
+            function objectOf(log) {
+                const type = String(log.component_type || '');
+                const id = log.component_id;
+                // Some writers log without an id (a rack move names the server in
+                // its note instead); say "a rack", never "rack #".
+                const ref = (noun) => (id === null || id === undefined || id === '') ? `a ${noun}` : `${noun} #${utils.escapeHtml(id)}`;
+                if (type === 'server') {
+                    const m = String(log.notes || '').match(/server config ([0-9a-f-]{36})/i);
+                    const label = ref('server');
+                    return m ? `<a href="../server/builder.html?config=${encodeURIComponent(m[1])}">${label}</a>` : label;
+                }
+                if (type === 'rack') return `<a href="racks.html">${ref('rack')}</a>`;
+                if (type === 'location') return `<a href="locations.html">${ref('location')}</a>`;
+                if (['auth', 'user', 'role', 'user_management'].includes(type)) return '';
+                if (!type) return '';
+                return ref(utils.escapeHtml(type));
+            }
+
+            /** "Component added" -> "component added"; "assign_role" -> "assign role". */
+            function verb(action) {
+                const s = String(action || 'changed something').replace(/_/g, ' ');
+                return s.charAt(0).toLowerCase() + s.slice(1);
+            }
+
+            function renderEntry(log) {
+                const d = toDate(log.created_at);
+                const who = log.username || (log.user_id ? `user #${log.user_id}` : 'System');
+                const obj = objectOf(log);
+                const notes = String(log.notes || '');
+                // Full UUIDs are noise in a sentence; the first block identifies
+                // the thing, and the whole note stays in the tooltip.
+                const shortNotes = utils.escapeHtml(notes).replace(UUID, '$1…');
+                return `
+                    <div class="alx-ev">
+                        <span class="alx-av${log.username ? '' : ' is-system'}" aria-hidden="true">${utils.escapeHtml(initials(log.username))}</span>
+                        <div class="alx-body">
+                            <span class="alx-line"><b>${utils.escapeHtml(who)}</b> ${utils.escapeHtml(verb(log.action))}${obj ? ` · ${obj}` : ''}</span>
+                            ${notes ? `<span class="alx-detail" title="${utils.escapeHtml(notes)}">${shortNotes}</span>` : ''}
+                        </div>
+                        <span class="alx-time" title="${d ? utils.escapeHtml(d.toLocaleString('en-GB', { timeZone: TZ })) + ' IST' : ''}${log.ip_address ? ' · ' + utils.escapeHtml(log.ip_address) : ''}">${d ? timeOf(d) : ''}</span>
+                    </div>`;
+            }
+
+            function render() {
+                const feed = $('logFeed');
+                if (!loaded.length) {
+                    feed.innerHTML = `<div class="alx-state">${hasActiveFilters() ? 'Nothing matches these filters. Clear them to see everything.' : 'No activity yet.'}</div>`;
+                    $('logPagination').classList.add('hidden');
+                    return;
+                }
+                let html = '';
+                let current = null;
+                loaded.forEach((log) => {
+                    const d = toDate(log.created_at);
+                    const label = d ? dayLabel(d) : 'Undated';
+                    if (label !== current) {
+                        if (current !== null) html += '</section>';
+                        html += `<section aria-label="${utils.escapeHtml(label)}"><div class="alx-day">${utils.escapeHtml(label)}</div>`;
+                        current = label;
+                    }
+                    html += renderEntry(log);
+                });
+                feed.innerHTML = html + '</section>';
+                $('logPagination').classList.remove('hidden');
+                $('logPaginationInfo').textContent = `Showing ${loaded.length.toLocaleString()} of ${total.toLocaleString()}`;
+                $('logMoreBtn').classList.toggle('hidden', loaded.length >= total);
+            }
+
+            function denied() {
+                $('logFilterBar').classList.add('hidden');
+                $('logFeed').classList.add('hidden');
+                $('logPagination').classList.add('hidden');
+                $('logExportBtn').classList.add('hidden');
+                $('refreshLogsBtn').classList.add('hidden');
+                $('accessDeniedMsg').classList.remove('hidden');
+            }
+
+            async function fetchPage(params) {
+                return api.requestEnvelope
+                    ? api.requestEnvelope('dashboard-get-logs', params)
+                    : api.dashboard.getLogs(params);
+            }
+
+            async function load(append = false) {
+                const mine = ++seq;
+                if (!append) {
+                    offset = 0;
+                    loaded = [];
+                    $('logFeed').innerHTML = '<div class="alx-state"><i class="fas fa-spinner fa-spin mr-2" aria-hidden="true"></i>Loading activity…</div>';
+                }
+                $('logMoreBtn').disabled = true;
+                try {
+                    const result = await fetchPage({ limit: LIMIT, offset, ...filters });
+                    if (mine !== seq) return;
+                    if (!result.success) {
+                        if (Number(result.code) === 403) return denied();
+                        throw new Error(result.message || 'Failed to load activity');
+                    }
+                    total = Number(result.data?.pagination?.total || 0);
+                    loaded = loaded.concat(result.data?.logs || []);
+                    offset = loaded.length;
+                    render();
+                } catch (err) {
+                    if (mine !== seq) return;
+                    if (Number(err.code || err.status) === 403) return denied();
+                    $('logFeed').innerHTML = `<div class="alx-state text-danger">${utils.escapeHtml(err.message || 'Failed to load activity')}</div>`;
+                } finally {
+                    $('logMoreBtn').disabled = false;
+                }
             }
 
             async function loadUserFilterOptions() {
                 try {
                     const result = await api.users.list();
                     if (!result.success || !Array.isArray(result.data?.users)) return;
-                    const select = document.getElementById('logUserFilter');
-                    const options = result.data.users
-                        .map(u => `<option value="${u.id}">${utils.escapeHtml(u.username)}</option>`)
-                        .join('');
-                    select.insertAdjacentHTML('beforeend', options);
+                    const select = $('logUserFilter');
+                    select.insertAdjacentHTML('beforeend', result.data.users
+                        .map((u) => `<option value="${utils.escapeHtml(u.id)}">${utils.escapeHtml(u.username)}</option>`).join(''));
                     select.classList.remove('hidden');
                 } catch {
                     // No users.view permission (viewer has acl.manage only) — leave the
@@ -152,144 +328,117 @@
                 }
             }
 
-            function formatDate(dateStr) {
-                if (!dateStr) return '-';
+            /** Every entry matching the filters, 200 at a time (the API's cap). */
+            async function exportCsv() {
+                const btn = $('logExportBtn');
+                btn.disabled = true;
+                const label = btn.textContent;
                 try {
-                    return new Date(dateStr).toLocaleString();
-                } catch { return dateStr; }
-            }
-
-            function getActionBadge(action) {
-                if (!action) return '-';
-                const lower = action.toLowerCase();
-                let cls = 'bg-surface-hover text-text-secondary';
-                if (lower.includes('created') || lower.includes('login')) cls = 'bg-green-100 text-green-700';
-                else if (lower.includes('deleted') || lower.includes('removed')) cls = 'bg-red-100 text-red-600';
-                else if (lower.includes('updated') || lower.includes('edited') || lower.includes('assigned')) cls = 'bg-blue-100 text-blue-700';
-                return `<span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}">${utils.escapeHtml(action)}</span>`;
-            }
-
-            function renderRows(logs) {
-                const tbody = document.getElementById('activityLogTableBody');
-                if (!logs || logs.length === 0) {
-                    const message = hasActiveFilters() ? 'No logs match your filters.' : 'No activity logs found.';
-                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-text-muted">${message}</td></tr>`;
-                    return;
-                }
-                tbody.innerHTML = logs.map(log => `
-                    <tr class="hover:bg-surface-hover transition-colors">
-                        <td class="px-4 py-3 text-sm text-text-secondary whitespace-nowrap" data-label="Time">${formatDate(log.created_at)}</td>
-                        <td class="px-4 py-3 text-sm text-text-primary font-medium" data-label="User">${utils.escapeHtml(log.username || `#${log.user_id}`)}</td>
-                        <td class="px-4 py-3 text-sm text-text-secondary uppercase" data-label="Component Type">${utils.escapeHtml(log.component_type || '-')}</td>
-                        <td class="px-4 py-3 text-sm text-text-muted" data-label="Component ID">${log.component_id || '-'}</td>
-                        <td class="px-4 py-3" data-label="Action">${getActionBadge(log.action)}</td>
-                        <td class="px-4 py-3 text-sm text-text-secondary max-w-xs truncate" data-label="Notes" title="${utils.escapeHtml(log.notes || '')}">${utils.escapeHtml(log.notes || '-')}</td>
-                        <td class="px-4 py-3 text-sm text-text-muted" data-label="IP Address">${utils.escapeHtml(log.ip_address || '-')}</td>
-                    </tr>
-                `).join('');
-            }
-
-            function updatePagination() {
-                const info = document.getElementById('logPaginationInfo');
-                const prevBtn = document.getElementById('logPrevBtn');
-                const nextBtn = document.getElementById('logNextBtn');
-                const start = totalLogs === 0 ? 0 : currentOffset + 1;
-                const end = Math.min(currentOffset + LIMIT, totalLogs);
-                info.textContent = `Showing ${start}–${end} of ${totalLogs}`;
-                prevBtn.disabled = currentOffset === 0;
-                nextBtn.disabled = (currentOffset + LIMIT) >= totalLogs;
-            }
-
-            async function loadLogs() {
-                const tbody = document.getElementById('activityLogTableBody');
-                tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-text-muted"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</td></tr>`;
-                try {
-                    const result = await api.dashboard.getLogs({ limit: LIMIT, offset: currentOffset, ...filters });
-                    if (!result.success) {
-                        if (result.code === 403) {
-                            document.getElementById('logFilterBar').classList.add('hidden');
-                            document.getElementById('logTableContainer').classList.add('hidden');
-                            document.getElementById('logPagination').classList.add('hidden');
-                            document.getElementById('accessDeniedMsg').classList.remove('hidden');
-                            return;
-                        }
-                        throw new Error(result.message);
+                    const rows = [];
+                    for (let o = 0; ; o += 200) {
+                        btn.textContent = `Exporting… ${rows.length}`;
+                        const r = await fetchPage({ limit: 200, offset: o, ...filters });
+                        if (!r.success) throw new Error(r.message || 'Export failed');
+                        const page = r.data?.logs || [];
+                        rows.push(...page);
+                        if (page.length < 200 || rows.length >= Number(r.data?.pagination?.total || 0)) break;
                     }
-                    totalLogs = result.data.pagination.total;
-                    renderRows(result.data.logs);
-                    updatePagination();
+                    if (!rows.length) { toast.warning('Nothing to export for these filters'); return; }
+                    const cell = (v) => {
+                        let s = v === null || v === undefined ? '' : String(v);
+                        if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+                        return `"${s.replace(/"/g, '""')}"`;
+                    };
+                    const lines = [['Time (IST)', 'Person', 'Action', 'Type', 'ID', 'Notes', 'IP address'].map(cell).join(',')]
+                        .concat(rows.map((l) => {
+                            const d = toDate(l.created_at);
+                            return [d ? d.toLocaleString('en-GB', { timeZone: TZ }) : l.created_at, l.username || 'System', l.action,
+                                l.component_type, l.component_id, l.notes, l.ip_address].map(cell).join(',');
+                        }));
+                    const url = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `activity-${new Date().toISOString().slice(0, 10)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    toast.success(`Exported ${rows.length.toLocaleString()} entries`);
                 } catch (err) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-500"><i class="fas fa-exclamation-circle mr-2"></i>${utils.escapeHtml(err.message || 'Failed to load logs')}</td></tr>`;
+                    toast.error(err.message || 'Export failed');
+                } finally {
+                    btn.textContent = label;
+                    btn.disabled = false;
                 }
+            }
+
+            function filtersChanged() {
+                $('logClearFiltersBtn').classList.toggle('hidden', !hasActiveFilters());
+                $('logUserFilter').classList.toggle('is-active', !!filters.user_id);
+                $('logRange').classList.toggle('is-active', !!(filters.date_from || filters.date_to));
+                load();
+            }
+
+            /** "Last 7 days" and friends, as IST calendar dates. */
+            function applyRange(value) {
+                const custom = value === 'custom';
+                $('logCustomDates').classList.toggle('hidden', !custom);
+                if (custom) {
+                    filters.date_from = $('logDateFrom').value;
+                    filters.date_to = $('logDateTo').value;
+                } else if (value === '') {
+                    filters.date_from = '';
+                    filters.date_to = '';
+                } else {
+                    const now = new Date();
+                    filters.date_to = dayKey(now);
+                    filters.date_from = dayKey(new Date(now.getTime() - Number(value) * 86400000));
+                }
+                filtersChanged();
             }
 
             document.addEventListener('DOMContentLoaded', () => {
-                loadLogs();
+                load();
                 loadUserFilterOptions();
 
-                document.getElementById('refreshLogsBtn').addEventListener('click', () => {
-                    currentOffset = 0;
-                    loadLogs();
-                });
+                $('refreshLogsBtn').addEventListener('click', () => load());
+                $('logMoreBtn').addEventListener('click', () => load(true));
+                $('logExportBtn').addEventListener('click', exportCsv);
 
-                document.getElementById('logSearchInput').addEventListener('input', utils.debounce((e) => {
+                $('logSearchInput').addEventListener('input', utils.debounce((e) => {
                     filters.search = e.target.value.trim();
-                    currentOffset = 0;
-                    updateClearFiltersVisibility();
-                    loadLogs();
+                    filtersChanged();
                 }, 350));
 
-                document.getElementById('logDateFrom').addEventListener('change', (e) => {
-                    filters.date_from = e.target.value;
-                    currentOffset = 0;
-                    updateClearFiltersVisibility();
-                    loadLogs();
+                $('logCategory').addEventListener('click', (e) => {
+                    const btn = e.target.closest('[data-category]');
+                    if (!btn || btn.getAttribute('aria-pressed') === 'true') return;
+                    $('logCategory').querySelectorAll('[data-category]').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+                    filters.category = btn.dataset.category;
+                    filtersChanged();
                 });
 
-                document.getElementById('logDateTo').addEventListener('change', (e) => {
-                    filters.date_to = e.target.value;
-                    currentOffset = 0;
-                    updateClearFiltersVisibility();
-                    loadLogs();
-                });
+                $('logRange').addEventListener('change', (e) => applyRange(e.target.value));
+                ['logDateFrom', 'logDateTo'].forEach((id) => $(id).addEventListener('change', () => applyRange('custom')));
 
-                document.getElementById('logUserFilter').addEventListener('change', (e) => {
+                $('logUserFilter').addEventListener('change', (e) => {
                     filters.user_id = e.target.value;
-                    currentOffset = 0;
-                    updateClearFiltersVisibility();
-                    loadLogs();
+                    filtersChanged();
                 });
 
-                document.getElementById('logClearFiltersBtn').addEventListener('click', () => {
-                    filters = { search: '', user_id: '', date_from: '', date_to: '' };
-                    document.getElementById('logSearchInput').value = '';
-                    document.getElementById('logDateFrom').value = '';
-                    document.getElementById('logDateTo').value = '';
-                    document.getElementById('logUserFilter').value = '';
-                    currentOffset = 0;
-                    updateClearFiltersVisibility();
-                    loadLogs();
-                });
-
-                document.getElementById('logPrevBtn').addEventListener('click', () => {
-                    if (currentOffset > 0) {
-                        currentOffset = Math.max(0, currentOffset - LIMIT);
-                        loadLogs();
-                    }
-                });
-
-                document.getElementById('logNextBtn').addEventListener('click', () => {
-                    if ((currentOffset + LIMIT) < totalLogs) {
-                        currentOffset += LIMIT;
-                        loadLogs();
-                    }
+                $('logClearFiltersBtn').addEventListener('click', () => {
+                    filters = { search: '', user_id: '', date_from: '', date_to: '', category: '' };
+                    $('logSearchInput').value = '';
+                    $('logRange').value = '';
+                    $('logDateFrom').value = '';
+                    $('logDateTo').value = '';
+                    $('logCustomDates').classList.add('hidden');
+                    $('logUserFilter').value = '';
+                    $('logCategory').querySelectorAll('[data-category]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.category === '')));
+                    filtersChanged();
                 });
             });
         })();
-    </script>
-    <script>
-        // Theme + nav init (same pattern as other pages)
-        
     </script>
 </body>
 

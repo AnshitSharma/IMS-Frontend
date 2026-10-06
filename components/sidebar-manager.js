@@ -135,6 +135,15 @@ class SidebarManager {
                 if (rackMenuItem) rackMenuItem.style.display = '';
             }
 
+            // Activity Log: the same two permissions dashboard-get-logs accepts,
+            // so the link only appears when the page will actually load
+            // (UI-only gate; the API enforces it).
+            if (window.api && window.api.utils
+                && (window.api.utils.hasPermission('acl.manage') || window.api.utils.hasPermission('users.view'))) {
+                const activityMenuItem = document.getElementById('activityLogMenuItem');
+                if (activityMenuItem) activityMenuItem.style.display = '';
+            }
+
             // Requests is open to everyone: raising a request — including a request
             // for temporary access — is the one thing every role must be able to do.
             // The backend still restricts what each role can DO with a request
