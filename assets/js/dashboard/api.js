@@ -470,6 +470,12 @@ window.api = {
             return await api.request(`${componentType}-list`, params);
         },
 
+        // The list page's filter panel: every filter for the type with its
+        // values and unit counts over the current search, status and site.
+        async filterOptions(componentType, params = {}) {
+            return await api.request(`${componentType}-filter-options`, params);
+        },
+
         async get(componentType, id) {
             return await api.request(`${componentType}-get`, { id: id });
         },
@@ -494,6 +500,48 @@ window.api = {
                 ids: ids,
                 ...updates
             });
+        },
+
+        /**
+         * One {type}-bulk-add call (<= 100 items, the server's cap) read into
+         * one of three outcomes. Shared by the Add drawer's bulk add and the
+         * Excel import.
+         *
+         *   { results }  answered: one entry per index, added or refused.
+         *   { refused }  a 4xx with no per-item results (bad request, no
+         *                permission, rate limit): nothing was written.
+         *   { unknown }  a network failure, a 5xx or a 409 "already in
+         *                progress": some items may have been written, and only
+         *                resending under the SAME key can say which without
+         *                adding them twice -- the server replays its answer.
+         *
+         * dryRun checks every item against the real add's rules and writes
+         * nothing; it takes no key.
+         */
+        async bulkAddChunk(componentType, items, key, { dryRun = false } = {}) {
+            const payload = { components: JSON.stringify(items) };
+            if (dryRun) payload.dry_run = '1';
+            else payload.idempotency_key = key;
+            try {
+                const result = await api.request(`${componentType}-bulk-add`, payload);
+                const data = (result && result.data) || {};
+                // dryRun echoes the server's own flag, so a caller can tell a
+                // check-only pass from one an older API ran for real.
+                return { results: data.results || [], dryRun: data.dry_run === true };
+            } catch (error) {
+                // request() throws on any non-2xx; a batch where every item
+                // failed is a 400 that still carries the per-item results.
+                if (error.data && Array.isArray(error.data.results)) return { results: error.data.results };
+                if ([400, 401, 403, 413, 422, 429].includes(Number(error.code))) {
+                    return { refused: true, message: error.message || 'Refused by the server' };
+                }
+                return { unknown: true, message: error.message || 'No response from the server' };
+            }
+        },
+
+        // Every catalogue model of the type with unique import labels.
+        async models(componentType) {
+            return await api.request(`${componentType}-models`);
         },
 
         // {module}-bulk-delete (kebab -- the case the backend switch actually

@@ -175,11 +175,44 @@ body.cd-open { overflow: hidden; }
 .cd-result-what { color: var(--color-text-secondary); overflow-wrap: anywhere; }
 .cd-note .cd-link { border: 0; padding: 0; background: none; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
 
+/* ---------- Excel import (assets/js/dashboard/component-import.js) ---------- */
+.cd-drop {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    min-height: 140px; padding: 20px; text-align: center; cursor: pointer;
+    border: 1.5px dashed var(--color-border); border-radius: 10px; background: var(--color-surface-hover);
+    font-size: 13px; color: var(--color-text-secondary);
+}
+.cd-drop:hover, .cd-drop.is-over { border-color: #0F766E; background: rgba(15, 118, 110, .05); }
+.cd-drop:focus-within { outline: 2px solid #0F766E; outline-offset: 2px; }
+.cd-drop i { font-size: 22px; color: #0F766E; margin-bottom: 4px; }
+.cd-drop strong { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.cd-drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.cd-file { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--color-border-light); border-radius: 10px; font-size: 13px; }
+.cd-file > i { font-size: 18px; color: #0F766E; }
+.cd-file-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cd-file-name strong { font-weight: 500; overflow-wrap: anywhere; }
+.cd-file-name span { color: var(--color-text-muted); }
+.cd-file .cd-btn { height: 32px; padding: 0 12px; font-size: 13px; }
+.cd-progress { height: 6px; margin: 4px 16px 14px; border-radius: 999px; background: var(--color-border-light); overflow: hidden; }
+.cd-progress span { display: block; height: 100%; width: 0; background: #0F766E; transition: width .2s ease; }
+.cd-result.is-error .cd-result-top { background: var(--color-danger-light); }
+[data-theme="dark"] .cd-result.is-error .cd-result-top { background: rgba(248, 113, 113, .1); }
+.cd-problem { display: grid; grid-template-columns: 64px 128px minmax(0, 1fr); gap: 12px; padding: 10px 16px; font-size: 13px; }
+.cd-problem + .cd-problem { border-top: 1px solid var(--color-border-light); }
+.cd-problem-row { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--color-text-muted); }
+.cd-problem-col { font-weight: 500; }
+.cd-problem-what { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.cd-problem.is-head { padding-top: 8px; padding-bottom: 8px; font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-hover); }
+.cd-problem.is-head span { font-family: inherit; font-weight: 500; color: inherit; }
+@media (prefers-reduced-motion: reduce) { .cd-progress span { transition: none; } }
+
 @media (max-width: 480px) {
     .cd-head, .cd-body, .cd-foot { padding-left: 16px; padding-right: 16px; }
     .cd-foot { flex-wrap: wrap; }
     .cd-batch-line { grid-template-columns: 48px minmax(0, 1fr) auto; }
     .cd-result-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .cd-problem { grid-template-columns: 48px minmax(0, 1fr); }
+    .cd-problem-what { grid-column: 2; }
 }
 
 /* Embedded in another modal (requests.js): that host owns the title and the

@@ -198,6 +198,11 @@ class Dashboard {
             exportCsv.addEventListener('click', () => this.exportComponentsCsv());
         }
 
+        const importBtn = document.getElementById('importComponentsBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => this.showImportDrawer());
+        }
+
         // Select all
         const selectAllComponents = document.getElementById('selectAllComponents');
         if (selectAllComponents) {
@@ -727,6 +732,202 @@ class Dashboard {
         });
     }
 
+    /**
+     * Spec + inventory filters (brand, capacity, vendor, warranty...), applied
+     * server-side through the list's `filters` param -- see ims-ftp
+     * core/helpers/InventoryFilters.php. State is this.componentFilters
+     * ({key: [values]}) and is mirrored into the URL as f.<key>=<value> pairs,
+     * so a filtered view survives a reload and can be shared.
+     *
+     * The Filters button stays hidden until {type}-filter-options answers; the
+     * page works exactly as before without it.
+     */
+    ensureFilterPanel() {
+        if (this._filterPanelReady) return;
+        const button = document.getElementById('filtersBtn');
+        const panel = document.getElementById('filtersPanel');
+        if (!button || !panel) return;
+        this._filterPanelReady = true;
+        this.componentFilters = this.readFiltersFromUrl();
+        this.filterGroups = [];
+
+        button.addEventListener('click', () => this.toggleFilterPanel());
+        document.getElementById('filtersDone')?.addEventListener('click', () => {
+            this.toggleFilterPanel(false);
+            button.focus();
+        });
+        document.getElementById('filtersClear')?.addEventListener('click', () => this.setComponentFilters({}));
+
+        panel.addEventListener('change', (e) => {
+            const input = e.target.closest('input[data-fkey]');
+            if (!input) return;
+            this.toggleComponentFilter(input.dataset.fkey, input.dataset.fvalue, input.checked);
+        });
+
+        document.addEventListener('click', (e) => {
+            if (panel.style.display !== 'none' && !e.target.closest('.inv-fwrap')) this.toggleFilterPanel(false);
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape' || panel.style.display === 'none') return;
+            this.toggleFilterPanel(false);
+            button.focus();
+        });
+
+        document.getElementById('activeFilters')?.addEventListener('click', (e) => {
+            const chip = e.target.closest('button[data-fkey]');
+            if (chip) {
+                this.toggleComponentFilter(chip.dataset.fkey, chip.dataset.fvalue, false);
+            } else if (e.target.closest('[data-fclear]')) {
+                this.setComponentFilters({});
+            }
+        });
+
+        this.renderActiveFilters();
+    }
+
+    readFiltersFromUrl() {
+        const filters = {};
+        for (const [name, value] of new URLSearchParams(window.location.search)) {
+            if (!name.startsWith('f.') || !value) continue;
+            const key = name.slice(2);
+            if (!/^[a-z_]{1,40}$/.test(key)) continue;
+            filters[key] = filters[key] || [];
+            if (!filters[key].includes(value)) filters[key].push(value);
+        }
+        return filters;
+    }
+
+    writeFiltersToUrl() {
+        const params = new URLSearchParams(window.location.search);
+        [...new Set(params.keys())].filter(k => k.startsWith('f.')).forEach(k => params.delete(k));
+        Object.entries(this.componentFilters).forEach(([key, values]) => values.forEach(v => params.append(`f.${key}`, v)));
+        window.history.replaceState(window.history.state, '', `${window.location.pathname}?${params.toString()}${window.location.hash}`);
+    }
+
+    /** The list/export `filters` param, or null when nothing is filtered. */
+    filtersParam() {
+        const filters = this.componentFilters || {};
+        return Object.keys(filters).length ? JSON.stringify(filters) : null;
+    }
+
+    toggleComponentFilter(key, value, on) {
+        const next = { ...this.componentFilters };
+        const values = new Set(next[key] || []);
+        if (on) values.add(value); else values.delete(value);
+        if (values.size) next[key] = [...values]; else delete next[key];
+        this.setComponentFilters(next);
+    }
+
+    setComponentFilters(filters) {
+        this.componentFilters = filters;
+        this.writeFiltersToUrl();
+        this.syncFilterCheckboxes();
+        this.renderActiveFilters();
+        // A new result set, so back to page 1. Debounced: ticking three boxes
+        // in a row is one reload, not three.
+        this.currentPage = 1;
+        clearTimeout(this._filterReloadTimer);
+        this._filterReloadTimer = setTimeout(() => this.loadComponentList(this.currentComponent, true), 250);
+    }
+
+    toggleFilterPanel(open) {
+        const panel = document.getElementById('filtersPanel');
+        const button = document.getElementById('filtersBtn');
+        if (!panel || !button) return;
+        const show = open ?? panel.style.display === 'none';
+        panel.style.display = show ? 'flex' : 'none';
+        button.setAttribute('aria-expanded', String(show));
+        if (show) panel.querySelector('input:not([disabled])')?.focus();
+    }
+
+    /**
+     * Fetch the panel's values and counts for the current search, status and
+     * site. Only refetched when one of those changes -- paging and the filters
+     * themselves do not move the counts.
+     */
+    async refreshFilterOptions(componentType, baseParams) {
+        const key = `${componentType}|${JSON.stringify(baseParams)}`;
+        if (this._filterOptionsKey === key) return;
+        this._filterOptionsKey = key;
+        try {
+            const result = await api.components.filterOptions(componentType, baseParams);
+            if (this._filterOptionsKey !== key) return; // superseded by a newer request
+            this.filterGroups = result?.data?.filters || [];
+            const button = document.getElementById('filtersBtn');
+            if (button) button.style.display = this.filterGroups.length ? '' : 'none';
+            this.renderFilterPanel();
+            this.renderActiveFilters();
+        } catch (error) {
+            // Decoration, like the counts: without it the list still works.
+            console.debug('Filter options unavailable:', error);
+        }
+    }
+
+    renderFilterPanel() {
+        const body = document.getElementById('filtersPanelBody');
+        if (!body) return;
+        const esc = utils.escapeHtml;
+        body.innerHTML = (this.filterGroups || []).map(group => {
+            const selected = new Set(this.componentFilters[group.key] || []);
+            const options = [...group.options];
+            // A ticked value keeps its row even when the current site or status
+            // has none of it, so it can still be unticked here.
+            selected.forEach(value => {
+                if (!options.some(o => o.value === value)) options.push({ value, label: value, count: 0 });
+            });
+            const rows = options.length ? options.map(o => {
+                const checked = selected.has(o.value);
+                const empty = !o.count && !checked;
+                return `<label class="inv-fopt${empty ? ' is-empty' : ''}">
+                    <input type="checkbox" data-fkey="${esc(group.key)}" data-fvalue="${esc(o.value)}"${checked ? ' checked' : ''}${empty ? ' disabled' : ''}>
+                    <span class="inv-fopt-label" title="${esc(o.label)}">${esc(o.label)}</span>
+                    <span class="inv-fopt-n inv-mono">${Number(o.count || 0).toLocaleString()}</span>
+                </label>`;
+            }).join('') : '<p class="inv-fempty">Nothing in this list yet</p>';
+            return `<fieldset class="inv-fgroup"><legend>${esc(group.label)}</legend><div class="inv-fgroup-list">${rows}</div></fieldset>`;
+        }).join('');
+    }
+
+    /** Tick state only, so an open panel keeps its scroll position. */
+    syncFilterCheckboxes() {
+        document.querySelectorAll('#filtersPanel input[data-fkey]').forEach(input => {
+            input.checked = (this.componentFilters[input.dataset.fkey] || []).includes(input.dataset.fvalue);
+        });
+    }
+
+    renderActiveFilters() {
+        const host = document.getElementById('activeFilters');
+        const badge = document.getElementById('filtersCount');
+        const button = document.getElementById('filtersBtn');
+        const entries = Object.entries(this.componentFilters || {});
+        const total = entries.reduce((n, [, values]) => n + values.length, 0);
+
+        if (badge) {
+            badge.textContent = String(total);
+            badge.style.display = total ? '' : 'none';
+        }
+        button?.classList.toggle('is-active', total > 0);
+        if (!host) return;
+        if (!total) {
+            host.style.display = 'none';
+            host.innerHTML = '';
+            return;
+        }
+
+        const esc = utils.escapeHtml;
+        const groups = new Map((this.filterGroups || []).map(g => [g.key, g]));
+        const chips = entries.flatMap(([key, values]) => values.map(value => {
+            const group = groups.get(key);
+            const name = group?.label ?? key;
+            const label = group?.options.find(o => o.value === value)?.label ?? value;
+            return `<button type="button" class="inv-active-chip" data-fkey="${esc(key)}" data-fvalue="${esc(value)}" aria-label="Remove filter ${esc(name)}: ${esc(label)}">
+                <span><b>${esc(name)}:</b> ${esc(label)}</span><i class="fas fa-times" aria-hidden="true"></i>
+            </button>`;
+        }));
+        host.innerHTML = chips.join('') + '<button type="button" class="inv-active-clear" data-fclear="1">Clear all</button>';
+        host.style.display = 'flex';
+    }
+
     async loadComponentList(componentType, forceRefresh = false) {
         if (!componentType || componentType === 'dashboard') return;
         if (this.loadingStates.components && !forceRefresh) {
@@ -741,6 +942,7 @@ class Dashboard {
             // to all twelve inventory pages' markup — one place to change, and no
             // twelve-file diff for one dropdown.
             this.ensureLocationFilter(componentType);
+            this.ensureFilterPanel();
 
             const addLabel = document.getElementById('addComponentLabel');
             if (addLabel) addLabel.textContent = `Add ${utils.componentLabelsSingular?.[componentType] || componentType.toUpperCase()}`;
@@ -762,6 +964,13 @@ class Dashboard {
             // it filters the whole inventory rather than just the loaded page.
             const locationFilter = document.getElementById('componentLocationFilter')?.value || '';
             if (locationFilter) params.location_uuid = locationFilter;
+
+            // The filter panel's counts follow search, status and site, never
+            // the page or the filters themselves. Not awaited, like the counts.
+            const { limit, offset, ...baseParams } = params;
+            if (this._filterPanelReady) this.refreshFilterOptions(componentType, baseParams);
+            const filters = this.filtersParam();
+            if (filters) params.filters = filters;
 
             const result = await api.components.list(componentType, params);
 
@@ -835,6 +1044,10 @@ class Dashboard {
     applyComponentCreateGate(componentType) {
         if (!componentType) return;
         this.applyPermissionGate(`${componentType}.create`, 'addComponentBtn');
+        // Import has no Request fallback -- a Request carries one unit -- so
+        // it shows only to someone bulk-add will accept. UI-only, like the rest.
+        const importBtn = document.getElementById('importComponentsBtn');
+        if (importBtn) importBtn.style.display = api.utils.hasPermission(`${componentType}.create`) ? '' : 'none';
     }
 
     async loadServerList(forceRefresh = false) {
@@ -994,12 +1207,13 @@ class Dashboard {
         if (components.length === 0) {
             const filtered = (document.getElementById('componentSearch')?.value || '') !== ''
                 || (document.getElementById('statusFilter')?.value || '') !== ''
-                || (document.getElementById('componentLocationFilter')?.value || '') !== '';
+                || (document.getElementById('componentLocationFilter')?.value || '') !== ''
+                || this.filtersParam() !== null;
             const canAdd = document.getElementById('addComponentBtn')?.style.display !== 'none';
             tbody.innerHTML = `
                 <tr><td colspan="7" class="inv-empty">
                     <h3>${filtered ? 'Nothing matches these filters' : `No ${utils.escapeHtml(singular)} units yet`}</h3>
-                    <p>${filtered ? 'Change the search, status or location to see more.' : 'Units appear here once they are added to inventory.'}</p>
+                    <p>${filtered ? 'Change the search, status, location or filters to see more.' : 'Units appear here once they are added to inventory.'}</p>
                     ${!filtered && canAdd ? `<button type="button" class="inv-btn inv-btn-primary" onclick="dashboard.showAddForm()"><i class="fas fa-plus" aria-hidden="true"></i> Add ${utils.escapeHtml(singular)}</button>` : ''}
                 </td></tr>`;
             this.updateSelectAllCheckbox();
@@ -1170,8 +1384,8 @@ class Dashboard {
     }
 
     /**
-     * Every row matching the current search, status and location, not just the
-     * loaded page: it pages through the list at the API's 500-row cap.
+     * Every row matching the current search, status, location and filters, not
+     * just the loaded page: it pages through the list at the API's 500-row cap.
      */
     async exportComponentsCsv() {
         const type = this.currentComponent;
@@ -1180,9 +1394,11 @@ class Dashboard {
         const search = document.getElementById('componentSearch')?.value || '';
         const status = document.getElementById('statusFilter')?.value ?? '';
         const locationUuid = document.getElementById('componentLocationFilter')?.value || '';
+        const filters = this.filtersParam();
         if (search) params.search = search;
         if (status !== '') params.status = status;
         if (locationUuid) params.location_uuid = locationUuid;
+        if (filters) params.filters = filters;
 
         try {
             if (button) button.disabled = true;
@@ -1710,6 +1926,24 @@ class Dashboard {
             utils.showAlert(`Failed to load the add component form: ${error.message}`, 'error');
         } finally {
             utils.showLoading(false);
+        }
+    }
+
+    /**
+     * Excel import for the open component type, in the same drawer as Add.
+     * assets/js/dashboard/component-import.js is loaded on first use; it
+     * owns the sample file, the checks and the import.
+     */
+    async showImportDrawer() {
+        const type = this.currentComponent;
+        if (!type || type === 'dashboard') return;
+        try {
+            await this._loadFormScript('../../assets/js/dashboard/component-import.js', 'ComponentImport');
+            await new ComponentImport(this, type).open();
+        } catch (error) {
+            console.error('Error opening import:', error);
+            this.closeDrawer();
+            utils.showAlert(error.message || 'The import could not be opened', 'error');
         }
     }
 

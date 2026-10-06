@@ -115,6 +115,55 @@
         [data-theme="dark"] .inv-chip, [data-theme="dark"] .inv-search input { color-scheme: dark; }
         .inv-chip.is-active { border-color: #0F766E; background-color: rgba(15, 118, 110, .1); color: var(--inv-available); }
 
+        /* Filters: a chip that opens a panel of checkbox groups, each value with
+           its unit count. Applies as you tick; Done only closes. */
+        .inv-fwrap { position: relative; }
+        .inv-fbtn { display: inline-flex; align-items: center; gap: 8px; }
+        .inv-fcount {
+            min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #0F766E; color: #fff;
+            font-size: 11px; line-height: 18px; text-align: center;
+        }
+        .inv-fpanel {
+            position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(680px, calc(100vw - 48px));
+            background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .14); flex-direction: column; max-height: min(560px, calc(100vh - 160px));
+        }
+        .inv-fpanel-body {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 20px 24px;
+            padding: 18px 20px; overflow-y: auto; min-height: 0;
+        }
+        .inv-fgroup { border: 0; margin: 0; padding: 0; min-width: 0; }
+        .inv-fgroup legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--color-text-secondary); }
+        .inv-fgroup-list { display: flex; flex-direction: column; gap: 2px; max-height: 232px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+        .inv-fopt {
+            display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 8px; min-height: 30px;
+            padding: 0 6px; margin: 0 -6px; border-radius: 6px; font-size: 13px; cursor: pointer;
+        }
+        .inv-fopt:hover { background: var(--color-surface-hover); }
+        .inv-fopt input { width: 15px; height: 15px; margin: 0; accent-color: #0F766E; cursor: pointer; }
+        .inv-fopt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .inv-fopt-n { font-size: 12px; color: var(--color-text-muted); }
+        .inv-fopt.is-empty { color: var(--color-text-muted); cursor: default; }
+        .inv-fopt.is-empty:hover { background: transparent; }
+        .inv-fempty { font-size: 13px; color: var(--color-text-muted); margin: 0; }
+        .inv-fpanel-foot {
+            display: flex; justify-content: space-between; gap: 8px; padding: 12px 20px;
+            border-top: 1px solid var(--color-border-light);
+        }
+
+        .inv-active { flex-wrap: wrap; gap: 8px; align-items: center; margin-top: -4px; }
+        .inv-active-chip {
+            display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 12px; border-radius: 999px;
+            border: 1px solid rgba(15, 118, 110, .35); background: rgba(15, 118, 110, .08); color: var(--color-text-primary);
+            font: inherit; font-size: 13px; cursor: pointer; max-width: 100%;
+        }
+        .inv-active-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .inv-active-chip b { font-weight: 500; color: var(--color-text-secondary); }
+        .inv-active-chip i { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: var(--color-text-muted); }
+        .inv-active-chip:hover i { background: rgba(15, 118, 110, .15); color: var(--color-text-primary); }
+        .inv-active-clear { border: 0; background: transparent; color: var(--inv-available); font: inherit; font-size: 13px; cursor: pointer; padding: 0 6px; height: 30px; }
+        .inv-active-clear:hover { text-decoration: underline; }
+
         .inv-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; min-width: 0; }
         .inv-bulk { align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: var(--inv-bulk); color: #fff; font-size: 13px; }
         .inv-bulk-btn {
@@ -203,6 +252,8 @@
             .inv-foot { border-top: 0; padding: 4px 0; }
             .inv-search { width: 100%; }
             .inv-filters { width: 100%; }
+            .inv-fpanel { position: fixed; top: 72px; left: 16px; right: 16px; width: auto; max-height: calc(100vh - 96px); }
+            .inv-fpanel-body { grid-template-columns: 1fr; }
             .inv-seg { width: 100%; overflow-x: auto; }
             .inv-seg button { flex: 1 0 auto; justify-content: center; }
         }
@@ -233,6 +284,7 @@
                                 <i class="fas fa-sync-alt" aria-hidden="true"></i>
                             </button>
                             <button type="button" id="exportComponentsCsv" class="inv-btn">Export CSV</button>
+                            <button type="button" id="importComponentsBtn" class="inv-btn" style="display: none;">Import</button>
                             <button type="button" id="addComponentBtn" class="inv-btn inv-btn-primary" style="display: none;">
                                 <i class="fas fa-plus" aria-hidden="true"></i> <span id="addComponentLabel">Add</span>
                             </button>
@@ -255,8 +307,25 @@
                                 <i class="fas fa-search" aria-hidden="true"></i>
                                 <input type="search" id="componentSearch" placeholder="Search this list" aria-label="Search this list" autocomplete="off">
                             </label>
+                            <!-- Spec + inventory filters. dashboard.js shows the button once
+                                 {type}-filter-options answers and fills the panel from it. -->
+                            <div class="inv-fwrap">
+                                <button type="button" id="filtersBtn" class="inv-chip inv-fbtn" aria-expanded="false" aria-controls="filtersPanel" style="display: none;">
+                                    Filters<span class="inv-fcount inv-mono" id="filtersCount" style="display: none;"></span>
+                                </button>
+                                <div class="inv-fpanel" id="filtersPanel" role="dialog" aria-label="Filters" style="display: none;">
+                                    <div class="inv-fpanel-body" id="filtersPanelBody"></div>
+                                    <div class="inv-fpanel-foot">
+                                        <button type="button" class="inv-btn" id="filtersClear">Clear filters</button>
+                                        <button type="button" class="inv-btn inv-btn-primary" id="filtersDone">Done</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Active filters as removable chips; rendered by dashboard.js. -->
+                    <div class="inv-active" id="activeFilters" style="display: none;"></div>
 
                     <section class="inv-card">
                         <!-- Bulk actions: shown by updateBulkActions() while rows are selected. -->

@@ -2679,38 +2679,18 @@ class AddComponentForm {
     }
 
     /**
-     * Send one chunk (<= 100 units) under one idempotency key.
-     *
-     * Three outcomes. Answered: every unit is added or refused, per the
-     * server's results. Refused whole (a 4xx with no per-unit results — bad
-     * request, no permission, rate limit): nothing was written. Unknown (a
-     * network failure, a 5xx, a 409 "already in progress"): some units may
-     * have been written, and only resending under the SAME key can say which
-     * without adding them twice — the server replays its recorded answer.
+     * Send one chunk (<= 100 units) under one idempotency key. The three
+     * outcomes -- answered, refused whole, unknown -- are read by
+     * api.components.bulkAddChunk(), which the Excel import shares.
      */
     async postChunk(units, key) {
-        let result;
-        try {
-            result = await api.request(`${this.currentComponentType}-bulk-add`, {
-                components: JSON.stringify(units.map(u => u.payload)),
-                idempotency_key: key
-            });
-        } catch (error) {
-            // request() throws on any non-2xx; a batch where every unit failed
-            // is a 400 that still carries the per-unit results.
-            if (error.data && Array.isArray(error.data.results)) {
-                result = { data: error.data };
-            } else if ([400, 401, 403, 413, 422, 429].includes(Number(error.code))) {
-                return {
-                    added: [],
-                    failed: units.map(u => ({ unit: u, error: error.message || 'Refused by the server' }))
-                };
-            } else {
-                return { unknown: true, message: error.message || 'No response from the server' };
-            }
+        const outcome = await api.components.bulkAddChunk(this.currentComponentType, units.map(u => u.payload), key);
+        if (outcome.unknown) return { unknown: true, message: outcome.message };
+        if (outcome.refused) {
+            return { added: [], failed: units.map(u => ({ unit: u, error: outcome.message })) };
         }
 
-        const results = (result && result.data && Array.isArray(result.data.results)) ? result.data.results : [];
+        const results = outcome.results;
         const added = [];
         const failed = [];
         units.forEach((unit, i) => {
