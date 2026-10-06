@@ -1,0 +1,173 @@
+/*
+ * refined.css — the shared pieces of the "Refined" design language.
+ *
+ * The 2026-10 redesigns (inventory list, Requests, ACL, activity log, vendors,
+ * …) each carry these rules in a page-scoped <style> under their own prefix.
+ * Pages redesigned from here on take them from this one file instead, under
+ * the .rf- prefix, so a change to the language is made once.
+ *
+ * Plain CSS on the theme variables (--color-*), which carry dark mode; no
+ * Tailwind build step. Load it after tailwind.css.
+ */
+
+.rf {
+    --rf-accent: #0F766E;
+    --rf-accent-hover: #0C5D57;
+    --rf-accent-ink: #0F766E;
+    --rf-tint: rgba(15, 118, 110, .08);
+    --rf-ring: rgba(15, 118, 110, .15);
+    --rf-available: #0F766E;
+    --rf-inuse: #0369A1;
+    --rf-failed: #B91C1C;
+    --rf-warn: #B45309;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+[data-theme="dark"] .rf {
+    --rf-accent-ink: #2DD4BF;
+    --rf-tint: rgba(45, 212, 191, .1);
+    --rf-available: #2DD4BF;
+    --rf-inuse: #38BDF8;
+    --rf-failed: #F87171;
+    --rf-warn: #FBBF24;
+}
+
+[data-theme="dark"] .rf input,
+[data-theme="dark"] .rf select { color-scheme: dark; }
+
+/* Page CSS that sets display beats Tailwind's .hidden; keep hiding working. */
+.rf .hidden { display: none !important; }
+
+.rf-mono {
+    font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+}
+
+.rf button:focus-visible,
+.rf a:focus-visible,
+.rf select:focus-visible,
+.rf [tabindex]:focus-visible {
+    outline: 2px solid #0F766E;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+/* ---- page head: title, one subtitle line, actions on the right ---- */
+.rf-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.rf-head h1 { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+.rf-sub { margin-top: 4px; font-size: 13px; color: var(--color-text-muted); }
+.rf-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ---- buttons ---- */
+.rf-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 38px; padding: 0 14px; border-radius: 8px;
+    border: 1px solid var(--color-border); background: var(--color-surface-card); color: var(--color-text-primary);
+    font: inherit; font-size: 13.5px; font-weight: 500; white-space: nowrap; cursor: pointer; text-decoration: none;
+}
+.rf-btn:hover { background: var(--color-surface-hover); }
+.rf-btn:disabled { opacity: .55; cursor: default; }
+.rf-btn i { font-size: 12px; }
+.rf-btn-primary { border-color: transparent; background: #0F766E; color: #fff; font-weight: 600; }
+.rf-btn-primary:hover { background: #0C5D57; }
+.rf-btn-danger { border-color: transparent; background: #B91C1C; color: #fff; font-weight: 600; }
+.rf-btn-danger:hover { background: #991B1B; }
+.rf-btn-icon { width: 38px; padding: 0; color: var(--color-text-secondary); }
+.rf-link {
+    border: 0; background: none; padding: 0; font: inherit; font-size: 13px;
+    color: var(--rf-accent-ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}
+
+/* ---- search box: the wrapper carries the focus ring ---- */
+.rf-search {
+    display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 12px; min-width: 220px;
+    border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card); color: var(--color-text-muted);
+}
+.rf-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px var(--rf-ring); }
+.rf-search input {
+    flex: 1; min-width: 0; border: 0; background: transparent; outline: none; box-shadow: none;
+    font: inherit; font-size: 13.5px; color: var(--color-text-primary);
+}
+.rf-search input:focus, .rf-search input:focus-visible { outline: none; box-shadow: none; }
+
+/* ---- cards and tables ---- */
+.rf-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; min-width: 0; }
+.rf-card-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 18px; border-bottom: 1px solid var(--color-border-light);
+}
+.rf-card-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.rf-card-body { padding: 18px; }
+
+.rf-scroll { overflow-x: auto; position: relative; }
+.rf-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.rf-table th {
+    padding: 10px 16px; text-align: left; white-space: nowrap;
+    font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+    background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border);
+}
+.rf-table td {
+    padding: 0 16px; height: 64px; white-space: nowrap; color: var(--color-text-primary);
+    border-bottom: 1px solid var(--color-border-light);
+}
+.rf-table tbody tr:last-child td { border-bottom: 0; }
+.rf-table tbody tr:hover td { background: var(--color-surface-hover); }
+.rf-table .is-num { text-align: right; }
+.rf-row-link { cursor: pointer; }
+
+/* ---- status: a dot and a word, never a filled badge ---- */
+.rf-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--rf-st, var(--color-text-muted)); flex: none; }
+.rf-st-available { --rf-st: var(--rf-available); }
+.rf-st-inuse { --rf-st: var(--rf-inuse); }
+.rf-st-failed { --rf-st: var(--rf-failed); }
+.rf-st-warn { --rf-st: var(--rf-warn); }
+
+/* ---- feed rows (who did what), as on the activity page ---- */
+.rf-ev { display: flex; gap: 14px; align-items: flex-start; padding: 14px 18px; border-bottom: 1px solid var(--color-border-light); }
+.rf-ev:last-child { border-bottom: 0; }
+.rf-av {
+    width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--color-surface-secondary); color: var(--color-text-secondary); font-size: 11px; font-weight: 600;
+}
+.rf-av.is-system { background: transparent; border: 1px dashed var(--color-border-dark); }
+.rf-ev-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rf-ev-line { overflow-wrap: anywhere; }
+.rf-ev-line b { font-weight: 500; }
+.rf-ev-line a { color: var(--rf-accent-ink); text-underline-offset: 2px; }
+.rf-ev-detail { font-size: 12.5px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+.rf-ev-time { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; padding-top: 2px; }
+
+.rf-state { padding: 40px 18px; text-align: center; color: var(--color-text-muted); }
+.rf-state h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+
+/* ---- the shared #modalContainer, when its page opts in with .rf-modal ---- */
+.rf-modal .modal { border-radius: 12px; border: 1px solid var(--color-border); box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .35); }
+.rf-modal .modal-header { padding: 16px 22px; border-bottom: 1px solid var(--color-border-light); }
+.rf-modal #modalTitle { font-size: 16px; font-weight: 600; }
+.rf-modal .modal-close { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; }
+.rf-modal .modal-close:hover { background: var(--color-surface-hover); }
+.rf-modal .modal-close i { font-size: 15px; }
+.rf-modal .modal-body { padding: 20px 22px; }
+.rf-modal .form-group > label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 6px; }
+.rf-modal .form-input, .rf-modal .form-textarea, .rf-modal .form-select {
+    border-radius: 8px; border-color: var(--color-border); font-size: 13.5px; min-height: 40px;
+}
+.rf-modal .form-input:focus, .rf-modal .form-textarea:focus, .rf-modal .form-select:focus {
+    border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); outline: none;
+}
+.rf-modal .btn { height: 38px; padding: 0 16px; border-radius: 8px; font-size: 13.5px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; }
+.rf-modal .btn-primary { background: #0F766E; color: #fff; font-weight: 600; }
+.rf-modal .btn-primary:hover { background: #0C5D57; }
+.rf-modal .btn-secondary { background: var(--color-surface-card); border: 1px solid var(--color-border); color: var(--color-text-primary); }
+.rf-modal .btn-secondary:hover { background: var(--color-surface-hover); }
+
+@media (max-width: 639px) {
+    .rf-head { align-items: stretch; }
+    .rf-actions { width: 100%; }
+    .rf-search { flex: 1; min-width: 0; }
+}

@@ -72,15 +72,13 @@ const NAVBAR_HTML = `
                     <button class="dropdown-btn text-text-secondary hover:text-text-primary">
                         <i class="fas fa-chevron-down"></i>
                     </button>
-                    <div
-                        class="dropdown-content absolute right-0 mt-2 w-48 bg-surface-card rounded-lg shadow-lg border border-border hidden z-dropdown">
-                        <a href="#" id="changePassword"
-                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
-                            <i class="fas fa-key"></i> Change Password
+                    <div class="dropdown-content um-menu">
+                        <a href="#" id="changePassword" class="um-item">
+                            <i class="fas fa-key" aria-hidden="true"></i> Change password
                         </a>
-                        <a href="#" id="logoutBtn"
-                            class="block px-4 py-2 text-sm text-text-primary hover:bg-surface-hover flex items-center gap-2">
-                            <i class="fas fa-sign-out-alt"></i> Logout
+                        <div class="um-sep" role="separator"></div>
+                        <a href="#" id="logoutBtn" class="um-item is-danger">
+                            <i class="fas fa-sign-out-alt" aria-hidden="true"></i> Sign out
                         </a>
                     </div>
                 </div>

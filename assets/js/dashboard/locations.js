@@ -123,14 +123,7 @@ class LocationsManager {
 
         const info = document.getElementById('locationPaginationInfo');
         if (info) {
-            info.textContent = `Showing ${locations.length} of ${total} location${total === 1 ? '' : 's'}`;
-        }
-
-        const badge = document.getElementById('locationCountBadge');
-        if (badge) {
-            badge.textContent = total;
-            badge.classList.remove('hidden');
-            badge.classList.add('inline-flex');
+            info.textContent = total ? `Showing ${locations.length} of ${total} location${total === 1 ? '' : 's'}` : '';
         }
 
         if (locations.length === 0) {
@@ -153,23 +146,19 @@ class LocationsManager {
     }
 
     emptyStateRow(isUnfiltered) {
-        const icon = isUnfiltered ? 'fa-map-marker-alt' : 'fa-search';
         const heading = isUnfiltered ? 'No locations yet' : 'No matching locations';
         const message = isUnfiltered
             ? 'Add your first site. Racks belong to a location, and every server and component in them inherits it.'
             : 'Try a different name, description or address.';
         const action = isUnfiltered
-            ? `<button class="inline-flex items-center gap-2 h-10 px-4 mt-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 transition-colors" onclick="locationsManager.showAddForm()">
-                   <i class="fas fa-plus text-xs"></i> Add Location
+            ? `<button type="button" class="rf-btn rf-btn-primary" style="margin-top:16px" onclick="locationsManager.showAddForm()">
+                   <i class="fas fa-plus" aria-hidden="true"></i> Add location
                </button>`
             : '';
 
-        return `<tr><td colspan="6" class="px-5 py-16 text-center">
-            <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-surface-secondary flex items-center justify-center">
-                <i class="fas ${icon} text-2xl text-text-muted"></i>
-            </div>
-            <h3 class="text-base font-semibold text-text-primary mb-1">${heading}</h3>
-            <p class="text-sm text-text-muted">${message}</p>
+        return `<tr><td colspan="5" class="rf-state loc-empty">
+            <h3>${heading}</h3>
+            <div>${message}</div>
             ${action}
         </td></tr>`;
     }
@@ -181,42 +170,35 @@ class LocationsManager {
         const open = this.expanded.has(l.location_uuid);
 
         return `
-            <tr class="hover:bg-surface-hover transition-colors">
-                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Name">
-                    <button type="button" class="flex items-center gap-3 text-left w-full" onclick="locationsManager.toggleRacks('${uuid}')" title="${open ? 'Hide racks' : 'Show racks at this location'}">
-                        <div class="w-9 h-9 shrink-0 rounded-full bg-primary/10 text-primary dark:text-primary-light flex items-center justify-center text-sm">
-                            <i class="fas fa-map-marker-alt"></i>
-                        </div>
-                        <div>
-                            <span class="font-semibold text-text-primary">${name}</span>
-                            ${retired ? '<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-semibold bg-surface-secondary text-text-muted">Retired</span>' : ''}
-                        </div>
-                        <i class="fas ${open ? 'fa-chevron-up' : 'fa-chevron-down'} text-xs text-text-muted"></i>
+            <tr class="${open ? 'is-open' : ''}">
+                <td>
+                    <button type="button" class="loc-name" onclick="locationsManager.toggleRacks('${uuid}')" aria-expanded="${open}" title="${open ? 'Hide racks' : 'Show racks at this location'}">
+                        <i class="fas fa-chevron-right loc-caret" aria-hidden="true"></i>
+                        <span class="min-w-0">
+                            <span class="loc-title">${name}${retired ? '<span class="loc-retired"><i class="rf-dot"></i>Retired</span>' : ''}</span>
+                            <span class="loc-desc">${l.description ? utils.escapeHtml(l.description) : 'No description'}</span>
+                        </span>
                     </button>
                 </td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Objects">${this.objectsCell(l)}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-secondary" data-label="Description">${l.description ? utils.escapeHtml(l.description) : '<span class="text-text-muted">—</span>'}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm text-text-secondary" data-label="Address">${l.address ? utils.escapeHtml(l.address) : '<span class="text-text-muted">—</span>'}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle text-sm font-mono tabular-nums text-text-secondary" data-label="Coordinates">${this.coordinatesCell(l)}</td>
-                <td class="px-4 sm:px-5 py-3.5 align-middle" data-label="Actions">
-                    <div class="flex items-center justify-end gap-1">
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-info hover:bg-info/10 transition-colors" onclick="locationsManager.showEditForm('${uuid}')" title="Edit">
-                            <i class="fas fa-edit text-sm"></i>
-                        </button>
-                        <button class="action-btn w-9 h-9 inline-flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" onclick="locationsManager.handleDelete('${uuid}')" title="Delete">
-                            <i class="fas fa-trash text-sm"></i>
-                        </button>
-                    </div>
+                <td>${this.objectsCell(l)}</td>
+                <td class="loc-wrap loc-hide-sm">${l.address ? utils.escapeHtml(l.address) : '<span class="loc-muted">—</span>'}</td>
+                <td class="rf-mono loc-coord loc-hide-sm">${this.coordinatesCell(l)}</td>
+                <td class="loc-acts">
+                    <button type="button" class="rf-btn rf-btn-icon loc-icon" onclick="locationsManager.showEditForm('${uuid}')" title="Edit location" aria-label="Edit ${name}">
+                        <i class="fas fa-pen" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="rf-btn rf-btn-icon loc-icon is-danger" onclick="locationsManager.handleDelete('${uuid}')" title="Delete location" aria-label="Delete ${name}">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
                 </td>
             </tr>
         `;
     }
 
     /**
-     * The Objects column: what this site actually holds.
-     *
-     * Shown as three separate counts rather than one total, because they are the
-     * three things that block a delete and the operator needs to know which.
+     * What this site holds: racks, servers and parts as three separate counts,
+     * because they are the three things that block a delete and the operator
+     * needs to know which.
      */
     objectsCell(l) {
         const racks = Number(l.racks || 0);
@@ -224,25 +206,19 @@ class LocationsManager {
         const components = Number(l.components || 0);
 
         if (racks + servers + components === 0) {
-            return '<span class="text-sm text-text-muted">Empty</span>';
+            return '<span class="loc-muted">Empty</span>';
         }
 
-        const chip = (n, label) => n === 0 ? '' :
-            `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums">${n} ${label}${n === 1 ? '' : 's'}</span>`;
-
-        return `<div class="flex flex-wrap items-center gap-1">
-            ${chip(racks, 'rack')}
-            ${chip(servers, 'server')}
-            ${chip(components, 'component')}
-        </div>`;
+        const part = (n, label) => `<span class="${n ? '' : 'loc-muted'}"><b class="rf-mono">${n.toLocaleString('en-IN')}</b> ${label}${n === 1 ? '' : 's'}</span>`;
+        return `<span class="loc-holds">${part(racks, 'rack')}${part(servers, 'server')}${part(components, 'part')}</span>`;
     }
 
     coordinatesCell(l) {
         if (l.latitude === null || l.longitude === null ||
             l.latitude === undefined || l.longitude === undefined) {
-            return '<span class="font-sans text-text-muted">—</span>';
+            return '<span class="loc-muted">—</span>';
         }
-        return `${utils.escapeHtml(String(l.latitude))} / ${utils.escapeHtml(String(l.longitude))}`;
+        return `${utils.escapeHtml(String(l.latitude))}, ${utils.escapeHtml(String(l.longitude))}`;
     }
 
     /* ============================================================
@@ -293,20 +269,16 @@ class LocationsManager {
 
         let body;
         if (!racks) {
-            body = `<div class="flex items-center gap-2 text-sm text-text-muted">
-                        <i class="fas fa-circle-notch fa-spin"></i> Loading racks…
-                    </div>`;
+            body = `<div class="loc-muted"><i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Loading racks…</div>`;
         } else if (racks.length === 0) {
-            body = `<div class="text-sm text-text-muted">No racks at this location yet.</div>`;
+            body = `<div class="loc-muted">No racks at this location yet.</div>`;
         } else {
-            body = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        ${racks.map(r => this.rackCardHtml(r)).join('')}
-                    </div>`;
+            body = `<div class="loc-racks">${racks.map(r => this.rackCardHtml(r)).join('')}</div>`;
         }
 
         return `
-            <tr class="bg-surface-secondary">
-                <td colspan="6" class="px-4 sm:px-5 py-4" data-label="Racks">${body}</td>
+            <tr class="loc-racks-row">
+                <td colspan="5">${body}</td>
             </tr>
         `;
     }
@@ -322,25 +294,21 @@ class LocationsManager {
         const pct = total > 0 ? Math.min(100, Math.round((used / total) * 100)) : 0;
         const servers = Number(r.server_count || 0);
         const floor = r.floor !== null && r.floor !== undefined && r.floor !== ''
-            ? `Floor ${utils.escapeHtml(String(r.floor))}` : '';
+            ? `Floor ${utils.escapeHtml(String(r.floor))} · ` : '';
 
         const inner = `
-            <div class="flex items-center justify-between gap-2">
-                <span class="font-semibold text-text-primary truncate">${utils.escapeHtml(r.name || '')}</span>
-                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums">${servers} server${servers === 1 ? '' : 's'}</span>
-            </div>
-            <div class="text-xs text-text-muted mt-1 tabular-nums">${floor ? floor + ' · ' : ''}${used} / ${total}U used · ${Math.max(0, total - used)}U free</div>
-            <div class="mt-2 h-1.5 w-full rounded-full bg-surface-secondary overflow-hidden">
-                <div class="h-1.5 rounded-full bg-primary" style="width:${pct}%"></div>
-            </div>
+            <span class="loc-rack-top">
+                <span class="loc-rack-name">${utils.escapeHtml(r.name || '')}</span>
+                <span class="loc-muted">${servers} server${servers === 1 ? '' : 's'}</span>
+            </span>
+            <span class="loc-rack-bar" aria-hidden="true"><span style="width:${pct}%"></span></span>
+            <span class="loc-rack-meta">${floor}${used} / ${total}U used · ${Math.max(0, total - used)}U free</span>
         `;
 
         const canOpen = !!(window.api && api.utils && api.utils.hasRole && api.utils.hasRole(['admin', 'super_admin']));
-        const classes = 'block text-left rounded-lg border border-border bg-surface-card px-4 py-3';
-
         return canOpen
-            ? `<a href="racks.html?rack=${encodeURIComponent(r.rack_uuid)}" class="${classes} hover:bg-surface-hover transition-colors">${inner}</a>`
-            : `<div class="${classes}">${inner}</div>`;
+            ? `<a href="racks.html?rack=${encodeURIComponent(r.rack_uuid)}" class="loc-rack is-link">${inner}</a>`
+            : `<div class="loc-rack">${inner}</div>`;
     }
 
     /* ============================================================
@@ -356,7 +324,7 @@ class LocationsManager {
 
         return `
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Location Name</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Location name</label>
                 <input type="text" id="locationName" maxlength="100" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="e.g. Yotta Noida" value="${v('name')}">
                 <p class="text-xs text-text-muted mt-1">Must be unique. Renaming this updates every rack, server and component that reports it.</p>
             </div>
@@ -407,11 +375,11 @@ class LocationsManager {
                 ${this.formFields(null)}
                 <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
                     <button type="button" class="btn btn-secondary px-5 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover" onclick="dashboard.closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add Location</button>
+                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add location</button>
                 </div>
             </form>
         `;
-        dashboard.showModal('Add New Location', html);
+        dashboard.showModal('Add location', html);
         document.getElementById('addLocationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.handleAdd();
@@ -465,7 +433,7 @@ class LocationsManager {
                 </div>
                 <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
                     <button type="button" class="btn btn-secondary px-5 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover" onclick="dashboard.closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Save Changes</button>
+                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Save changes</button>
                 </div>
             </form>
         `;

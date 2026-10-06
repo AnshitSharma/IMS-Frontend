@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
     <title>Vendors - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../../assets/css/refined.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script>
         (function () {
@@ -128,8 +129,8 @@
 
     <!-- Modal Container -->
     <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
-        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        class="modal-overlay rf-modal fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
                 <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">

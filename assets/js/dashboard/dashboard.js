@@ -193,20 +193,6 @@ class Dashboard {
             });
         }
 
-        // Row density, remembered per browser.
-        const densityToggle = document.getElementById('densityToggle');
-        if (densityToggle) {
-            let density = 'compact';
-            try { density = localStorage.getItem('inventory_density') || 'compact'; } catch (e) { /* storage blocked */ }
-            this.applyDensity(density);
-            densityToggle.addEventListener('click', (e) => {
-                const button = e.target.closest('button[data-density]');
-                if (!button) return;
-                this.applyDensity(button.dataset.density);
-                try { localStorage.setItem('inventory_density', button.dataset.density); } catch (err) { /* storage blocked */ }
-            });
-        }
-
         const exportCsv = document.getElementById('exportComponentsCsv');
         if (exportCsv) {
             exportCsv.addEventListener('click', () => this.exportComponentsCsv());
@@ -318,62 +304,77 @@ class Dashboard {
         }
     }
 
+    /**
+     * The overview page: a parts summary, the servers summary, and one row per
+     * component type. The rows are built from the type vocabulary, so a new
+     * type shows up here without a hand-written card (compute platforms and
+     * network devices never had one).
+     */
     updateDashboardStats(stats) {
         const components = this.componentTypes
             || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform', 'networkdevice'];
-        components.forEach(component => {
-            if (stats[component]) {
-                const stat = stats[component];
-                const componentName = component.charAt(0).toUpperCase() + component.slice(1);
-                const totalEl = document.getElementById(`dash${componentName}Total`);
-                const availEl = document.getElementById(`dash${componentName}Available`);
-                const inUseEl = document.getElementById(`dash${componentName}InUse`);
-                const failedEl = document.getElementById(`dash${componentName}Failed`);
+        const fmt = (n) => (Number(n) || 0).toLocaleString('en-IN');
+        const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
 
-                if (totalEl) totalEl.textContent = stat.total || 0;
-                if (availEl) availEl.textContent = stat.available || 0;
-                if (inUseEl) inUseEl.textContent = stat.in_use || 0;
-                if (failedEl) failedEl.textContent = stat.failed || 0;
-
-                // Segmented utilization bar (dashboard index page only)
-                const total = stat.total || 0;
-                const pct = (value) => total > 0 ? `${((value || 0) / total) * 100}%` : '0%';
-                const barAvail = document.getElementById(`dash${componentName}BarAvailable`);
-                const barInUse = document.getElementById(`dash${componentName}BarInUse`);
-                const barFailed = document.getElementById(`dash${componentName}BarFailed`);
-                if (barAvail) barAvail.style.width = pct(stat.available);
-                if (barInUse) barInUse.style.width = pct(stat.in_use);
-                if (barFailed) barFailed.style.width = pct(stat.failed);
-            }
+        const sum = { total: 0, available: 0, in_use: 0, failed: 0 };
+        const rows = components.filter(type => stats[type]).map(type => {
+            const s = stats[type];
+            Object.keys(sum).forEach(k => { sum[k] += Number(s[k]) || 0; });
+            return { type, ...s };
         });
-        if (stats.servers) {
-            const serverStat = stats.servers;
-            const dashServersTotal = document.getElementById('dashServersTotal');
-            const dashServersDraft = document.getElementById('dashServersDraft');
-            const dashServersValidated = document.getElementById('dashServersValidated');
-            const dashServersBuilt = document.getElementById('dashServersBuilt');
-            const dashServersFinalized = document.getElementById('dashServersFinalized');
 
-            if (dashServersTotal) dashServersTotal.textContent = serverStat.total || 0;
-            if (dashServersDraft) dashServersDraft.textContent = serverStat.draft || 0;
-            if (dashServersValidated) dashServersValidated.textContent = serverStat.validated || 0;
-            if (dashServersBuilt) dashServersBuilt.textContent = serverStat.built || 0;
-            if (dashServersFinalized) dashServersFinalized.textContent = serverStat.finalized || 0;
+        setText('dashPartsTotal', fmt(sum.total));
+        setText('dashPartsAvailable', fmt(sum.available));
+        setText('dashPartsInUse', fmt(sum.in_use));
+        setText('dashPartsFailed', fmt(sum.failed));
+        [['Available', sum.available], ['InUse', sum.in_use], ['Failed', sum.failed]].forEach(([key, value]) => {
+            const seg = document.getElementById(`dashPartsBar${key}`);
+            if (seg) seg.style.width = `${sum.total ? (value / sum.total) * 100 : 0}%`;
+        });
+
+        const body = document.getElementById('dashInventoryBody');
+        if (body) {
+            const pct = (v, t) => t > 0 ? ((Number(v) || 0) / t) * 100 : 0;
+            body.innerHTML = rows.map(r => {
+                const total = Number(r.total) || 0;
+                const label = utils.componentLabels[r.type] || r.type;
+                const href = `component.html?type=${encodeURIComponent(r.type)}`;
+                return `<tr class="rf-row-link" data-href="${utils.escapeHtml(href)}">
+                    <td><a class="dash-type" href="${utils.escapeHtml(href)}">${utils.escapeHtml(label)}</a></td>
+                    <td class="is-num rf-mono">${fmt(total)}</td>
+                    <td class="dash-bar-cell">
+                        <div class="dash-bar" role="img" aria-label="${utils.escapeHtml(`${fmt(r.available)} available, ${fmt(r.in_use)} in use, ${fmt(r.failed)} failed`)}">
+                            <span class="rf-st-available" style="width:${pct(r.available, total)}%"></span>
+                            <span class="rf-st-inuse" style="width:${pct(r.in_use, total)}%"></span>
+                            <span class="rf-st-failed" style="width:${pct(r.failed, total)}%"></span>
+                        </div>
+                    </td>
+                    <td class="is-num rf-mono ${Number(r.available) ? '' : 'dash-zero'}">${fmt(r.available)}</td>
+                    <td class="is-num rf-mono ${Number(r.in_use) ? '' : 'dash-zero'}">${fmt(r.in_use)}</td>
+                    <td class="is-num rf-mono ${Number(r.failed) ? 'dash-failed' : 'dash-zero'}">${fmt(r.failed)}</td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="6" class="rf-state">No inventory recorded yet.</td></tr>';
+
+            if (!this.inventoryRowsBound) {
+                this.inventoryRowsBound = true;
+                body.addEventListener('click', (e) => {
+                    if (e.target.closest('a')) return;
+                    const row = e.target.closest('tr[data-href]');
+                    if (row) window.location.href = row.dataset.href;
+                });
+            }
         }
 
-        // Click listeners for cards are no longer needed as they are links or handled by simple redirects
-        if (!this.cardListenersInitialized) {
-            const allComponents = [...components, 'servers'];
-            allComponents.forEach(component => {
-                const card = document.querySelector(`.${component}-card`);
-                if (card) {
-                    card.style.cursor = 'pointer';
-                    card.addEventListener('click', () => {
-                        window.location.href = `${component}.html`;
-                    });
-                }
+        if (stats.servers) {
+            const s = stats.servers;
+            const total = Number(s.total) || 0;
+            setText('dashServersTotal', fmt(total));
+            ['draft', 'validated', 'built', 'finalized'].forEach(stage => {
+                const key = stage.charAt(0).toUpperCase() + stage.slice(1);
+                setText(`dashServers${key}`, fmt(s[stage]));
+                const seg = document.getElementById(`dashServersBar${key}`);
+                if (seg) seg.style.width = `${total ? ((Number(s[stage]) || 0) / total) * 100 : 0}%`;
             });
-            this.cardListenersInitialized = true;
         }
     }
 
@@ -403,43 +404,73 @@ class Dashboard {
         return window.sidebarManager?.refreshCounts(forceRefresh);
     }
 
+    /**
+     * The last few entries of the activity log, worded as on the activity page
+     * ("<user> component added · cpu #12"). Timestamps are UTC without an
+     * offset; shown in IST.
+     */
     async loadRecentActivity() {
-        const tbody = document.getElementById('recentActivityBody');
-        if (!tbody) return;
+        const feed = document.getElementById('recentActivityBody');
+        if (!feed) return;
+        const state = (text) => { feed.innerHTML = `<div class="rf-state">${utils.escapeHtml(text)}</div>`; };
 
         try {
-            const result = await api.dashboard.getLogs({ limit: 10, offset: 0 });
+            const result = await api.requestEnvelope('dashboard-get-logs', { limit: 8, offset: 0 });
             if (!result.success) {
-                // Non-admin users won't have access - show a friendly message
-                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">Activity logs are available to administrators.</td></tr>`;
-                return;
+                document.getElementById('recentActivityAll')?.classList.add('hidden');
+                return state(Number(result.code) === 403
+                    ? 'The activity log is visible to administrators.'
+                    : "Couldn't load recent activity.");
             }
-
             const logs = result.data?.logs || [];
-            if (logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">No recent activity.</td></tr>`;
-                return;
-            }
+            if (!logs.length) return state('No activity yet.');
 
-            tbody.innerHTML = logs.map(log => {
-                const action = log.action || '';
-                const lower = action.toLowerCase();
-                let badgeCls = 'bg-surface-hover text-text-secondary';
-                if (lower.includes('created') || lower.includes('login') || lower.includes('added')) badgeCls = 'bg-green-100 text-green-700';
-                else if (lower.includes('deleted') || lower.includes('removed')) badgeCls = 'bg-red-100 text-red-600';
-                else if (lower.includes('updated') || lower.includes('edited') || lower.includes('assigned')) badgeCls = 'bg-blue-100 text-blue-700';
+            const TZ = 'Asia/Kolkata';
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
+            const when = (value) => {
+                const d = new Date(String(value || '').replace(' ', 'T') + 'Z');
+                if (isNaN(d.getTime())) return { short: '', full: '' };
+                const sameDay = d.toLocaleDateString('en-CA', { timeZone: TZ }) === today;
+                return {
+                    short: sameDay
+                        ? d.toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
+                        : d.toLocaleDateString('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' }).replace('Sept', 'Sep'),
+                    full: d.toLocaleString('en-GB', { timeZone: TZ }) + ' IST'
+                };
+            };
+            const initials = (name) => {
+                if (!name) return 'SY';
+                const parts = String(name).split(/[\s._-]+/).filter(Boolean);
+                return ((parts[0] || '')[0] + ((parts[1] || '')[0] || (parts[0] || '')[1] || '')).toUpperCase();
+            };
+            const verb = (action) => {
+                const s = String(action || 'changed something').replace(/_/g, ' ');
+                return s.charAt(0).toLowerCase() + s.slice(1);
+            };
+            const objectOf = (log) => {
+                const type = String(log.component_type || '');
+                if (!type || ['auth', 'user', 'role', 'user_management'].includes(type)) return '';
+                const id = log.component_id;
+                return (id === null || id === undefined || id === '') ? `a ${type}` : `${type} #${id}`;
+            };
+            const UUID = /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 
-                return `
-                    <tr class="hover:bg-surface-hover transition-colors">
-                        <td class="px-4 py-3 text-sm text-text-muted whitespace-nowrap">${log.created_at ? new Date(log.created_at).toLocaleString() : '-'}</td>
-                        <td class="px-4 py-3 text-sm text-text-primary font-medium">${utils.escapeHtml(log.username || '-')}</td>
-                        <td class="px-4 py-3"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium ${badgeCls}">${utils.escapeHtml(action)}</span></td>
-                        <td class="px-4 py-3 text-sm text-text-secondary">${utils.escapeHtml(log.component_type ? log.component_type.toUpperCase() : '-')}</td>
-                        <td class="px-4 py-3 text-sm text-text-muted max-w-xs truncate">${utils.escapeHtml(log.notes || '-')}</td>
-                    </tr>`;
+            feed.innerHTML = logs.map(log => {
+                const t = when(log.created_at);
+                const who = log.username || (log.user_id ? `user #${log.user_id}` : 'System');
+                const obj = objectOf(log);
+                const notes = String(log.notes || '');
+                return `<div class="rf-ev">
+                    <span class="rf-av${log.username ? '' : ' is-system'}" aria-hidden="true">${utils.escapeHtml(initials(log.username))}</span>
+                    <div class="rf-ev-body">
+                        <span class="rf-ev-line"><b>${utils.escapeHtml(who)}</b> ${utils.escapeHtml(verb(log.action))}${obj ? ` · ${utils.escapeHtml(obj)}` : ''}</span>
+                        ${notes ? `<span class="rf-ev-detail dash-clamp" title="${utils.escapeHtml(notes)}">${utils.escapeHtml(notes).replace(UUID, '$1…')}</span>` : ''}
+                    </div>
+                    <span class="rf-ev-time rf-mono" title="${utils.escapeHtml(t.full)}">${utils.escapeHtml(t.short)}</span>
+                </div>`;
             }).join('');
         } catch (err) {
-            tbody.innerHTML = `<tr><td colspan="5" class="px-4 py-6 text-center text-text-muted text-sm">Could not load recent activity.</td></tr>`;
+            state("Couldn't load recent activity.");
         }
     }
 
@@ -826,13 +857,6 @@ class Dashboard {
         const text = end.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
         const title = days < 0 ? 'Warranty expired' : `Warranty ends ${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
         return `<span class="inv-mono inv-warranty ${cls}" title="${title}">${text}</span>`;
-    }
-
-    applyDensity(density) {
-        const comfortable = density === 'comfortable';
-        document.getElementById('componentsTable')?.classList.toggle('is-comfortable', comfortable);
-        document.querySelectorAll('#densityToggle button').forEach(b =>
-            b.setAttribute('aria-pressed', String(b.dataset.density === (comfortable ? 'comfortable' : 'compact'))));
     }
 
     /**
@@ -4495,7 +4519,7 @@ class Dashboard {
 
         return `
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Additional Phone</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Additional phone</label>
                 <input type="tel" id="${prefix}Phone2" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ..." value="${utils.escapeHtml(vendor.phone2 || '')}">
             </div>
             <div class="form-group mb-4">
@@ -4503,11 +4527,11 @@ class Dashboard {
                 <textarea id="${prefix}Address" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="2" placeholder="Street, city, state, postal code...">${utils.escapeHtml(vendor.address || '')}</textarea>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Bank Details</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2">Bank details</label>
                 <textarea id="${prefix}BankDetails" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Account name, account number, IFSC, bank...">${utils.escapeHtml(vendor.bank_details || '')}</textarea>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">What They Sell</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2">What they sell</label>
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${sellsCheckboxes}</div>
             </div>
         `;
@@ -4522,7 +4546,7 @@ class Dashboard {
         const formHtml = `
             <form id="addVendorForm" class="max-w-2xl">
                 <div class="form-group mb-4">
-                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor name</label>
                     <input type="text" id="vendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="Enter vendor name">
                 </div>
                 <div class="form-group mb-4">
@@ -4540,11 +4564,11 @@ class Dashboard {
                 </div>
                 <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
                     <button type="button" class="btn btn-secondary px-5 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover" onclick="dashboard.closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add Vendor</button>
+                    <button type="submit" class="btn btn-primary px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Add vendor</button>
                 </div>
             </form>
         `;
-        this.showModal('Add New Vendor', formHtml);
+        this.showModal('Add vendor', formHtml);
         document.getElementById('addVendorForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await this.handleAddVendor();
@@ -4596,7 +4620,7 @@ class Dashboard {
                 <form id="editVendorForm" class="max-w-2xl">
                     <input type="hidden" id="editVendorId" value="${vendor.id}">
                     <div class="form-group mb-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor Name</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor name</label>
                         <input type="text" id="editVendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required value="${utils.escapeHtml(vendor.name || '')}">
                     </div>
                     <div class="form-group mb-4">
@@ -4618,7 +4642,7 @@ class Dashboard {
                     </div>
                 </form>
             `;
-            this.showModal('Edit Vendor', formHtml);
+            this.showModal('Edit vendor', formHtml);
             document.getElementById('editVendorForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await this.handleUpdateVendor();
@@ -4693,56 +4717,39 @@ class Dashboard {
             }
 
             const components = result.data.components || [];
+            const totalCount = Number(result.data.total_count) || components.length;
             let content;
 
             if (components.length === 0) {
-                content = `
-                    <div class="text-center py-8 text-text-muted">
-                        <i class="fas fa-box-open text-4xl mb-4 block opacity-50"></i>
-                        <p>No components have been assigned to this vendor yet.</p>
-                    </div>
-                `;
+                content = `<div class="rf-state">No parts on record from this vendor yet. Pick them as the vendor when you add stock.</div>`;
             } else {
-                const grouped = {};
-                components.forEach(c => {
-                    const type = (c.component_type || 'unknown').toUpperCase();
-                    if (!grouped[type]) grouped[type] = [];
-                    grouped[type].push(c);
-                });
+                const labels = Dashboard.VENDOR_TAG_LABELS;
+                const statusOf = (s) => ({ 0: ['failed', 'Failed'], 1: ['available', 'Available'], 2: ['inuse', 'In use'] }[Number(s)] || ['', 'Unknown']);
+                const rows = components.map(item => {
+                    const [cls, word] = statusOf(item.Status);
+                    return `<tr>
+                        <td>${utils.escapeHtml(labels[item.component_type] || item.component_type || '—')}</td>
+                        <td class="rf-mono">${utils.escapeHtml(item.SerialNumber || '—')}</td>
+                        <td><span style="display:inline-flex;align-items:center;gap:8px"><i class="rf-dot ${cls ? 'rf-st-' + cls : ''}"></i>${word}</span></td>
+                        <td style="color:var(--color-text-secondary)">${utils.escapeHtml(item.Location || '—')}</td>
+                    </tr>`;
+                }).join('');
 
-                let tableRows = '';
-                for (const [type, items] of Object.entries(grouped)) {
-                    items.forEach(item => {
-                        tableRows += `
-                            <tr class="hover:bg-surface-hover transition-colors">
-                                <td class="px-4 py-2 text-sm"><span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">${type}</span></td>
-                                <td class="px-4 py-2 text-sm text-text-primary">${utils.escapeHtml(item.SerialNumber || '-')}</td>
-                                <td class="px-4 py-2 text-sm">${utils.createStatusBadge(item.Status)}</td>
-                                <td class="px-4 py-2 text-sm text-text-muted">${utils.escapeHtml(item.Location || '-')}</td>
-                            </tr>
-                        `;
-                    });
-                }
-
-                content = `
-                    <p class="text-sm text-text-muted mb-4">${components.length} component(s) supplied by this vendor</p>
-                    <div class="overflow-auto max-h-96">
-                        <table class="w-full table-base">
-                            <thead class="bg-surface-hover border-b border-border sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Type</th>
-                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Serial Number</th>
-                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Status</th>
-                                    <th class="px-4 py-2 text-left text-xs font-semibold text-text-secondary">Location</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border">${tableRows}</tbody>
+                content = `<div class="rf">
+                    <div class="rf-sub" style="margin:0">${totalCount > components.length
+                        ? `Showing the first ${components.length.toLocaleString('en-IN')} of ${totalCount.toLocaleString('en-IN')} parts from this vendor`
+                        : `${totalCount.toLocaleString('en-IN')} part${totalCount === 1 ? '' : 's'} from this vendor`}</div>
+                    <div class="rf-card rf-scroll" style="max-height:24rem;overflow:auto">
+                        <table class="rf-table">
+                            <thead><tr><th scope="col">Type</th><th scope="col">Serial number</th><th scope="col">Status</th><th scope="col">Location</th></tr></thead>
+                            <tbody>${rows}</tbody>
                         </table>
                     </div>
-                `;
+                </div>`;
             }
 
-            this.showModal(`Components from ${utils.escapeHtml(vendorName)}`, content);
+            // showModal() sets the title as text, so the name goes in unescaped.
+            this.showModal(`Parts from ${vendorName}`, content);
         } catch (error) {
             toast.error(error.message || 'Failed to load vendor components');
         } finally {

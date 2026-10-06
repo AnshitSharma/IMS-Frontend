@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
     <title>Help &amp; Guide - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../../assets/css/refined.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script>
         (function () {
@@ -32,8 +33,8 @@
         }
         .kb-rail-nav a:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
         .kb-rail-nav a.is-active {
-            background: var(--color-surface-hover); color: var(--color-primary);
-            font-weight: 600; border-left-color: var(--color-primary);
+            background: var(--rf-tint); color: var(--rf-accent-ink);
+            font-weight: 600; border-left-color: #0F766E;
         }
         .kb-rail-nav a .kb-idx {
             font-family: "IBM Plex Mono", ui-monospace, monospace;
@@ -43,13 +44,13 @@
 
         .kb-section { margin-bottom: 44px; scroll-margin-top: 90px; max-width: 74ch; }
         .kb-section > h3 {
-            font-size: 19px; font-weight: 700; color: var(--color-text-primary);
-            margin: 0 0 4px; padding-top: 18px; border-top: 1px solid var(--color-border-light);
+            font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--color-text-primary);
+            margin: 0 0 4px; padding-top: 22px; border-top: 1px solid var(--color-border-light);
         }
         .kb-section > h3 .kb-eyebrow {
             display: block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-            font-size: 11px; letter-spacing: .1em; color: var(--color-primary);
-            font-weight: 600; margin-bottom: 6px;
+            font-size: 12px; color: var(--rf-accent-ink);
+            font-weight: 500; margin-bottom: 6px;
         }
         .kb-section h4 {
             font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin: 24px 0 6px;
@@ -70,27 +71,26 @@
         }
         .kb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .kb-table th, .kb-table td {
-            padding: 8px 12px; text-align: left; vertical-align: top;
+            padding: 10px 14px; text-align: left; vertical-align: top;
             border-bottom: 1px solid var(--color-border-light);
         }
         .kb-table th {
-            font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
-            color: var(--color-text-muted); background: var(--color-surface-secondary);
-            font-weight: 600; white-space: nowrap;
+            font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-hover);
+            font-weight: 500; white-space: nowrap;
         }
         .kb-table td { color: var(--color-text-secondary); }
         .kb-table tr:last-child td { border-bottom: none; }
         .kb-num { font-variant-numeric: tabular-nums; text-align: right; }
 
         .kb-note {
-            border-left: 3px solid var(--color-primary); background: var(--color-surface-card);
+            border-left: 3px solid #0F766E; background: var(--color-surface-card);
             border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0;
         }
         .kb-note.is-warn { border-left-color: var(--color-warning); }
         .kb-note.is-stop { border-left-color: var(--color-danger); }
         .kb-note-title {
-            display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
-            color: var(--color-text-muted); font-weight: 600; margin-bottom: 2px;
+            display: block; font-size: 13px; color: var(--color-text-primary);
+            font-weight: 600; margin-bottom: 2px;
         }
         .kb-note p { margin: 4px 0; }
 
@@ -151,25 +151,21 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
-                <div id="componentView" class="content-section active">
-                    <!-- Page Header -->
-                    <div class="content-header mb-5">
-                        <div class="flex items-baseline gap-3">
-                            <h2 class="text-2xl font-bold text-text-primary tracking-tight">Help &amp; Guide</h2>
+                <div id="componentView" class="content-section active rf">
+                    <div class="rf-head">
+                        <div>
+                            <h1>Help &amp; guide</h1>
+                            <div class="rf-sub">How to track hardware, build server configurations that fit together, and move work through Requests.</div>
                         </div>
-                        <p class="text-sm text-text-secondary mt-1">
-                            How to track hardware, build server configurations that fit together, and move work through Requests.
-                        </p>
                     </div>
 
                     <div class="kb-layout">
                         <!-- Contents rail -->
                         <aside class="kb-rail">
                             <label for="kbFilter" class="sr-only">Filter sections</label>
-                            <div class="relative">
-                                <i class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-xs text-text-muted"></i>
-                                <input type="search" id="kbFilter" placeholder="Filter topics"
-                                    class="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-surface-card border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary">
+                            <div class="rf-search" style="min-width:0">
+                                <i class="fas fa-magnifying-glass text-xs" aria-hidden="true"></i>
+                                <input type="search" id="kbFilter" placeholder="Filter topics" autocomplete="off">
                             </div>
                             <nav class="kb-rail-nav" id="kbRailNav">
                                 <a href="#kb-start"><span class="kb-idx">01</span>Getting Started</a>
@@ -217,17 +213,12 @@
                             <!-- 02 -->
                             <section class="kb-section" id="kb-dash">
                                 <h3><span class="kb-eyebrow">02</span>The Dashboard</h3>
-                                <p>The dashboard answers one question: <em>what do we have, and how much of it is free?</em> Each hardware type gets a tile showing total, available, in use, and failed. The sidebar repeats those totals as counters, so you can watch stock without leaving the page you are on.</p>
-                                <p>Below the tiles, a recent activity strip shows the latest changes across the system — components added, components removed from servers, roles changed.</p>
+                                <p>The dashboard answers one question: <em>what do we have, and how much of it is free?</em> Two summaries sit at the top: every part on record split into available, in use and failed, and every server split by build stage. Below them, <strong>Inventory by type</strong> gives each of the 13 hardware types a row with the same split; click a row to open that type's list. The sidebar repeats the totals as counters, so you can watch stock without leaving the page you are on.</p>
+                                <p>Beside the inventory, <strong>Recent activity</strong> shows the latest changes across the system — components added, components removed from servers, roles changed. <strong>View all</strong> opens the full activity log, which administrators can also reach from the sidebar.</p>
 
                                 <div class="kb-note">
                                     <span class="kb-note-title">Reading the numbers</span>
                                     <p><strong>Available</strong> is in stock and free to assign. <strong>In use</strong> is installed in a server. <strong>Failed</strong> is marked faulty and excluded when building. The three always add up to the total.</p>
-                                </div>
-
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">Compute Platforms has no tile yet</span>
-                                    <p>The twelfth hardware type has a sidebar counter but not yet a dashboard tile. For its totals, open the Compute Platforms page itself.</p>
                                 </div>
                             </section>
 
@@ -581,7 +572,7 @@
                                 </div>
 
                                 <h4>Access Control</h4>
-                                <p>Administrators can reset another user's password from the Users list. The dialog takes the new password twice plus <em>your own</em> password to confirm, and can generate a strong one for you. Nothing is emailed — you hand the password over yourself — and the target is signed out of every device. You cannot reset your own this way; use Change Password in the account menu. Deleting a user who has raised Requests keeps their history under a placeholder rather than erasing it.</p>
+                                <p>Administrators can reset another user's password from the Users list. The dialog takes the new password twice plus <em>your own</em> password to confirm, and can generate a strong one for you. Nothing is emailed — you hand the password over yourself — and the target is signed out of every device. You cannot reset your own this way; use Change password in the account menu. Deleting a user who has raised Requests keeps their history under a placeholder rather than erasing it.</p>
                             </section>
 
                             <!-- 10 -->

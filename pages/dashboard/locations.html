@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
     <title>Locations - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../../assets/css/refined.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script>
         (function () {
@@ -14,6 +15,52 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
+    <style>
+        /* Locations — the sites racks stand in. Shared pieces from refined.css. */
+        .loc-name {
+            display: flex; align-items: center; gap: 12px; width: 100%; padding: 0; border: 0; background: none;
+            font: inherit; color: inherit; text-align: left; cursor: pointer;
+        }
+        .loc-caret { flex: none; width: 12px; font-size: 11px; color: var(--color-text-muted); transition: transform .15s ease; }
+        tr.is-open .loc-caret { transform: rotate(90deg); }
+        .loc-title { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .loc-desc { display: block; margin-top: 2px; font-size: 12.5px; color: var(--color-text-muted); white-space: normal; }
+        .loc-retired { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+        .loc-holds { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--color-text-secondary); }
+        .loc-holds b { font-weight: 500; color: var(--color-text-primary); }
+        .loc-muted, .loc-muted b { color: var(--color-text-muted) !important; }
+        .loc-wrap { white-space: normal !important; min-width: 180px; color: var(--color-text-secondary) !important; }
+        .loc-coord { font-size: 12.5px; color: var(--color-text-secondary) !important; }
+        .loc-acts { text-align: right; width: 1%; }
+        .loc-icon { width: 34px; height: 34px; border-color: transparent; background: transparent; }
+        .loc-icon:hover { background: var(--color-surface-hover); }
+        .loc-icon.is-danger:hover { color: var(--rf-failed); }
+        @media (hover: hover) {
+            .loc-acts .loc-icon { opacity: 0; transition: opacity .15s; }
+            tr:hover .loc-acts .loc-icon, .loc-acts .loc-icon:focus-visible { opacity: 1; }
+        }
+        .rf-table td.loc-empty { white-space: normal; height: auto; }
+
+        .rf-table tbody tr.loc-racks-row td { height: auto; padding: 14px 16px 18px 40px; background: var(--color-surface-main); white-space: normal; }
+        .rf-table tbody tr.loc-racks-row:hover td { background: var(--color-surface-main); }
+        .loc-racks { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+        .loc-rack {
+            display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 8px;
+            border: 1px solid var(--color-border); background: var(--color-surface-card); color: inherit; text-decoration: none;
+        }
+        .loc-rack.is-link:hover { border-color: var(--color-border-dark); }
+        .loc-rack-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+        .loc-rack-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .loc-rack-bar { display: block; height: 6px; border-radius: 999px; background: var(--color-surface-hover); overflow: hidden; }
+        .loc-rack-bar span { display: block; height: 100%; border-radius: 999px; background: var(--rf-available); }
+        .loc-rack-meta { font-size: 12px; color: var(--color-text-muted); }
+        .loc-foot { font-size: 12.5px; color: var(--color-text-muted); }
+
+        @media (max-width: 767px) {
+            .loc-hide-sm { display: none; }
+            .rf-table tbody tr.loc-racks-row td { padding-left: 16px; }
+        }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -26,75 +73,42 @@
 
             <!-- Main Content -->
             <main class="main-content flex-1 p-4 sm:p-6">
-                <div id="componentView" class="content-section active">
-                    <!-- Page Header -->
-                    <div class="content-header mb-5">
-                        <div class="flex items-baseline gap-3">
-                            <h2 id="componentTitle" class="text-2xl font-bold text-text-primary tracking-tight">Locations</h2>
-                            <span id="locationCountBadge"
-                                class="hidden items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:text-primary-light tabular-nums"></span>
+                <div id="componentView" class="content-section active rf">
+                    <div class="rf-head">
+                        <div>
+                            <h1 id="componentTitle">Locations</h1>
+                            <div class="rf-sub">The sites your racks stand in. Every server and part in a rack inherits its location.</div>
                         </div>
-                        <p class="text-sm text-text-muted mt-1">The physical sites your racks stand in. A rack belongs to one location, and every server and component inside it inherits that location.</p>
+                        <div class="rf-actions">
+                            <label class="rf-search">
+                                <i class="fas fa-search text-xs" aria-hidden="true"></i>
+                                <input type="search" id="componentSearch" placeholder="Search locations" aria-label="Search locations by name, description or address" autocomplete="off">
+                            </label>
+                            <button type="button" id="addLocationBtn" class="rf-btn rf-btn-primary">
+                                <i class="fas fa-plus" aria-hidden="true"></i> Add location
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Locations Card -->
-                    <div class="bg-surface-card border border-border rounded-lg shadow-card overflow-hidden">
-                        <!-- Toolbar -->
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-5 py-4 border-b border-border">
-                            <div class="relative w-full sm:max-w-md sm:flex-1">
-                                <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted text-sm pointer-events-none"></i>
-                                <input type="text" id="componentSearch" placeholder="Search by name, description or address..."
-                                    class="w-full h-10 pl-10 pr-4 rounded-lg border border-border bg-surface-main text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-colors">
-                            </div>
-                            <div class="flex items-center gap-2 sm:ml-auto">
-                                <button id="refreshLocations" title="Refresh list"
-                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg border border-border bg-surface-card text-text-secondary text-sm font-medium hover:bg-surface-hover hover:text-text-primary transition-colors">
-                                    <i class="fas fa-sync-alt text-xs"></i>
-                                    <span class="hidden md:inline">Refresh</span>
-                                </button>
-                                <button id="addLocationBtn"
-                                    class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-600 shadow-sm transition-colors">
-                                    <i class="fas fa-plus text-xs"></i>
-                                    <span>Add Location</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Table -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full table-base components-table table-responsive" id="locationsTable">
+                    <section class="rf-card" style="overflow:hidden">
+                        <div class="rf-scroll">
+                            <table class="rf-table" id="locationsTable">
                                 <thead>
-                                    <tr class="border-b border-border bg-surface-secondary">
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Name
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Objects
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Description
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Address
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Coordinates
-                                        </th>
-                                        <th class="px-4 sm:px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-text-muted">
-                                            Actions
-                                        </th>
+                                    <tr>
+                                        <th scope="col">Location</th>
+                                        <th scope="col">Holds</th>
+                                        <th scope="col" class="loc-hide-sm">Address</th>
+                                        <th scope="col" class="loc-hide-sm">Coordinates</th>
+                                        <th scope="col"><span class="sr-only">Actions</span></th>
                                     </tr>
                                 </thead>
-                                <tbody id="locationsTableBody" class="divide-y divide-border [&_tr:last-child_td]:border-b-0">
+                                <tbody id="locationsTableBody">
+                                    <tr><td colspan="5" class="rf-state loc-empty">Loading locations…</td></tr>
                                 </tbody>
                             </table>
                         </div>
-
-                        <!-- Card Footer -->
-                        <div class="px-4 sm:px-5 py-3 border-t border-border bg-surface-secondary/50">
-                            <span id="locationPaginationInfo" class="text-xs text-text-muted tabular-nums"></span>
-                        </div>
-                    </div>
+                    </section>
+                    <div id="locationPaginationInfo" class="loc-foot"></div>
                 </div>
             </main>
         </div>
@@ -102,11 +116,11 @@
 
     <!-- Modal Container -->
     <div id="modalContainer"
-        class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
-        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        class="modal-overlay rf-modal fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
+        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">Modal Title</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
+                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose" aria-label="Close">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>

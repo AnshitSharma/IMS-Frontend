@@ -45,25 +45,67 @@
         .rk-occ__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2dd4bf, #0d9488); transition: width .35s ease; }
 
         /* ---- the cabinet ("C · Chassis" elevation) ----
-           A dark physical object in both themes. Every entry (a server, a
-           device, an enclosure, an empty U) is absolutely positioned on a
+           Follows the theme: a pale steel cabinet in light, the dark one in
+           dark. Every colour is a variable set on .rk-cabinet, so the two
+           themes differ only in the token block below. Every entry (a server,
+           a device, an enclosure, an empty U) is absolutely positioned on a
            pitch of one U plus a 2px gap, so a 2U box is exactly two rows tall. */
         .rk-cabinet {
-            --rk-u: 16px;
-            --rk-gap: 2px;
+            --rk-u: 24px;
+            --rk-gap: 3px;
             --rk-pitch: calc(var(--rk-u) + var(--rk-gap));
-            --rk-ink: #E6EAEE;
-            --rk-dim: #6B7785;
-            --rk-faint: #4F5A66;
-            --rk-accent: #4CC9F0;
-            width: min(100%, 560px);
-            display: flex; flex-direction: column; gap: 10px;
-            padding: 16px;
-            background: #0E1114;
-            border: 1px solid #1F252C;
+            --rk-ink: #1A2129;
+            --rk-dim: #66727F;
+            --rk-faint: #8D98A4;
+            --rk-meta: #5B6672;
+            --rk-accent: #0E7490;
+            --rk-accent-wash: rgba(14, 116, 144, .07);
+            --rk-shell: #FFFFFF;
+            --rk-shell-edge: #D9DEE3;
+            --rk-box: #EEF1F4;
+            --rk-box-edge: #CBD2D9;
+            --rk-rail-a: #C3CBD3;
+            --rk-slot-edge: #D0D7DE;
+            --rk-sled: #FFFFFF;
+            --rk-sled-edge: #C9D1D9;
+            --rk-sled-hover: #F6F8FA;
+            --rk-sled-hover-edge: #9AA6B2;
+            --rk-sled-picked: #ECF8FB;
+            --rk-bay-sled: #F7F9FB;
+            --rk-bay-sled-edge: #CDD5DD;
+            --rk-bay-edge: #CFD6DD;
+            --rk-orphan-edge: rgba(220, 38, 38, .45);
+            width: min(100%, 660px);
+            display: flex; flex-direction: column; gap: 14px;
+            padding: 20px;
+            background: var(--rk-shell);
+            border: 1px solid var(--rk-shell-edge);
             border-radius: 10px;
             color: var(--rk-ink);
             font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        }
+        [data-theme="dark"] .rk-cabinet {
+            --rk-ink: #E6EAEE;
+            --rk-dim: #6B7785;
+            --rk-faint: #4F5A66;
+            --rk-meta: #8A96A3;
+            --rk-accent: #4CC9F0;
+            --rk-accent-wash: rgba(76, 201, 240, .06);
+            --rk-shell: #0E1114;
+            --rk-shell-edge: #1F252C;
+            --rk-box: #0A0C0E;
+            --rk-box-edge: #2A323B;
+            --rk-rail-a: #1A2026;
+            --rk-slot-edge: #252C34;
+            --rk-sled: #1A2026;
+            --rk-sled-edge: #29313A;
+            --rk-sled-hover: #1E252C;
+            --rk-sled-hover-edge: #3B4651;
+            --rk-sled-picked: #10232B;
+            --rk-bay-sled: #222932;
+            --rk-bay-sled-edge: #313B45;
+            --rk-bay-edge: #2F3842;
+            --rk-orphan-edge: rgba(255, 107, 107, .45);
         }
         .rk-mono, .rk-cabinet .rk-mono {
             font-family: 'JetBrains Mono', ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
@@ -75,59 +117,59 @@
             font-size: 26px; font-weight: 700; line-height: 1.1; text-transform: uppercase;
             overflow-wrap: anywhere;
         }
-        .rk-cabinet__meta { font-size: 12px; color: #8A96A3; }
+        .rk-cabinet__meta { font-size: 12px; color: var(--rk-meta); }
 
         /* the box: rail | U labels + entries | rail */
         .rk-rack {
-            display: flex; gap: 6px;
-            padding: 10px 8px;
-            background: #0A0C0E;
-            border: 1px solid #2A323B;
+            display: flex; gap: 8px;
+            padding: 12px 10px;
+            background: var(--rk-box);
+            border: 1px solid var(--rk-box-edge);
             border-radius: 6px;
         }
         .rk-rail {
             flex: none; width: 10px; border-radius: 2px;
-            background: repeating-linear-gradient(#1A2026 0 3px, #0A0C0E 3px 6px);
+            background: repeating-linear-gradient(var(--rk-rail-a) 0 3px, var(--rk-box) 3px 6px);
         }
         .rk-grid { position: relative; flex: 1 1 auto; min-width: 0; }
 
         .rk-ulabel {
-            position: absolute; left: 0; width: 26px;
-            padding-top: 3px; text-align: right;
-            font-size: 9px; line-height: 1; color: var(--rk-faint);
+            position: absolute; left: 0; width: 30px;
+            padding-top: 7px; text-align: right;
+            font-size: 10px; line-height: 1; color: var(--rk-faint);
             pointer-events: none;
         }
         /* every entry sits right of the label column */
-        .rk-slot, .rk-sled, .rk-encl { position: absolute; left: 34px; right: 0; }
+        .rk-slot, .rk-sled, .rk-encl { position: absolute; left: 40px; right: 0; }
 
         /* empty U — a place-here target */
         .rk-slot {
             display: flex; align-items: center; justify-content: flex-end;
-            padding: 0 10px;
+            padding: 0 12px;
             background: transparent;
-            border: 1px dashed #252C34; border-radius: 2px;
-            color: var(--rk-faint); font-size: 10px; cursor: pointer;
+            border: 1px dashed var(--rk-slot-edge); border-radius: 3px;
+            color: var(--rk-faint); font-size: 11px; cursor: pointer;
             transition: border-color .12s ease, color .12s ease, background .12s ease;
         }
-        .rk-slot:hover { border-color: var(--rk-accent); color: var(--rk-accent); background: rgba(76, 201, 240, .06); }
+        .rk-slot:hover { border-color: var(--rk-accent); color: var(--rk-accent); background: var(--rk-accent-wash); }
         .rk-slot:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 1px; color: var(--rk-accent); }
         .rk-slot__hint { pointer-events: none; }
 
         /* a server or network device */
         .rk-sled {
-            display: flex; align-items: center; gap: 10px;
-            padding: 0 10px;
-            background: #1A2026;
-            border: 1px solid #29313A; border-radius: 2px;
-            color: var(--rk-ink); font-size: 12px; cursor: pointer; overflow: hidden;
+            display: flex; align-items: center; gap: 12px;
+            padding: 0 12px;
+            background: var(--rk-sled);
+            border: 1px solid var(--rk-sled-edge); border-radius: 3px;
+            color: var(--rk-ink); font-size: 13px; cursor: pointer; overflow: hidden;
             transition: border-color .12s ease, background .12s ease;
         }
-        .rk-sled:hover { border-color: #3B4651; background: #1E252C; }
-        .rk-sled.is-selected { border-color: var(--rk-accent); background: #10232B; }
+        .rk-sled:hover { border-color: var(--rk-sled-hover-edge); background: var(--rk-sled-hover); }
+        .rk-sled.is-selected { border-color: var(--rk-accent); background: var(--rk-sled-picked); }
         .rk-sled:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 1px; }
-        .rk-sled__led { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--st); }
+        .rk-sled__led { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--st); }
         .rk-sled__name { flex: 1 1 auto; min-width: 3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rk-sled__meta { flex: 0 1 auto; min-width: 0; max-width: 45%; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: var(--rk-dim); }
+        .rk-sled__meta { flex: 0 1 auto; min-width: 0; max-width: 45%; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: var(--rk-dim); }
 
         /* blade enclosure: a rail naming the box, then its bays as a grid.
            Row-major grid order IS the backend's 1-based slot numbering, so
@@ -135,31 +177,31 @@
            RackEnclosure::slotGeometry(). */
         .rk-encl {
             display: flex; align-items: stretch;
-            background: #1A2026;
-            border: 1px solid #29313A; border-radius: 2px;
+            background: var(--rk-sled);
+            border: 1px solid var(--rk-sled-edge); border-radius: 3px;
             overflow: hidden;
         }
         .rk-encl.is-selected { border-color: var(--rk-accent); }
         .rk-encl__rail {
             flex: 0 0 42%; min-width: 0;
             display: flex; align-items: center; gap: 10px;
-            padding: 0 10px; text-align: left;
-            background: transparent; border: 0; border-right: 1px solid #29313A;
-            color: var(--rk-ink); font-size: 12px; cursor: pointer;
-            --st: #8A96A3;
+            padding: 0 12px; text-align: left;
+            background: transparent; border: 0; border-right: 1px solid var(--rk-sled-edge);
+            color: var(--rk-ink); font-size: 13px; cursor: pointer;
+            --st: var(--rk-meta);
         }
-        .rk-encl__rail:hover { background: #1E252C; }
+        .rk-encl__rail:hover { background: var(--rk-sled-hover); }
         .rk-encl__rail:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: -2px; }
         .rk-encl__name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rk-encl__meta { flex: none; font-size: 10px; color: var(--rk-dim); }
-        .rk-encl__bays { flex: 1 1 0; min-width: 0; display: grid; gap: 2px; padding: 2px; }
+        .rk-encl__meta { flex: none; font-size: 11px; color: var(--rk-dim); }
+        .rk-encl__bays { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; padding: 3px; }
 
         /* an empty bay */
         .rk-encl__bay {
             display: flex; align-items: center; justify-content: center;
             min-width: 0; border-radius: 2px;
-            border: 1px dashed #2F3842; background: transparent;
-            color: var(--rk-faint); font-size: 9px; cursor: pointer;
+            border: 1px dashed var(--rk-bay-edge); background: transparent;
+            color: var(--rk-faint); font-size: 10px; cursor: pointer;
             transition: border-color .12s ease, color .12s ease;
         }
         .rk-encl__bay:hover { border-color: var(--rk-accent); color: var(--rk-accent); }
@@ -168,11 +210,11 @@
         /* a sled inside a bay: a grid item, not a positioned strip */
         .rk-sled--bay {
             position: relative; left: auto; right: auto;
-            min-width: 0; gap: 5px; padding: 0 5px;
-            background: #222932; border-color: #313B45;
-            font-size: 10px;
+            min-width: 0; gap: 6px; padding: 0 7px;
+            background: var(--rk-bay-sled); border-color: var(--rk-bay-sled-edge);
+            font-size: 11px;
         }
-        .rk-sled--bay .rk-sled__led { width: 5px; height: 5px; }
+        .rk-sled--bay .rk-sled__led { width: 6px; height: 6px; }
         .rk-sled--bay .rk-sled__name { min-width: 0; }
 
         /* ---- enclosure bay roster (the "what is inside this FX2s" list) ----
@@ -184,14 +226,22 @@
         .rk-roster__link { text-decoration: none; }
         .rk-roster__link:hover { text-decoration: underline; }
 
-        /* status LEDs */
-        .st-draft     { --st: #8A96A3; }
-        .st-validated { --st: #F5A524; }
-        .st-built     { --st: #3DDC97; }
-        .st-finalized { --st: #4CC9F0; }
-        .st-device    { --st: #B39DFF; }
-        .st-orphaned  { --st: #FF6B6B; }
-        .rk-sled.st-orphaned { border-color: rgba(255, 107, 107, .45); }
+        /* status LEDs — deeper hues on light surfaces, the glowing ones on dark.
+           Also used by the legend and the detail panel, so set per theme, not
+           per cabinet. */
+        .st-draft     { --st: #7A8592; }
+        .st-validated { --st: #D97706; }
+        .st-built     { --st: #16A34A; }
+        .st-finalized { --st: #0891B2; }
+        .st-device    { --st: #7C3AED; }
+        .st-orphaned  { --st: #DC2626; }
+        [data-theme="dark"] .st-draft     { --st: #8A96A3; }
+        [data-theme="dark"] .st-validated { --st: #F5A524; }
+        [data-theme="dark"] .st-built     { --st: #3DDC97; }
+        [data-theme="dark"] .st-finalized { --st: #4CC9F0; }
+        [data-theme="dark"] .st-device    { --st: #B39DFF; }
+        [data-theme="dark"] .st-orphaned  { --st: #FF6B6B; }
+        .rk-sled.st-orphaned { border-color: var(--rk-orphan-edge); }
 
         /* legend */
         .rk-legend { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -209,7 +259,7 @@
         }
 
         @media (max-width: 640px) {
-            .rk-cabinet { padding: 12px; }
+            .rk-cabinet { padding: 14px; }
             .rk-cabinet__name { font-size: 22px; }
             .rk-sled__meta, .rk-encl__meta { display: none; }
             .rk-encl__rail { flex-basis: 36%; }

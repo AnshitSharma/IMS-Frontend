@@ -662,6 +662,51 @@
     @apply block !important;
   }
 
+  /* The user menu (navbar.js), in the 2026-10 refined language. */
+  .um-menu {
+    width: 13.5rem;
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .um-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    color: var(--color-text-primary);
+  }
+
+  .um-item:hover {
+    background: var(--color-surface-hover);
+  }
+
+  .um-item i {
+    width: 14px;
+    font-size: 12px;
+    text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .um-item.is-danger:hover,
+  .um-item.is-danger:hover i {
+    color: #B91C1C;
+  }
+
+  [data-theme="dark"] .um-item.is-danger:hover,
+  [data-theme="dark"] .um-item.is-danger:hover i {
+    color: #F87171;
+  }
+
+  .um-sep {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--color-border-light);
+  }
+
   /* Notification bell (2026-10-02; panel redesigned 2026-10-06). The button
      reuses .theme-toggle-btn. The panel splits what needs the reader from what
      is only for their information. Plain CSS on the theme variables, which
@@ -1148,6 +1193,14 @@
   /* Focus Ring */
   :focus-visible {
     @apply outline-none ring-2 ring-primary/30 ring-offset-1;
+  }
+
+  /* Search boxes whose wrapper draws the focus ring (:focus-within): the
+     input inside must not draw a second box of its own. */
+  :is(.inv-search, .alx-search, .rqx-search, .aclx-search, .vdx-search) input:focus,
+  :is(.inv-search, .alx-search, .rqx-search, .aclx-search, .vdx-search) input:focus-visible {
+    outline: none;
+    box-shadow: none;
   }
 }
 
