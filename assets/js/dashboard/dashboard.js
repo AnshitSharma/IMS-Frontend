@@ -34,7 +34,7 @@ const SERVER_STATUS_V2_PRESENTATION = {
 const SERVER_STATUS_LEGACY_PRESENTATION = {
     '0': SERVER_STATUS_V2_PRESENTATION.draft,
     '1': SERVER_STATUS_V2_PRESENTATION.validated,
-    '2': { label: 'Built', dotClass: 'bg-green-500', textClass: 'text-green-600 dark:text-green-400' },
+    '2': SERVER_STATUS_V2_PRESENTATION.building,
     '3': SERVER_STATUS_V2_PRESENTATION.finalized
 };
 
@@ -273,7 +273,8 @@ class Dashboard {
             if (result.success && result.data.component_counts) {
                 this.updateDashboardStats(result.data.component_counts);
                 this.updateSidebarCounts(result.data.component_counts);
-                await this.loadRecentActivity();
+                await Promise.all([this.loadRequestQueue(), this.loadRecentActivity()]);
+                this.renderAttention();
             }
         } catch (error) {
             console.error('Error loading dashboard:', error);
@@ -305,77 +306,182 @@ class Dashboard {
     }
 
     /**
-     * The overview page: a parts summary, the servers summary, and one row per
-     * component type. The rows are built from the type vocabulary, so a new
-     * type shows up here without a hand-written card (compute platforms and
-     * network devices never had one).
+     * How the dashboard names one part, or several, inside a sentence
+     * ("3 SFP modules are marked failed"). Row titles use the sidebar's names.
+     */
+    static DASH_NOUNS = {
+        cpu: ['CPU', 'CPUs'],
+        ram: ['RAM module', 'RAM modules'],
+        storage: ['storage drive', 'storage drives'],
+        motherboard: ['motherboard', 'motherboards'],
+        nic: ['network card', 'network cards'],
+        caddy: ['drive caddy', 'drive caddies'],
+        chassis: ['chassis', 'chassis'],
+        pciecard: ['PCIe card', 'PCIe cards'],
+        risercard: ['riser card', 'riser cards'],
+        hbacard: ['HBA card', 'HBA cards'],
+        sfp: ['SFP module', 'SFP modules'],
+        serverplatform: ['compute platform', 'compute platforms'],
+        networkdevice: ['network device', 'network devices']
+    };
+
+    dashNoun(type, count) {
+        const pair = Dashboard.DASH_NOUNS[type] || [type, type];
+        return Number(count) === 1 ? pair[0] : pair[1];
+    }
+
+    dashTypeTitle(type) {
+        if (type === 'serverplatform') return 'Compute Platforms';
+        return utils.componentLabels[type] || type;
+    }
+
+    /**
+     * Parts: one bar for everything, then one row per type that has stock,
+     * worded as what you can still use ("20 spare of 136"). Types with nothing
+     * on record collapse into one line. Also records which types have failed
+     * parts or (almost) no spares, for "Needs your attention".
      */
     updateDashboardStats(stats) {
         const components = this.componentTypes
             || ['cpu', 'ram', 'storage', 'motherboard', 'nic', 'caddy', 'chassis', 'pciecard', 'risercard', 'hbacard', 'sfp', 'serverplatform', 'networkdevice'];
         const fmt = (n) => (Number(n) || 0).toLocaleString('en-IN');
+        const num = (n) => Number(n) || 0;
         const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+        const pct = (v, t) => t > 0 ? (num(v) / t) * 100 : 0;
+        const bar = (spare, installed, failed, total) => [
+            ['is-spare', spare], ['is-installed', installed], ['is-failed', failed]
+        ].filter(([, v]) => num(v) > 0)
+            .map(([cls, v]) => `<span class="${cls}" style="width:calc(${pct(v, total)}% - 2px)"></span>`).join('');
 
         const sum = { total: 0, available: 0, in_use: 0, failed: 0 };
         const rows = components.filter(type => stats[type]).map(type => {
             const s = stats[type];
-            Object.keys(sum).forEach(k => { sum[k] += Number(s[k]) || 0; });
-            return { type, ...s };
+            Object.keys(sum).forEach(k => { sum[k] += num(s[k]); });
+            return { type, total: num(s.total), spare: num(s.available), installed: num(s.in_use), failed: num(s.failed) };
         });
 
         setText('dashPartsTotal', fmt(sum.total));
-        setText('dashPartsAvailable', fmt(sum.available));
-        setText('dashPartsInUse', fmt(sum.in_use));
+        setText('dashPartsSpare', fmt(sum.available));
+        setText('dashPartsInstalled', fmt(sum.in_use));
         setText('dashPartsFailed', fmt(sum.failed));
-        [['Available', sum.available], ['InUse', sum.in_use], ['Failed', sum.failed]].forEach(([key, value]) => {
-            const seg = document.getElementById(`dashPartsBar${key}`);
-            if (seg) seg.style.width = `${sum.total ? (value / sum.total) * 100 : 0}%`;
-        });
+        const bigBar = document.getElementById('dashPartsBar');
+        if (bigBar) {
+            bigBar.innerHTML = bar(sum.available, sum.in_use, sum.failed, sum.total);
+            bigBar.setAttribute('aria-label', `${fmt(sum.available)} spare, ${fmt(sum.in_use)} installed, ${fmt(sum.failed)} failed`);
+        }
 
-        const body = document.getElementById('dashInventoryBody');
-        if (body) {
-            const pct = (v, t) => t > 0 ? ((Number(v) || 0) / t) * 100 : 0;
-            body.innerHTML = rows.map(r => {
-                const total = Number(r.total) || 0;
-                const label = utils.componentLabels[r.type] || r.type;
+        // Almost none left: no spares at all, or fewer than 1 in 20.
+        const isLow = (r) => r.total > 0 && (r.spare === 0 || r.spare / r.total < 0.05);
+        this.dashStock = {
+            failed: rows.filter(r => r.failed > 0),
+            none: rows.filter(r => r.total > 0 && r.spare === 0),
+            low: rows.filter(r => r.spare > 0 && isLow(r))
+        };
+
+        const list = document.getElementById('dashTypes');
+        if (list) {
+            const stocked = rows.filter(r => r.total > 0);
+            list.innerHTML = stocked.map(r => {
                 const href = `component.html?type=${encodeURIComponent(r.type)}`;
-                return `<tr class="rf-row-link" data-href="${utils.escapeHtml(href)}">
-                    <td><a class="dash-type" href="${utils.escapeHtml(href)}">${utils.escapeHtml(label)}</a></td>
-                    <td class="is-num rf-mono">${fmt(total)}</td>
-                    <td class="dash-bar-cell">
-                        <div class="dash-bar" role="img" aria-label="${utils.escapeHtml(`${fmt(r.available)} available, ${fmt(r.in_use)} in use, ${fmt(r.failed)} failed`)}">
-                            <span class="rf-st-available" style="width:${pct(r.available, total)}%"></span>
-                            <span class="rf-st-inuse" style="width:${pct(r.in_use, total)}%"></span>
-                            <span class="rf-st-failed" style="width:${pct(r.failed, total)}%"></span>
-                        </div>
-                    </td>
-                    <td class="is-num rf-mono ${Number(r.available) ? '' : 'dash-zero'}">${fmt(r.available)}</td>
-                    <td class="is-num rf-mono ${Number(r.in_use) ? '' : 'dash-zero'}">${fmt(r.in_use)}</td>
-                    <td class="is-num rf-mono ${Number(r.failed) ? 'dash-failed' : 'dash-zero'}">${fmt(r.failed)}</td>
-                </tr>`;
-            }).join('') || '<tr><td colspan="6" class="rf-state">No inventory recorded yet.</td></tr>';
+                const low = isLow(r);
+                const note = r.spare === 0
+                    ? `None spare, all <b class="rf-mono">${fmt(r.installed)}</b> installed`
+                    : `<b class="rf-mono">${fmt(r.spare)}</b> spare of <span class="rf-mono">${fmt(r.total)}</span>`;
+                const failed = r.failed ? `, <span class="is-failed"><b class="rf-mono is-failed">${fmt(r.failed)}</b> failed</span>` : '';
+                const label = `${this.dashTypeTitle(r.type)}: ${fmt(r.spare)} spare, ${fmt(r.installed)} installed, ${fmt(r.failed)} failed`;
+                return `<li><a class="dash-type" href="${utils.escapeHtml(href)}">
+                    <span class="dash-type-name">${utils.escapeHtml(this.dashTypeTitle(r.type))}</span>
+                    <span class="dash-bar" role="img" aria-label="${utils.escapeHtml(label)}">${bar(r.spare, r.installed, r.failed, r.total)}</span>
+                    <span class="dash-type-note${low ? ' is-low' : ''}">${note}${failed}</span>
+                </a></li>`;
+            }).join('') || '<li class="rf-state">No parts recorded yet. Add parts from any inventory page in the sidebar.</li>';
 
-            if (!this.inventoryRowsBound) {
-                this.inventoryRowsBound = true;
-                body.addEventListener('click', (e) => {
-                    if (e.target.closest('a')) return;
-                    const row = e.target.closest('tr[data-href]');
-                    if (row) window.location.href = row.dataset.href;
-                });
+            const empty = document.getElementById('dashTypesEmpty');
+            const unstocked = rows.filter(r => r.total === 0);
+            if (empty) {
+                empty.classList.toggle('hidden', !unstocked.length || !stocked.length);
+                empty.innerHTML = unstocked.length
+                    ? `Nothing on record yet: ${unstocked.map(r =>
+                        `<a href="component.html?type=${encodeURIComponent(r.type)}">${utils.escapeHtml(this.dashTypeTitle(r.type))}</a>`).join(', ')}`
+                    : '';
             }
         }
 
         if (stats.servers) {
             const s = stats.servers;
-            const total = Number(s.total) || 0;
-            setText('dashServersTotal', fmt(total));
-            ['draft', 'validated', 'built', 'finalized'].forEach(stage => {
-                const key = stage.charAt(0).toUpperCase() + stage.slice(1);
-                setText(`dashServers${key}`, fmt(s[stage]));
-                const seg = document.getElementById(`dashServersBar${key}`);
-                if (seg) seg.style.width = `${total ? ((Number(s[stage]) || 0) / total) * 100 : 0}%`;
+            setText('dashServersTotal', fmt(s.total));
+            // Legacy configuration_status 2 is building/validating
+            // (StatusMap::CONFIG_V2_TO_LEGACY); the API still calls it "built".
+            const counts = { draft: s.draft, building: s.built, validated: s.validated, finalized: s.finalized };
+            document.querySelectorAll('#dashStages .dash-stage').forEach(li => {
+                const n = num(counts[li.dataset.stage]);
+                li.classList.toggle('has-servers', n > 0);
+                const el = li.querySelector('.dash-stage-n');
+                if (el) el.textContent = fmt(n);
             });
         }
+    }
+
+    /**
+     * Requests whose current step is waiting on the signed-in user or one of
+     * their roles. null when the list can't be read (no permission, error), so
+     * the attention panel says nothing rather than claiming zero.
+     */
+    async loadRequestQueue() {
+        this.dashQueue = null;
+        try {
+            const result = await api.requestEnvelope('pipeline-list', { scope: 'my_queue', status: 'in_progress', limit: 1 });
+            if (result.success && result.data) {
+                this.dashQueue = { total: Number(result.data.total) || 0, latest: (result.data.pipelines || [])[0] || null };
+            }
+        } catch (err) {
+            this.dashQueue = null;
+        }
+    }
+
+    /** "Needs your attention": waiting requests, failed parts, types with (almost) no spares. */
+    renderAttention() {
+        const host = document.getElementById('dashAttention');
+        if (!host) return;
+        const fmt = (n) => (Number(n) || 0).toLocaleString('en-IN');
+        const esc = (s) => utils.escapeHtml(String(s));
+        const items = [];
+        const item = (kind, icon, title, detail, href, action) => items.push(`<li class="dash-attn is-${kind}">
+            <span class="dash-attn-ic" aria-hidden="true"><i class="fas ${icon}"></i></span>
+            <span class="dash-attn-text"><strong>${title}</strong>${detail ? `<span>${detail}</span>` : ''}</span>
+            ${href ? `<a class="rf-btn" href="${esc(href)}">${esc(action)}</a>` : ''}
+        </li>`);
+        const typeHref = (type) => `component.html?type=${encodeURIComponent(type)}`;
+
+        const q = this.dashQueue;
+        if (q && q.total > 0) {
+            const latest = q.latest && q.latest.title ? `Latest: ${esc(q.latest.title)}` : '';
+            item('request', 'fa-inbox',
+                q.total === 1 ? '1 request is waiting on you or your team' : `${fmt(q.total)} requests are waiting on you or your team`,
+                latest, 'requests.html', 'Open requests');
+        }
+
+        const stock = this.dashStock || { failed: [], none: [], low: [] };
+        stock.failed.forEach(r => item('failed', 'fa-triangle-exclamation',
+            `${fmt(r.failed)} ${esc(this.dashNoun(r.type, r.failed))} ${r.failed === 1 ? 'is' : 'are'} marked failed`,
+            'Check them, then repair, replace or remove them from stock.',
+            typeHref(r.type), `View ${this.dashNoun(r.type, 2)}`));
+        stock.none.forEach(r => item('low', 'fa-box-open',
+            `No ${esc(this.dashNoun(r.type, 2))} spare`,
+            `All ${fmt(r.installed)} are installed in servers, so a new build can't use one until more arrive.`,
+            typeHref(r.type), `View ${this.dashNoun(r.type, 2)}`));
+        stock.low.forEach(r => item('low', 'fa-box-open',
+            `Only ${fmt(r.spare)} ${esc(this.dashNoun(r.type, r.spare))} spare`,
+            `${fmt(r.installed)} of ${fmt(r.total)} are installed in servers.`,
+            typeHref(r.type), `View ${this.dashNoun(r.type, 2)}`));
+
+        if (!items.length) {
+            const parts = ['no parts have failed', 'every part type you stock has spares'];
+            if (q) parts.unshift('no requests are waiting on you');
+            item('clear', 'fa-check', 'Nothing needs you right now',
+                `${parts.slice(0, -1).join(', ')}, and ${parts[parts.length - 1]}.`.replace(/^./, c => c.toUpperCase()));
+        }
+        host.innerHTML = items.join('');
     }
 
     updateSidebarCounts(stats) {
@@ -405,9 +511,10 @@ class Dashboard {
     }
 
     /**
-     * The last few entries of the activity log, worded as on the activity page
-     * ("<user> component added · cpu #12"). Timestamps are UTC without an
-     * offset; shown in IST.
+     * The last few things that happened, in plain words: real server names
+     * instead of config UUIDs, and a run of identical entries (one person
+     * adding six parts to one server) folded into one line. Timestamps are UTC
+     * without an offset; shown in IST.
      */
     async loadRecentActivity() {
         const feed = document.getElementById('recentActivityBody');
@@ -415,7 +522,7 @@ class Dashboard {
         const state = (text) => { feed.innerHTML = `<div class="rf-state">${utils.escapeHtml(text)}</div>`; };
 
         try {
-            const result = await api.requestEnvelope('dashboard-get-logs', { limit: 8, offset: 0 });
+            const result = await api.requestEnvelope('dashboard-get-logs', { limit: 40, offset: 0 });
             if (!result.success) {
                 document.getElementById('recentActivityAll')?.classList.add('hidden');
                 return state(Number(result.code) === 403
@@ -423,55 +530,146 @@ class Dashboard {
                     : "Couldn't load recent activity.");
             }
             const logs = result.data?.logs || [];
-            if (!logs.length) return state('No activity yet.');
+            if (!logs.length) return state('Nothing has happened yet.');
 
-            const TZ = 'Asia/Kolkata';
-            const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ });
-            const when = (value) => {
-                const d = new Date(String(value || '').replace(' ', 'T') + 'Z');
-                if (isNaN(d.getTime())) return { short: '', full: '' };
-                const sameDay = d.toLocaleDateString('en-CA', { timeZone: TZ }) === today;
-                return {
-                    short: sameDay
-                        ? d.toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
-                        : d.toLocaleDateString('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' }).replace('Sept', 'Sep'),
-                    full: d.toLocaleString('en-GB', { timeZone: TZ }) + ' IST'
-                };
-            };
-            const initials = (name) => {
-                if (!name) return 'SY';
-                const parts = String(name).split(/[\s._-]+/).filter(Boolean);
-                return ((parts[0] || '')[0] + ((parts[1] || '')[0] || (parts[0] || '')[1] || '')).toUpperCase();
-            };
-            const verb = (action) => {
-                const s = String(action || 'changed something').replace(/_/g, ' ');
-                return s.charAt(0).toLowerCase() + s.slice(1);
-            };
-            const objectOf = (log) => {
-                const type = String(log.component_type || '');
-                if (!type || ['auth', 'user', 'role', 'user_management'].includes(type)) return '';
-                const id = log.component_id;
-                return (id === null || id === undefined || id === '') ? `a ${type}` : `${type} #${id}`;
-            };
-            const UUID = /\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+            const servers = logs.some(l => l.component_type === 'server') ? await this.loadServerNames() : new Map();
+            const groups = [];
+            logs.forEach(log => {
+                const last = groups[groups.length - 1];
+                const key = [log.username, log.action, log.component_type, log.component_id].join('|');
+                if (last && log.component_id != null && last.key === key) last.logs.push(log);
+                else groups.push({ key, logs: [log] });
+            });
 
-            feed.innerHTML = logs.map(log => {
-                const t = when(log.created_at);
-                const who = log.username || (log.user_id ? `user #${log.user_id}` : 'System');
-                const obj = objectOf(log);
-                const notes = String(log.notes || '');
-                return `<div class="rf-ev">
-                    <span class="rf-av${log.username ? '' : ' is-system'}" aria-hidden="true">${utils.escapeHtml(initials(log.username))}</span>
-                    <div class="rf-ev-body">
-                        <span class="rf-ev-line"><b>${utils.escapeHtml(who)}</b> ${utils.escapeHtml(verb(log.action))}${obj ? ` · ${utils.escapeHtml(obj)}` : ''}</span>
-                        ${notes ? `<span class="rf-ev-detail dash-clamp" title="${utils.escapeHtml(notes)}">${utils.escapeHtml(notes).replace(UUID, '$1…')}</span>` : ''}
-                    </div>
-                    <span class="rf-ev-time rf-mono" title="${utils.escapeHtml(t.full)}">${utils.escapeHtml(t.short)}</span>
-                </div>`;
-            }).join('');
+            feed.innerHTML = groups.slice(0, 7).map(g => this.activityRow(g.logs, servers)).join('');
         } catch (err) {
             state("Couldn't load recent activity.");
         }
+    }
+
+    /** server config id -> { name, uuid }, for naming servers in the feed. Empty on failure. */
+    async loadServerNames() {
+        const names = new Map();
+        try {
+            const result = await api.requestEnvelope('server-list-configs', { limit: 500 });
+            (result.success ? (result.data?.configurations || []) : []).forEach(c => {
+                names.set(String(c.id), { name: c.server_name || '', uuid: c.config_uuid || '' });
+            });
+        } catch (err) { /* the feed falls back to "server #id" */ }
+        return names;
+    }
+
+    activityRow(logs, servers) {
+        const esc = (s) => utils.escapeHtml(String(s ?? ''));
+        const log = logs[0];
+        const n = logs.length;
+        const notes = String(log.notes || '');
+        const action = String(log.action || '');
+        const who = log.username || (log.user_id ? `user #${log.user_id}` : 'System');
+
+        const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+        const serverLink = () => {
+            const known = servers.get(String(log.component_id));
+            const uuid = known?.uuid || (notes.match(new RegExp('server config (' + UUID.source + ')', 'i')) || [])[1] || '';
+            const name = known?.name || (log.component_id != null ? `server #${log.component_id}` : 'a server');
+            return uuid
+                ? `<a href="../server/builder.html?config=${encodeURIComponent(uuid)}">${esc(name)}</a>`
+                : esc(name);
+        };
+        // "2 storage drives, 1 PCIe card" from the notes of a run of add/remove entries.
+        const partsDetail = () => {
+            const counts = new Map();
+            logs.forEach(l => {
+                const m = String(l.notes || '').match(/^(?:Added|Removed) (\w+) \(/);
+                if (m) counts.set(m[1], (counts.get(m[1]) || 0) + 1);
+            });
+            return [...counts].map(([type, c]) => `${c} ${this.dashNoun(type, c)}`).join(', ');
+        };
+        const partsPhrase = () => {
+            if (n > 1) return `${n} parts`;
+            const m = notes.match(/^(?:Added|Removed) (\w+) \(/);
+            if (!m) return 'a part';
+            const noun = this.dashNoun(m[1], 1);
+            return `${/^[aeiou]/i.test(noun) ? 'an' : 'a'} ${noun}`;
+        };
+
+        let line;
+        let detail = '';
+        switch (action) {
+            case 'Component added':
+                line = `added ${esc(partsPhrase())} to ${serverLink()}`;
+                if (n > 1) detail = partsDetail();
+                break;
+            case 'Component removed':
+                line = `removed ${esc(partsPhrase())} from ${serverLink()}`;
+                if (n > 1) detail = partsDetail();
+                break;
+            case 'Server created':
+                line = `created ${serverLink()}`;
+                break;
+            case 'Server configuration started':
+                line = `started building ${serverLink()}`;
+                break;
+            case 'Compute platform installed': {
+                const platform = (notes.match(/^Installed (.+?) \(unit/) || [])[1];
+                line = platform
+                    ? `installed a ${esc(platform)} in ${serverLink()}`
+                    : `installed a compute platform in ${serverLink()}`;
+                break;
+            }
+            case 'Server relocated': {
+                const m = notes.match(/^(.+?): .*?-> (.+?)(?: \(\d+ component\(s\) moved\))?$/);
+                line = m ? `moved ${esc(m[1])}` : 'moved a server';
+                if (m) detail = `Now at ${m[2]}`;
+                break;
+            }
+            case 'Rack updated': {
+                const rack = (notes.match(/^Updated rack: (.+)$/) || [])[1];
+                line = rack ? `updated rack ${esc(rack)}` : 'updated a rack';
+                break;
+            }
+            default: {
+                const verb = action ? action.charAt(0).toLowerCase() + action.slice(1) : 'changed something';
+                line = esc(verb);
+                detail = notes.replace(new RegExp(UUID.source, 'gi'), (u) => u.slice(0, 8) + '…');
+            }
+        }
+        if (n > 1 && !['Component added', 'Component removed'].includes(action)) line += ` <span class="rf-mono">×${n}</span>`;
+
+        const t = this.activityTime(log.created_at);
+        const initials = (name) => {
+            if (!name) return 'SY';
+            const parts = String(name).split(/[\s._-]+/).filter(Boolean);
+            return ((parts[0] || '')[0] + ((parts[1] || '')[0] || (parts[0] || '')[1] || '')).toUpperCase();
+        };
+
+        return `<div class="rf-ev">
+            <span class="rf-av${log.username ? '' : ' is-system'}" aria-hidden="true">${esc(initials(log.username))}</span>
+            <div class="rf-ev-body">
+                <span class="rf-ev-line"><b>${esc(who)}</b> ${line}</span>
+                ${detail ? `<span class="rf-ev-detail">${esc(detail)}</span>` : ''}
+            </div>
+            <span class="rf-ev-time" title="${esc(t.full)}">${esc(t.short)}</span>
+        </div>`;
+    }
+
+    /** "14:05" today, "Yesterday", otherwise "5 Oct" (IST); full timestamp for the tooltip. */
+    activityTime(value) {
+        const TZ = 'Asia/Kolkata';
+        const d = new Date(String(value || '').replace(' ', 'T') + 'Z');
+        if (isNaN(d.getTime())) return { short: '', full: '' };
+        const day = (x) => x.toLocaleDateString('en-CA', { timeZone: TZ });
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 864e5);
+        let short;
+        if (day(d) === day(now)) short = d.toLocaleTimeString('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+        else if (day(d) === day(yesterday)) short = 'Yesterday';
+        else {
+            const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: TZ, day: 'numeric', month: 'short' })
+                .formatToParts(d).map(p => [p.type, p.value]));
+            short = `${parts.day} ${parts.month}`;
+        }
+        return { short, full: d.toLocaleString('en-GB', { timeZone: TZ }) + ' IST' };
     }
 
     /**

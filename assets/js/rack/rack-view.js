@@ -1272,7 +1272,7 @@ class RackView {
     // Mirrors rackConfigStatusText() in the backend. Direct servers arrive with
     // status_text already resolved; a sled carries only the numeric status.
     statusText(status) {
-        return { 0: 'Draft', 1: 'Validated', 2: 'Built', 3: 'Finalized' }[status] || 'Unknown';
+        return { 0: 'Draft', 1: 'Validated', 2: 'Building', 3: 'Finalized' }[status] || 'Unknown';
     }
 
     spinner(label) {

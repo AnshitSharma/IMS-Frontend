@@ -425,6 +425,7 @@ class ACLManager {
 
         document.getElementById('createRoleBtn')?.classList.toggle('hidden', isUsers);
         document.getElementById('refreshRolesBtn')?.classList.toggle('hidden', isUsers);
+        document.getElementById('aclUsersActions')?.classList.toggle('hidden', !isUsers);
         const sub = document.getElementById('aclSubtitle');
         if (sub) {
             sub.textContent = isUsers
@@ -454,7 +455,45 @@ class ACLManager {
         if (emptyState) emptyState.classList.add('hidden');
         if (tableContainer) tableContainer.classList.remove('hidden');
 
-        tableBody.innerHTML = this.users.map(user => this.createUserRow(user)).join('');
+        const query = (document.getElementById('aclPeopleSearch')?.value || '').trim().toLowerCase();
+        const shown = query
+            ? this.users.filter(user => this.userSearchText(user).includes(query))
+            : this.users;
+
+        tableBody.innerHTML = shown.length
+            ? shown.map(user => this.createUserRow(user)).join('')
+            : `<tr class="aclx-nomatch"><td colspan="5">No one matches “${utils.escapeHtml(query)}”.</td></tr>`;
+
+        const tally = document.getElementById('aclPeopleTally');
+        if (tally) {
+            const total = this.users.length;
+            tally.innerHTML = shown.length === total
+                ? `<b>${total}</b> ${total === 1 ? 'person' : 'people'}`
+                : `<b>${shown.length}</b> of <b>${total}</b> people`;
+        }
+    }
+
+    userDisplayName(user) {
+        const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim();
+        return fullName || user.username || 'Unknown';
+    }
+
+    userRoleName(user) {
+        const roleId = Array.isArray(user.roles) && user.roles.length ? user.roles[0].id : null;
+        const role = roleId == null ? null : this.roles.find(r => String(r.id) === String(roleId));
+        return role ? (role.display_name || role.name || '') : '';
+    }
+
+    userSearchText(user) {
+        return [this.userDisplayName(user), user.username, user.email, this.userRoleName(user)]
+            .filter(Boolean).join(' ').toLowerCase();
+    }
+
+    userInitials(name) {
+        const words = String(name).replace(/[^\p{L}\p{N}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+        if (!words.length) return '?';
+        const letters = words.length > 1 ? words[0][0] + words[words.length - 1][0] : words[0].slice(0, 2);
+        return letters.toUpperCase();
     }
 
     createUserRow(user) {
@@ -465,8 +504,7 @@ class ACLManager {
         // admin/super_admin role AND users.reset_password regardless.
         const canResetPassword = window.api?.utils?.hasPermission('users.reset_password') === true;
 
-        const fullName = [user.firstname, user.lastname].filter(Boolean).join(' ').trim();
-        const displayName = fullName || user.username || 'Unknown';
+        const displayName = this.userDisplayName(user);
 
         // Role dropdown — reassigns the user's group inline. Data attribute holds
         // the current role id so the change handler knows what to swap out.
@@ -474,52 +512,49 @@ class ACLManager {
             `<option value="${role.id}" ${role.id === currentRoleId ? 'selected' : ''}>${utils.escapeHtml(role.display_name || role.name)}</option>`
         ).join('');
 
-        // Reuse the exact badge utility set the roles table already ships (its
-        // "Default" pill) so no new Tailwind classes need compiling.
         const status = (user.status || 'active').toLowerCase();
         const statusIsActive = status === 'active' || status === '1';
-        const statusBadge = `
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border border-border bg-surface-secondary ${statusIsActive ? 'text-green-600 dark:text-green-400' : 'text-text-muted'}">
-                <span class="w-1.5 h-1.5 rounded-full ${statusIsActive ? 'bg-green-500' : 'bg-text-muted'}"></span>${utils.escapeHtml(statusIsActive ? 'Active' : (user.status || 'Inactive'))}
-            </span>`;
+        const statusLabel = statusIsActive ? 'Active' : (user.status ? String(user.status).charAt(0).toUpperCase() + String(user.status).slice(1) : 'Inactive');
+        const email = user.email || '';
 
         return `
-            <tr class="hover:bg-surface-hover transition-colors">
-                <td class="px-4 py-3" data-label="User">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-user-circle text-text-muted"></i>
-                        <span class="font-medium text-text-primary">${utils.escapeHtml(displayName)}</span>
-                        ${isSelf ? '<span class="ml-1 text-[11px] text-text-muted">(you)</span>' : ''}
+            <tr>
+                <td>
+                    <div class="aclx-who">
+                        <span class="aclx-av" aria-hidden="true">${utils.escapeHtml(this.userInitials(displayName))}</span>
+                        <span class="aclx-who-text">
+                            <span class="aclx-name">${utils.escapeHtml(displayName)}${isSelf ? '<span class="aclx-you">You</span>' : ''}</span>
+                            <span class="aclx-handle">@${utils.escapeHtml(user.username || '')}</span>
+                            ${email ? `<span class="aclx-mail-m">${utils.escapeHtml(email)}</span>` : ''}
+                        </span>
                     </div>
-                    <div class="text-xs text-text-muted mt-0.5">@${utils.escapeHtml(user.username || '')}</div>
                 </td>
-                <td class="px-4 py-3 text-text-secondary text-sm" data-label="Email">
-                    ${utils.escapeHtml(user.email || '-')}
+                <td class="aclx-col-email"><span class="aclx-mail">${utils.escapeHtml(email || '—')}</span></td>
+                <td>
+                    <span class="aclx-pick">
+                        <select class="user-role-select" aria-label="Role for ${utils.escapeHtml(displayName)}"
+                                data-user-id="${user.id}" data-current-role="${currentRoleId}">
+                            <option value="" ${currentRoleId === '' ? 'selected' : ''}>No role</option>
+                            ${roleOptions}
+                        </select>
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                    </span>
                 </td>
-                <td class="px-4 py-3" data-label="Group / Role">
-                    <select class="user-role-select input-field px-2.5 py-1.5 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
-                            data-user-id="${user.id}" data-current-role="${currentRoleId}">
-                        <option value="" ${currentRoleId === '' ? 'selected' : ''}>No role</option>
-                        ${roleOptions}
-                    </select>
-                </td>
-                <td class="px-4 py-3" data-label="Status">
-                    ${statusBadge}
-                </td>
-                <td class="px-4 py-3" data-label="Actions">
-                    <div class="flex items-center gap-2">
+                <td class="aclx-col-status"><span class="aclx-st ${statusIsActive ? 'is-active' : ''}">${utils.escapeHtml(statusLabel)}</span></td>
+                <td>
+                    <span class="aclx-row-acts">
                         ${canResetPassword ? `
-                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-surface-hover hover:text-primary transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
-                                ${isSelf ? 'disabled title="Use Change Password in the account menu for your own password"' : `title="Reset password" onclick="aclManager.openResetPasswordModal(${user.id})"`}
+                        <button type="button" class="aclx-act"
+                                ${isSelf ? 'disabled title="Use Change password in the account menu for your own password"' : `title="Reset password" onclick="aclManager.openResetPasswordModal(${user.id})"`}
                                 aria-label="Reset password">
-                            <i class="fas fa-key text-sm"></i>
+                            <i class="fas fa-key" aria-hidden="true"></i>
                         </button>` : ''}
-                        <button class="btn-icon-mobile w-9 h-9 rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors flex items-center justify-center ${isSelf ? 'opacity-40 cursor-not-allowed' : ''}"
-                                ${isSelf ? 'disabled title="You cannot remove your own account"' : 'title="Remove user" onclick="aclManager.handleDeleteUser(' + user.id + ')"'}
-                                aria-label="Remove user">
-                            <i class="fas fa-user-minus text-sm"></i>
+                        <button type="button" class="aclx-act is-danger"
+                                ${isSelf ? 'disabled title="You cannot remove your own account"' : 'title="Remove person" onclick="aclManager.handleDeleteUser(' + user.id + ')"'}
+                                aria-label="Remove person">
+                            <i class="fas fa-user-minus" aria-hidden="true"></i>
                         </button>
-                    </div>
+                    </span>
                 </td>
             </tr>
         `;
@@ -1309,8 +1344,9 @@ class ACLManager {
         document.getElementById('refreshUsersBtn')?.addEventListener('click', async () => {
             await this.loadInitialData();
             this.renderUsersTable();
-            toast.success('Users refreshed');
+            toast.success('People refreshed');
         });
+        document.getElementById('aclPeopleSearch')?.addEventListener('input', () => this.renderUsersTable());
 
         // Add User buttons — gated by the users.create permission (UI-only;
         // the backend users-create endpoint enforces it for real).

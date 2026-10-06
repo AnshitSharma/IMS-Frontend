@@ -125,6 +125,74 @@
         .aclx-menu button i { width: 14px; font-size: 12px; color: var(--color-text-muted); }
         .aclx-menu .is-danger, .aclx-menu .is-danger i { color: var(--color-danger); }
         @media (max-width: 640px) { .aclx-table th:first-child { min-width: 190px; } .aclx-scroll { max-height: none; } }
+
+        /* People: everyone with an account and the role each one holds */
+        .aclx-actions { display: contents; }
+        .aclx-tally { margin-left: auto; font-size: 12.5px; color: var(--color-text-muted); }
+        .aclx-tally b { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 500; color: var(--color-text-secondary); }
+        .aclx-pscroll { overflow-x: auto; }
+        .aclx-people { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+        .aclx-people th {
+            background: var(--color-surface-hover); font-size: 12px; font-weight: 500; color: var(--color-text-muted);
+            text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--color-border); white-space: nowrap;
+        }
+        .aclx-people td { height: 64px; padding: 0 16px; border-bottom: 1px solid var(--color-border-light); vertical-align: middle; }
+        .aclx-people tbody tr:last-child td { border-bottom: 0; }
+        .aclx-people tbody tr:hover td { background: var(--color-surface-hover); }
+        .aclx-people th:last-child, .aclx-people td:last-child { width: 1%; white-space: nowrap; text-align: right; }
+
+        .aclx-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .aclx-av {
+            flex: none; width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+            background: var(--aclx-accent-soft); color: var(--aclx-accent); font-size: 12.5px; font-weight: 600; letter-spacing: .02em;
+        }
+        .aclx-who-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .aclx-name { font-weight: 600; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .aclx-you {
+            margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 500;
+            background: var(--color-surface-secondary); color: var(--color-text-muted); border: 1px solid var(--color-border-light);
+        }
+        .aclx-handle { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; color: var(--color-text-muted); }
+        .aclx-mail { color: var(--color-text-secondary); }
+        .aclx-mail-m { display: none; font-size: 12px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .aclx-pick { position: relative; display: inline-flex; align-items: center; }
+        .aclx-pick select {
+            appearance: none; -webkit-appearance: none; height: 34px; min-width: 190px; padding: 0 32px 0 12px;
+            border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card);
+            color: var(--color-text-primary); font: inherit; font-size: 13px; cursor: pointer;
+        }
+        .aclx-pick select:hover { border-color: var(--color-border-dark); }
+        .aclx-pick select:focus, .aclx-pick select:focus-visible { outline: none; border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .aclx-pick i { position: absolute; right: 12px; font-size: 10px; color: var(--color-text-muted); pointer-events: none; }
+
+        .aclx-st { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text-secondary); white-space: nowrap; }
+        .aclx-st::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); }
+        .aclx-st.is-active::before { background: #16A34A; }
+        [data-theme="dark"] .aclx-st.is-active::before { background: #4ADE80; }
+
+        .aclx-row-acts { display: inline-flex; gap: 4px; }
+        .aclx-act {
+            width: 34px; height: 34px; border-radius: 8px; border: 0; background: transparent; color: var(--color-text-muted);
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px;
+        }
+        .aclx-act:hover { background: var(--color-surface-secondary); color: var(--color-text-primary); }
+        .aclx-act.is-danger:hover { color: var(--color-danger); }
+        .aclx-act:disabled { opacity: .35; cursor: not-allowed; background: transparent; color: var(--color-text-muted); }
+        .aclx-nomatch td { height: auto; padding: 32px 16px; text-align: center; color: var(--color-text-muted); }
+
+        @media (max-width: 767px) {
+            .aclx-col-email, .aclx-col-status { display: none; }
+            .aclx-mail-m { display: block; }
+            .aclx-handle { display: none; }
+            .aclx-people th, .aclx-people td { padding-left: 10px; padding-right: 10px; }
+            .aclx-people td:last-child { padding-left: 0; }
+            .aclx-row-acts { gap: 0; }
+            .aclx-act { width: 32px; }
+            .aclx-pick select { min-width: 0; max-width: 150px; }
+            .aclx-tally { flex-basis: 100%; margin-left: 0; }
+            .aclx-who { max-width: 170px; }
+        }
     </style>
 </head>
 
@@ -156,6 +224,15 @@
                             <button type="button" class="aclx-btn aclx-btn-primary" id="createRoleBtn">
                                 <i class="fas fa-plus" aria-hidden="true"></i> New role
                             </button>
+                            <span class="aclx-actions hidden" id="aclUsersActions">
+                                <button type="button" class="aclx-btn aclx-btn-icon" id="refreshUsersBtn" title="Refresh" aria-label="Refresh">
+                                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                                </button>
+                                <!-- Shown only to users with the users.create permission (gated in acl-manager.js) -->
+                                <button type="button" class="aclx-btn aclx-btn-primary hidden" id="addUserBtn">
+                                    <i class="fas fa-plus" aria-hidden="true"></i> Add person
+                                </button>
+                            </span>
                         </div>
                     </div>
 
@@ -193,57 +270,41 @@
                             </button>
                         </div>
                     </div>
-                </div>
 
-                <!-- User Management View -->
-                <div id="userManagementView" class="content-section hidden">
-                    <!-- Action bar -->
-                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                        <p class="text-sm text-text-muted">All users in the system. Change a user's group, or add and remove users.</p>
-                        <div class="flex flex-wrap gap-3">
-                            <!-- Shown only to users with the users.create permission (gated in acl-manager.js) -->
-                            <button
-                                class="btn-primary hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addUserBtn">
-                                <i class="fas fa-user-plus"></i> Add User
-                            </button>
-                            <button
-                                class="btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshUsersBtn">
-                                <i class="fas fa-sync-alt"></i> Refresh
+                    <!-- User Management View: everyone with an account and their role -->
+                    <div id="userManagementView" class="content-section">
+                        <div class="aclx-tools">
+                            <label class="aclx-search">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input type="search" id="aclPeopleSearch" placeholder="Find a person" aria-label="Find a person" autocomplete="off">
+                            </label>
+                            <span class="aclx-tally" id="aclPeopleTally" aria-live="polite"></span>
+                        </div>
+                        <section class="aclx-card users-table-container">
+                            <div class="aclx-pscroll">
+                                <table class="aclx-people" id="usersTable">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Person</th>
+                                            <th scope="col" class="aclx-col-email">Email</th>
+                                            <th scope="col">Role</th>
+                                            <th scope="col" class="aclx-col-status">Status</th>
+                                            <th scope="col"><span class="sr-only">Actions</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody"></tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <!-- Users Empty State -->
+                        <div id="usersEmptyState" class="hidden aclx-card aclx-empty">
+                            <p class="font-semibold text-text-primary mb-2">No one has an account yet</p>
+                            <p class="mb-4">Add a person and choose the role they hold.</p>
+                            <button type="button" class="aclx-btn aclx-btn-primary hidden" id="usersEmptyAddBtn">
+                                <i class="fas fa-plus" aria-hidden="true"></i> Add person
                             </button>
                         </div>
-                    </div>
-
-                    <!-- Users Table -->
-                    <div class="users-table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base table-responsive" id="usersTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">User</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Email</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Group / Role
-                                    </th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Status</th>
-                                    <th class="px-4 py-3 text-left text-sm font-semibold text-text-secondary">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody" class="divide-y divide-border">
-                                <!-- User rows will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Users Empty State -->
-                    <div id="usersEmptyState" class="hidden bg-surface-card rounded-lg shadow-sm p-12 text-center">
-                        <i class="fas fa-users text-6xl text-text-muted mb-4"></i>
-                        <h3 class="text-xl font-semibold text-text-secondary mb-2">No Users Found</h3>
-                        <p class="text-text-muted mb-6">Add your first user to get started</p>
-                        <button
-                            class="btn-primary hidden px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 mx-auto"
-                            id="usersEmptyAddBtn">
-                            <i class="fas fa-user-plus"></i> Add User
-                        </button>
                     </div>
                 </div>
             </main>

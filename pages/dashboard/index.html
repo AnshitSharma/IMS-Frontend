@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
-    <title>BDC Inventory Management System</title>
+    <title>Dashboard - BDC Inventory</title>
 
     <!-- Prevent flash of unstyled content -->
     <script>
@@ -23,43 +23,108 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
 
     <style>
-        /* Overview — what is in stock and what is being built. The shared
-           pieces come from refined.css; only the page's own layout is here. */
-        .dash-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-        .dash-tile { display: flex; flex-direction: column; gap: 14px; padding: 18px 20px; text-decoration: none; color: inherit; }
-        a.dash-tile:hover { border-color: var(--color-border-dark); }
-        .dash-tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-        .dash-tile-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
-        .dash-big { font-size: 30px; line-height: 1.1; letter-spacing: -.02em; }
-        .dash-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--color-text-muted); }
-        .dash-legend span { display: inline-flex; align-items: center; gap: 7px; }
-        .dash-legend b { font-weight: 500; color: var(--color-text-primary); }
+        /* Dashboard — answers first: what needs you, what you can build with,
+           where the servers are, and what changed. Shared pieces come from
+           refined.css; only this page's layout is here. */
+        .rf { --dash-installed: #94A3B8; }
+        [data-theme="dark"] .rf { --dash-installed: #52606F; }
 
-        .dash-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; background: var(--color-surface-hover); }
-        .dash-bar span { display: block; height: 100%; background: var(--rf-st); transition: width .4s ease; }
-        .dash-bar .dash-draft { background: #8A96A3; }
-        .dash-bar .dash-validated { background: #D97706; }
-        .dash-bar .dash-built { background: #16A34A; }
-        .dash-bar .dash-finalized { background: #0891B2; }
-        .dash-dot-draft { --rf-st: #8A96A3; }
-        .dash-dot-validated { --rf-st: #D97706; }
-        .dash-dot-built { --rf-st: #16A34A; }
-        .dash-dot-finalized { --rf-st: #0891B2; }
+        .dash-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+        .dash-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-        .dash-main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 16px; align-items: start; }
-        .dash-type { color: var(--color-text-primary); font-weight: 500; text-decoration: none; }
-        .dash-type:hover { color: var(--rf-accent-ink); text-decoration: underline; text-underline-offset: 2px; }
-        .dash-bar-cell { width: 34%; min-width: 120px; }
-        .dash-zero { color: var(--color-text-muted) !important; }
-        .dash-failed { color: var(--rf-failed) !important; }
-        .dash-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        /* Needs your attention */
+        .dash-attn-list { list-style: none; margin: 0; padding: 0; }
+        .dash-attn {
+            display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 14px; align-items: center;
+            padding: 14px 18px; border-bottom: 1px solid var(--color-border-light);
+        }
+        .dash-attn:last-child { border-bottom: 0; }
+        .dash-attn-ic {
+            width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+            font-size: 13px; color: var(--dash-ic); background: color-mix(in srgb, var(--dash-ic) 12%, transparent);
+        }
+        .dash-attn.is-request { --dash-ic: var(--rf-accent-ink); }
+        .dash-attn.is-failed { --dash-ic: var(--rf-failed); }
+        .dash-attn.is-low { --dash-ic: var(--rf-warn); }
+        .dash-attn.is-clear { --dash-ic: var(--rf-accent-ink); }
+        .dash-attn-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .dash-attn-text strong { font-weight: 500; }
+        .dash-attn-text span { font-size: 12.5px; color: var(--color-text-muted); }
+        .dash-attn .rf-btn { height: 34px; font-size: 13px; }
 
-        @media (prefers-reduced-motion: reduce) { .dash-bar span { transition: none; } }
-        @media (max-width: 1199px) { .dash-main { grid-template-columns: minmax(0, 1fr); } }
+        /* Parts */
+        .dash-parts-sum { padding: 18px 18px 16px; border-bottom: 1px solid var(--color-border-light); display: flex; flex-direction: column; gap: 12px; }
+        .dash-parts-total { display: flex; align-items: baseline; gap: 10px; }
+        .dash-parts-total b { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+        .dash-parts-total span { color: var(--color-text-secondary); }
+        .dash-key { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; color: var(--color-text-secondary); }
+        .dash-key span { display: inline-flex; align-items: center; gap: 8px; }
+        .dash-key b { font-weight: 600; color: var(--color-text-primary); }
+        .dash-sw { width: 10px; height: 10px; border-radius: 3px; background: var(--dash-sw); flex: none; }
+        .dash-sw.is-spare { --dash-sw: var(--rf-available); }
+        .dash-sw.is-installed { --dash-sw: var(--dash-installed); }
+        .dash-sw.is-failed { --dash-sw: var(--rf-failed); }
+
+        .dash-bar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; background: var(--color-surface-hover); }
+        .dash-bar.is-big { height: 12px; }
+        .dash-bar span { display: block; height: 100%; flex: none; min-width: 3px; }
+        .dash-bar .is-spare { background: var(--rf-available); }
+        .dash-bar .is-installed { background: var(--dash-installed); }
+        .dash-bar .is-failed { background: var(--rf-failed); }
+
+        .dash-types { list-style: none; margin: 0; padding: 0; }
+        .dash-type {
+            display: grid; grid-template-columns: 170px minmax(0, 1fr) 200px; gap: 18px; align-items: center;
+            min-height: 56px; padding: 0 18px; border-bottom: 1px solid var(--color-border-light);
+            color: inherit; text-decoration: none;
+        }
+        .dash-type:hover { background: var(--color-surface-hover); }
+        .dash-type-name { font-weight: 500; }
+        .dash-type:hover .dash-type-name { color: var(--rf-accent-ink); }
+        .dash-type-note { text-align: right; font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
+        .dash-type-note b { font-weight: 600; color: var(--color-text-primary); }
+        .dash-type-note .is-failed { color: var(--rf-failed); }
+        .dash-type-note.is-low, .dash-type-note.is-low b { color: var(--rf-warn); }
+        .dash-empty-types { padding: 14px 18px; font-size: 13px; color: var(--color-text-muted); }
+        .dash-empty-types a { color: var(--color-text-secondary); text-underline-offset: 2px; }
+
+        /* Server builds: the four stages a server moves through, in order */
+        .dash-stages { list-style: none; margin: 0; padding: 8px 18px; }
+        .dash-stage {
+            position: relative; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; column-gap: 14px; align-items: center;
+            padding: 12px 0;
+        }
+        /* the line joining one stage to the next */
+        .dash-stage::before {
+            content: ''; position: absolute; left: 6px; top: calc(50% + 7px); height: calc(100% - 14px); width: 2px;
+            background: var(--color-border-dark); opacity: .6;
+        }
+        .dash-stage:last-child::before { display: none; }
+        .dash-stage-pin {
+            grid-row: 1 / span 2; width: 14px; height: 14px; border-radius: 50%;
+            border: 2px solid var(--color-border-dark); background: var(--color-surface-card);
+        }
+        .dash-stage.has-servers .dash-stage-pin { border-color: #0F766E; background: #0F766E; }
+        [data-theme="dark"] .dash-stage.has-servers .dash-stage-pin { border-color: #2DD4BF; background: #2DD4BF; }
+        .dash-stage-name { grid-column: 2; grid-row: 1; font-weight: 500; }
+        .dash-stage-hint { grid-column: 2; grid-row: 2; font-size: 12.5px; color: var(--color-text-muted); }
+        .dash-stage-n { grid-column: 3; grid-row: 1 / span 2; font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+        .dash-stage:not(.has-servers) .dash-stage-n { color: var(--color-text-muted); }
+        .dash-servers-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--color-border-light); font-size: 13px; color: var(--color-text-secondary); }
+
+        /* Recent activity */
+        .dash-feed .rf-ev-line a { color: var(--rf-accent-ink); font-weight: 500; text-decoration: none; }
+        .dash-feed .rf-ev-line a:hover { text-decoration: underline; text-underline-offset: 2px; }
+        .dash-feed .rf-ev-time { font-family: inherit; }
+
+        .dash-skel { padding: 28px 18px; color: var(--color-text-muted); font-size: 13px; }
+
+        @media (max-width: 1199px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
         @media (max-width: 767px) {
-            .dash-summary { grid-template-columns: minmax(0, 1fr); }
-            .dash-bar-cell { display: none; }
-            .dash-main .rf-table th, .dash-main .rf-table td { padding-left: 10px; padding-right: 10px; }
+            .dash-type { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; padding: 12px 14px; }
+            .dash-type .dash-bar { grid-column: 1 / -1; grid-row: 2; }
+            .dash-attn { grid-template-columns: 32px minmax(0, 1fr); padding: 14px; }
+            .dash-attn .rf-btn { grid-column: 2; justify-self: start; }
         }
     </style>
 </head>
@@ -78,8 +143,8 @@
                 <div id="dashboardView" class="content-section active rf">
                     <div class="rf-head">
                         <div>
-                            <h1>Overview</h1>
-                            <div class="rf-sub" id="dashDateLine">Stock and server builds across every site</div>
+                            <h1>Dashboard</h1>
+                            <div class="rf-sub" id="dashDateLine">What needs you, and where your hardware stands</div>
                         </div>
                         <div class="rf-actions">
                             <button type="button" class="rf-btn" id="refreshDashboard">
@@ -88,82 +153,84 @@
                         </div>
                     </div>
 
-                    <div class="dash-summary">
-                        <section class="rf-card dash-tile" aria-label="Parts in stock">
-                            <div class="dash-tile-top">
-                                <span class="dash-tile-label">Parts on record</span>
-                                <span id="dashPartsTotal" class="dash-big rf-mono">0</span>
-                            </div>
-                            <div class="dash-bar" aria-hidden="true">
-                                <span id="dashPartsBarAvailable" class="rf-st-available" style="width:0%"></span>
-                                <span id="dashPartsBarInUse" class="rf-st-inuse" style="width:0%"></span>
-                                <span id="dashPartsBarFailed" class="rf-st-failed" style="width:0%"></span>
-                            </div>
-                            <div class="dash-legend">
-                                <span><i class="rf-dot rf-st-available"></i>Available <b id="dashPartsAvailable" class="rf-mono">0</b></span>
-                                <span><i class="rf-dot rf-st-inuse"></i>In use <b id="dashPartsInUse" class="rf-mono">0</b></span>
-                                <span><i class="rf-dot rf-st-failed"></i>Failed <b id="dashPartsFailed" class="rf-mono">0</b></span>
-                            </div>
-                        </section>
+                    <section class="rf-card" aria-labelledby="dashAttnTitle">
+                        <div class="rf-card-head">
+                            <h2 id="dashAttnTitle">Needs your attention</h2>
+                        </div>
+                        <ul class="dash-attn-list" id="dashAttention">
+                            <li class="dash-skel">Checking…</li>
+                        </ul>
+                    </section>
 
-                        <a class="rf-card dash-tile" href="servers.html" aria-label="Servers by build stage">
-                            <div class="dash-tile-top">
-                                <span class="dash-tile-label">Servers</span>
-                                <span id="dashServersTotal" class="dash-big rf-mono">0</span>
-                            </div>
-                            <div class="dash-bar" aria-hidden="true">
-                                <span id="dashServersBarDraft" class="dash-draft" style="width:0%"></span>
-                                <span id="dashServersBarValidated" class="dash-validated" style="width:0%"></span>
-                                <span id="dashServersBarBuilt" class="dash-built" style="width:0%"></span>
-                                <span id="dashServersBarFinalized" class="dash-finalized" style="width:0%"></span>
-                            </div>
-                            <div class="dash-legend">
-                                <span><i class="rf-dot dash-dot-draft"></i>Draft <b id="dashServersDraft" class="rf-mono">0</b></span>
-                                <span><i class="rf-dot dash-dot-validated"></i>Validated <b id="dashServersValidated" class="rf-mono">0</b></span>
-                                <span><i class="rf-dot dash-dot-built"></i>Built <b id="dashServersBuilt" class="rf-mono">0</b></span>
-                                <span><i class="rf-dot dash-dot-finalized"></i>Finalized <b id="dashServersFinalized" class="rf-mono">0</b></span>
-                            </div>
-                        </a>
-                    </div>
-
-                    <div class="dash-main">
-                        <section class="rf-card" aria-labelledby="dashInventoryTitle">
+                    <div class="dash-grid">
+                        <section class="rf-card" aria-labelledby="dashPartsTitle">
                             <div class="rf-card-head">
-                                <h2 id="dashInventoryTitle">Inventory by type</h2>
-                                <div class="dash-legend">
-                                    <span><i class="rf-dot rf-st-available"></i>Available</span>
-                                    <span><i class="rf-dot rf-st-inuse"></i>In use</span>
-                                    <span><i class="rf-dot rf-st-failed"></i>Failed</span>
+                                <h2 id="dashPartsTitle">Parts</h2>
+                            </div>
+                            <div class="dash-parts-sum">
+                                <div class="dash-parts-total">
+                                    <b id="dashPartsTotal" class="rf-mono">0</b><span>parts on record</span>
+                                </div>
+                                <div class="dash-bar is-big" id="dashPartsBar" role="img" aria-label="Parts by state"></div>
+                                <div class="dash-key">
+                                    <span><i class="dash-sw is-spare"></i><b id="dashPartsSpare" class="rf-mono">0</b> spare, ready to use</span>
+                                    <span><i class="dash-sw is-installed"></i><b id="dashPartsInstalled" class="rf-mono">0</b> installed in servers</span>
+                                    <span><i class="dash-sw is-failed"></i><b id="dashPartsFailed" class="rf-mono">0</b> failed</span>
                                 </div>
                             </div>
-                            <div class="rf-scroll">
-                                <table class="rf-table">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Type</th>
-                                            <th scope="col" class="is-num">Total</th>
-                                            <th scope="col" class="dash-bar-cell"><span class="sr-only">Split</span></th>
-                                            <th scope="col" class="is-num">Available</th>
-                                            <th scope="col" class="is-num">In use</th>
-                                            <th scope="col" class="is-num">Failed</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="dashInventoryBody">
-                                        <tr><td colspan="6" class="rf-state">Loading inventory…</td></tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                            <ul class="dash-types" id="dashTypes">
+                                <li class="dash-skel">Loading parts…</li>
+                            </ul>
+                            <div class="dash-empty-types hidden" id="dashTypesEmpty"></div>
                         </section>
 
-                        <section class="rf-card" aria-labelledby="dashActivityTitle">
-                            <div class="rf-card-head">
-                                <h2 id="dashActivityTitle">Recent activity</h2>
-                                <a href="activity-log.html" id="recentActivityAll" class="rf-link">View all</a>
-                            </div>
-                            <div id="recentActivityBody">
-                                <div class="rf-state">Loading activity…</div>
-                            </div>
-                        </section>
+                        <div class="dash-col">
+                            <section class="rf-card" aria-labelledby="dashServersTitle">
+                                <div class="rf-card-head">
+                                    <h2 id="dashServersTitle">Server builds</h2>
+                                    <a class="rf-link" href="servers.html">Open servers</a>
+                                </div>
+                                <ol class="dash-stages" id="dashStages">
+                                    <li class="dash-stage" data-stage="draft">
+                                        <span class="dash-stage-pin" aria-hidden="true"></span>
+                                        <b class="dash-stage-n rf-mono">0</b>
+                                        <span class="dash-stage-name">Draft</span>
+                                        <span class="dash-stage-hint">Parts still being chosen</span>
+                                    </li>
+                                    <li class="dash-stage" data-stage="building">
+                                        <span class="dash-stage-pin" aria-hidden="true"></span>
+                                        <b class="dash-stage-n rf-mono">0</b>
+                                        <span class="dash-stage-name">Building</span>
+                                        <span class="dash-stage-hint">Being assembled and checked</span>
+                                    </li>
+                                    <li class="dash-stage" data-stage="validated">
+                                        <span class="dash-stage-pin" aria-hidden="true"></span>
+                                        <b class="dash-stage-n rf-mono">0</b>
+                                        <span class="dash-stage-name">Validated</span>
+                                        <span class="dash-stage-hint">Parts confirmed to fit</span>
+                                    </li>
+                                    <li class="dash-stage" data-stage="finalized">
+                                        <span class="dash-stage-pin" aria-hidden="true"></span>
+                                        <b class="dash-stage-n rf-mono">0</b>
+                                        <span class="dash-stage-name">Finalized</span>
+                                        <span class="dash-stage-hint">Complete and locked</span>
+                                    </li>
+                                </ol>
+                                <div class="dash-servers-foot">
+                                    <span><b id="dashServersTotal" class="rf-mono">0</b> servers in total</span>
+                                </div>
+                            </section>
+
+                            <section class="rf-card" aria-labelledby="dashActivityTitle">
+                                <div class="rf-card-head">
+                                    <h2 id="dashActivityTitle">Recent activity</h2>
+                                    <a href="activity-log.html" id="recentActivityAll" class="rf-link">View all</a>
+                                </div>
+                                <div id="recentActivityBody" class="dash-feed">
+                                    <div class="rf-state">Loading activity…</div>
+                                </div>
+                            </section>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -205,7 +272,7 @@
                 const today = new Date().toLocaleDateString('en-GB', {
                     timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                 });
-                el.textContent = `Stock and server builds across every site, as of ${today}`;
+                el.textContent = `What needs you, and where your hardware stands, as of ${today}`;
             }
         })();
     </script>

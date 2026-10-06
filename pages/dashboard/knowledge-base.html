@@ -213,12 +213,13 @@
                             <!-- 02 -->
                             <section class="kb-section" id="kb-dash">
                                 <h3><span class="kb-eyebrow">02</span>The Dashboard</h3>
-                                <p>The dashboard answers one question: <em>what do we have, and how much of it is free?</em> Two summaries sit at the top: every part on record split into available, in use and failed, and every server split by build stage. Below them, <strong>Inventory by type</strong> gives each of the 13 hardware types a row with the same split; click a row to open that type's list. The sidebar repeats the totals as counters, so you can watch stock without leaving the page you are on.</p>
-                                <p>Beside the inventory, <strong>Recent activity</strong> shows the latest changes across the system — components added, components removed from servers, roles changed. <strong>View all</strong> opens the full activity log, which administrators can also reach from the sidebar.</p>
+                                <p>The dashboard starts with <strong>Needs your attention</strong>: requests waiting on you or your team, part types with failed units, and part types with no spares (or fewer than 1 in 20) left. Each line has a button that takes you straight there. When there is nothing to act on, it says so.</p>
+                                <p><strong>Parts</strong> shows how much you can still build with. The bar at the top splits every part on record into spare, installed and failed; below it, each part type you stock gets a row such as <em>20 spare of 136</em>. Click a row to open that type's list. Types with nothing on record are listed on one line at the bottom.</p>
+                                <p><strong>Server builds</strong> counts servers at each stage, in order: Draft, Building, Validated, Finalized. <strong>Recent activity</strong> shows the latest changes by server name, with repeated entries grouped (<em>added 3 parts to 7U - Dell PowerEdge R630</em>). <strong>View all</strong> opens the full activity log.</p>
 
                                 <div class="kb-note">
                                     <span class="kb-note-title">Reading the numbers</span>
-                                    <p><strong>Available</strong> is in stock and free to assign. <strong>In use</strong> is installed in a server. <strong>Failed</strong> is marked faulty and excluded when building. The three always add up to the total.</p>
+                                    <p><strong>Spare</strong> is in stock and free to use in a build. <strong>Installed</strong> is in a server. <strong>Failed</strong> is marked faulty and left out when building. The three always add up to the total.</p>
                                 </div>
                             </section>
 
@@ -612,8 +613,8 @@
                                 </div>
 
                                 <div class="kb-note">
-                                    <span class="kb-note-title">"Built" is an older label</span>
-                                    <p>Servers created before this vocabulary was introduced may still show <code>Built</code>. Read it as Building. Parts can only be added or removed while a server is in Draft, Building or Maintenance.</p>
+                                    <span class="kb-note-title">When parts can change</span>
+                                    <p>Parts can only be added or removed while a server is in Draft, Building or Maintenance.</p>
                                 </div>
 
                                 <h4>Compute platforms</h4>
