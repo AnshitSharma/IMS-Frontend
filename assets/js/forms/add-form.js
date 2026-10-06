@@ -25,6 +25,12 @@ const ADD_FORM_COMPONENT_TYPES = [
 // (a blank serial is stored as null — see collectFormData).
 const ADD_FORM_SERIAL_REQUIRED_TYPES = ['storage', 'sfp'];
 
+// Bulk add. {type}-bulk-add takes at most 100 units per call, so a bigger batch
+// goes out in chunks of this size. The per-line ceiling only guards against a
+// typo (3200 for 32); a real delivery larger than this is two lines.
+const ADD_FORM_BULK_CHUNK = 100;
+const ADD_FORM_BULK_MAX_QUANTITY = 500;
+
 class AddComponentForm {
     /**
      * @param {object} options
@@ -41,6 +47,13 @@ class AddComponentForm {
         this.isSubmitting = false;
         this.embedded = options.embedded === true;
         this.listenersBound = false;
+
+        // Bulk add state — see the "Bulk add" section below.
+        this.batch = [];            // lines queued with "Add to batch"
+        this.batchSeq = 0;
+        this.bulkAdded = [];        // every unit added from this drawer, for the tag list
+        this.unconfirmed = null;    // a chunk the server never answered: { units, key, message }
+        this.bulkFinished = false;
 
         this.init();
     }
@@ -147,6 +160,8 @@ class AddComponentForm {
 
         // Validation on input
         this.setupValidation();
+
+        this.setupBulkListeners();
     }
 
     setupCustomSpecificationListeners() {
@@ -226,8 +241,9 @@ class AddComponentForm {
         document.getElementById('formTitle').textContent = `Add ${singular}`;
         const eyebrow = document.getElementById('formEyebrow');
         if (eyebrow) eyebrow.textContent = `${singular} · New unit`;
-        const submitText = document.querySelector('#submitBtn .btn-text');
-        if (submitText) submitText.textContent = this.canAddDirectly() ? `Add ${singular}` : 'Submit request';
+        // A batch belongs to one type: bulk-add is per module.
+        this.batch = [];
+        this.applyBulkAvailability();
 
         try {
             // Show loading
@@ -1114,11 +1130,13 @@ class AddComponentForm {
         if (!uuid) {
             document.getElementById('componentUUID').value = '';
             this.clearComponentDetails();
+            this.updateSubmitLabel();
             return;
         }
 
         // Auto-fill UUID
         document.getElementById('componentUUID').value = uuid;
+        this.updateSubmitLabel();
 
         // Get model data from the selected option
         let modelData = null;
@@ -1231,6 +1249,7 @@ class AddComponentForm {
         document.getElementById('componentUUID').value = '';
         this.clearComponentDetails();
         this.selectedComponent = null;
+        this.updateSubmitLabel();
     }
 
     // Standard dropdowns level 2 and 3 (for CPU, Motherboard, NIC, HBA)
@@ -1900,6 +1919,16 @@ class AddComponentForm {
             return;
         }
 
+        // After a bulk add, the primary button is "Done".
+        if (this.bulkFinished) {
+            this.finishBulk();
+            return;
+        }
+        if (this.isBulkSubmission()) {
+            await this.handleBulkSubmit();
+            return;
+        }
+
         try {
             this.isSubmitting = true;
             const submitBtn = document.getElementById('submitBtn');
@@ -2238,29 +2267,7 @@ class AddComponentForm {
 
         // Use the global api object if available
         if (window.api && window.api.components && window.api.components.add) {
-            return await window.api.components.add(this.currentComponentType, {
-                UUID: formData.UUID,
-                SerialNumber: formData.SerialNumber,
-                Status: formData.Status,
-                VendorID: formData.VendorID,
-                Location: formData.Location,
-                // This list is written out by hand rather than spread from
-                // formData, so a field collectFormData() builds is only sent if
-                // it is also named here. Both of these are named explicitly for
-                // that reason: Location is mandatory now, and a site that landed
-                // in the free-text column without its uuid would leave the row
-                // unfilterable by location. submitAsRequest() posts the whole
-                // object, so the two paths agree on what a saved unit carries.
-                location_uuid: formData.location_uuid,
-                StoreLocation: formData.StoreLocation,
-                RackPosition: formData.RackPosition,
-                PurchaseDate: formData.PurchaseDate,
-                InstallationDate: formData.InstallationDate,
-                WarrantyEndDate: formData.WarrantyEndDate,
-                FailDate: formData.FailDate,
-                Flag: formData.Flag,
-                Notes: formData.Notes
-            });
+            return await window.api.components.add(this.currentComponentType, this.directPayload(formData));
         }
 
         // Deliberately no fallback fetch. This module is only injected onto pages
@@ -2273,12 +2280,669 @@ class AddComponentForm {
     }
 
     /**
+     * The fields a direct add sends, from collectFormData()'s object.
+     *
+     * Written out by hand rather than spread, so a field collectFormData()
+     * builds is only sent if it is also named here. location_uuid is named
+     * explicitly for that reason: Location is mandatory, and a site that landed
+     * in the free-text column without its uuid would leave the row unfilterable
+     * by location. submitAsRequest() posts the whole object, so the two paths
+     * agree on what a saved unit carries. Bulk add sends the same fields.
+     */
+    directPayload(formData) {
+        return {
+            UUID: formData.UUID,
+            SerialNumber: formData.SerialNumber,
+            Status: formData.Status,
+            VendorID: formData.VendorID,
+            Location: formData.Location,
+            location_uuid: formData.location_uuid,
+            StoreLocation: formData.StoreLocation,
+            RackPosition: formData.RackPosition,
+            PurchaseDate: formData.PurchaseDate,
+            InstallationDate: formData.InstallationDate,
+            WarrantyEndDate: formData.WarrantyEndDate,
+            FailDate: formData.FailDate,
+            Flag: formData.Flag,
+            Notes: formData.Notes
+        };
+    }
+
+    // ==================== BULK ADD ====================
+    //
+    // Many units in one go: a Quantity for identical units (32 of one DIMM),
+    // and "Add to batch" to queue several models before submitting them
+    // together. Everything goes to {type}-bulk-add, which runs each unit
+    // through the same addComponent() a single add uses — UUID-vs-spec check,
+    // location rule, column whitelist — so a bulk unit is not a lesser record.
+    //
+    // Only for someone who can add this type directly. The Request path
+    // (inventory.component.add) carries one unit, and bulk-add itself needs
+    // {type}.create. Embedded in the Requests modal, the host owns submission.
+    //
+    // The endpoint has partial-success semantics: each unit commits on its own
+    // and nothing is rolled back. So the result is reported per unit, and the
+    // units that failed go back into the batch with the reason, never resent
+    // wholesale with the ones that worked.
+
+    bulkEnabled() {
+        return !this.embedded && !!this.currentComponentType && this.canAddDirectly();
+    }
+
+    setupBulkListeners() {
+        const form = document.getElementById('addComponentForm');
+        const quantity = document.getElementById('bulkQuantity');
+        if (!form || !quantity) return;   // an older cached fragment without the bulk fields
+
+        quantity.addEventListener('input', () => this.syncQuantityUi());
+        quantity.addEventListener('change', () => {
+            quantity.value = this.getQuantity();
+            this.syncQuantityUi();
+        });
+        document.getElementById('serialNumbers')?.addEventListener('input', () => this.updateSerialsHint());
+        document.getElementById('addToBatchBtn')?.addEventListener('click', () => this.addCurrentToBatch());
+
+        form.addEventListener('click', (e) => {
+            const step = e.target.closest('[data-qty-step]');
+            if (step) {
+                quantity.value = Math.min(ADD_FORM_BULK_MAX_QUANTITY,
+                    Math.max(1, this.getQuantity() + Number(step.dataset.qtyStep)));
+                this.syncQuantityUi();
+                return;
+            }
+            const remove = e.target.closest('[data-batch-remove]');
+            if (remove) {
+                const id = Number(remove.dataset.batchRemove);
+                this.batch = this.batch.filter(line => line.id !== id);
+                this.renderBatch();
+                return;
+            }
+            if (e.target.closest('[data-copy-tags]')) {
+                this.copyAddedList();
+                return;
+            }
+            if (e.target.closest('[data-unconfirmed-discard]')) {
+                this.discardUnconfirmed();
+            }
+        });
+    }
+
+    /** Show or hide the bulk controls for the current type and permission. */
+    applyBulkAvailability() {
+        const enabled = this.bulkEnabled();
+        const show = (id, on) => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = on ? '' : 'none';
+        };
+        show('bulkQuantityRow', enabled);
+        show('addToBatchBtn', enabled);
+        if (!enabled) {
+            const quantity = document.getElementById('bulkQuantity');
+            if (quantity) quantity.value = '1';
+        }
+        this.syncQuantityUi();
+        this.renderBatch();
+    }
+
+    getQuantity() {
+        if (!this.bulkEnabled()) return 1;
+        const n = parseInt(document.getElementById('bulkQuantity')?.value, 10);
+        if (!Number.isFinite(n) || n < 1) return 1;
+        return Math.min(n, ADD_FORM_BULK_MAX_QUANTITY);
+    }
+
+    /**
+     * Quantity 1 keeps the ordinary serial field. Above 1 it gives way to one
+     * serial per line; whatever was typed moves across rather than being lost.
+     */
+    syncQuantityUi() {
+        const q = this.getQuantity();
+        const multi = q > 1;
+        const single = document.getElementById('serialNumber');
+        const singleField = single?.closest('.cd-field');
+        const multiField = document.getElementById('serialNumbersField');
+        const textarea = document.getElementById('serialNumbers');
+
+        if (single && textarea) {
+            if (multi && !textarea.value.trim() && single.value.trim()) {
+                textarea.value = single.value.trim();
+                single.value = '';
+            } else if (!multi && !single.value.trim() && textarea.value.trim()) {
+                single.value = this.parseSerials()[0] || '';
+                textarea.value = '';
+            }
+        }
+        if (singleField) singleField.style.display = multi ? 'none' : '';
+        if (multiField) multiField.style.display = multi ? '' : 'none';
+
+        // validateForm() reads [required] off the field itself, not its hidden
+        // wrapper, so the single field must stop being required while it is
+        // hidden. The serial list is checked by serialProblem() instead.
+        if (multi) {
+            single?.removeAttribute('required');
+        } else {
+            this.applySerialRequirement(this.currentComponentType);
+        }
+
+        const required = ADD_FORM_SERIAL_REQUIRED_TYPES.includes(this.currentComponentType);
+        const optionalHint = document.getElementById('serialNumbersOptionalHint');
+        if (optionalHint) optionalHint.style.display = required ? 'none' : '';
+        document.getElementById('serialNumbersLabel')?.classList.toggle('cd-req', required);
+
+        document.querySelectorAll('#addComponentForm [data-qty-step]').forEach(btn => {
+            const dir = Number(btn.dataset.qtyStep);
+            btn.disabled = dir < 0 ? q <= 1 : q >= ADD_FORM_BULK_MAX_QUANTITY;
+        });
+
+        this.updateSerialsHint();
+        this.updateSubmitLabel();
+    }
+
+    /** Serials from the list: one per line (commas and tabs also split, for a pasted row). */
+    parseSerials() {
+        const raw = document.getElementById('serialNumbers')?.value || '';
+        return raw.split(/[\r\n,;\t]+/).map(s => s.trim()).filter(Boolean);
+    }
+
+    /** Serials already claimed by lines in the batch. */
+    batchSerials() {
+        return new Set(this.batch.flatMap(line => line.serials));
+    }
+
+    /** What is wrong with the serials for the current entry, or null. */
+    serialProblem() {
+        const q = this.getQuantity();
+        const serials = q > 1
+            ? this.parseSerials()
+            : [document.getElementById('serialNumber')?.value.trim()].filter(Boolean);
+        const required = ADD_FORM_SERIAL_REQUIRED_TYPES.includes(this.currentComponentType);
+
+        if (serials.length > q) {
+            return `${serials.length} serials for ${q} units. Remove the extras or raise the quantity.`;
+        }
+        if (q > 1 && required && serials.length < q) {
+            return `Every unit of this type needs a serial: ${serials.length} of ${q} entered.`;
+        }
+        const seen = new Set();
+        for (const s of serials) {
+            if (seen.has(s)) return `Serial ${s} is listed twice.`;
+            seen.add(s);
+        }
+        const inBatch = this.batchSerials();
+        for (const s of serials) {
+            if (inBatch.has(s)) return `Serial ${s} is already in the batch.`;
+        }
+        return null;
+    }
+
+    updateSerialsHint() {
+        const help = document.getElementById('serialNumbersHelp');
+        if (!help) return;
+        const q = this.getQuantity();
+        if (q <= 1) return;
+        const n = this.parseSerials().length;
+        const problem = n ? this.serialProblem() : null;
+        const required = ADD_FORM_SERIAL_REQUIRED_TYPES.includes(this.currentComponentType);
+        help.classList.toggle('is-error', !!problem);
+        help.textContent = problem || (required
+            ? `${n} of ${q} entered. Every unit of this type needs one.`
+            : `${n} of ${q} entered. Units without one are told apart by their asset tag.`);
+    }
+
+    hasPendingEntry() {
+        return !!document.getElementById('componentUUID')?.value;
+    }
+
+    /**
+     * Whether a bulk submit includes what the form currently holds: yes when a
+     * model is picked in it, and also when there is nothing else to send (so
+     * validation can say what is missing).
+     */
+    entryJoinsSubmit() {
+        return this.hasPendingEntry() || (!this.batch.length && !this.unconfirmed);
+    }
+
+    batchUnitCount() {
+        return this.batch.reduce((sum, line) => sum + line.quantity, 0);
+    }
+
+    /** True when this submit goes to bulk-add rather than the single add. */
+    isBulkSubmission() {
+        return this.bulkEnabled() && (this.batch.length > 0 || this.getQuantity() > 1 || !!this.unconfirmed);
+    }
+
+    updateSubmitLabel() {
+        const submitText = document.querySelector('#submitBtn .btn-text');
+        if (!submitText || !this.currentComponentType) return;
+        if (this.bulkFinished) {
+            submitText.textContent = 'Done';
+            return;
+        }
+        if (!this.canAddDirectly()) {
+            submitText.textContent = 'Submit request';
+            return;
+        }
+        if (this.isBulkSubmission()) {
+            const total = this.batchUnitCount()
+                + (this.entryJoinsSubmit() ? this.getQuantity() : 0)
+                + (this.unconfirmed ? this.unconfirmed.units.length : 0);
+            submitText.textContent = `Add ${total} ${total === 1 ? 'unit' : 'units'}`;
+            return;
+        }
+        const singular = (window.utils && utils.componentLabelsSingular && utils.componentLabelsSingular[this.currentComponentType])
+            || this.currentComponentType.toUpperCase();
+        submitText.textContent = `Add ${singular}`;
+    }
+
+    /** The picked model as a person reads it: the option text, led by the brand. */
+    currentModelLabel(uuid) {
+        let text = '';
+        for (let i = 4; i >= 1 && !text; i--) {
+            const dropdown = document.getElementById(`dropdown${i}Select`);
+            if (dropdown && dropdown.value === uuid) {
+                text = dropdown.options[dropdown.selectedIndex]?.textContent.trim() || '';
+            }
+        }
+        const brand = this.selectedComponent?._brand || this.selectedComponent?._manufacturer || '';
+        if (text && brand && !text.toLowerCase().startsWith(brand.toLowerCase())) {
+            text = `${brand} ${text}`;
+        }
+        return text || uuid;
+    }
+
+    /** Validate the entry the form currently holds, as one batch line. */
+    validateEntry() {
+        if (!this.validateForm()) return false;
+        const problem = this.serialProblem();
+        if (problem) {
+            const field = this.getQuantity() > 1
+                ? document.getElementById('serialNumbers')
+                : document.getElementById('serialNumber');
+            field?.focus();
+            if (typeof toast !== 'undefined') toast.warning(problem);
+            return false;
+        }
+        return true;
+    }
+
+    /** The current entry as a batch line. Call validateEntry() first. */
+    snapshotEntry() {
+        const q = this.getQuantity();
+        const fields = this.directPayload(this.collectFormData());
+        delete fields.SerialNumber;
+        const serials = q > 1
+            ? this.parseSerials()
+            : [document.getElementById('serialNumber').value.trim()].filter(Boolean);
+        return {
+            id: ++this.batchSeq,
+            label: this.currentModelLabel(fields.UUID),
+            quantity: q,
+            serials,
+            fields,
+            error: null
+        };
+    }
+
+    /**
+     * Clear what identifies one entry — model, quantity, serials — and keep
+     * the rest. The next line of a delivery shares its site, vendor, dates
+     * and status far more often than not.
+     */
+    resetEntry() {
+        const first = document.getElementById('dropdown1Select');
+        if (first) first.value = '';
+        this.clearDropdownsFrom(2);
+        const quantity = document.getElementById('bulkQuantity');
+        if (quantity) quantity.value = '1';
+        const single = document.getElementById('serialNumber');
+        if (single) single.value = '';
+        const textarea = document.getElementById('serialNumbers');
+        if (textarea) textarea.value = '';
+        this.syncQuantityUi();
+    }
+
+    addCurrentToBatch() {
+        if (this.isSubmitting || !this.bulkEnabled()) return;
+        if (!this.hasPendingEntry()) {
+            document.getElementById('dropdown1Select')?.focus();
+            if (typeof toast !== 'undefined') toast.warning('Pick a model first, then add it to the batch.');
+            return;
+        }
+        if (!this.validateEntry()) return;
+        this.batch.push(this.snapshotEntry());
+        this.resetEntry();
+        this.renderBatch();
+        document.getElementById('dropdown1Select')?.focus();
+    }
+
+    renderBatch() {
+        const wrap = document.getElementById('bulkBatch');
+        const list = document.getElementById('bulkBatchList');
+        if (!wrap || !list) return;
+        if (!this.batch.length) {
+            wrap.style.display = 'none';
+            list.innerHTML = '';
+            this.updateSubmitLabel();
+            return;
+        }
+        const esc = (v) => utils.escapeHtml(String(v ?? ''));
+        const units = this.batchUnitCount();
+        const summary = document.getElementById('bulkBatchSummary');
+        if (summary) {
+            summary.textContent = `${units} ${units === 1 ? 'unit' : 'units'}, ${this.batch.length} ${this.batch.length === 1 ? 'line' : 'lines'}`;
+        }
+        list.innerHTML = this.batch.map(line => {
+            const f = line.fields;
+            const meta = [
+                [f.Location, f.StoreLocation].filter(Boolean).join(', '),
+                line.serials.length
+                    ? `${line.serials.length} ${line.serials.length === 1 ? 'serial' : 'serials'}`
+                    : 'no serials',
+                f.Status === '0' ? 'failed' : '',
+                f.Flag || ''
+            ].filter(Boolean).join(' · ');
+            return `
+                <li class="cd-batch-line">
+                    <div class="cd-batch-qty">${line.quantity}<span>&times;</span></div>
+                    <div>
+                        <div class="cd-batch-name">${esc(line.label)}</div>
+                        <div class="cd-batch-meta">${esc(meta)}</div>
+                        ${line.error ? `<div class="cd-batch-error">${esc(line.error)}</div>` : ''}
+                    </div>
+                    <button type="button" class="cd-batch-remove" data-batch-remove="${line.id}"
+                        aria-label="Remove ${esc(line.label)} from the batch" title="Remove from batch">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                </li>`;
+        }).join('');
+        wrap.style.display = '';
+        this.updateSubmitLabel();
+    }
+
+    setBulkSubmitting(on) {
+        this.isSubmitting = on;
+        const submitBtn = document.getElementById('submitBtn');
+        const batchBtn = document.getElementById('addToBatchBtn');
+        if (submitBtn) {
+            submitBtn.disabled = on;
+            const text = submitBtn.querySelector('.btn-text');
+            const loader = submitBtn.querySelector('.btn-loader');
+            if (text) text.style.display = on ? 'none' : 'inline-block';
+            if (loader) loader.style.display = on ? 'inline-block' : 'none';
+        }
+        if (batchBtn) batchBtn.disabled = on;
+    }
+
+    newIdempotencyKey() {
+        if (window.crypto && typeof crypto.randomUUID === 'function') return `bulk-${crypto.randomUUID()}`;
+        return `bulk-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    }
+
+    /**
+     * Send one chunk (<= 100 units) under one idempotency key.
+     *
+     * Three outcomes. Answered: every unit is added or refused, per the
+     * server's results. Refused whole (a 4xx with no per-unit results — bad
+     * request, no permission, rate limit): nothing was written. Unknown (a
+     * network failure, a 5xx, a 409 "already in progress"): some units may
+     * have been written, and only resending under the SAME key can say which
+     * without adding them twice — the server replays its recorded answer.
+     */
+    async postChunk(units, key) {
+        let result;
+        try {
+            result = await api.request(`${this.currentComponentType}-bulk-add`, {
+                components: JSON.stringify(units.map(u => u.payload)),
+                idempotency_key: key
+            });
+        } catch (error) {
+            // request() throws on any non-2xx; a batch where every unit failed
+            // is a 400 that still carries the per-unit results.
+            if (error.data && Array.isArray(error.data.results)) {
+                result = { data: error.data };
+            } else if ([400, 401, 403, 413, 422, 429].includes(Number(error.code))) {
+                return {
+                    added: [],
+                    failed: units.map(u => ({ unit: u, error: error.message || 'Refused by the server' }))
+                };
+            } else {
+                return { unknown: true, message: error.message || 'No response from the server' };
+            }
+        }
+
+        const results = (result && result.data && Array.isArray(result.data.results)) ? result.data.results : [];
+        const added = [];
+        const failed = [];
+        units.forEach((unit, i) => {
+            const r = results.find(x => Number(x.index) === i) || results[i];
+            if (r && r.success) {
+                added.push({ unit, assetTag: r.asset_tag || '', componentId: r.component_id });
+            } else {
+                failed.push({ unit, error: (r && r.error) || 'The server did not report this unit' });
+            }
+        });
+        return { added, failed };
+    }
+
+    async handleBulkSubmit() {
+        if (this.isSubmitting) return;
+
+        const lines = [...this.batch];
+        // The form's own entry joins the batch when a model is picked in it —
+        // and must, when there is nothing else to send.
+        let entryIncluded = false;
+        if (this.entryJoinsSubmit()) {
+            if (!this.validateEntry()) return;
+            lines.push(this.snapshotEntry());
+            entryIncluded = true;
+        }
+
+        const units = lines.flatMap(line => Array.from({ length: line.quantity }, (_, i) => {
+            const payload = { ...line.fields, SerialNumber: line.serials[i] || null };
+            // Same as a single add: request() leaves null fields out of the form post.
+            Object.keys(payload).forEach(k => { if (payload[k] === null || payload[k] === undefined) delete payload[k]; });
+            return { line, serial: line.serials[i] || null, payload };
+        }));
+
+        this.setBulkSubmitting(true);
+        const added = [];
+        const failed = [];
+        let unsent = [];
+        let stopped = null;
+        try {
+            // A chunk nobody answered goes first, under its original key.
+            if (this.unconfirmed) {
+                const r = await this.postChunk(this.unconfirmed.units, this.unconfirmed.key);
+                if (r.unknown) {
+                    this.unconfirmed.message = r.message;
+                    stopped = r.message;
+                    unsent = units;
+                } else {
+                    this.unconfirmed = null;
+                    added.push(...r.added);
+                    failed.push(...r.failed);
+                }
+            }
+            for (let i = 0; !stopped && i < units.length; i += ADD_FORM_BULK_CHUNK) {
+                const chunk = units.slice(i, i + ADD_FORM_BULK_CHUNK);
+                const key = this.newIdempotencyKey();
+                const r = await this.postChunk(chunk, key);
+                if (r.unknown) {
+                    this.unconfirmed = { units: chunk, key, message: r.message };
+                    stopped = r.message;
+                    unsent = units.slice(i + ADD_FORM_BULK_CHUNK);
+                    break;
+                }
+                added.push(...r.added);
+                failed.push(...r.failed);
+            }
+        } finally {
+            this.setBulkSubmitting(false);
+        }
+
+        this.applyBulkOutcome({ added, failed, unsent, entryIncluded, stopped });
+    }
+
+    /** Units that did not make it go back into the batch, grouped by their line. */
+    regroupIntoBatch(entries) {
+        const byLine = new Map();
+        entries.forEach(({ unit, error }) => {
+            const src = unit.line;
+            if (!byLine.has(src.id)) {
+                byLine.set(src.id, { ...src, id: ++this.batchSeq, quantity: 0, serials: [], errors: new Set() });
+            }
+            const line = byLine.get(src.id);
+            line.quantity++;
+            if (unit.serial) line.serials.push(unit.serial);
+            if (error) line.errors.add(error);
+        });
+        return [...byLine.values()].map(({ errors, ...line }) => ({
+            ...line,
+            error: errors.size ? [...errors].join(' ') : null
+        }));
+    }
+
+    applyBulkOutcome({ added, failed, unsent, entryIncluded, stopped }) {
+        this.bulkAdded.push(...added);
+        this.batch = this.regroupIntoBatch([
+            ...failed,
+            ...unsent.map(unit => ({ unit, error: null }))
+        ]);
+        if (entryIncluded) this.resetEntry();
+
+        const notAdded = failed.length + unsent.length;
+        const allDone = notAdded === 0 && !this.unconfirmed;
+
+        if (added.length && window.dashboard) {
+            if (typeof window.dashboard.loadComponentList === 'function') {
+                window.dashboard.loadComponentList(this.currentComponentType, true);
+            }
+            if (typeof window.dashboard.loadDashboard === 'function') {
+                window.dashboard.loadDashboard();
+            }
+        }
+
+        if (allDone) {
+            this.bulkFinished = true;
+            ['specificationSection', 'identificationSection', 'statusSection', 'vendorSection',
+             'locationSection', 'datesSection', 'flagSection', 'notesSection'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+            const batchBtn = document.getElementById('addToBatchBtn');
+            if (batchBtn) batchBtn.style.display = 'none';
+        }
+
+        this.renderResult(notAdded);
+        this.renderBatch();
+        this.renderUnconfirmed();
+        this.updateSubmitLabel();
+
+        if (typeof toast !== 'undefined') {
+            if (allDone) {
+                toast.success(`${added.length} ${added.length === 1 ? 'unit' : 'units'} added. Label each with the asset tag listed.`, 6000);
+            } else if (stopped) {
+                toast.error(`The server stopped answering: ${stopped}`, 8000);
+            } else {
+                toast.warning(`${added.length} added, ${failed.length} not added. The reasons are in the batch.`, 8000);
+            }
+        }
+        document.getElementById('addComponentForm')?.querySelector('.cd-body')?.scrollTo({ top: 0 });
+    }
+
+    renderResult(notAdded) {
+        const box = document.getElementById('bulkResult');
+        if (!box) return;
+        const total = this.bulkAdded.length;
+        if (!total && !notAdded) {
+            box.style.display = 'none';
+            return;
+        }
+        const esc = (v) => utils.escapeHtml(String(v ?? ''));
+        box.classList.toggle('is-ok', notAdded === 0 && !this.unconfirmed);
+        box.classList.toggle('is-partial', notAdded > 0 || !!this.unconfirmed);
+
+        const head = total
+            ? `${total} ${total === 1 ? 'unit' : 'units'} added${notAdded ? `, ${notAdded} not added` : ''}`
+            : `None of the ${notAdded} units were added`;
+        const sub = notAdded
+            ? 'The ones not added are back in the batch with the reason. Fix them and add again, or remove them.'
+            : 'Label each unit with its asset tag.';
+
+        box.innerHTML = `
+            <div class="cd-result-top">
+                <div class="cd-result-head">
+                    <strong>${esc(head)}</strong>
+                    ${total ? '<button type="button" class="cd-btn" data-copy-tags>Copy list</button>' : ''}
+                </div>
+                <p class="cd-result-sub">${esc(sub)}</p>
+            </div>
+            ${total ? `<ul class="cd-result-list">${this.bulkAdded.map(a => `
+                <li class="cd-result-row">
+                    <span class="cd-result-tag">${esc(a.assetTag || `#${a.componentId}`)}</span>
+                    <span class="cd-result-what">${esc(a.unit.line.label)}${a.unit.serial ? ` — SN ${esc(a.unit.serial)}` : ''}</span>
+                </li>`).join('')}</ul>` : ''}`;
+        box.style.display = '';
+    }
+
+    renderUnconfirmed() {
+        const note = document.getElementById('bulkUnconfirmed');
+        if (!note) return;
+        if (!this.unconfirmed) {
+            note.style.display = 'none';
+            note.innerHTML = '';
+            return;
+        }
+        const n = this.unconfirmed.units.length;
+        note.innerHTML = `${n} ${n === 1 ? 'unit' : 'units'} went unanswered (${utils.escapeHtml(this.unconfirmed.message || 'no response')}).
+            Add again to check them: any the server already saved are reported, not added twice.
+            <button type="button" class="cd-link" data-unconfirmed-discard>Forget them</button>`;
+        note.style.display = '';
+    }
+
+    async discardUnconfirmed() {
+        if (!this.unconfirmed) return;
+        const ok = await utils.confirm(
+            'Some of these units may already be in inventory. If you forget them, check the list before adding them again, or they will be added twice.',
+            'Forget unanswered units'
+        );
+        if (!ok) return;
+        this.unconfirmed = null;
+        this.renderUnconfirmed();
+        this.updateSubmitLabel();
+    }
+
+    /** Tab-separated, so it pastes into a spreadsheet as tag / model / serial. */
+    async copyAddedList() {
+        const text = this.bulkAdded
+            .map(a => [a.assetTag || `#${a.componentId}`, a.unit.line.label, a.unit.serial || ''].join('\t'))
+            .join('\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            if (typeof toast !== 'undefined') toast.success('List copied.');
+        } catch (e) {
+            if (typeof toast !== 'undefined') toast.error('Could not copy. Select the list and copy it instead.');
+        }
+    }
+
+    finishBulk() {
+        if (window.dashboard && typeof window.dashboard.closeModal === 'function') {
+            window.dashboard.closeModal();
+        } else {
+            window.history.back();
+        }
+    }
+
+    /**
      * Whether closing would throw away anything the user entered. The type and
      * the defaults the form fills itself (UUID, status, location) do not count.
      */
     hasUserInput() {
+        // Everything was added; what is left in the fields was already saved.
+        if (this.bulkFinished) return false;
+        if (this.batch.length || this.unconfirmed) return true;
         const filled = (id) => (document.getElementById(id)?.value || '').trim() !== '';
-        return filled('dropdown1Select') || filled('serialNumber') || filled('storeLocation')
+        return filled('dropdown1Select') || filled('serialNumber') || filled('serialNumbers') || filled('storeLocation')
             || filled('purchaseDate') || filled('warrantyEndDate') || filled('installationDate')
             || filled('vendorSelect') || filled('flag') || filled('notes')
             || document.getElementById('status')?.value === '0';
@@ -2293,6 +2957,8 @@ class AddComponentForm {
         this.selectedComponent = null;
         this.componentSpecification = {};
         this.isSubmitting = false;
+        this.batch = [];
+        this.renderBatch();
 
         // Remove custom specification forms
         const existingCustomForm = document.getElementById('customSpecForm');

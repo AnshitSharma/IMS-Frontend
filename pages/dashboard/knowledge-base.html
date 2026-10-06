@@ -303,6 +303,7 @@
 
                                 <h4>Editing, deleting, and bulk actions</h4>
                                 <p>Rows show <strong>Edit</strong> and <strong>Delete</strong> only if your role includes them. Several rows can be selected for a bulk status update or bulk delete — useful when a shipment arrives or a batch is retired. <strong>Add Component</strong> is shown to everyone; without create permission it raises a Request instead of writing the record, and the same is true of the edit form.</p>
+                                <p><strong>Adding many units at once.</strong> In the Add drawer, set <strong>Quantity</strong> for identical units (32 of the same DIMM) and paste their serials one per line. To add several models together, press <strong>Add to batch</strong> after each one, then add the whole batch in one go. Every unit gets its own asset tag, and the drawer lists them all so they can be copied out for labelling. If some units are refused, the rest are still added, and the refused ones stay in the batch with the reason. Bulk adding needs create permission; without it, the form raises a Request for one unit at a time.</p>
 
                                 <div class="kb-note is-warn">
                                     <span class="kb-note-title">A unit installed in a server cannot be deleted</span>

@@ -16,6 +16,21 @@
     </div>
 
     <div class="cd-body">
+        <!-- Bulk add. Shown only to someone who can add this type directly (the
+             Request path carries one unit) and never when embedded. Not a
+             .form-section, so the type section below stays the first one.
+             Inline display rather than `hidden`: these .cd-* rules load after
+             tailwind.css and would win against it. -->
+        <div id="bulkResult" class="cd-result" role="status" style="display: none;"></div>
+        <div id="bulkUnconfirmed" class="cd-note is-expired" role="alert" style="display: none;"></div>
+        <div id="bulkBatch" class="cd-batch" style="display: none;">
+            <div class="cd-batch-head">
+                <span class="cd-section-title">Batch</span>
+                <span id="bulkBatchSummary" class="cd-count"></span>
+            </div>
+            <ul id="bulkBatchList" class="cd-batch-list"></ul>
+        </div>
+
         <!-- Component type. Hidden by add-form.js when the page already says
              which type this is; it must stay the first .form-section. -->
         <div class="form-section cd-section">
@@ -99,6 +114,23 @@
                     <input type="text" id="serialNumber" placeholder="Manufacturer serial, if readable">
                     <span id="serialNumberHelp" class="cd-hint">Leave blank if the label is missing or unreadable. Every unit gets its own asset tag either way.</span>
                 </div>
+            </div>
+            <!-- Bulk add: how many identical units. Above 1, the serial input
+                 above gives way to one serial per line below. -->
+            <div class="cd-grid" id="bulkQuantityRow" style="display: none;">
+                <div class="cd-field">
+                    <label for="bulkQuantity">Quantity</label>
+                    <div class="cd-stepper">
+                        <button type="button" data-qty-step="-1" aria-label="One fewer">&minus;</button>
+                        <input type="number" id="bulkQuantity" min="1" max="500" step="1" value="1" inputmode="numeric">
+                        <button type="button" data-qty-step="1" aria-label="One more">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="cd-field" id="serialNumbersField" style="display: none;">
+                <label for="serialNumbers" id="serialNumbersLabel">Serial numbers <span id="serialNumbersOptionalHint" class="cd-opt">(optional)</span></label>
+                <textarea id="serialNumbers" rows="5" spellcheck="false" autocomplete="off" placeholder="One per line, in the order you label the units"></textarea>
+                <span id="serialNumbersHelp" class="cd-hint"></span>
             </div>
         </div>
 
@@ -207,6 +239,11 @@
             <span class="btn-loader" style="display: none;">
                 <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
             </span>
+        </button>
+        <!-- Last in the markup so Cancel stays the first .cd-btn (it carries the
+             push-right margin); CSS order puts this one on the left. -->
+        <button type="button" class="cd-btn cd-batch-add" id="addToBatchBtn" style="display: none;">
+            <i class="fas fa-plus" aria-hidden="true"></i> Add to batch
         </button>
     </div>
 </form>

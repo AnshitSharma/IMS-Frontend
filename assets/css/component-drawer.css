@@ -113,8 +113,73 @@ body.cd-open { overflow: hidden; }
 .cd-btn-primary:disabled:hover { background: #0F766E; }
 .cd button:focus-visible, .cd-close:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
 
+/* ---------- bulk add (add-form.js) ---------- */
+/* Quantity: a number field between two step buttons. */
+.cd-stepper { display: flex; width: 100%; max-width: 184px; }
+.cd .cd-stepper input[type="number"] {
+    flex: 1; min-width: 0; min-height: 40px; border: 1px solid var(--color-border); border-radius: 0; padding: 0 8px;
+    font: inherit; font-size: 15px; font-weight: 500; text-align: center; font-variant-numeric: tabular-nums;
+    color: var(--color-text-primary); background: var(--color-surface-card); -moz-appearance: textfield; appearance: textfield;
+}
+.cd-stepper input::-webkit-outer-spin-button, .cd-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cd-stepper button {
+    flex: none; width: 40px; border: 1px solid var(--color-border); background: var(--color-surface-card);
+    color: var(--color-text-secondary); font: inherit; font-size: 18px; line-height: 1; cursor: pointer;
+}
+.cd-stepper button:first-child { border-right: 0; border-radius: 8px 0 0 8px; }
+.cd-stepper button:last-child { border-left: 0; border-radius: 0 8px 8px 0; }
+.cd-stepper button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.cd-stepper button:disabled { color: var(--color-text-muted); background: transparent; cursor: default; }
+.cd-stepper input:focus { position: relative; }
+.cd textarea#serialNumbers { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.cd-hint.is-error { color: var(--color-danger); }
+
+/* The batch: what will be added, one line per model. The count leads each
+   line because it is the thing being checked against the delivery note. */
+/* flex: none — .cd-body is a scrolling flex column, and overflow:hidden would
+   otherwise let these boxes shrink to their borders. */
+.cd-batch { flex: none; border: 1px solid var(--color-border-light); border-radius: 10px; overflow: hidden; }
+.cd-batch-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border-light);
+}
+.cd-batch-list { list-style: none; margin: 0; padding: 0; }
+.cd-batch-line { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 14px 16px; }
+.cd-batch-line + .cd-batch-line { border-top: 1px solid var(--color-border-light); }
+.cd-batch-qty { font-size: 20px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: #0F766E; text-align: right; }
+.cd-batch-qty span { font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-left: 1px; }
+.cd-batch-name { font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.cd-batch-meta { margin-top: 2px; font-size: 12px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+.cd-batch-error { margin-top: 6px; font-size: 12px; color: var(--color-danger); overflow-wrap: anywhere; }
+.cd-batch-remove {
+    width: 32px; height: 32px; border: 0; border-radius: 8px; background: none;
+    color: var(--color-text-muted); cursor: pointer;
+}
+.cd-batch-remove:hover { background: var(--color-surface-hover); color: var(--color-danger); }
+.cd-foot .cd-batch-add { order: -1; margin-right: auto; }
+[data-theme="dark"] .cd-batch-qty { color: #5EEAD4; }
+
+/* After a bulk submit: the asset tags to write on the units. */
+.cd-result { flex: none; border: 1px solid var(--color-border-light); border-radius: 10px; overflow: hidden; }
+.cd-result.is-ok .cd-result-top { background: rgba(15, 118, 110, .07); }
+.cd-result.is-partial .cd-result-top { background: var(--color-warning-light); }
+[data-theme="dark"] .cd-result.is-partial .cd-result-top { background: rgba(251, 191, 36, .1); }
+.cd-result-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 4px; }
+.cd-result-head strong { flex: 1; font-size: 15px; font-weight: 600; }
+.cd-result-head .cd-btn { height: 32px; padding: 0 12px; font-size: 13px; }
+.cd-result-sub { margin: 0; padding: 0 16px 14px; font-size: 13px; color: var(--color-text-secondary); }
+.cd-result-list { list-style: none; margin: 0; padding: 0; max-height: 280px; overflow-y: auto; border-top: 1px solid var(--color-border-light); }
+.cd-result-row { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 12px; padding: 10px 16px; font-size: 13px; }
+.cd-result-row + .cd-result-row { border-top: 1px solid var(--color-border-light); }
+.cd-result-tag { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 500; }
+.cd-result-what { color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.cd-note .cd-link { border: 0; padding: 0; background: none; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+
 @media (max-width: 480px) {
     .cd-head, .cd-body, .cd-foot { padding-left: 16px; padding-right: 16px; }
+    .cd-foot { flex-wrap: wrap; }
+    .cd-batch-line { grid-template-columns: 48px minmax(0, 1fr) auto; }
+    .cd-result-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 
 /* Embedded in another modal (requests.js): that host owns the title and the
