@@ -48,11 +48,20 @@
             }
         }
 
-        /* Input Group */
+        /* Field label — sentence case, quiet */
+        .field-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: #2A333B;
+        }
+
+        /* Input Group — 44px touch target */
         .input-group {
+            min-height: 44px;
             background: #FFFFFF;
-            border: 1px solid #DFE3E6;
-            border-radius: 6px;
+            border: 1px solid #D5DADF;
+            border-radius: 8px;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
@@ -62,17 +71,19 @@
 
         .input-group:focus-within {
             border-color: #0F766E;
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
-        }
-
-        .input-group:focus-within i {
-            color: #0F766E;
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
         }
 
         .input-group input {
             border: none !important;
             box-shadow: none !important;
             outline: none !important;
+            font-size: 14px;
+            color: #12181D;
+        }
+
+        .input-group input::placeholder {
+            color: #9AA3AB;
         }
 
         .input-group input:focus,
@@ -81,12 +92,27 @@
             box-shadow: none !important;
         }
 
+        .pw-toggle {
+            color: #8A939B;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: -6px;
+        }
+
+        .pw-toggle:hover {
+            color: #2A333B;
+        }
+
         /* Validation Error Styling */
         .field-error {
             width: 100%;
             color: #DC2626;
             font-size: 0.75rem;
-            margin-top: 0.5rem;
+            margin: 0.25rem 0 0.5rem;
             flex-basis: 100%;
             order: 3;
             font-weight: 500;
@@ -108,24 +134,42 @@
             background-color: #0F766E;
         }
 
-        /* Auth Toggle (segmented control) — JS toggles .active */
-        .auth-toggle button {
-            color: #6E777E;
+        .custom-checkbox:has(input:focus-visible) .checkbox-box {
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.25);
         }
 
-        .auth-toggle button:hover {
-            color: #161A1D;
+        /* Primary action */
+        .btn-primary {
+            height: 44px;
+            border-radius: 8px;
+            background: #0F766E;
+            transition: background-color 0.15s ease;
         }
 
-        .auth-toggle button.active {
-            background-color: #FFFFFF;
-            color: #161A1D !important;
-            box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
-            border: 1px solid #DFE3E6;
+        .btn-primary:hover {
+            background: #0C5D57;
         }
 
-        .toggle-indicator {
-            display: none;
+        /* Text link */
+        .text-link {
+            color: #0F766E;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .text-link:hover {
+            color: #0C5D57;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        /* Visible keyboard focus on every control */
+        .btn-primary:focus-visible,
+        .ms-signin-btn:focus-visible,
+        .text-link:focus-visible,
+        .pw-toggle:focus-visible {
+            outline: 2px solid #0F766E;
+            outline-offset: 2px;
         }
 
         /* Fallback alert (primary path is toast.js) */
@@ -152,9 +196,10 @@
            tailwind.css carries no hover variants — see IMS-Frontend/CLAUDE.md.
            Stays display:none until auth-microsoft_status says the feature is on. */
         .ms-signin-btn {
+            height: 44px;
             background: #FFFFFF;
-            border: 1px solid #DFE3E6;
-            border-radius: 6px;
+            border: 1px solid #D5DADF;
+            border-radius: 8px;
             transition: border-color 0.15s ease, background-color 0.15s ease;
         }
 
@@ -168,12 +213,43 @@
             cursor: default;
         }
 
-        /* Blueprint grid texture for the brand panel (static) */
+        /* Brand panel: the same dark blueprint grid, now fading out toward the
+           edges, with a rack-rail ruler (one tick per rack unit) on the right. */
         .brand-grid {
+            background-color: #14181C;
+        }
+
+        .brand-grid::before {
+            content: "";
+            position: absolute;
+            inset: 0;
             background-image:
-                linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+                linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
             background-size: 56px 56px;
+            -webkit-mask-image: radial-gradient(ellipse 90% 75% at 35% 45%, #000 35%, transparent 100%);
+            mask-image: radial-gradient(ellipse 90% 75% at 35% 45%, #000 35%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .brand-grid::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 28px;
+            width: 10px;
+            border-left: 1px solid #2A3138;
+            background-image:
+                repeating-linear-gradient(to bottom, #3A434B 0 1px, transparent 1px 14px),
+                repeating-linear-gradient(to bottom, #56616B 0 1px, transparent 1px 42px);
+            background-size: 6px 100%, 10px 100%;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
+
+        .capability-row + .capability-row {
+            border-top: 1px solid #2A3138;
         }
     </style>
 </head>
@@ -184,156 +260,140 @@
     <div class="relative z-10 flex h-full">
 
         <!-- Left Panel: Branding (Visible on Desktop) -->
-        <div class="hidden lg:flex w-[44%] xl:w-[42%] flex-col justify-between p-12 xl:p-14 relative overflow-hidden bg-[#14181C] brand-grid">
+        <div class="hidden lg:flex w-[44%] xl:w-[42%] flex-col justify-between p-12 xl:p-14 relative overflow-hidden brand-grid">
 
             <!-- Header Logo -->
             <div class="flex items-center gap-3 relative z-10">
-                <div class="w-10 h-10 rounded bg-primary flex items-center justify-center">
-                    <i class="fas fa-server text-white text-base"></i>
+                <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                    <i class="fas fa-server text-white text-base" aria-hidden="true"></i>
                 </div>
                 <div>
                     <span class="text-base font-semibold text-white tracking-tight block leading-none">BDC IMS</span>
-                    <span class="text-[10px] text-[#98A1A9] uppercase tracking-[0.18em] block mt-1">Infrastructure Management</span>
+                    <span class="text-xs text-[#98A1A9] block mt-1">Infrastructure management</span>
                 </div>
             </div>
 
             <!-- Hero Content -->
-            <div class="relative z-10 max-w-md">
-                <!-- Status Indicator -->
-                <div class="inline-flex items-center gap-2 mb-8 border border-[#2A3138] rounded-full px-3 py-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-success"></span>
-                    <span class="text-[11px] font-medium text-[#B9C1C9] uppercase tracking-[0.14em]">All Systems Operational</span>
-                </div>
-
+            <div class="relative z-10 max-w-md pr-8">
                 <h1 class="text-4xl xl:text-[2.75rem] font-semibold text-white mb-6 leading-[1.15] tracking-tight">
-                    The control plane for your datacenter floor.
+                    Every part, every server, every rack. In one place.
                 </h1>
                 <p class="text-[15px] text-[#98A1A9] leading-relaxed mb-12 max-w-sm">
-                    Hardware inventory, server configuration, and deployment workflow — tracked from intake to rack.
+                    Track hardware from intake to rack, build servers with compatibility checks, and route changes through approvals.
                 </p>
 
                 <!-- Capability Index -->
-                <div class="border-t border-[#2A3138] divide-y divide-[#2A3138] font-mono text-[12px]">
-                    <div class="flex items-center justify-between py-3">
-                        <span class="text-[#6E777E] uppercase tracking-wider">Component classes</span>
-                        <span class="text-[#E6EAED]">13 tracked</span>
+                <div class="border-t border-b border-[#2A3138] text-sm">
+                    <div class="capability-row flex items-center justify-between py-3.5">
+                        <span class="text-[#B9C1C9]">Component classes</span>
+                        <span class="font-mono text-[13px] text-[#E6EAED]">13 tracked</span>
                     </div>
-                    <div class="flex items-center justify-between py-3">
-                        <span class="text-[#6E777E] uppercase tracking-wider">Configuration builder</span>
-                        <span class="text-[#E6EAED]">Compatibility-validated</span>
+                    <div class="capability-row flex items-center justify-between py-3.5">
+                        <span class="text-[#B9C1C9]">Server builder</span>
+                        <span class="font-mono text-[13px] text-[#E6EAED]">Compatibility-validated</span>
                     </div>
-                    <div class="flex items-center justify-between py-3">
-                        <span class="text-[#6E777E] uppercase tracking-wider">Access control</span>
-                        <span class="text-[#E6EAED]">Role-based · JWT</span>
+                    <div class="capability-row flex items-center justify-between py-3.5">
+                        <span class="text-[#B9C1C9]">Access</span>
+                        <span class="font-mono text-[13px] text-[#E6EAED]">Role-based</span>
                     </div>
                 </div>
             </div>
 
             <!-- Footer Info -->
-            <div class="relative z-10 flex items-center justify-between text-[11px] font-mono text-[#6E777E]">
+            <div class="relative z-10 flex items-center justify-between pr-8 text-xs text-[#6E777E]">
                 <span>© 2026 Bharat Datacenter</span>
-                <span>v2.0.0</span>
+                <span class="font-mono">v2.0.0</span>
             </div>
         </div>
 
         <!-- Right Panel: Auth Forms -->
         <div class="flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
-            <div class="w-full max-w-[400px]">
+            <div class="w-full max-w-[380px]">
 
                 <!-- Mobile Logo (visible only on small screens) -->
                 <div class="lg:hidden mb-10">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded bg-primary flex items-center justify-center">
-                            <i class="fas fa-server text-white text-base"></i>
+                        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                            <i class="fas fa-server text-white text-base" aria-hidden="true"></i>
                         </div>
                         <div>
                             <span class="text-base font-semibold text-text-primary tracking-tight block leading-none">BDC IMS</span>
-                            <span class="text-[10px] text-text-muted uppercase tracking-[0.18em] block mt-1">Infrastructure Management</span>
+                            <span class="text-xs text-text-muted block mt-1">Infrastructure management</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Login Form -->
                 <div id="loginForm" class="form-container active">
-                    <div class="mb-8">
-                        <h2 class="text-2xl font-semibold text-text-primary mb-2 tracking-tight">Welcome back</h2>
-                        <p class="text-text-muted text-sm">Enter your credentials to access the control panel.</p>
+                    <div class="mb-7">
+                        <h2 class="text-2xl font-semibold text-text-primary mb-1.5 tracking-tight">Sign in</h2>
+                        <p class="text-text-muted text-sm">Use your BDC account.</p>
+                    </div>
+
+                    <!-- Microsoft (Entra ID) sign-in.
+                         Hidden until auth-microsoft_status reports the feature
+                         configured, so an unconfigured deployment shows only the
+                         username form. The divider lives inside so it hides too. -->
+                    <div id="microsoftSignIn" class="hidden mb-6">
+                        <button type="button" id="microsoftLoginBtn"
+                            class="ms-signin-btn w-full flex items-center justify-center gap-3 text-sm font-medium text-text-primary">
+                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                                <rect x="0" y="0" width="7.5" height="7.5" fill="#F25022" />
+                                <rect x="8.5" y="0" width="7.5" height="7.5" fill="#7FBA00" />
+                                <rect x="0" y="8.5" width="7.5" height="7.5" fill="#00A4EF" />
+                                <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900" />
+                            </svg>
+                            <span id="microsoftLoginBtnText">Continue with Microsoft</span>
+                        </button>
+
+                        <div class="flex items-center gap-3 mt-6">
+                            <div class="h-px flex-1 bg-border-light"></div>
+                            <span class="text-xs text-text-muted">or with username</span>
+                            <div class="h-px flex-1 bg-border-light"></div>
+                        </div>
                     </div>
 
                     <form id="loginFormElement" class="space-y-5">
                         <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Username</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-user text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="text" id="loginUsername" name="username" placeholder="admin_user"
+                            <label for="loginUsername" class="field-label">Username</label>
+                            <div class="input-group flex flex-wrap items-center px-3.5 relative">
+                                <input type="text" id="loginUsername" name="username"
                                     required maxlength="50" autocomplete="username"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
+                                    class="flex-1 bg-transparent py-2.5">
                             </div>
                         </div>
 
                         <div class="space-y-1.5">
-                            <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Password</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                                <i class="fas fa-lock text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                                <input type="password" id="loginPassword" name="password" placeholder="••••••••"
+                            <div class="flex items-center justify-between">
+                                <label for="loginPassword" class="field-label">Password</label>
+                                <a href="#" id="forgotPasswordLink" class="text-link">Forgot password?</a>
+                            </div>
+                            <div class="input-group flex flex-wrap items-center px-3.5 relative">
+                                <input type="password" id="loginPassword" name="password"
                                     required maxlength="128" autocomplete="current-password"
-                                    class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5">
-                                <button type="button" id="toggleLoginPassword"
-                                    class="text-text-disabled hover:text-text-secondary transition-colors p-1">
-                                    <i class="fas fa-eye text-sm"></i>
+                                    class="flex-1 bg-transparent py-2.5">
+                                <button type="button" id="toggleLoginPassword" class="pw-toggle" aria-label="Show password">
+                                    <i class="fas fa-eye text-sm" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between text-sm pt-1">
-                            <label class="custom-checkbox flex items-center gap-2 cursor-pointer group select-none">
-                                <input type="checkbox" id="rememberMe" class="sr-only">
-                                <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
-                                    <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity"></i>
-                                </div>
-                                <span class="text-text-secondary group-hover:text-text-primary transition-colors">Remember me</span>
-                            </label>
-                            <a href="#" id="forgotPasswordLink"
-                                class="text-primary hover:text-primary-dark font-medium transition-colors">Forgot password?</a>
-                        </div>
+                        <label class="custom-checkbox flex items-center gap-2.5 cursor-pointer group select-none text-[13px]">
+                            <input type="checkbox" id="rememberMe" class="sr-only">
+                            <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
+                                <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity" aria-hidden="true"></i>
+                            </div>
+                            <span class="text-[#2A333B]">Keep me signed in on this device</span>
+                        </label>
 
                         <button type="submit" id="loginBtn"
-                            class="w-full bg-primary text-white text-sm font-semibold py-3 rounded-md hover:bg-primary-dark transition-colors duration-150 relative mt-2">
+                            class="btn-primary w-full text-white text-sm font-semibold relative">
                             <span class="relative z-10 btn-text flex items-center justify-center gap-2">
-                                Sign in to console
+                                Sign in
                             </span>
                             <div class="btn-loader"></div>
                         </button>
                     </form>
-
-                    <!-- Microsoft (Entra ID) sign-in.
-                         Hidden until auth-microsoft_status reports the feature
-                         configured, so an unconfigured deployment shows exactly
-                         the page it showed before this existed. -->
-                    <div id="microsoftSignIn" class="hidden mt-6">
-                        <div class="flex items-center gap-3 mb-5">
-                            <div class="h-px flex-1 bg-border-light"></div>
-                            <span class="text-[11px] text-text-muted uppercase tracking-[0.12em]">or</span>
-                            <div class="h-px flex-1 bg-border-light"></div>
-                        </div>
-
-                        <button type="button" id="microsoftLoginBtn"
-                            class="ms-signin-btn w-full flex items-center justify-center gap-3 py-3 text-sm font-semibold text-text-primary">
-                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                                <rect x="0" y="0" width="7" height="7" fill="#F25022" />
-                                <rect x="9" y="0" width="7" height="7" fill="#7FBA00" />
-                                <rect x="0" y="9" width="7" height="7" fill="#00A4EF" />
-                                <rect x="9" y="9" width="7" height="7" fill="#FFB900" />
-                            </svg>
-                            <span id="microsoftLoginBtnText">Sign in with Microsoft</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Security Badge -->
-                <div class="mt-10 pt-6 border-t border-border-light flex items-center justify-center gap-2 text-xs text-text-muted">
-                    <i class="fas fa-lock text-text-disabled text-[10px]"></i>
-                    <span class="font-mono">256-bit SSL encrypted connection</span>
                 </div>
 
             </div>
@@ -359,22 +419,21 @@
         <div id="forgotModalBackdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
         <!-- Card -->
         <div class="relative bg-surface-card rounded-lg border border-border-light p-8 w-full max-w-md mx-4 shadow-modal">
-            <button id="closeForgotModal" class="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors">
+            <button id="closeForgotModal" class="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors" aria-label="Close">
                 <i class="fas fa-times text-lg"></i>
             </button>
             <h2 class="text-xl font-semibold text-text-primary mb-1 tracking-tight">Reset password</h2>
             <p class="text-text-muted text-sm mb-6">Enter your email and we'll send a reset link.</p>
             <form id="forgotPasswordForm">
                 <div class="space-y-1.5 mb-5">
-                    <label class="block text-[11px] font-semibold text-text-secondary uppercase tracking-[0.12em]">Email</label>
-                    <div class="input-group flex flex-wrap items-center px-3.5 py-2.5 relative">
-                        <i class="fas fa-envelope text-text-disabled text-sm min-w-[20px] transition-colors"></i>
-                        <input type="email" id="forgotEmail" name="email" placeholder="your@email.com"
-                            class="flex-1 bg-transparent text-sm text-text-primary placeholder-text-disabled ml-3 py-0.5" required>
+                    <label for="forgotEmail" class="field-label">Email</label>
+                    <div class="input-group flex flex-wrap items-center px-3.5 relative">
+                        <input type="email" id="forgotEmail" name="email" placeholder="you@bharatdatacenter.com"
+                            class="flex-1 bg-transparent py-2.5" required>
                     </div>
                 </div>
                 <button type="submit" id="forgotSubmitBtn"
-                    class="w-full bg-primary text-white text-sm font-semibold py-3 rounded-md hover:bg-primary-dark transition-colors duration-150 relative">
+                    class="btn-primary w-full text-white text-sm font-semibold relative">
                     <span class="btn-text">Send reset link</span>
                     <div class="btn-loader"></div>
                 </button>
