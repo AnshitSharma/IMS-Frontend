@@ -45,6 +45,13 @@ class RequestsManager {
         this.currentUsername = null;
 
         this.scope = 'my_queue';
+        // 'list' (queue + open request side by side) or 'board' (columns by
+        // who has the ball). Remembered per browser.
+        this.view = 'list';
+        try { if (localStorage.getItem('requests_view') === 'board') this.view = 'board'; } catch (e) { /* storage blocked */ }
+        // The board's fourth column: recently closed requests, fetched alongside
+        // the open ones so a page of completed rows cannot crowd them out.
+        this.boardClosed = [];
         // Every list fetch carries a sequence number. Switching tabs or typing in
         // the search box can leave two requests in flight, and the slower one used
         // to win — painting the scope the user had already left. A late answer is
@@ -157,6 +164,7 @@ class RequestsManager {
         }
 
         this.wireEvents();
+        this.applyView();
         this.loadSupportData().finally(() => {
             this.load();
             // ?request=42 — the link every notification (bell, email, Teams)
@@ -203,7 +211,27 @@ class RequestsManager {
         byId('modalClose')?.addEventListener('click', () => this.closeModal('modalContainer'));
         byId('detailClose')?.addEventListener('click', () => this.closeModal('detailModal'));
         byId('modalContainer')?.addEventListener('click', (e) => { if (e.target.id === 'modalContainer') this.closeModal('modalContainer'); });
-        byId('detailModal')?.addEventListener('click', (e) => { if (e.target.id === 'detailModal') this.closeModal('detailModal'); });
+        // The request is a pane (list view) or a sheet (board view, narrow
+        // screens); the backdrop only exists in the sheet case.
+        byId('detailBackdrop')?.addEventListener('click', () => this.closeModal('detailModal'));
+
+        byId('viewToggle')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-view]');
+            if (!btn || btn.dataset.view === this.view) return;
+            this.view = btn.dataset.view;
+            try { localStorage.setItem('requests_view', this.view); } catch (err) { /* storage blocked */ }
+            // The list keeps a request open beside it; on the board that would be
+            // a sheet nobody asked for, covering the board just switched to.
+            if (this.view === 'board') this.closeModal('detailModal');
+            this.applyView();
+            this.page = 1;
+            this.load();
+        });
+
+        // Status, priority and type are chips: tinted while they narrow the list.
+        ['pipelineStatusFilter', 'pipelinePriorityFilter', 'pipelineTypeFilter'].forEach((id) => {
+            byId(id)?.addEventListener('change', (e) => e.target.classList.toggle('is-active', e.target.value !== ''));
+        });
 
         // Escape closes the topmost open modal. A click on the backdrop already
         // did this; the keyboard had no way out of a request at all.
@@ -247,6 +275,7 @@ class RequestsManager {
 
     // ----- List --------------------------------------------------------------
     async load() {
+        if (this.view === 'board') return this.loadBoard();
         const seq = ++this.loadSeq;
         const scope = this.scope;
         this.setState('loading');
@@ -281,6 +310,7 @@ class RequestsManager {
                 }
             }
 
+            this.setScopeCount(this.total);
             this.renderList();
         } catch (e) {
             if (seq !== this.loadSeq) return;
@@ -329,16 +359,7 @@ class RequestsManager {
             // request under my_queue, those rows were All's, still in the DOM
             // underneath the "nothing here" panel.
             this.clearList();
-            const hint = document.getElementById('pipelinesEmptyHint');
-            if (hint) {
-                const filtered = !!(this.filters.search || this.filters.status
-                    || this.filters.priority || this.filters.pipeline_template_id);
-                hint.textContent = filtered
-                    ? 'No requests match the current filters. Clear them to see the rest of this view.'
-                    : (this.scope === 'my_queue'
-                        ? 'No steps are waiting on you or your team right now.'
-                        : (this.scope === 'created' ? "You haven't created any requests yet." : 'No requests match this view.'));
-            }
+            this.setEmptyHint();
             this.setState('empty');
             this.renderPagination();
             return;
@@ -348,26 +369,191 @@ class RequestsManager {
 
         // The queue is split by who has to move next, because that is the first
         // question this page answers. Under 'my_queue' the server has already
-        // made that split, so a second one would just print one empty group.
-        const ledger = (rows) => `<div class="rq-ledger">${rows.map((p) => this.renderRow(p)).join('')}</div>`;
+        // made that split, so the whole list is one group.
+        const group = (label, rows) => rows.length
+            ? `<div class="rqx-grp">${label} · <span class="rqx-mono">${rows.length}</span></div>${rows.map((p) => this.renderRow(p)).join('')}`
+            : '';
         if (this.scope === 'my_queue') {
-            list.innerHTML = ledger(this.pipelines);
+            list.innerHTML = group('Waiting on you', this.pipelines);
         } else {
             const mine = this.pipelines.filter((p) => this.waitingOnMe(p));
             const rest = this.pipelines.filter((p) => !this.waitingOnMe(p));
-            list.innerHTML =
-                (mine.length ? `<div class="rq-group">Waiting on you <span class="n">${mine.length}</span></div>${ledger(mine)}` : '')
-                + (rest.length ? `<div class="rq-group">Moving elsewhere <span class="n">${rest.length}</span></div>${ledger(rest)}` : '');
+            list.innerHTML = group('Waiting on you', mine) + group('Moving elsewhere', rest);
         }
 
-        list.querySelectorAll('[data-pipeline-id]').forEach((el) => {
+        this.bindOpeners(list);
+        this.markSelectedRow();
+        this.renderPagination();
+
+        // Wide screens show the open request beside the queue, so start with the
+        // first one rather than an empty pane. Never on a narrow screen, where
+        // the request is a sheet that would cover the list it was opened from.
+        const detailOpen = !document.getElementById('detailModal')?.classList.contains('hidden');
+        if (!detailOpen && window.matchMedia('(min-width: 1024px)').matches
+            && !new URLSearchParams(window.location.search).get('request')) {
+            this.openDetail(this.pipelines[0].id);
+        }
+    }
+
+    /** Rows and board cards open their request on click and Enter/Space. */
+    bindOpeners(root) {
+        root.querySelectorAll('[data-pipeline-id]').forEach((el) => {
             const open = () => this.openDetail(parseInt(el.dataset.pipelineId, 10));
             el.addEventListener('click', open);
             el.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
             });
         });
-        this.renderPagination();
+    }
+
+    setEmptyHint() {
+        const hint = document.getElementById('pipelinesEmptyHint');
+        if (!hint) return;
+        const filtered = !!(this.filters.search || this.filters.status
+            || this.filters.priority || this.filters.pipeline_template_id);
+        hint.textContent = filtered
+            ? 'No requests match the current filters. Clear them to see the rest of this view.'
+            : (this.scope === 'my_queue'
+                ? 'No steps are waiting on you or your team right now.'
+                : (this.scope === 'created' ? "You haven't created any requests yet." : 'No requests match this view.'));
+    }
+
+    /** The count beside the scope tab in view; the others would be stale. */
+    setScopeCount(n) {
+        document.querySelectorAll('.scope-tab').forEach((t) => {
+            const c = t.querySelector('.rqx-count');
+            if (c) c.textContent = t.dataset.scope === this.scope ? String(n) : '';
+        });
+    }
+
+    /** Body class and toggle state for the list / board switch. */
+    applyView() {
+        const board = this.view === 'board';
+        document.getElementById('pipelinesView')?.classList.toggle('is-board', board);
+        document.querySelectorAll('#viewToggle button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === this.view)));
+        // Switching view while a request is open keeps it open, in the shape the
+        // new view gives it (pane or sheet).
+    }
+
+    /**
+     * The board: open requests (up to the API's 100-row page) split by who has
+     * the ball, plus the most recently closed. Two fetches so that a page of
+     * completed requests can never push the open ones off the board.
+     */
+    async loadBoard() {
+        const seq = ++this.loadSeq;
+        this.setState('loading');
+        const base = {
+            scope: this.scope, page: 1, limit: 100,
+            search: this.filters.search, priority: this.filters.priority,
+            pipeline_template_id: this.filters.pipeline_template_id
+        };
+        try {
+            let open = { data: { pipelines: [], total: 0 } };
+            let closed = { data: { pipelines: [], total: 0 } };
+            if (this.filters.status) {
+                // One explicit status: show exactly that, placed in its column.
+                const one = await api.requestEnvelope('pipeline-list', { ...base, status: this.filters.status });
+                if (!one.success) throw new Error(one.message || 'Failed to load');
+                (this.filters.status === 'in_progress' ? open : closed).data = one.data;
+            } else {
+                const [o, c] = await Promise.all([
+                    api.requestEnvelope('pipeline-list', { ...base, status: 'in_progress' }),
+                    api.requestEnvelope('pipeline-list', { ...base, status: 'completed', limit: 12 })
+                ]);
+                if (!o.success) throw new Error(o.message || 'Failed to load');
+                open = o;
+                closed = c.success ? c : closed;
+            }
+            if (seq !== this.loadSeq) return;
+            this.pipelines = open.data?.pipelines || [];
+            this.total = open.data?.total || 0;
+            this.boardClosed = closed.data?.pipelines || [];
+            this.boardClosedTotal = closed.data?.total || 0;
+            this.firstLoadDone = true;
+            this.setScopeCount(this.total);
+            document.getElementById('pipelinesPagination')?.classList.add('hidden');
+            this.renderBoard();
+        } catch (e) {
+            if (seq !== this.loadSeq) return;
+            this.pipelines = [];
+            this.boardClosed = [];
+            this.setState('error', e.message);
+        }
+    }
+
+    renderBoard() {
+        const board = document.getElementById('pipelinesBoard');
+        if (!board) return;
+        const rows = this.pipelines.filter((p) => p.status === 'in_progress');
+        const closed = this.boardClosed.concat(this.pipelines.filter((p) => p.status !== 'in_progress'));
+        if (!rows.length && !closed.length) {
+            board.innerHTML = '';
+            this.setEmptyHint();
+            this.setState('empty');
+            return;
+        }
+        this.setState('ready');
+
+        const stuck = (p) => p.is_blocked || p.last_attempt_failed;
+        const cols = [
+            { name: 'Waiting on you', dot: '#0F766E', items: rows.filter((p) => !stuck(p) && this.waitingOnMe(p)), empty: 'Nothing is waiting on you.' },
+            { name: 'With other teams', dot: '#6C86E8', items: rows.filter((p) => !stuck(p) && !this.waitingOnMe(p)), empty: 'Nothing in flight elsewhere.' },
+            { name: 'Blocked', dot: '#B42318', items: rows.filter(stuck), empty: 'Nothing is blocked.' },
+            { name: 'Closed recently', dot: '#1F7A4D', items: closed, empty: 'Nothing closed yet.', total: this.boardClosedTotal }
+        ];
+        const more = this.total > rows.length
+            ? `<span class="rqx-col-more">Showing the first ${rows.length} of ${this.total} open requests. Narrow the filters to see the rest.</span>` : '';
+
+        board.innerHTML = cols.map((c, i) => `
+            <section class="rqx-col" aria-label="${c.name}">
+                <div class="rqx-col-head"><span class="rqx-dot" style="--d:${c.dot}"></span><b>${c.name}</b><span class="rqx-mono">${c.total && c.total > c.items.length ? `${c.items.length} of ${c.total}` : c.items.length}</span></div>
+                ${c.items.length ? c.items.map((p) => this.boardCard(p)).join('') : `<div class="rqx-col-empty">${c.empty}</div>`}
+                ${i === 1 ? more : ''}
+            </section>`).join('');
+        this.bindOpeners(board);
+        this.markSelectedRow();
+    }
+
+    boardCard(p) {
+        const state = this.rowState(p);
+        const red = state === 'blocked' || state === 'failed';
+        const total = p.progress?.total || 0;
+        const done = p.progress?.done || 0;
+        const pips = total ? `<div class="rqx-pips" aria-hidden="true">${Array.from({ length: total }, (_, i) => {
+            if (i < done || p.status === 'completed') return '<i class="is-done"></i>';
+            if (i === done && p.status === 'in_progress') return `<i class="${red ? 'is-red' : 'is-now'}"></i>`;
+            return '<i></i>';
+        }).join('')}</div>` : '';
+        const where = p.status === 'in_progress'
+            ? utils.escapeHtml(p.current_stage?.name || 'No active step')
+            : utils.escapeHtml(this.statusLabel(p.status));
+        let note = '';
+        if (p.last_attempt_failed) note = '<span class="rqx-bcard-note is-red">Last approval rolled back</span>';
+        else if (p.is_blocked) note = '<span class="rqx-bcard-note is-red">Frozen: waiting on a prerequisite</span>';
+        else if (p.parent_ticket_number) note = `<span class="rqx-bcard-note">Clears ${utils.escapeHtml(p.parent_ticket_number)}</span>`;
+        const prio = p.priority || 'medium';
+        return `
+            <div class="rqx-bcard${red ? ' is-red' : ''}" data-pipeline-id="${p.id}" role="button" tabindex="0">
+                <div class="rqx-bcard-top"><span class="rqx-id">${utils.escapeHtml(p.ticket_number)}</span><span class="rqx-prio p-${utils.escapeHtml(prio)}">${utils.escapeHtml(this.priorityLabel(prio))}</span></div>
+                <div class="rqx-bcard-title">${utils.escapeHtml(p.title)}</div>
+                ${pips}
+                <div class="rqx-bcard-foot"><span>${where}</span><span class="rqx-mono" title="Last moved ${utils.escapeHtml(this.fmtDate(p.updated_at || p.created_at))}">${utils.escapeHtml(this.ageLabel(p))}</span></div>
+                ${note}
+            </div>`;
+    }
+
+    priorityLabel(priority) {
+        return priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : 'Medium';
+    }
+
+    /** Highlight the open request's row or card. */
+    markSelectedRow() {
+        const open = !document.getElementById('detailModal')?.classList.contains('hidden');
+        const id = open && this.currentDetail ? String(this.currentDetail.id) : null;
+        document.querySelectorAll('[data-pipeline-id]').forEach((el) => {
+            el.classList.toggle('is-selected', el.dataset.pipelineId === id);
+        });
     }
 
     // A step is waiting on me when it is assigned to me, to one of my teams, or
@@ -458,64 +644,36 @@ class RequestsManager {
         const mine = this.waitingOnMe(p);
         const total = p.progress?.total || 0;
         const done = p.progress?.done || 0;
-        const at = Math.min(done, Math.max(total - 1, 0));
+        const prio = p.priority || 'medium';
 
-        // The pips are the progress bar rewritten as steps, because a request
-        // has four of them, not a percentage. The step being waited on carries
-        // the row's state, so a frozen or rolled-back step reads without
-        // hunting for the badge that says so.
-        const pips = total
-            ? `<div class="rq-pips">${Array.from({ length: total }, (_, i) => {
-                let cls = i < done ? 'is-done' : '';
-                if (i === at && done < total) {
-                    cls = (state === 'blocked' || state === 'failed') ? `is-${state}` : (state === 'now' ? 'is-now' : '');
-                }
-                return `<i class="${cls}"></i>`;
-            }).join('')}</div>`
-            : '';
+        const terminal = p.status && p.status !== 'in_progress';
+        const statusPill = terminal
+            ? `<span class="rqx-pill ${p.status === 'completed' ? 's-done' : 's-stopped'}">${utils.escapeHtml(this.statusLabel(p.status))}</span>` : '';
 
-        const flags = [
-            p.priority === 'urgent'
-                ? `<span class="rq-flag text-danger bg-danger-light">Urgent</span>` : '',
-            p.last_attempt_failed
-                ? `<span class="rq-flag text-danger bg-danger-light" title="The last approval was rolled back. Open the request for the reason.">Last approval rolled back</span>` : '',
-            p.is_blocked
-                ? `<span class="rq-flag text-amber-600 dark:text-amber-400 bg-surface-secondary" title="Waiting on a prerequisite request. Open it to see which.">Frozen</span>` : '',
-            p.parent_ticket_number
-                ? `<span class="rq-flag text-text-muted bg-surface-secondary" title="Raised as a prerequisite for #${utils.escapeHtml(p.parent_ticket_number)}">Clears #${utils.escapeHtml(p.parent_ticket_number)}</span>` : '',
-            (p.status && p.status !== 'in_progress')
-                ? `<span class="rq-flag text-text-muted bg-surface-secondary">${utils.escapeHtml(this.statusLabel(p.status))}</span>` : ''
-        ].join('');
-
-        const where = stage
-            ? `Step ${Math.min(done + 1, total)} of ${total} &middot; ${utils.escapeHtml(stage.name)}`
-            : (p.status === 'completed' ? 'All steps complete' : 'No active step');
-
-        const action = mine
-            ? `<button type="button" class="rq-btn is-act" tabindex="-1">${p.last_attempt_failed ? 'Open &amp; retry' : 'Open &amp; act'}</button>`
-            : `<button type="button" class="rq-btn" tabindex="-1">Open</button>`;
+        let where;
+        let tone = '';
+        if (p.last_attempt_failed) { where = 'Last approval rolled back'; tone = 'is-red'; }
+        else if (p.is_blocked) { where = 'Frozen: waiting on a prerequisite'; tone = 'is-amber'; }
+        else if (stage) {
+            const step = `Step ${Math.min(done + 1, total)} of ${total} · ${utils.escapeHtml(stage.name)}`;
+            const holder = stage.claimed_by ? stage.claimed_by.username : stage.owner?.name;
+            where = mine || !holder ? step : `With ${utils.escapeHtml(holder)} · ${step.charAt(0).toLowerCase() + step.slice(1)}`;
+        } else {
+            where = p.status === 'completed' ? 'All steps complete' : 'No active step';
+        }
+        if (!tone && p.parent_ticket_number) where += ` · clears ${utils.escapeHtml(p.parent_ticket_number)}`;
 
         return `
-            <div data-pipeline-id="${p.id}" role="button" tabindex="0" class="rq-row"
-                title="${utils.escapeHtml(p.title)}">
-                <div class="rq-rail is-${state}"></div>
-                <div class="rq-main">
-                    <div class="rq-title">${utils.escapeHtml(p.title)}</div>
-                    <div class="rq-meta">
-                        <span class="rq-age">${utils.escapeHtml(p.ticket_number)}</span>
-                        <span class="text-xs text-text-muted">${utils.escapeHtml(p.pipeline_type || 'Request')}</span>
-                        ${flags}
-                    </div>
+            <div data-pipeline-id="${p.id}" role="button" tabindex="0" class="rqx-row is-${state}"
+                aria-label="${utils.escapeHtml(`${p.ticket_number}: ${p.title}`)}">
+                <div class="rqx-row-top">
+                    <span class="rqx-id">${utils.escapeHtml(p.ticket_number)}</span>
+                    <span class="rqx-pill p-${utils.escapeHtml(prio)}">${utils.escapeHtml(this.priorityLabel(prio))}</span>
+                    ${statusPill}
+                    <span class="rqx-age" title="Last moved ${utils.escapeHtml(this.fmtDate(p.updated_at || p.created_at))}">${utils.escapeHtml(this.ageLabel(p))}</span>
                 </div>
-                <div class="rq-step">
-                    <div class="rq-where">${where}</div>
-                    <div class="text-xs text-text-muted">${stage ? this.ownerBadge(stage.owner, stage.claimed_by) : ''}</div>
-                    ${pips}
-                </div>
-                <div class="rq-act">
-                    <span class="rq-age" title="Last moved ${utils.escapeHtml(this.fmtDate(p.updated_at || p.created_at))}">${utils.escapeHtml(this.ageLabel(p))}</span>
-                    ${action}
-                </div>
+                <div class="rqx-row-title">${utils.escapeHtml(p.title)}</div>
+                <div class="rqx-row-step ${tone}">${where}</div>
             </div>`;
     }
 
@@ -535,8 +693,8 @@ class RequestsManager {
         if (this.total === 0) { container.classList.add('hidden'); return; }
         const start = (this.page - 1) * this.limit + 1;
         const end = Math.min(this.page * this.limit, this.total);
-        info.textContent = `Showing ${start}-${end} of ${this.total}`;
-        container.classList.toggle('hidden', totalPages <= 1);
+        info.textContent = `${start}–${end} of ${this.total}`;
+        container.classList.toggle('hidden', totalPages <= 1 || this.view === 'board');
         document.getElementById('pipelinesPrev')?.toggleAttribute('disabled', this.page <= 1);
         document.getElementById('pipelinesNext')?.toggleAttribute('disabled', this.page >= totalPages);
     }
@@ -3890,45 +4048,46 @@ class RequestsManager {
             }
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
+            document.getElementById('detailEmpty')?.classList.add('hidden');
+            document.getElementById('detailBody')?.scrollTo?.(0, 0);
+            this.markSelectedRow();
         } catch (e) {
             utils.showAlert('Failed to load request: ' + e.message, 'error');
         }
     }
 
     renderDetail(p) {
-        document.getElementById('detailTitle').textContent = `#${p.ticket_number}`;
+        document.getElementById('detailTitle').textContent = p.ticket_number || `#${p.id}`;
         const body = document.getElementById('detailBody');
         const terminal = ['completed', 'cancelled', 'rejected'].includes(p.status);
+        const stages = p.stages || [];
+        const active = stages.find((s) => s.status === 'active');
 
         const items = (p.items && p.items.length) ? `
-            <div class="mt-5">
-                <h4 class="text-sm font-semibold text-text-primary mb-2">Components</h4>
-                <div class="border border-border rounded-lg overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead class="bg-surface-secondary/40 text-text-muted">
-                            <tr><th class="text-left px-3 py-2 font-medium">Type</th><th class="text-left px-3 py-2 font-medium">Component</th><th class="text-left px-3 py-2 font-medium">Qty</th><th class="text-left px-3 py-2 font-medium">Action</th></tr>
-                        </thead>
-                        <tbody class="divide-y divide-border">
+            <section>
+                <h3 class="rqx-sec-title">Components</h3>
+                <div style="overflow-x:auto">
+                    <table class="rqx-table">
+                        <thead><tr><th>Component</th><th>Type</th><th>Qty</th><th>Action</th></tr></thead>
+                        <tbody>
                             ${p.items.map((it) => `<tr>
-                                <td class="px-3 py-2 text-text-secondary">${utils.escapeHtml(it.component_type)}</td>
-                                <td class="px-3 py-2 text-text-primary">${utils.escapeHtml(it.component_name || 'N/A')}</td>
-                                <td class="px-3 py-2 text-text-secondary">${utils.escapeHtml(it.quantity)}</td>
-                                <td class="px-3 py-2 capitalize text-text-secondary">${utils.escapeHtml(it.action)}</td>
+                                <td>${utils.escapeHtml(it.component_name || 'N/A')}</td>
+                                <td>${utils.escapeHtml(this.componentTypeLabel ? this.componentTypeLabel(it.component_type) : it.component_type)}</td>
+                                <td class="rqx-mono">${utils.escapeHtml(it.quantity)}</td>
+                                <td style="text-transform:capitalize">${utils.escapeHtml(it.action)}</td>
                             </tr>`).join('')}
                         </tbody>
                     </table>
                 </div>
-            </div>` : '';
+            </section>` : '';
 
-        // What this request is ASKING for, shown while it is still pending so the
-        // approver can see it without reading the description.
         // Historical only. A request raised before 2026-08-23 named the
         // PERMISSIONS it wanted. Nothing asks for permissions any more, so the
         // names are shown raw rather than dressed in labels describing a model
         // no longer in use — the point here is the audit trail, not the pitch.
         const asked = Array.isArray(p.requested_access) ? p.requested_access : [];
         const askedBlock = asked.length ? `
-            <div class="mt-4 px-4 py-3 rounded-lg border border-border bg-surface-hover">
+            <div class="px-4 py-3 rounded-lg border border-border bg-surface-hover">
                 <div class="text-sm font-medium text-text-primary mb-1.5">
                     <i class="fas fa-key mr-1.5 text-text-muted"></i>Access requested (historical)
                 </div>
@@ -3947,7 +4106,7 @@ class RequestsManager {
         // tense, instead of implying anyone still holds anything.
         const grantEntry = (p.history || []).find((h) => h.action === 'access_granted');
         const accessBanner = grantEntry ? `
-            <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-border bg-surface-hover">
+            <div class="flex items-start gap-2 px-4 py-3 rounded-lg border border-border bg-surface-hover">
                 <i class="fas fa-clock-rotate-left text-text-muted mt-0.5"></i>
                 <div class="text-sm">
                     <div class="font-medium text-text-primary">Granted temporary access (retired)</div>
@@ -3958,45 +4117,72 @@ class RequestsManager {
                 </div>
             </div>` : '';
 
-        const actionsBlock = this.renderActionsBlock(p);
+        const prio = p.priority || 'medium';
+        const statusPill = p.status !== 'in_progress'
+            ? `<span class="rqx-pill ${p.status === 'completed' ? 's-done' : 's-stopped'}">${utils.escapeHtml(this.statusLabel(p.status))}</span>` : '';
 
-        const history = this.renderHistoryBlock(p);
+        const meta = [];
+        meta.push(`Opened by <b>${utils.escapeHtml(p.created_by?.username || 'N/A')}</b>`
+            + (p.created_at ? ` <span title="${utils.escapeHtml(this.fmtDate(p.created_at))}">${utils.escapeHtml(this.ageLabel({ created_at: p.created_at }))} ago</span>` : ''));
+        if (p.target_server_uuid) {
+            const ts = p.target_server || {};
+            const where = [ts.location, ts.rack_position].filter(Boolean).join(' ');
+            meta.push(`Server <b title="${utils.escapeHtml(p.target_server_uuid)}">${utils.escapeHtml(ts.name || p.target_server_uuid)}</b>${where ? ` · ${utils.escapeHtml(where)}` : ''}`);
+        }
+        if (p.parent) {
+            meta.push(`Prerequisite for <button type="button" class="rqx-link" data-open-request="${p.parent.id}">${utils.escapeHtml(p.parent.ticket_number)}</button>`);
+        }
+        if (p.cancel_reason) meta.push(`<span class="is-red">${utils.escapeHtml(p.cancel_reason)}</span>`);
+
+        // The step in hand, with what to do about it — the reason most people
+        // open a request at all.
+        let now = '';
+        if (active && !terminal) {
+            const mine = this.eligibleForStage(active) && (
+                (active.claimed_by && Number(active.claimed_by.id) === Number(this.currentUserId))
+                || (active.owner && active.owner.type === 'user' && Number(active.owner.id) === Number(this.currentUserId))
+                || (!active.claimed_by && this.ownsRole(active.owner)));
+            const claim = active.claimed_by
+                ? `Accepted by ${utils.escapeHtml(active.claimed_by.username)}`
+                : `Waiting for ${utils.escapeHtml(active.owner?.name || 'someone')} to accept it`;
+            now = `
+                <section class="rqx-now">
+                    <div class="rqx-now-title">${mine ? 'Your step' : 'Current step'}: ${utils.escapeHtml(active.name)}</div>
+                    ${active.instructions ? `<div class="rqx-now-note">${utils.escapeHtml(active.instructions)}</div>` : ''}
+                    <div class="rqx-now-note" style="font-size:12.5px;color:var(--color-text-muted)">${claim}</div>
+                    ${this.stepActions(active, p)}
+                </section>`;
+        }
 
         body.innerHTML = `
-            <div class="flex flex-wrap items-center gap-2 mb-1">
-                ${this.statusBadge(p.status)} ${this.priorityBadge(p.priority)}
-                <span class="text-xs text-text-muted">${utils.escapeHtml(p.pipeline_type?.name || 'Request')}</span>
-            </div>
-            <h3 class="text-lg font-semibold text-text-primary">${utils.escapeHtml(p.title)}</h3>
-            ${p.description ? `<p class="text-sm text-text-secondary mt-1 whitespace-pre-wrap">${utils.escapeHtml(p.description)}</p>` : ''}
-            <div class="flex flex-wrap gap-x-6 gap-y-1 mt-3 text-xs text-text-muted">
-                <span><i class="fas fa-user-pen mr-1"></i>Created by ${utils.escapeHtml(p.created_by?.username || 'N/A')}</span>
-                ${p.created_at ? `<span title="${utils.escapeHtml(p.created_at)} UTC"><i class="fas fa-clock mr-1"></i>Created ${utils.escapeHtml(this.fmtDate(p.created_at))}</span>` : ''}
-                ${p.target_server_uuid ? `<span title="${utils.escapeHtml(p.target_server_uuid)}"><i class="fas fa-server mr-1"></i>${utils.escapeHtml(p.target_server?.name || p.target_server_uuid)}</span>` : ''}
-                ${p.parent ? `<span><i class="fas fa-link mr-1"></i>Prerequisite for <button type="button" data-open-request="${p.parent.id}" class="text-primary hover:underline font-medium">#${utils.escapeHtml(p.parent.ticket_number)}</button></span>` : ''}
-                ${p.cancel_reason ? `<span class="text-danger"><i class="fas fa-ban mr-1"></i>${utils.escapeHtml(p.cancel_reason)}</span>` : ''}
-            </div>
-            ${this.blockedBanner(p)}
-            ${actionsBlock}
-            ${askedBlock}
-            ${accessBanner}
-            ${this.executionFailureBanner()}
-            ${this.stockMissingBlock(p)}
-            ${this.locationGapBlock(p)}
-            ${this.prerequisitesBlock(p)}
-
-            <div class="mt-5">
-                <h4 class="text-sm font-semibold text-text-primary mb-3">Steps</h4>
-                <div class="pl-stepper">${(p.stages || []).map((s) => this.renderStep(s, p, terminal)).join('')}</div>
-            </div>
-            ${items}
-            ${history}
-            ${(!terminal && (this.perms.cancel || this.perms.manage)) ? `
-                <div class="mt-6 pt-4 border-t border-border flex justify-end">
-                    <button id="plCancelPipeline" class="px-4 py-2 text-sm border border-border rounded-lg text-text-muted hover:bg-danger-light hover:text-danger transition-colors">
-                        <i class="fas fa-ban mr-1.5"></i>Cancel request
-                    </button>
-                </div>` : ''}`;
+            <div class="rqx-d">
+                <div class="rqx-d-head">
+                    <div class="rqx-d-kicker">
+                        <span class="rqx-mono">${utils.escapeHtml(p.ticket_number || '')} · ${utils.escapeHtml(p.pipeline_type?.name || 'Request')}</span>
+                        <span class="rqx-pill p-${utils.escapeHtml(prio)}">${utils.escapeHtml(this.priorityLabel(prio))}</span>
+                        ${statusPill}
+                    </div>
+                    <h2 class="rqx-d-title">${utils.escapeHtml(p.title)}</h2>
+                    <div class="rqx-d-meta">${meta.join(' · ')}</div>
+                    ${p.description ? `<p class="rqx-d-desc">${utils.escapeHtml(p.description)}</p>` : ''}
+                </div>
+                ${stages.length ? `<ol class="rqx-steps" aria-label="Steps">${stages.map((st) => this.renderStep(st, p, terminal)).join('')}</ol>` : ''}
+                ${this.blockedBanner(p)}
+                ${now}
+                ${this.executionFailureBanner()}
+                ${this.renderActionsBlock(p)}
+                ${askedBlock}
+                ${accessBanner}
+                ${this.stockMissingBlock(p)}
+                ${this.locationGapBlock(p)}
+                ${this.prerequisitesBlock(p)}
+                ${items}
+                ${this.renderHistoryBlock(p)}
+                ${(!terminal && (this.perms.cancel || this.perms.manage)) ? `
+                    <div class="rqx-d-foot">
+                        <button type="button" id="plCancelPipeline" class="rqx-btn rqx-btn-danger">Cancel request</button>
+                    </div>` : ''}
+            </div>`;
 
         this.wireDetailActions(p);
         this.renderHistoryList();
@@ -4036,12 +4222,12 @@ class RequestsManager {
             </div>` : '';
 
         return `
-            <div class="mt-5">
-                <h4 class="text-sm font-semibold text-text-primary mb-2">Activity</h4>
+            <section>
+                <h3 class="rqx-sec-title">Activity</h3>
                 ${bar}
-                <ul id="plHistoryList" class="space-y-1.5"></ul>
+                <ul id="plHistoryList" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px"></ul>
                 <div id="plHistoryCount" class="text-[11px] text-text-disabled mt-2"></div>
-            </div>`;
+            </section>`;
     }
 
     /**
@@ -4073,9 +4259,10 @@ class RequestsManager {
         const entries = (this.currentDetail && this.currentDetail.history) || [];
         const shown = entries.filter((h) => this.historyMatches(h));
 
-        list.innerHTML = shown.length ? shown.map((h) => `<li class="text-xs text-text-muted flex gap-2">
-            <i class="fas fa-circle text-[5px] mt-1.5 text-text-muted"></i>
-            <span><span class="text-text-secondary font-medium">${utils.escapeHtml((h.action || '').replace(/_/g, ' '))}</span>${h.notes ? ` — ${utils.escapeHtml(h.notes)}` : ''} <span class="text-text-disabled">· ${utils.escapeHtml(h.changed_by || 'system')} · ${this.fmtDate(h.created_at)}</span></span>
+        const what = (a) => { const t = (a || '').replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
+        list.innerHTML = shown.length ? shown.map((h) => `<li class="rqx-act">
+            <time>${utils.escapeHtml(this.fmtDate(h.created_at))}</time>
+            <span class="rqx-act-what">${utils.escapeHtml(what(h.action))}${h.notes ? ` · ${utils.escapeHtml(h.notes)}` : ''} <span class="rqx-act-who">· ${utils.escapeHtml(h.changed_by || 'system')}</span></span>
         </li>`).join('') : '<li class="text-xs text-text-muted">No activity matches these filters.</li>';
 
         const count = document.getElementById('plHistoryCount');
@@ -4585,45 +4772,36 @@ class RequestsManager {
             + ` <code class="text-text-muted">${utils.escapeHtml(uuid)}</code>`;
     }
 
+    /** One step of the horizontal progress strip at the top of a request. */
     renderStep(stage, pipeline, terminal) {
-        const statusClass = {
-            completed: 'is-done', active: 'is-active', pending: 'is-pending', skipped: 'is-skipped', rejected: 'is-rejected'
+        const cls = {
+            completed: 'is-done', active: 'is-active', skipped: 'is-skipped', rejected: 'is-rejected'
         }[stage.status] || 'is-pending';
+        const me = (u) => u && Number(u.id) === Number(this.currentUserId);
+        const ownerName = stage.owner?.name || 'Unassigned';
 
-        const nodeIcon = {
-            completed: '<i class="fas fa-check"></i>', active: '<i class="fas fa-circle-dot"></i>',
-            skipped: '<i class="fas fa-minus"></i>', rejected: '<i class="fas fa-xmark"></i>'
-        }[stage.status] || `${stage.position}`;
-
-        const isActive = stage.status === 'active';
-        let meta = '';
+        let sub;
+        let title = '';
         if (stage.status === 'completed') {
-            meta = `<span class="text-text-muted">Done by ${utils.escapeHtml(stage.completed_by?.username || 'N/A')} · ${this.fmtDate(stage.completed_at)}</span>`;
-            if (stage.notes) meta += `<div class="text-text-secondary mt-1 bg-surface-secondary/40 border border-border rounded-md px-2.5 py-1.5">${utils.escapeHtml(stage.notes)}</div>`;
-        } else if (isActive) {
-            meta = stage.claimed_by
-                ? `<span class="text-text-secondary"><i class="fas fa-hand mr-1 text-primary"></i>Claimed by ${utils.escapeHtml(stage.claimed_by.username)}</span>`
-                : `<span class="text-text-muted">Waiting to be accepted</span>`;
+            sub = `Done by ${utils.escapeHtml(stage.completed_by?.username || 'N/A')}`;
+            title = [this.fmtDate(stage.completed_at), stage.notes].filter(Boolean).join(' · ');
+        } else if (stage.status === 'active' && !terminal) {
+            const holder = stage.claimed_by ? (me(stage.claimed_by) ? 'You' : stage.claimed_by.username) : null;
+            sub = holder ? `${utils.escapeHtml(holder)} · ${utils.escapeHtml(ownerName)}` : utils.escapeHtml(ownerName);
+        } else if (stage.status === 'rejected') {
+            sub = 'Rejected';
+        } else if (stage.status === 'skipped') {
+            sub = 'Skipped';
+        } else {
+            sub = utils.escapeHtml(ownerName);
         }
 
-        const instructions = (isActive && stage.instructions)
-            ? `<p class="text-xs text-text-muted mt-1.5"><i class="fas fa-circle-info mr-1"></i>${utils.escapeHtml(stage.instructions)}</p>` : '';
-
-        const actions = isActive && !terminal ? this.stepActions(stage, pipeline) : '';
-
         return `
-            <div class="pl-step ${statusClass}">
-                <div class="pl-node">${nodeIcon}</div>
-                <div class="${isActive ? 'bg-surface-secondary/40 border border-border rounded-lg p-3' : 'py-1'}">
-                    <div class="flex items-center justify-between gap-2 flex-wrap">
-                        <span class="text-sm font-semibold ${isActive ? 'text-text-primary' : (stage.status === 'completed' ? 'text-text-primary' : 'text-text-secondary')}">${utils.escapeHtml(stage.name)}</span>
-                        ${this.ownerBadge(stage.owner, stage.claimed_by)}
-                    </div>
-                    <div class="text-xs mt-1">${meta}</div>
-                    ${instructions}
-                    ${actions}
-                </div>
-            </div>`;
+            <li class="${cls}"${title ? ` title="${utils.escapeHtml(title)}"` : ''}>
+                <div class="rqx-bar"></div>
+                <span class="rqx-step-name">${utils.escapeHtml(stage.position)} · ${utils.escapeHtml(stage.name)}</span>
+                <span class="rqx-step-sub">${sub}</span>
+            </li>`;
     }
 
     stepActions(stage, pipeline) {
@@ -4645,14 +4823,14 @@ class RequestsManager {
                     </p>
                     ${showReject ? `
                         <div class="flex flex-wrap gap-2">
-                            <button data-act="reject-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-danger rounded-lg text-danger hover:bg-danger-light flex items-center gap-1.5"><i class="fas fa-xmark"></i> Reject</button>
+                            <button data-act="reject-toggle" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger">Reject</button>
                         </div>
                         <div data-reject-form="${stage.id}" class="hidden pt-1">
                             <textarea data-reject-reason="${stage.id}" rows="2" placeholder="Why are you rejecting this? The requester will see it."
                                 class="w-full px-3 py-2 text-sm border border-danger rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
                             <div class="flex flex-wrap gap-2 mt-2">
-                                <button data-act="reject" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-danger text-white rounded-lg flex items-center gap-1.5"><i class="fas fa-xmark"></i> Confirm rejection</button>
-                                <button data-act="reject-cancel" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary">Keep it open</button>
+                                <button data-act="reject" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger-solid">Confirm rejection</button>
+                                <button data-act="reject-cancel" data-stage="${stage.id}" class="rqx-btn">Keep it open</button>
                             </div>
                         </div>` : ''}
                 </div>`;
@@ -4689,18 +4867,18 @@ class RequestsManager {
                     <textarea data-complete-notes="${stage.id}" rows="2" placeholder="${performs ? 'Approval note (optional)' : 'Notes about what you did (optional)'}"
                         class="w-full px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>` : ''}
                 <div class="flex flex-wrap gap-2">
-                    ${showAccept ? `<button data-act="claim" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-1.5"><i class="fas fa-hand"></i> Accept</button>` : ''}
-                    ${showComplete ? `<button data-act="complete" data-stage="${stage.id}" ${performs ? `data-performs="${count}"` : ''} class="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5"><i class="fas fa-check"></i> ${approveLabel}</button>` : ''}
-                    ${showComplete ? `<button data-act="reject-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-danger rounded-lg text-danger hover:bg-danger-light flex items-center gap-1.5"><i class="fas fa-xmark"></i> Reject</button>` : ''}
-                    ${showReassign ? `<button data-act="reassign-toggle" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary flex items-center gap-1.5"><i class="fas fa-user-gear"></i> Reassign</button>` : ''}
+                    ${showAccept ? `<button data-act="claim" data-stage="${stage.id}" class="rqx-btn rqx-btn-primary">Accept step</button>` : ''}
+                    ${showComplete ? `<button data-act="complete" data-stage="${stage.id}" ${performs ? `data-performs="${count}"` : ''} class="rqx-btn rqx-btn-primary">${approveLabel}</button>` : ''}
+                    ${showComplete ? `<button data-act="reject-toggle" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger">Reject</button>` : ''}
+                    ${showReassign ? `<button data-act="reassign-toggle" data-stage="${stage.id}" class="rqx-btn">Reassign</button>` : ''}
                 </div>
                 ${showComplete ? `
                     <div data-reject-form="${stage.id}" class="hidden pt-1">
                         <textarea data-reject-reason="${stage.id}" rows="2" placeholder="Why are you rejecting this? The requester will see it."
                             class="w-full px-3 py-2 text-sm border border-danger rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
                         <div class="flex flex-wrap gap-2 mt-2">
-                            <button data-act="reject" data-stage="${stage.id}" class="px-3 py-1.5 text-sm bg-danger text-white rounded-lg flex items-center gap-1.5"><i class="fas fa-xmark"></i> Confirm rejection</button>
-                            <button data-act="reject-cancel" data-stage="${stage.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary">Keep it open</button>
+                            <button data-act="reject" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger-solid">Confirm rejection</button>
+                            <button data-act="reject-cancel" data-stage="${stage.id}" class="rqx-btn">Keep it open</button>
                         </div>
                     </div>` : ''}
                 ${showReassign ? `
@@ -4711,7 +4889,7 @@ class RequestsManager {
                                 <option value="user">Person</option>
                             </select>
                             <select data-reassign-id="${stage.id}" class="px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary flex-1"></select>
-                            <button data-act="reassign-apply" data-stage="${stage.id}" class="px-3 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary-600">Apply</button>
+                            <button data-act="reassign-apply" data-stage="${stage.id}" class="rqx-btn rqx-btn-primary">Apply</button>
                         </div>
                     </div>` : ''}
             </div>`;
@@ -5210,15 +5388,22 @@ class RequestsManager {
 
     closeModal(id) {
         document.getElementById(id)?.classList.add('hidden');
+        if (id === 'detailModal') {
+            document.getElementById('detailEmpty')?.classList.remove('hidden');
+            this.markSelectedRow();
+        }
     }
 
     setState(state, message = '') {
         ['pipelinesLoadingState', 'pipelinesErrorState', 'pipelinesEmptyState'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
-        const list = document.getElementById('pipelinesList');
-        if (state === 'ready') { list?.classList.remove('hidden'); return; }
-        // Every non-ready state hides the list. It used to be left visible under
-        // the empty panel, which only ever showed the previous view's rows.
-        list?.classList.add('hidden');
+        const board = this.view === 'board';
+        const ready = state === 'ready';
+        // Every non-ready state hides the rows. They used to be left visible
+        // under the empty panel, which only ever showed the previous view's rows.
+        // The split stays in board view: the request sheet lives in it.
+        document.getElementById('rqxSplit')?.classList.toggle('hidden', !board && !ready);
+        document.getElementById('pipelinesBoard')?.classList.toggle('hidden', !(board && ready));
+        if (ready) return;
         const map = { loading: 'pipelinesLoadingState', error: 'pipelinesErrorState', empty: 'pipelinesEmptyState' };
         if (map[state]) document.getElementById(map[state])?.classList.remove('hidden');
         if (state === 'error') {

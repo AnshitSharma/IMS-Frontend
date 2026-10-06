@@ -73,10 +73,12 @@ function togglePasswordVisibility(inputId, toggleButton) {
         input.type = 'text';
         icon.classList.remove('fa-eye');
         icon.classList.add('fa-eye-slash');
+        toggleButton.setAttribute('aria-label', 'Hide password');
     } else {
         input.type = 'password';
         icon.classList.remove('fa-eye-slash');
         icon.classList.add('fa-eye');
+        toggleButton.setAttribute('aria-label', 'Show password');
     }
 }
 
@@ -98,8 +100,10 @@ function validateField(input) {
     clearFieldError(input);
 
     // Required field validation
+    // Same wording as validateLoginForm() / the reset-email submit check.
     if (!value) {
-        setFieldError(input, 'This field is required');
+        const label = { username: 'Username', password: 'Password', email: 'Email' }[input.name];
+        setFieldError(input, label ? `${label} is required` : 'This field is required');
         return false;
     }
 
@@ -184,35 +188,39 @@ function handleFailedLogin() {
     }
 }
 
+// The message goes AFTER the .input-group, not inside it: inside, it shares a
+// flex row with the input and can squeeze the input to zero width.
 function setFieldError(input, message) {
     clearFieldError(input);
 
-    input.style.borderColor = '#ff416c';
-    input.style.boxShadow = '0 0 0 3px rgba(255, 65, 108, 0.1)';
+    const inputGroup = input.closest('.input-group');
+    if (!inputGroup) return;
 
     const errorElement = document.createElement('div');
     errorElement.className = 'field-error';
+    errorElement.id = `${input.id}-error`;
     errorElement.textContent = message;
 
-    const inputGroup = input.closest('.input-group');
-    if (inputGroup) {
-        inputGroup.appendChild(errorElement);
-    }
+    inputGroup.classList.add('has-error');
+    inputGroup.insertAdjacentElement('afterend', errorElement);
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('aria-describedby', errorElement.id);
 }
 
 function clearFieldError(input) {
     // Guard: Ensure input exists
     if (!input) return;
 
-    input.style.borderColor = '';
-    input.style.boxShadow = '';
-
     const inputGroup = input.closest('.input-group');
     // Exit early if no input-group parent (e.g., for checkboxes)
     if (!inputGroup) return;
 
-    const errorElement = inputGroup.querySelector('.field-error');
-    if (errorElement) {
+    inputGroup.classList.remove('has-error');
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('aria-describedby');
+
+    const errorElement = inputGroup.nextElementSibling;
+    if (errorElement && errorElement.classList.contains('field-error')) {
         errorElement.remove();
     }
 }
@@ -235,15 +243,16 @@ async function handleLogin(e) {
     let username = formData.get('username').trim();
     let password = formData.get('password').trim();
 
+    // Required fields first, so an empty username gets "Username is required"
+    // under the field rather than an "invalid characters" toast.
+    if (!validateLoginForm(username, password)) {
+        return;
+    }
+
     // Sanitize Username to prevent simple injection
     // Note: We don't sanitize password as it might contain special chars, but we length check it
     if (!SECURITY_CONFIG.USERNAME_REGEX.test(username)) {
         showAlert('error', 'Invalid characters in username.', 'fas fa-exclamation-circle');
-        return;
-    }
-
-    // Validate form
-    if (!validateLoginForm(username, password)) {
         return;
     }
 

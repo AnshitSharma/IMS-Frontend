@@ -1,20 +1,24 @@
 <link rel="stylesheet" href="../../assets/css/tailwind.css">
+<link rel="stylesheet" href="../../assets/css/component-drawer.css">
 
-<div class="form-container max-w-2xl mx-auto p-6" id="editComponentFormContainer">
-    <form id="editComponentForm">
-        <div class="form-header mb-6">
-            <h3 id="formTitle" class="text-xl font-semibold text-text-primary mb-1">Edit Component</h3>
-            <p class="text-sm text-text-secondary pb-4 border-b border-border-light">Update the details for the <span id="formComponentType"
-                    class="font-medium text-text-primary">component</span>.</p>
+<!-- Edit component. Opened in dashboard.openDrawer(); requests.js embeds it in
+     its own modal instead, and edit-form.js then hides the head and footer. -->
+<form id="editComponentForm" class="cd">
+    <div class="cd-head">
+        <div class="cd-head-text">
+            <span id="formComponentType" class="cd-eyebrow">Component</span>
+            <h2 id="formTitle">Edit component</h2>
         </div>
-        <div id="formFields" class="space-y-4 mb-6">
-            <!-- Fields will be dynamically generated here -->
-        </div>
-        <div class="form-actions flex items-center justify-end gap-3 pt-6 border-t border-border-light">
-            <button type="button" class="btn btn-secondary px-6 py-2 transition-colors"
-                id="cancelEditComponent">Cancel</button>
-            <button type="submit" class="btn btn-primary px-6 py-2 transition-colors" id="saveComponentBtn">Save
-                Changes</button>
-        </div>
-    </form>
-</div>
+        <button type="button" class="cd-close" data-drawer-close aria-label="Close">
+            <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div id="formFields" class="cd-body">
+        <!-- Fields are rendered by edit-form.js -->
+    </div>
+    <div class="cd-foot form-actions">
+        <span id="editChangeCount" class="cd-count" aria-live="polite">No changes</span>
+        <button type="button" class="cd-btn" id="cancelEditComponent">Discard</button>
+        <button type="submit" class="cd-btn cd-btn-primary" id="saveComponentBtn" disabled>Save changes</button>
+    </div>
+</form>

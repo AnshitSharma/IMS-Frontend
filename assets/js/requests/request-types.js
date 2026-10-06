@@ -6,6 +6,10 @@
  * The built-in "General Request" type (is_system) can have its steps edited
  * but cannot be renamed, archived, or deleted.
  *
+ * Layout: the list of types on the left, the selected type's editor on the
+ * right — its steps drawn as a flow of cards, and the selected step's
+ * "on approval" actions in a panel under the flow.
+ *
  * Internal element IDs and API actions keep the original `pipeline*` lineage
  * by design (the UI says "Request Types / Steps"; the engine stays "pipeline").
  */
@@ -18,6 +22,13 @@ class RequestTypesManager {
         this.users = [];
         this.roles = [];
         this.canManage = true; // refined in init() once api utils are ready
+        // The type in the editor: its id, 'new' for an unsaved draft, or null.
+        this.selectedId = null;
+        // Whether the editor holds edits not yet saved. Asked about before
+        // they are thrown away by picking another type.
+        this.dirty = false;
+        // The step card whose actions the panel under the flow is showing.
+        this.activeRow = null;
     }
 
     init() {
@@ -36,18 +47,25 @@ class RequestTypesManager {
         }
 
         const byId = (id) => document.getElementById(id);
-        byId('createTypeBtn')?.addEventListener('click', () => this.showEditor());
-        byId('createFirstTypeBtn')?.addEventListener('click', () => this.showEditor());
-        byId('refreshTypesBtn')?.addEventListener('click', () => this.load());
-        byId('modalClose')?.addEventListener('click', () => this.closeModal());
-        byId('modalContainer')?.addEventListener('click', (e) => {
-            if (e.target.id === 'modalContainer') this.closeModal();
+        byId('createTypeBtn')?.addEventListener('click', () => this.select('new'));
+        byId('createFirstTypeBtn')?.addEventListener('click', () => {
+            this.setState('ready');
+            this.select('new');
+        });
+        byId('typesNav')?.addEventListener('click', (e) => {
+            const item = e.target.closest('[data-type-id]');
+            if (item) this.select(parseInt(item.dataset.typeId, 10));
+        });
+        window.addEventListener('beforeunload', (e) => {
+            if (!this.dirty) return;
+            e.preventDefault();
+            e.returnValue = '';
         });
 
         if (!this.canManage) {
             byId('createTypeBtn')?.classList.add('hidden');
-            // The empty state offers the same action as the header button and
-            // has to obey the same permission — otherwise the only "New Type"
+            // The empty state offers the same action as the "New type" entry and
+            // has to obey the same permission — otherwise the only "New type"
             // a read-only viewer can see is the one that 403s.
             byId('createFirstTypeBtn')?.classList.add('hidden');
         }
@@ -67,7 +85,7 @@ class RequestTypesManager {
     }
 
     // ----- Load + render -----------------------------------------------------
-    async load() {
+    async load(keepId = this.selectedId) {
         this.setState('loading');
         try {
             const result = await api.requestEnvelope('pipeline-template-list', {
@@ -81,115 +99,84 @@ class RequestTypesManager {
             // copy kept here, which would drift silently the moment an action is
             // added or renamed.
             this.actionTypes = result.data?.action_types || [];
-            this.render();
+
+            if (this.types.length === 0) {
+                this.setState('empty');
+                return;
+            }
+            this.setState('ready');
+            const keep = this.types.find((t) => t.id === keepId);
+            this.dirty = false;
+            this.select(keep ? keep.id : this.types[0].id, true);
         } catch (e) {
             this.setState('error', e.message);
         }
     }
 
-    render() {
-        const grid = document.getElementById('typesGrid');
-        if (!grid) return;
+    renderNav() {
+        const nav = document.getElementById('typesNav');
+        if (!nav) return;
+        nav.innerHTML = this.types.map((t) => {
+            const steps = (t.stages || []).length;
+            const tags = [`${steps} step${steps === 1 ? '' : 's'}`];
+            if (t.is_system === 1) tags.push('built-in');
+            if (t.is_active === 0) tags.push('archived');
+            const on = t.id === this.selectedId;
+            return `
+                <button type="button" class="rtx-nav-item${on ? ' is-on' : ''}${t.is_active === 0 ? ' is-archived' : ''}" data-type-id="${t.id}"${on ? ' aria-current="true"' : ''}>
+                    <span class="rtx-nav-name">${utils.escapeHtml(t.name)}</span>
+                    <span class="rtx-nav-meta rtx-mono">${tags.join(' · ')}</span>
+                </button>`;
+        }).join('');
+    }
 
-        if (this.types.length === 0) {
-            this.setState('empty');
-            return;
+    /**
+     * Open a type (or 'new') in the editor. Asks before discarding unsaved
+     * edits, unless `force` — a reload after saving has nothing to discard.
+     */
+    async select(id, force = false) {
+        if (!force && id === this.selectedId) return;
+        if (!force && this.dirty) {
+            const ok = await utils.confirm('You have unsaved changes to this request type. Discard them?', 'Discard changes');
+            if (!ok) return;
         }
-        this.setState('ready');
-        grid.innerHTML = this.types.map((t) => this.renderCard(t)).join('');
-
-        grid.querySelectorAll('[data-action]').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                const id = parseInt(btn.dataset.id, 10);
-                const type = this.types.find((t) => t.id === id);
-                if (!type) return;
-                if (btn.dataset.action === 'edit') this.showEditor(type);
-                else if (btn.dataset.action === 'archive') this.toggleArchive(type);
-                else if (btn.dataset.action === 'delete') this.remove(type);
-            });
-        });
+        if (id === 'new' && !this.canManage) return;
+        this.selectedId = id;
+        this.dirty = false;
+        this.renderNav();
+        const type = id === 'new' ? null : this.types.find((t) => t.id === id);
+        this.renderEditor(type || null);
     }
 
-    renderCard(type) {
-        const inactive = type.is_active === 0;
-        const isSystem = type.is_system === 1;
-        // Types shipped by a seeder carry created_by = NULL; only ones built in
-        // this UI have a creator. Seeded types are part of the product, so they
-        // can be edited and archived but never deleted.
-        const isSeeded = type.created_by === null || type.created_by === undefined;
-        const stages = type.stages || [];
-        const flow = stages.length
-            ? `<div class="flow-rail mt-3">${stages.map((s) => `
-                <div class="flow-node">
-                    <span class="flow-stage-name text-text-primary">${utils.escapeHtml(s.name)}</span>
-                    <span class="flow-owner">${this.ownerBadge(s.default_assignee)}</span>
-                </div>`).join('')}</div>`
-            : `<p class="text-xs text-text-muted mt-3 italic">No steps defined</p>`;
-
-        // Built-in types can have their steps edited, but never archived/deleted.
-        // Seeded types keep Archive but lose Delete.
-        const manageBtns = this.canManage ? `
-            <button data-action="edit" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary transition-colors" title="Edit">
-                <i class="fas fa-pen mr-1"></i>Edit
-            </button>
-            ${isSystem ? '' : `
-            <button data-action="archive" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-surface-hover text-text-secondary transition-colors" title="${inactive ? 'Restore' : 'Archive'}">
-                <i class="fas fa-${inactive ? 'box-open' : 'box-archive'} mr-1"></i>${inactive ? 'Restore' : 'Archive'}
-            </button>
-            ${isSeeded ? '' : `
-            <button data-action="delete" data-id="${type.id}" class="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-danger-light hover:text-danger text-text-muted transition-colors" title="Delete">
-                <i class="fas fa-trash"></i>
-            </button>`}`}` : '';
-
-        return `
-            <div class="bg-surface-card border border-border rounded-xl p-5 shadow-sm ${inactive ? 'opacity-70' : ''}">
-                <div class="flex items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <h3 class="text-lg font-semibold text-text-primary truncate">${utils.escapeHtml(type.name)}</h3>
-                            ${isSystem ? `<span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">Built-in</span>` : ''}
-                            ${inactive ? `<span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-surface-secondary text-text-muted border border-border">Archived</span>` : ''}
-                        </div>
-                        ${type.description ? `<p class="text-sm text-text-muted mt-1">${utils.escapeHtml(type.description)}</p>` : ''}
-                    </div>
-                    <span class="shrink-0 text-xs font-medium text-text-muted bg-surface-secondary border border-border rounded-full px-2.5 py-1">
-                        ${stages.length} step${stages.length === 1 ? '' : 's'}
-                    </span>
-                </div>
-                ${flow}
-                ${manageBtns ? `<div class="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">${manageBtns}</div>` : ''}
-            </div>`;
-    }
-
-    ownerBadge(owner) {
-        if (!owner) return `<span class="text-text-muted"><i class="fas fa-user-slash mr-1"></i>Unassigned</span>`;
-        const isRole = owner.type === 'role';
-        return `<span class="${isRole ? 'text-primary' : 'text-text-secondary'}">
-            <i class="fas fa-${isRole ? 'users' : 'user'} mr-1"></i>${utils.escapeHtml(owner.name || (isRole ? 'Role' : 'User'))}
-        </span>`;
-    }
-
-    // ----- Editor modal ------------------------------------------------------
-    showEditor(type = null) {
-        if (!this.canManage) return;
-        const modal = document.getElementById('modalContainer');
-        const title = document.getElementById('modalTitle');
-        const body = document.getElementById('modalBody');
-        if (!modal || !body) return;
-
+    // ----- Editor -------------------------------------------------------------
+    renderEditor(type) {
+        const host = document.getElementById('typeEditor');
+        if (!host) return;
         this.editingId = type ? type.id : null;
-        title.textContent = type ? `Edit "${type.name}"` : 'New Request Type';
-        body.innerHTML = this.getEditorHTML(type);
-        modal.classList.remove('hidden');
+        this.currentType = type;
+        this.activeRow = null;
+        host.innerHTML = this.getEditorHTML(type);
 
-        document.getElementById('addStageBtn')?.addEventListener('click', () => this.addStageRow());
-        document.getElementById('cancelTypeBtn')?.addEventListener('click', () => this.closeModal());
-        document.getElementById('typeForm')?.addEventListener('submit', (e) => {
+        const form = document.getElementById('typeForm');
+        form.addEventListener('submit', (e) => {
             e.preventDefault();
             this.submit();
         });
+        form.addEventListener('input', () => this.markDirty());
+        form.addEventListener('change', () => this.markDirty());
+        document.getElementById('addStageBtn')?.addEventListener('click', () => {
+            this.addStageRow();
+            this.markDirty();
+        });
+        document.getElementById('typeArchiveBtn')?.addEventListener('click', () => this.toggleArchive(type));
+        document.getElementById('typeDeleteBtn')?.addEventListener('click', () => this.remove(type));
+        document.getElementById('typeDiscardBtn')?.addEventListener('click', () => this.select(this.selectedId, true));
+        const name = document.getElementById('typeName');
+        name?.addEventListener('input', () => {
+            document.getElementById('rtxTitle').textContent = name.value.trim() || 'New request type';
+        });
 
-        // Seed steps (existing, or one empty row for a brand-new type)
+        // Seed steps (existing, or one empty card for a brand-new type)
         //
         // effect_type / effect_config MUST be carried through. updateTemplate()
         // deletes every pipeline_stages row and re-inserts from what this form
@@ -206,73 +193,100 @@ class RequestTypesManager {
             effect_type: s.effect_type || '',
             effect_config: s.effect_config || null
         } : null));
+
+        // Open the actions of the step that performs the work, if any — that is
+        // the step worth looking at — else the first.
+        const rows = [...document.querySelectorAll('#stageRows .stage-row')];
+        const performing = rows.find((r) => r._effect && r._effect.type);
+        this.selectStage(performing || rows[0]);
+
+        if (!this.canManage) {
+            form.querySelectorAll('input, select, textarea, button').forEach((el) => { el.disabled = true; });
+        }
+        this.dirty = false;
+        this.updateSaveState();
+    }
+
+    markDirty() {
+        this.dirty = true;
+        this.updateSaveState();
+    }
+
+    updateSaveState() {
+        const save = document.getElementById('typeSaveBtn');
+        if (save) save.disabled = !this.canManage || (!this.dirty && this.editingId !== null);
+        const discard = document.getElementById('typeDiscardBtn');
+        if (discard) discard.classList.toggle('hidden', !this.dirty || this.editingId === null);
     }
 
     getEditorHTML(type) {
         const isSystem = type && type.is_system === 1;
+        // Types shipped by a seeder carry created_by = NULL; only ones built in
+        // this UI have a creator. Seeded types are part of the product, so they
+        // can be edited and archived but never deleted.
+        const isSeeded = type && (type.created_by === null || type.created_by === undefined);
+        const inactive = type && type.is_active === 0;
+
+        let badge = '';
+        if (type) {
+            badge = inactive
+                ? '<span class="rtx-badge is-archived">Archived</span>'
+                : '<span class="rtx-badge is-active">Active</span>';
+            if (isSystem) badge += ' <span class="rtx-badge is-system">Built-in</span>';
+        }
+
+        const actions = this.canManage ? `
+            <button type="button" id="typeDiscardBtn" class="rtx-btn hidden">Discard changes</button>
+            ${type && !isSystem ? `<button type="button" id="typeArchiveBtn" class="rtx-btn">${inactive ? 'Restore' : 'Archive'}</button>` : ''}
+            ${type && !isSystem && !isSeeded ? `<button type="button" id="typeDeleteBtn" class="rtx-btn rtx-btn-danger">Delete</button>` : ''}
+            <button type="submit" id="typeSaveBtn" class="rtx-btn rtx-btn-primary">${type ? 'Save' : 'Create type'}</button>` : '';
+
         return `
-            <form id="typeForm" class="space-y-5">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div class="sm:col-span-2">
-                        <label class="block text-sm font-semibold text-text-primary mb-1.5">Name <span class="text-danger">*</span></label>
-                        <input type="text" id="typeName" required maxlength="120"
+            <form id="typeForm" class="rtx-editor" novalidate>
+                <div class="rtx-top">
+                    <h1 id="rtxTitle">${type ? utils.escapeHtml(type.name) : 'New request type'}</h1>
+                    ${badge}
+                    <div class="rtx-top-actions">${actions}</div>
+                </div>
+
+                <section class="rtx-card rtx-details" aria-label="Details">
+                    <div class="rtx-field">
+                        <label for="typeName">Name</label>
+                        <input type="text" id="typeName" maxlength="120"
                             value="${type ? utils.escapeHtml(type.name) : ''}"
-                            placeholder="e.g. RAM Upgrade" ${isSystem ? 'readonly' : ''}
-                            class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary ${isSystem ? 'opacity-70 cursor-not-allowed' : ''}">
-                        ${isSystem ? `<p class="text-xs text-text-muted mt-1">Built-in type — name can't be changed.</p>` : ''}
+                            placeholder="e.g. RAM upgrade" ${isSystem ? 'readonly' : ''}>
+                        ${isSystem ? '<span class="rtx-hint">Built-in type. Its name can\'t be changed.</span>' : ''}
                     </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-text-primary mb-1.5">Status</label>
-                        <select id="typeActive" ${isSystem ? 'disabled' : ''} class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary ${isSystem ? 'opacity-70 cursor-not-allowed' : ''}">
-                            <option value="1" ${!type || type.is_active === 1 ? 'selected' : ''}>Active</option>
-                            <option value="0" ${type && type.is_active === 0 ? 'selected' : ''}>Archived</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-text-primary mb-1.5">Description</label>
-                    <textarea id="typeDescription" rows="2" maxlength="1000"
-                        placeholder="What is this request type for?"
-                        class="w-full px-3 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">${type && type.description ? utils.escapeHtml(type.description) : ''}</textarea>
-                </div>
-
-                <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover">
-                    <h4 class="text-sm font-semibold text-text-primary">What the form asks for</h4>
-                    <p class="text-xs text-text-muted mb-2">
-                        Used only when no step performs the request's work — a type that
-                        does asks for whatever its action needs. Turn both off for a
-                        request that is about neither, such as being let into a room.
-                    </p>
-                    <label class="flex items-center gap-2 text-sm text-text-primary">
-                        <input type="checkbox" id="typeAsksServer" ${!type || type.asks_for_server !== 0 ? 'checked' : ''}>
-                        Which server this request is about
-                    </label>
-                    <label class="flex items-center gap-2 text-sm text-text-primary mt-1">
-                        <input type="checkbox" id="typeAsksComponents" ${!type || type.asks_for_components !== 0 ? 'checked' : ''}>
-                        A list of components
-                    </label>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <div>
-                            <h4 class="text-sm font-semibold text-text-primary">Steps</h4>
-                            <p class="text-xs text-text-muted">Order = flow. Each step routes to its owner; a role-owned step is claimed by the first member who accepts it.</p>
+                    <div class="rtx-field">
+                        <span class="rtx-flabel">The new-request form asks for</span>
+                        <div class="rtx-checks" style="min-height:38px;align-items:center">
+                            <label><input type="checkbox" id="typeAsksServer" ${!type || type.asks_for_server !== 0 ? 'checked' : ''}> A server</label>
+                            <label><input type="checkbox" id="typeAsksComponents" ${!type || type.asks_for_components !== 0 ? 'checked' : ''}> A list of components</label>
                         </div>
-                        <button type="button" id="addStageBtn" class="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2">
-                            <i class="fas fa-plus"></i> Add Step
-                        </button>
+                        <span class="rtx-hint">Only used when no step performs the work. A step that does asks for whatever its actions need.</span>
                     </div>
-                    <div id="stageRows" class="space-y-2"></div>
-                </div>
+                    <div class="rtx-field rtx-span">
+                        <label for="typeDescription">Description</label>
+                        <textarea id="typeDescription" rows="2" maxlength="1000"
+                            placeholder="What is this request type for?">${type && type.description ? utils.escapeHtml(type.description) : ''}</textarea>
+                    </div>
+                </section>
 
-                <div class="flex justify-end gap-3 pt-3 border-t border-border">
-                    <button type="button" id="cancelTypeBtn" class="px-5 py-2 border border-border rounded-lg hover:bg-surface-hover text-text-primary">Cancel</button>
-                    <button type="submit" class="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 flex items-center gap-2">
-                        <i class="fas fa-save"></i> ${type ? 'Save Changes' : 'Create Type'}
-                    </button>
-                </div>
+                <section aria-label="Flow">
+                    <div class="rtx-sec-head">
+                        <span class="rtx-label">Flow</span>
+                        <span class="rtx-hint">Left to right is the order. A team-owned step goes to whoever on that team accepts it first.</span>
+                    </div>
+                    <div class="rtx-flowwrap">
+                        <div id="stageRows" class="rtx-flow"></div>
+                        ${this.canManage ? '<button type="button" id="addStageBtn" class="rtx-add">+ Add step</button>' : ''}
+                    </div>
+                </section>
+
+                <section class="rtx-card rtx-effect" aria-labelledby="rtxEffectTitle">
+                    <span class="rtx-label" id="rtxEffectTitle">Step 1 · on approval</span>
+                    <div id="rtxEffectSlot"></div>
+                </section>
             </form>`;
     }
 
@@ -283,29 +297,44 @@ class RequestTypesManager {
         const ownerType = stage?.assignee_type || 'role';
 
         const row = document.createElement('div');
-        row.className = 'stage-row bg-surface-secondary/40 border border-border rounded-lg p-3';
+        row.className = 'stage-row rtx-step';
         row.innerHTML = `
-            <div class="flex items-start gap-2">
-                <div class="shrink-0 w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-1 stage-pos">${idx + 1}</div>
-                <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-2">
-                    <input type="text" class="stage-name md:col-span-4 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Step name" maxlength="120" value="${stage ? utils.escapeHtml(stage.name) : ''}">
-                    <select class="stage-owner-type md:col-span-3 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary">
-                        <option value="role" ${ownerType === 'role' ? 'selected' : ''}>Team (role)</option>
+            <div class="rtx-step-top">
+                <span class="rtx-step-n">STEP <span class="stage-pos">${String(idx + 1).padStart(2, '0')}</span></span>
+                <div class="rtx-step-tools">
+                    <button type="button" class="stage-up" title="Move earlier" aria-label="Move step earlier"><i class="fas fa-arrow-left"></i></button>
+                    <button type="button" class="stage-down" title="Move later" aria-label="Move step later"><i class="fas fa-arrow-right"></i></button>
+                    <button type="button" class="stage-remove" title="Remove step" aria-label="Remove step"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="rtx-field">
+                <label>Name</label>
+                <input type="text" class="stage-name" placeholder="e.g. Approval" maxlength="120" value="${stage ? utils.escapeHtml(stage.name) : ''}">
+            </div>
+            <div class="rtx-field">
+                <span class="rtx-flabel">Owner</span>
+                <div class="rtx-owner">
+                    <select class="stage-owner-type" aria-label="Owner kind">
+                        <option value="role" ${ownerType === 'role' ? 'selected' : ''}>Team</option>
                         <option value="user" ${ownerType === 'user' ? 'selected' : ''}>Person</option>
                     </select>
-                    <select class="stage-owner-id md:col-span-5 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></select>
-                    <input type="text" class="stage-instructions md:col-span-12 px-3 py-2 text-sm border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
-                        placeholder="Instructions for this step (optional)" maxlength="1000" value="${stage && stage.instructions ? utils.escapeHtml(stage.instructions) : ''}">
-                    <div class="stage-effect md:col-span-12"></div>
+                    <select class="stage-owner-id" aria-label="Owner"></select>
                 </div>
-                <div class="shrink-0 flex flex-col gap-1">
-                    <button type="button" class="stage-up p-1.5 text-text-muted hover:text-primary hover:bg-surface-hover rounded" title="Move up"><i class="fas fa-chevron-up text-xs"></i></button>
-                    <button type="button" class="stage-down p-1.5 text-text-muted hover:text-primary hover:bg-surface-hover rounded" title="Move down"><i class="fas fa-chevron-down text-xs"></i></button>
-                    <button type="button" class="stage-remove p-1.5 text-text-muted hover:text-danger hover:bg-danger-light rounded" title="Remove"><i class="fas fa-trash text-xs"></i></button>
-                </div>
-            </div>`;
+            </div>
+            <div class="rtx-field">
+                <label>Instructions</label>
+                <textarea class="stage-instructions" rows="2" maxlength="1000" placeholder="What the owner should do (optional)">${stage && stage.instructions ? utils.escapeHtml(stage.instructions) : ''}</textarea>
+            </div>
+            <button type="button" class="rtx-does"></button>
+            <div class="stage-effect"></div>`;
         container.appendChild(row);
+
+        // Labels point at their own inputs; ids are per card.
+        const uid = `st${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        row.querySelectorAll('.rtx-field > label').forEach((label) => {
+            const input = label.nextElementSibling;
+            if (input) { input.id = `${uid}-${input.className}`; label.htmlFor = input.id; }
+        });
 
         const ownerTypeSel = row.querySelector('.stage-owner-type');
         const ownerIdSel = row.querySelector('.stage-owner-id');
@@ -313,23 +342,79 @@ class RequestTypesManager {
         ownerTypeSel.addEventListener('change', () => this.populateOwnerOptions(ownerIdSel, ownerTypeSel.value));
 
         row.querySelector('.stage-remove').addEventListener('click', () => {
+            const rows = [...container.querySelectorAll('.stage-row')];
+            if (rows.length === 1) return utils.showAlert('A request type needs at least one step', 'error');
+            const next = row.nextElementSibling || row.previousElementSibling;
+            if (this.activeRow === row) this.activeRow = null;
             row.remove();
             this.renumberStages();
+            this.selectStage(next);
+            this.markDirty();
         });
         row.querySelector('.stage-up').addEventListener('click', () => {
             if (row.previousElementSibling) {
                 row.parentNode.insertBefore(row, row.previousElementSibling);
                 this.renumberStages();
+                this.markDirty();
             }
         });
         row.querySelector('.stage-down').addEventListener('click', () => {
             if (row.nextElementSibling) {
                 row.parentNode.insertBefore(row.nextElementSibling, row);
                 this.renumberStages();
+                this.markDirty();
             }
         });
+        // Any interaction with a card makes it the step the panel describes.
+        row.addEventListener('focusin', () => this.selectStage(row));
+        row.addEventListener('click', () => this.selectStage(row));
 
         this.renderStageEffect(row, stage);
+        this.updateStepSummary(row);
+        if (!stage) this.selectStage(row);
+    }
+
+    /**
+     * Show `row`'s "on approval" editor in the panel under the flow. The editor
+     * element itself moves (it is not re-rendered), so what was ticked travels
+     * with it; readStageEffect() follows it through row._effectHost.
+     */
+    selectStage(row) {
+        // A removed card still bubbles its click; it has nothing left to show.
+        if (!row || row === this.activeRow || !document.contains(row)) return;
+        const slot = document.getElementById('rtxEffectSlot');
+        if (!slot) return;
+        if (this.activeRow && this.activeRow._effectHost && document.contains(this.activeRow)) {
+            this.activeRow.appendChild(this.activeRow._effectHost);
+            this.activeRow.classList.remove('is-on');
+        }
+        this.activeRow = row;
+        row.classList.add('is-on');
+        if (row._effectHost) slot.appendChild(row._effectHost);
+        this.updateEffectTitle();
+    }
+
+    updateEffectTitle() {
+        const title = document.getElementById('rtxEffectTitle');
+        if (!title || !this.activeRow) return;
+        const n = this.activeRow.querySelector('.stage-pos')?.textContent || '';
+        title.textContent = `Step ${Number(n)} · on approval`;
+    }
+
+    /** The one-line "what this step does" on its card. */
+    updateStepSummary(row) {
+        const does = row.querySelector('.rtx-does');
+        if (!does) return;
+        const effect = this.readStageEffect(row);
+        does.classList.toggle('is-acts', !!effect.type);
+        if (effect.type && effect.type !== 'execute_request') {
+            does.textContent = '◷ legacy access grant (retired)';
+        } else if (effect.type) {
+            const n = (effect.config?.action_types || []).length;
+            does.textContent = n ? `⚙ can run ${n} action${n === 1 ? '' : 's'} on approval` : '⚙ performs work · no actions picked';
+        } else {
+            does.textContent = '• approve and pass on';
+        }
     }
 
     /**
@@ -348,6 +433,7 @@ class RequestTypesManager {
     renderStageEffect(row, stage) {
         const host = row.querySelector('.stage-effect');
         if (!host) return;
+        row._effectHost = host;
 
         const type = (stage && stage.effect_type) || '';
         let config = null;
@@ -367,9 +453,8 @@ class RequestTypesManager {
         // must not silently destroy it, and must not be able to author a new one.
         if (type && type !== 'execute_request') {
             host.innerHTML = `
-                <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover text-xs text-text-secondary">
-                    <i class="fas fa-clock-rotate-left mr-1.5 text-text-muted"></i>
-                    <span class="font-medium text-text-primary">Legacy effect — grants temporary access.</span>
+                <div class="text-sm text-text-secondary">
+                    <span class="font-medium text-text-primary">Legacy effect: grants temporary access.</span>
                     This model was retired; approving this step no longer grants anything.
                     Switch it to actions when you are ready.
                 </div>`;
@@ -388,32 +473,31 @@ class RequestTypesManager {
             const list = groups[key] || [];
             if (!list.length) return '';
             return `
-                <div class="mt-2">
-                    <div class="text-xs font-semibold text-text-secondary mb-1">${heading}</div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                <div style="margin-top:14px">
+                    <div class="rtx-hint" style="font-weight:600;margin-bottom:8px">${heading}</div>
+                    <div class="grid">
                         ${list.map((a) => `
-                            <label class="flex items-start gap-2 text-xs text-text-primary">
-                                <input type="checkbox" class="stage-action mt-0.5" value="${utils.escapeHtml(a.action_type)}"
+                            <label style="display:flex;gap:10px;align-items:flex-start">
+                                <input type="checkbox" class="stage-action" style="margin-top:2px" value="${utils.escapeHtml(a.action_type)}"
                                     ${chosen.includes(a.action_type) ? 'checked' : ''}>
                                 <span>${utils.escapeHtml(a.label)}
-                                    <code class="text-text-muted">${utils.escapeHtml(a.action_type)}</code></span>
+                                    <code class="rtx-mono" style="color:var(--color-text-muted)">${utils.escapeHtml(a.action_type)}</code></span>
                             </label>`).join('')}
                     </div>
                 </div>`;
         };
 
         host.innerHTML = `
-            <div class="px-3 py-2 rounded-lg border border-border bg-surface-hover">
-                <label class="flex items-center gap-2 text-xs font-medium text-text-primary">
+            <div>
+                <label style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500;cursor:pointer">
                     <input type="checkbox" class="stage-effect-on" ${on ? 'checked' : ''}>
-                    On approval, perform the request's work
+                    When this step is approved, perform the request's work
                 </label>
-                <div class="stage-effect-body ${on ? '' : 'hidden'}">
-                    <div class="text-xs text-text-muted mt-1">
-                        The ceiling for this type. A requester can only build actions from this list,
-                        and the list is copied onto each request when it is raised — editing it here
-                        never changes a request that is already open.
-                    </div>
+                <div class="stage-effect-body" style="${on ? '' : 'display:none'}">
+                    <p class="rtx-hint" style="margin:8px 0 0">
+                        These are the most a requester can ask for. The list is copied onto each
+                        request when it is raised, so editing it never changes a request that is already open.
+                    </p>
                     ${groupHtml('server', 'Server builds')}
                     ${groupHtml('inventory', 'Component inventory')}
                 </div>
@@ -421,12 +505,15 @@ class RequestTypesManager {
 
         const toggle = host.querySelector('.stage-effect-on');
         const body = host.querySelector('.stage-effect-body');
-        toggle.addEventListener('change', () => body.classList.toggle('hidden', !toggle.checked));
+        toggle.addEventListener('change', () => { body.style.display = toggle.checked ? '' : 'none'; });
+        // The panel lives outside the card, so its changes are not inside the
+        // card's own listeners; the form's still see them (it is in the form).
+        host.addEventListener('change', () => this.updateStepSummary(row));
     }
 
     /** Read one row's effect back out of the DOM, for collectStages(). */
     readStageEffect(row) {
-        const host = row.querySelector('.stage-effect');
+        const host = row._effectHost || row.querySelector('.stage-effect');
         const stored = row._effect || { type: '', config: null };
 
         // A legacy effect has no editor — preserve exactly what was loaded.
@@ -459,8 +546,9 @@ class RequestTypesManager {
 
     renumberStages() {
         document.querySelectorAll('#stageRows .stage-row .stage-pos').forEach((el, i) => {
-            el.textContent = i + 1;
+            el.textContent = String(i + 1).padStart(2, '0');
         });
+        this.updateEffectTitle();
     }
 
     collectStages() {
@@ -471,7 +559,7 @@ class RequestTypesManager {
             const assignee_type = row.querySelector('.stage-owner-type').value;
             const assignee_id = row.querySelector('.stage-owner-id').value;
             const instructions = row.querySelector('.stage-instructions').value.trim();
-            if (!name && !assignee_id) continue; // skip fully-empty rows
+            if (!name && !assignee_id) continue; // skip fully-empty steps
 
             const stage = { name, assignee_type, assignee_id, instructions };
 
@@ -490,12 +578,15 @@ class RequestTypesManager {
     }
 
     async submit() {
+        if (!this.canManage) return;
         const name = document.getElementById('typeName').value.trim();
         const description = document.getElementById('typeDescription').value.trim();
-        const is_active = document.getElementById('typeActive').value;
         const stages = this.collectStages();
 
-        if (!name) return utils.showAlert('Name is required', 'error');
+        if (!name) {
+            document.getElementById('typeName').focus();
+            return utils.showAlert('Name is required', 'error');
+        }
         if (stages.length === 0) return utils.showAlert('Add at least one step', 'error');
         for (let i = 0; i < stages.length; i++) {
             if (!stages[i].name) return utils.showAlert(`Step ${i + 1}: name is required`, 'error');
@@ -505,7 +596,8 @@ class RequestTypesManager {
         const fields = {
             name,
             description,
-            is_active,
+            // Archiving has its own button; saving keeps whatever state the type is in.
+            is_active: this.currentType ? String(this.currentType.is_active) : '1',
             asks_for_server: document.getElementById('typeAsksServer').checked ? '1' : '0',
             asks_for_components: document.getElementById('typeAsksComponents').checked ? '1' : '0',
             stages: JSON.stringify(stages)
@@ -513,21 +605,37 @@ class RequestTypesManager {
         const action = this.editingId ? 'pipeline-template-update' : 'pipeline-template-create';
         if (this.editingId) fields.template_id = this.editingId;
 
+        const save = document.getElementById('typeSaveBtn');
         try {
+            if (save) save.disabled = true;
             const result = await api.requestEnvelope(action, fields);
             if (!result.success) {
                 const msg = result.data?.errors?.length ? result.data.errors.join('; ') : (result.message || 'Save failed');
+                this.updateSaveState();
                 return utils.showAlert(msg, 'error');
             }
-            utils.showAlert(this.editingId ? 'Request type updated' : 'Request type created', 'success');
-            this.closeModal();
-            this.load();
+            utils.showAlert(this.editingId ? 'Request type saved' : 'Request type created', 'success');
+            const savedId = this.editingId
+                || Number(result.data?.template_id || result.data?.id || result.data?.template?.id) || null;
+            this.dirty = false;
+            await this.load(savedId);
+            // A create that did not hand its id back: find it by name instead.
+            if (!savedId) {
+                const made = this.types.find((t) => t.name === name);
+                if (made) this.select(made.id, true);
+            }
         } catch (e) {
+            this.updateSaveState();
             utils.showAlert('Save failed: ' + e.message, 'error');
         }
     }
 
     async toggleArchive(type) {
+        if (!type) return;
+        if (this.dirty) {
+            const ok = await utils.confirm('Archiving reloads this type and discards your unsaved changes. Continue?', 'Unsaved changes');
+            if (!ok) return;
+        }
         try {
             const result = await api.requestEnvelope('pipeline-template-update', {
                 template_id: type.id,
@@ -535,14 +643,17 @@ class RequestTypesManager {
             });
             if (!result.success) return utils.showAlert(result.message || 'Update failed', 'error');
             utils.showAlert(type.is_active === 1 ? 'Type archived' : 'Type restored', 'success');
-            this.load();
+            this.dirty = false;
+            this.load(type.id);
         } catch (e) {
             utils.showAlert('Update failed: ' + e.message, 'error');
         }
     }
 
     async remove(type) {
-        if (!confirm(`Delete request type "${type.name}"? This can't be undone.`)) return;
+        if (!type) return;
+        const ok = await utils.confirm(`Delete request type "${type.name}"? This can't be undone.`, 'Delete request type');
+        if (!ok) return;
         try {
             let result = await api.requestEnvelope('pipeline-template-delete', { template_id: type.id });
 
@@ -552,9 +663,13 @@ class RequestTypesManager {
             const used = Number(result?.data?.request_count || 0);
             if (!result.success && used > 0) {
                 const plural = used === 1 ? 'request' : 'requests';
-                if (!confirm(`${used} ${plural} ${used === 1 ? 'was' : 'were'} created from "${type.name}".\n\n`
-                    + `Those ${plural} are kept and will still show "${type.name}" as their type. `
-                    + `The type itself disappears from the New Request list.\n\nDelete it anyway?`)) return;
+                const again = await utils.confirm(
+                    `${used} ${plural} ${used === 1 ? 'was' : 'were'} created from "${type.name}". `
+                    + `Those ${plural} are kept and will still show "${type.name}" as their type; `
+                    + 'the type itself disappears from the New request list. Delete it anyway?',
+                    'Type is in use'
+                );
+                if (!again) return;
                 result = await api.requestEnvelope('pipeline-template-delete', { template_id: type.id, force: '1' });
             }
 
@@ -563,17 +678,15 @@ class RequestTypesManager {
                 return utils.showAlert(msg, 'error');
             }
             utils.showAlert('Request type deleted', 'success');
-            this.load();
+            this.dirty = false;
+            this.selectedId = null;
+            this.load(null);
         } catch (e) {
             utils.showAlert('Delete failed: ' + e.message, 'error');
         }
     }
 
     // ----- UI utilities ------------------------------------------------------
-    closeModal() {
-        document.getElementById('modalContainer')?.classList.add('hidden');
-    }
-
     setState(state, message = '') {
         const map = {
             loading: 'typesLoadingState',

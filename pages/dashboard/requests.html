@@ -15,114 +15,228 @@
         })();
     </script>
     <style>
-        /* The signature element: a vertical "spine" connecting a request's steps,
-           with a status node per step and the active step elevated. Uses the
-           app's CSS variables so it tracks the theme. */
-        .pl-stepper { position: relative; }
-        .pl-step { position: relative; padding-left: 46px; padding-bottom: 18px; }
-        .pl-step:last-child { padding-bottom: 0; }
-        .pl-step::before {
-            content: ""; position: absolute; left: 16px; top: 36px; bottom: -2px; width: 2px;
-            background: var(--color-border, #e5e7eb);
+        /* ============================================================
+           Requests — "A · Refined" list + detail, "B · Focus" board.
+           Plain CSS on the theme variables: the Tailwind build here is
+           hand-compiled, so a utility that is not already in tailwind.css
+           renders as nothing, and the variables carry dark mode.
+           ============================================================ */
+        .rqx {
+            --rqx-accent: #0F766E; --rqx-accent-ink: #0C5D57; --rqx-accent-soft: #E6F2F0; --rqx-sel: #F2FBF9;
+            --rqx-red: #B91C1C; --rqx-red-soft: #FDECEC; --rqx-amber: #B45309; --rqx-amber-soft: #FCEFD8;
+            --rqx-red-line: #F4C7C3;
+            color: var(--color-text-primary); font-size: 14px;
+            display: flex; flex-direction: column; gap: 16px;
         }
-        .pl-step.is-done::before { background: #16a34a; }
-        .pl-step:last-child::before { display: none; }
-        .pl-node {
-            position: absolute; left: 0; top: 2px; width: 34px; height: 34px; border-radius: 9999px;
-            display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700;
-            border: 2px solid var(--color-border, #e5e7eb);
-            background: var(--color-surface-card, #fff); color: var(--color-text-muted, #94a3b8);
+        [data-theme="dark"] .rqx {
+            --rqx-accent: #2DD4BF; --rqx-accent-ink: #5EEAD4; --rqx-accent-soft: rgba(45, 212, 191, .12); --rqx-sel: rgba(45, 212, 191, .07);
+            --rqx-red: #F87171; --rqx-red-soft: rgba(248, 113, 113, .12); --rqx-amber: #FBBF24; --rqx-amber-soft: rgba(251, 191, 36, .12);
+            --rqx-red-line: rgba(248, 113, 113, .35);
         }
-        .pl-step.is-done .pl-node { background: #16a34a; border-color: #16a34a; color: #fff; }
-        .pl-step.is-rejected .pl-node, .pl-step.is-skipped .pl-node { background: #dc2626; border-color: #dc2626; color: #fff; }
-        .pl-step.is-skipped .pl-node { background: var(--color-text-muted, #94a3b8); border-color: var(--color-text-muted, #94a3b8); }
-        .pl-step.is-active .pl-node {
-            background: var(--color-primary, #0d9488); border-color: var(--color-primary, #0d9488); color: #fff;
-            box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary, #0d9488) 22%, transparent);
+        /* These rules set display, and load after tailwind.css, so they would
+           otherwise beat its .hidden; JS hides things with that class. */
+        .rqx .hidden, .rqx.hidden { display: none !important; }
+        .rqx-mono { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+        .rqx-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+        .rqx-head h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+        .rqx-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+        .rqx-tab {
+            height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent;
+            color: var(--color-text-secondary); font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
         }
-        @media (prefers-reduced-motion: no-preference) {
-            .pl-step.is-active .pl-node { animation: pl-pulse 2.2s ease-in-out infinite; }
-            @keyframes pl-pulse {
-                0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary, #0d9488) 26%, transparent); }
-                50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-primary, #0d9488) 6%, transparent); }
-            }
+        .rqx-tab:hover { background: var(--color-surface-hover); }
+        .rqx-tab.active { background: var(--rqx-accent-soft); color: var(--rqx-accent-ink); }
+        .rqx-tab .rqx-count:empty { display: none; }
+        .rqx-head-right { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .rqx-btn {
+            height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border);
+            background: var(--color-surface-card); color: var(--color-text-primary);
+            font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
         }
-        .scope-tab.active { background: var(--color-primary, #0d9488); color: #fff; border-color: var(--color-primary, #0d9488); }
+        .rqx-btn:hover { background: var(--color-surface-hover); }
+        .rqx-btn i { font-size: 12px; }
+        .rqx-btn-icon { width: 36px; padding: 0; justify-content: center; color: var(--color-text-secondary); }
+        .rqx-btn-primary { border-color: transparent; background: #0F766E; color: #fff; }
+        .rqx-btn-primary:hover { background: #0C5D57; }
+        .rqx-btn-danger { color: var(--rqx-red); }
+        .rqx-btn-danger:hover { background: var(--rqx-red-soft); }
+        .rqx-btn-danger-solid { border-color: transparent; background: #B91C1C; color: #fff; }
+        .rqx-btn-danger-solid:hover { background: #991B1B; }
+        .rqx-now .rqx-btn, .rqx-d-foot .rqx-btn { height: 38px; }
+        .rqx-seg { display: flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; background: var(--color-surface-card); }
+        .rqx-seg button {
+            height: 34px; padding: 0 12px; border: 0; background: transparent; color: var(--color-text-secondary);
+            font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .rqx-seg button + button { border-left: 1px solid var(--color-border-light); }
+        .rqx-seg button[aria-pressed="true"] { background: var(--color-text-primary); color: var(--color-surface-card); }
 
-        /* The list is a queue ledger, not a stack of cards: one dense row per
-           request, a colour rail on the left carrying its state, and the list
-           split into what is waiting on you and what is moving elsewhere.
-           Written as plain CSS rather than utilities because the Tailwind
-           build here is hand-compiled — a class that is not already in
-           assets/css/tailwind.css renders as nothing. */
-        .rq-group {
-            display: flex; align-items: baseline; gap: 8px;
-            padding: 14px 4px 7px; font-size: 12px; font-weight: 600;
-            color: var(--color-text-secondary, #41494F);
+        .rqx-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .rqx-search {
+            display: flex; align-items: center; gap: 8px; height: 34px; width: 280px; max-width: 100%;
+            padding: 0 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface-card);
+            color: var(--color-text-muted); font-size: 12px;
         }
-        .rq-group:first-child { padding-top: 2px; }
-        .rq-group .n { font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace; font-weight: 400; color: var(--color-text-muted, #6E777E); }
-        .rq-ledger {
-            background: var(--color-surface-card, #fff);
-            border: 1px solid var(--color-border, #DFE3E6);
-            border-radius: 8px; overflow: hidden;
+        .rqx-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .rqx-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--color-text-primary); outline: none; }
+        .rqx-chip {
+            height: 34px; padding: 0 30px 0 12px; border-radius: 999px; border: 1px solid var(--color-border);
+            background-color: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-size: 13px; cursor: pointer;
+            appearance: none; -webkit-appearance: none; max-width: 220px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none' stroke='%236B7680' stroke-width='1.4'%3E%3Cpath d='M2 4l3 3 3-3'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
         }
-        .rq-row {
-            display: grid; grid-template-columns: 3px minmax(0, 1.55fr) minmax(0, 1.15fr) auto;
-            align-items: center; gap: 0 14px; cursor: pointer;
-            border-top: 1px solid var(--color-border-light, #EBEEF0);
+        .rqx-chip.is-active { border-color: #0F766E; background-color: var(--rqx-accent-soft); color: var(--rqx-accent-ink); }
+        [data-theme="dark"] .rqx-chip, [data-theme="dark"] .rqx-search input, [data-theme="dark"] .rqx input, [data-theme="dark"] .rqx select { color-scheme: dark; }
+
+        .rqx-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; }
+
+        /* ---- list view: queue on the left, the open request on the right ---- */
+        .rqx-split { display: flex; gap: 20px; align-items: flex-start; }
+        .rqx-list { flex: 0 1 380px; min-width: 0; overflow: hidden; }
+        .rqx-grp {
+            font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+            color: var(--color-text-muted); padding: 12px 16px 6px;
+            background: var(--color-surface-hover); border-bottom: 1px solid var(--color-border-light);
         }
-        .rq-ledger .rq-row:first-child { border-top: 0; }
-        .rq-row:hover, .rq-row:focus-visible { background: var(--color-surface-hover, #F6F7F8); }
-        .rq-row:focus-visible { outline: 2px solid var(--color-primary, #0d9488); outline-offset: -2px; }
-        .rq-rail { align-self: stretch; background: var(--color-border, #DFE3E6); }
-        .rq-rail.is-now { background: var(--color-primary, #0d9488); }
-        .rq-rail.is-blocked { background: var(--color-warning, #D97706); }
-        .rq-rail.is-failed { background: var(--color-danger, #DC2626); }
-        .rq-rail.is-done { background: var(--color-success, #16A34A); }
-        .rq-main { padding: 11px 0 11px 12px; min-width: 0; }
-        .rq-title {
-            font-weight: 500; color: var(--color-text-primary, #161A1D);
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        .rqx-row {
+            display: flex; flex-direction: column; gap: 5px; padding: 13px 16px;
+            border-bottom: 1px solid var(--color-border-light); cursor: pointer; position: relative;
         }
-        .rq-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 3px; }
-        .rq-step { padding: 11px 0; min-width: 0; }
-        .rq-where {
-            font-size: 12.5px; color: var(--color-text-secondary, #41494F);
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        .rqx-row:last-child { border-bottom: 0; }
+        .rqx-row:hover { background: var(--color-surface-hover); }
+        .rqx-row.is-selected { background: var(--rqx-sel); box-shadow: inset 3px 0 0 var(--rqx-accent); }
+        .rqx-row:focus-visible, .rqx-bcard:focus-visible { outline: 2px solid #0F766E; outline-offset: -2px; }
+        .rqx-row-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .rqx-id { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
+        .rqx-age { margin-left: auto; font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
+        .rqx-row-title { font-weight: 500; overflow-wrap: anywhere; }
+        .rqx-row-step { font-size: 12.5px; color: var(--color-text-muted); }
+        .rqx-row-step.is-red { color: var(--rqx-red); }
+        .rqx-row-step.is-amber { color: var(--rqx-amber); }
+        .rqx-pill { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; white-space: nowrap; background: var(--color-surface-secondary); color: var(--color-text-secondary); }
+        .rqx-pill.p-urgent { background: var(--rqx-red-soft); color: var(--rqx-red); }
+        .rqx-pill.p-high { background: var(--rqx-amber-soft); color: var(--rqx-amber); }
+        .rqx-pill.p-low { background: transparent; color: var(--color-text-muted); border: 1px solid var(--color-border); }
+        .rqx-pill.s-done { background: var(--rqx-accent-soft); color: var(--rqx-accent-ink); }
+        .rqx-pill.s-stopped { background: var(--color-surface-secondary); color: var(--color-text-muted); }
+
+        .rqx-pane { flex: 999 1 560px; min-width: 0; }
+        .rqx-pane-empty { padding: 56px 24px; text-align: center; color: var(--color-text-muted); font-size: 13.5px; }
+        .rqx-detail { position: relative; }
+        .rqx-detail-bar { display: none; }
+        #detailBody { padding: 24px; }
+        .rqx-backdrop { display: none; }
+
+        /* Board view, and any screen too narrow for two columns: the request
+           opens as a sheet from the right instead of beside the list. */
+        .rqx.is-board .rqx-split { display: block; }
+        .rqx.is-board .rqx-list { display: none; }
+        .rqx.is-board .rqx-pane-empty { display: none; }
+        .rqx.is-board .rqx-pane { border: 0; background: none; }
+        .rqx.is-board .rqx-detail:not(.hidden), .rqx-sheet-mode .rqx-detail:not(.hidden) {
+            position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100%); z-index: 1900;
+            background: var(--color-surface-card); border-left: 1px solid var(--color-border);
+            box-shadow: -24px 0 48px rgba(11, 13, 16, .12); overflow-y: auto;
         }
-        .rq-act { padding: 11px 12px 11px 0; display: flex; align-items: center; gap: 10px; justify-self: end; }
-        .rq-age {
-            font-family: "IBM Plex Mono", ui-monospace, Consolas, monospace;
-            font-size: 11.5px; color: var(--color-text-muted, #6E777E); font-variant-numeric: tabular-nums;
+        .rqx.is-board .rqx-detail-bar, .rqx-sheet-mode .rqx-detail-bar {
+            display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 1;
+            padding: 12px 24px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-border-light);
         }
-        .rq-pips { display: flex; gap: 3px; margin-top: 6px; }
-        .rq-pips i { display: block; height: 4px; width: 22px; border-radius: 2px; background: var(--color-border, #DFE3E6); }
-        .rq-pips i.is-done { background: var(--color-success, #16A34A); }
-        .rq-pips i.is-now { background: var(--color-primary, #0d9488); }
-        .rq-pips i.is-blocked { background: var(--color-warning, #D97706); }
-        .rq-pips i.is-failed { background: var(--color-danger, #DC2626); }
-        .rq-flag { font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-        .rq-btn {
-            font: inherit; font-size: 12px; font-weight: 500; white-space: nowrap;
-            padding: 6px 11px; border-radius: 6px; cursor: pointer;
-            border: 1px solid var(--color-border, #DFE3E6);
-            background: var(--color-surface-card, #fff); color: var(--color-text-secondary, #41494F);
+        .rqx-detail-bar span { flex: 1; min-width: 0; font-size: 12.5px; color: var(--color-text-muted); }
+        .rqx-close {
+            width: 34px; height: 34px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card);
+            color: var(--color-text-secondary); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
         }
-        .rq-btn.is-act {
-            border-color: var(--color-primary, #0d9488); color: var(--color-primary, #0d9488);
-            background: var(--color-primary-lightest, #D9F2EF);
+        .rqx.is-board .rqx-detail:not(.hidden) ~ .rqx-backdrop, .rqx-sheet-mode .rqx-detail:not(.hidden) ~ .rqx-backdrop {
+            display: block; position: fixed; inset: 0; z-index: 1800; background: rgba(15, 20, 24, .32);
         }
-        [data-theme="dark"] .rq-btn.is-act {
-            background: color-mix(in srgb, var(--color-primary, #0d9488) 22%, transparent);
-            color: var(--color-primary-lighter, #7DD3C8);
-            border-color: var(--color-primary-light, #14B8A6);
+        @media (max-width: 1023px) {
+            .rqx-split { display: block; }
+            .rqx-list { flex: none; }
+            .rqx-pane { border: 0; background: none; }
+            .rqx-pane-empty { display: none; }
+            .rqx-detail:not(.hidden) {
+                position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100%); z-index: 1900;
+                background: var(--color-surface-card); border-left: 1px solid var(--color-border); overflow-y: auto;
+            }
+            .rqx-detail-bar {
+                display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 1;
+                padding: 12px 16px; background: var(--color-surface-card); border-bottom: 1px solid var(--color-border-light);
+            }
+            .rqx-detail:not(.hidden) ~ .rqx-backdrop { display: block; position: fixed; inset: 0; z-index: 1800; background: rgba(15, 20, 24, .32); }
+            #detailBody { padding: 20px 16px; }
         }
-        @media (max-width: 760px) {
-            .rq-row { grid-template-columns: 3px minmax(0, 1fr); }
-            .rq-step { grid-column: 2; padding: 0 12px 10px; }
-            .rq-act { grid-column: 2; justify-self: start; padding: 0 12px 12px; }
+
+        /* ---- the request itself ---- */
+        .rqx-d { display: flex; flex-direction: column; gap: 22px; }
+        .rqx-d-head { display: flex; flex-direction: column; gap: 6px; }
+        .rqx-d-kicker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--color-text-muted); }
+        .rqx-d-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+        .rqx-d-meta { font-size: 13.5px; color: var(--color-text-muted); }
+        .rqx-d-meta b { font-weight: 500; color: var(--color-text-primary); }
+        .rqx-d-meta .is-red { color: var(--rqx-red); }
+        .rqx-d-desc { margin: 4px 0 0; font-size: 13.5px; color: var(--color-text-secondary); white-space: pre-wrap; }
+        .rqx-link { border: 0; background: none; padding: 0; font: inherit; color: var(--rqx-accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+
+        .rqx-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(120px, 1fr); gap: 8px; overflow-x: auto; }
+        .rqx-steps li { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .rqx-bar { height: 4px; border-radius: 2px; background: var(--color-border); }
+        .rqx-steps .is-done .rqx-bar { background: var(--rqx-accent); }
+        .rqx-steps .is-active .rqx-bar { background: var(--rqx-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--rqx-accent) 22%, transparent); }
+        .rqx-steps .is-rejected .rqx-bar { background: var(--rqx-red); }
+        .rqx-steps .is-skipped .rqx-bar { background: var(--color-border-dark); }
+        .rqx-step-name { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+        .rqx-steps .is-active .rqx-step-name { font-weight: 600; }
+        .rqx-steps .is-pending .rqx-step-name, .rqx-steps .is-skipped .rqx-step-name { color: var(--color-text-muted); font-weight: 400; }
+        .rqx-step-sub { font-size: 12px; color: var(--color-text-muted); overflow-wrap: anywhere; }
+        .rqx-steps .is-active .rqx-step-sub { color: var(--rqx-accent); }
+
+        .rqx-now { display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 10px; background: var(--color-surface-hover); }
+        .rqx-now-title { font-weight: 600; }
+        .rqx-now-note { font-size: 13.5px; color: var(--color-text-secondary); }
+        .rqx-sec-title { font-weight: 600; margin: 0 0 8px; font-size: 14px; }
+        .rqx-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .rqx-table th { font-size: 12px; font-weight: 500; color: var(--color-text-muted); text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--color-border); }
+        .rqx-table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--color-border-light); vertical-align: top; }
+        .rqx-act { display: flex; gap: 12px; font-size: 13px; }
+        .rqx-act time { flex: 0 0 128px; white-space: nowrap; color: var(--color-text-muted); font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-size: 12px; padding-top: 1px; }
+        .rqx-act-what { min-width: 0; overflow-wrap: anywhere; }
+        .rqx-act-who { color: var(--color-text-muted); }
+        .rqx-d-foot { padding-top: 16px; border-top: 1px solid var(--color-border-light); display: flex; justify-content: flex-end; }
+
+        /* ---- board view ---- */
+        .rqx-board { display: flex; gap: 16px; overflow-x: auto; align-items: flex-start; padding-bottom: 8px; }
+        .rqx-col { flex: 1 1 250px; min-width: 250px; display: flex; flex-direction: column; gap: 10px; }
+        .rqx-col-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+        .rqx-col-head b { font-weight: 600; font-size: 13.5px; }
+        .rqx-col-head .rqx-mono { font-size: 12px; color: var(--color-text-muted); }
+        .rqx-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--d); flex: none; }
+        .rqx-col-empty { padding: 18px 14px; border: 1px dashed var(--color-border); border-radius: 12px; font-size: 12.5px; color: var(--color-text-muted); text-align: center; }
+        .rqx-col-more { font-size: 12px; color: var(--color-text-muted); padding: 0 4px; }
+        .rqx-bcard {
+            display: flex; flex-direction: column; gap: 10px; padding: 14px;
+            border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-surface-card);
+            cursor: pointer; text-align: left;
         }
+        .rqx-bcard:hover { border-color: var(--color-border-dark); }
+        .rqx-bcard.is-red { border-color: var(--rqx-red-line); }
+        .rqx-bcard.is-selected { border-color: var(--rqx-accent); box-shadow: 0 0 0 1px var(--rqx-accent); }
+        .rqx-bcard-top { display: flex; justify-content: space-between; gap: 8px; }
+        .rqx-prio { font-size: 11.5px; font-weight: 500; color: var(--color-text-muted); }
+        .rqx-prio.p-urgent { color: var(--rqx-red); }
+        .rqx-prio.p-high { color: var(--rqx-amber); }
+        .rqx-bcard-title { font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
+        .rqx-pips { display: flex; gap: 3px; }
+        .rqx-pips i { flex: 1; height: 4px; border-radius: 2px; background: var(--color-border); }
+        .rqx-pips i.is-done { background: var(--color-text-primary); }
+        .rqx-pips i.is-now { background: var(--rqx-accent); }
+        .rqx-pips i.is-red { background: var(--rqx-red); }
+        .rqx-bcard-foot { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--color-text-muted); }
+        .rqx-bcard-note { font-size: 12px; color: var(--color-text-muted); }
+        .rqx-bcard-note.is-red { color: var(--rqx-red); }
     </style>
 </head>
 
@@ -134,89 +248,101 @@
             <div id="sidebar-placeholder"></div>
 
             <main class="main-content flex-1 p-4 sm:p-6">
-                <div id="pipelinesView" class="content-section active">
-                    <div class="content-header mb-5">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div>
-                                <h2 class="text-2xl font-bold text-text-primary">Requests</h2>
-                                <p class="text-sm text-text-muted mt-1">Track requests as they move from step to step and team to team.</p>
+                <div id="pipelinesView" class="content-section active rqx">
+                    <div class="rqx-head">
+                        <h1>Requests</h1>
+                        <div class="rqx-tabs" id="scopeTabs" role="tablist" aria-label="Which requests">
+                            <button type="button" role="tab" class="scope-tab rqx-tab active" data-scope="my_queue">My queue <span class="rqx-count rqx-mono"></span></button>
+                            <button type="button" role="tab" class="scope-tab rqx-tab" data-scope="created">Created by me <span class="rqx-count rqx-mono"></span></button>
+                            <button type="button" role="tab" class="scope-tab rqx-tab hidden" data-scope="all" id="scopeAllTab">All <span class="rqx-count rqx-mono"></span></button>
+                        </div>
+                        <div class="rqx-head-right">
+                            <div class="rqx-seg" role="group" aria-label="View" id="viewToggle">
+                                <button type="button" data-view="list" aria-pressed="true"><i class="fas fa-list" aria-hidden="true"></i> List</button>
+                                <button type="button" data-view="board" aria-pressed="false"><i class="fas fa-table-columns" aria-hidden="true"></i> Board</button>
                             </div>
-                            <div class="flex items-center gap-3">
-                                <a id="typesLink" href="request-types.html" class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] hidden items-center gap-2">
-                                    <i class="fas fa-sliders"></i> <span class="hidden sm:inline">Request Types</span>
-                                </a>
-                                <button id="refreshPipelinesBtn" class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] min-w-[44px]" title="Refresh">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
-                                <button id="createPipelineBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 min-h-[44px]">
-                                    <i class="fas fa-plus"></i> New Request
-                                </button>
-                            </div>
+                            <a id="typesLink" href="request-types.html" class="rqx-btn hidden" title="Request types">
+                                <i class="fas fa-sliders" aria-hidden="true"></i><span>Types</span>
+                            </a>
+                            <button type="button" id="refreshPipelinesBtn" class="rqx-btn rqx-btn-icon" title="Refresh" aria-label="Refresh">
+                                <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                            </button>
+                            <button type="button" id="createPipelineBtn" class="rqx-btn rqx-btn-primary">
+                                <i class="fas fa-plus" aria-hidden="true"></i> New request
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Scope tabs -->
-                    <div class="flex flex-wrap items-center gap-2 mb-4" id="scopeTabs">
-                        <button class="scope-tab active px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary transition-colors" data-scope="my_queue">
-                            <i class="fas fa-inbox mr-1.5"></i>My Queue
-                        </button>
-                        <button class="scope-tab px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:bg-surface-hover transition-colors" data-scope="created">
-                            <i class="fas fa-user-pen mr-1.5"></i>Created by me
-                        </button>
-                        <button class="scope-tab px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-secondary hover:bg-surface-hover transition-colors hidden" data-scope="all" id="scopeAllTab">
-                            <i class="fas fa-layer-group mr-1.5"></i>All
-                        </button>
-                    </div>
-
-                    <!-- Filters -->
-                    <div class="flex flex-col sm:flex-row sm:flex-wrap gap-3 mb-5">
-                        <input type="text" id="pipelineSearch" placeholder="Search requests..."
-                            class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] w-full sm:w-auto sm:flex-1 bg-surface-card text-text-primary">
-                        <select id="pipelineStatusFilter" class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                            <option value="">All Status</option>
-                            <option value="in_progress">In Progress</option>
+                    <div class="rqx-filters">
+                        <label class="rqx-search">
+                            <i class="fas fa-search" aria-hidden="true"></i>
+                            <input type="search" id="pipelineSearch" placeholder="Search requests" aria-label="Search requests" autocomplete="off">
+                        </label>
+                        <select id="pipelineStatusFilter" class="rqx-chip" aria-label="Status">
+                            <option value="">Status: Any</option>
+                            <option value="in_progress">In progress</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                             <option value="rejected">Rejected</option>
                         </select>
-                        <select id="pipelinePriorityFilter" class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                            <option value="">All Priority</option>
+                        <select id="pipelinePriorityFilter" class="rqx-chip" aria-label="Priority">
+                            <option value="">Priority: Any</option>
                             <option value="low">Low</option>
                             <option value="medium">Medium</option>
                             <option value="high">High</option>
                             <option value="urgent">Urgent</option>
                         </select>
-                        <select id="pipelineTypeFilter" class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] bg-surface-card text-text-primary">
-                            <option value="">All Types</option>
+                        <select id="pipelineTypeFilter" class="rqx-chip" aria-label="Request type">
+                            <option value="">Type: Any</option>
                         </select>
                     </div>
 
                     <div id="pipelinesLoadingState" class="text-center py-12 hidden">
-                        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                        <i class="fas fa-spinner fa-spin text-3xl text-primary mb-4"></i>
                         <p class="text-text-muted">Loading requests...</p>
                     </div>
-                    <div id="pipelinesErrorState" class="text-center py-12 bg-surface-card rounded-lg hidden">
-                        <i class="fas fa-exclamation-triangle text-4xl text-danger mb-4"></i>
+                    <div id="pipelinesErrorState" class="rqx-card text-center py-12 hidden">
+                        <i class="fas fa-exclamation-triangle text-3xl text-danger mb-4"></i>
                         <p class="text-text-primary font-semibold mb-2">Couldn't load requests</p>
                         <p id="pipelinesErrorMessage" class="text-text-muted mb-4"></p>
-                        <button onclick="requestsManager.load()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Try Again</button>
+                        <button type="button" onclick="requestsManager.load()" class="rqx-btn rqx-btn-primary">Try again</button>
                     </div>
-                    <div id="pipelinesEmptyState" class="text-center py-16 bg-surface-card rounded-lg border border-dashed border-border hidden">
-                        <i class="fas fa-inbox text-4xl text-text-muted mb-4"></i>
+                    <div id="pipelinesEmptyState" class="rqx-card text-center py-16 hidden">
                         <p class="text-text-primary font-semibold mb-2">Nothing here yet</p>
                         <p class="text-text-muted mb-4" id="pipelinesEmptyHint">No requests match this view.</p>
-                        <button id="createFirstPipelineBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
-                            <i class="fas fa-plus mr-2"></i>New Request
+                        <button type="button" id="createFirstPipelineBtn" class="rqx-btn rqx-btn-primary">
+                            <i class="fas fa-plus" aria-hidden="true"></i> New request
                         </button>
                     </div>
 
-                    <div id="pipelinesList"></div>
+                    <!-- List view: the queue, and the open request beside it. In
+                         board view, and below 1024px, #detailModal becomes a
+                         sheet over the page instead. -->
+                    <div class="rqx-split" id="rqxSplit">
+                        <div id="pipelinesList" class="rqx-card rqx-list" aria-label="Request list"></div>
+                        <section class="rqx-card rqx-pane" id="detailPane" aria-label="Request">
+                            <div class="rqx-pane-empty" id="detailEmpty">Pick a request to see its steps and act on it.</div>
+                            <div id="detailModal" class="rqx-detail hidden">
+                                <div class="rqx-detail-bar">
+                                    <span id="detailTitle" class="rqx-mono">Request</span>
+                                    <button type="button" class="rqx-close" id="detailClose" aria-label="Close request">
+                                        <i class="fas fa-times" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <div id="detailBody"></div>
+                            </div>
+                            <div class="rqx-backdrop" id="detailBackdrop"></div>
+                        </section>
+                    </div>
 
-                    <div id="pipelinesPagination" class="flex flex-col sm:flex-row justify-between items-center gap-3 mt-5 hidden">
+                    <!-- Board view -->
+                    <div id="pipelinesBoard" class="rqx-board hidden" aria-label="Requests board"></div>
+
+                    <div id="pipelinesPagination" class="flex flex-col sm:flex-row justify-between items-center gap-3 hidden">
                         <div id="pipelinesPaginationInfo" class="text-sm text-text-muted"></div>
                         <div class="flex gap-2">
-                            <button id="pipelinesPrev" class="px-3 py-1.5 min-h-[40px] border border-border rounded hover:bg-surface-hover text-text-primary">Previous</button>
-                            <button id="pipelinesNext" class="px-3 py-1.5 min-h-[40px] border border-border rounded hover:bg-surface-hover text-text-primary">Next</button>
+                            <button type="button" id="pipelinesPrev" class="rqx-btn">Previous</button>
+                            <button type="button" id="pipelinesNext" class="rqx-btn">Next</button>
                         </div>
                     </div>
                 </div>
@@ -234,19 +360,6 @@
                 </button>
             </div>
             <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(92vh-120px)]" id="modalBody"></div>
-        </div>
-    </div>
-
-    <!-- Request detail modal -->
-    <div id="detailModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden" style="z-index: 2000;">
-        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[92vh] overflow-hidden">
-            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
-                <h3 id="detailTitle" class="text-xl font-semibold text-text-primary">Request</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="detailClose">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(92vh-120px)]" id="detailBody"></div>
         </div>
     </div>
 

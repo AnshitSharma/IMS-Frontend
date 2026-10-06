@@ -1,0 +1,124 @@
+/*
+ * Add / Edit component — the "B · Focus" side drawer.
+ *
+ * Linked by component.html (the drawer chrome) and by both form fragments
+ * (pages/forms/add-component.html, edit-component.html), so the fields look the
+ * same when requests.js embeds a fragment in its own modal. Built on the theme
+ * variables in globals.css so dark mode follows.
+ */
+
+/* ---------- drawer chrome (dashboard.openDrawer) ---------- */
+.cd-root { position: fixed; inset: 0; z-index: 2000; } /* the modal level in tailwind.config.js; above the navbar (1000) */
+.cd-backdrop { position: absolute; inset: 0; background: rgba(15, 20, 24, .32); opacity: 0; transition: opacity .2s ease; }
+.cd-drawer {
+    position: absolute; top: 0; right: 0; bottom: 0; width: min(560px, 100%);
+    display: flex; flex-direction: column; background: var(--color-surface-card);
+    border-left: 1px solid var(--color-border); box-shadow: -24px 0 48px rgba(11, 13, 16, .08);
+    transform: translateX(24px); opacity: 0; transition: transform .22s ease, opacity .22s ease;
+}
+.cd-root.is-open .cd-backdrop { opacity: 1; }
+.cd-root.is-open .cd-drawer { transform: none; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+    .cd-backdrop, .cd-drawer { transition: none; }
+}
+body.cd-open { overflow: hidden; }
+
+/* ---------- the form inside it ---------- */
+.cd { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--color-text-primary); font-size: 14px; }
+.cd-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 28px; border-bottom: 1px solid var(--color-border-light); }
+.cd-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cd-eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px; color: var(--color-text-muted); overflow-wrap: anywhere;
+}
+.cd-head h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.cd-close {
+    flex: none; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card);
+    color: var(--color-text-secondary); cursor: pointer;
+}
+.cd-close:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+
+.cd-body { flex: 1; min-height: 0; overflow-y: auto; padding: 24px 28px; display: flex; flex-direction: column; gap: 28px; }
+/* .form-section is a bordered card in globals.css; inside the drawer it is a
+   plain group. add-form.js keys its show/hide logic off that class. */
+.cd .form-section { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+.cd-section > * + * { margin-top: 14px; }
+.cd-section-title { display: block; font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+.cd-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.cd-span { grid-column: 1 / -1; }
+@media (max-width: 480px) { .cd-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.cd-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cd-field > label, .cd-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+.cd-req::after { content: ' *'; color: var(--color-danger); }
+.cd-opt { font-weight: 400; color: var(--color-text-muted); }
+.cd input[type="text"], .cd input[type="date"], .cd input:not([type]), .cd select, .cd textarea {
+    width: 100%; min-height: 40px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 12px;
+    font: inherit; font-size: 14px; color: var(--color-text-primary); background: var(--color-surface-card);
+}
+/* Native date-picker and select arrows follow the theme. */
+[data-theme="dark"] .cd input, [data-theme="dark"] .cd select, [data-theme="dark"] .cd textarea { color-scheme: dark; }
+.cd textarea { padding: 10px 12px; min-height: 84px; resize: vertical; line-height: 1.5; }
+.cd input:focus, .cd select:focus, .cd textarea:focus {
+    outline: none; border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15);
+}
+.cd select:disabled { background: var(--color-surface-hover); color: var(--color-text-muted); cursor: not-allowed; }
+.cd input[readonly], .cd-ro {
+    min-height: 40px; border: 1px dashed var(--color-border); border-radius: 8px; padding: 0 12px;
+    display: flex; align-items: center; background: transparent; color: var(--color-text-muted); font-size: 14px;
+}
+.cd input[readonly]:focus { box-shadow: none; border-color: var(--color-border-dark); }
+.cd-ro { padding: 9px 12px; }
+.cd-hint { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; }
+
+/* Status as three choice cards. */
+.cd-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cd-choice {
+    display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px;
+    border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.cd-choice input { accent-color: #0F766E; margin: 0; }
+.cd-choice:hover { background: var(--color-surface-hover); }
+.cd-choice:has(input:checked) { border-color: #0F766E; background: rgba(15, 118, 110, .07); }
+.cd-choice.is-failed:has(input:checked) { border-color: var(--color-danger); background: var(--color-danger-light); }
+.cd-choice.is-failed input { accent-color: var(--color-danger); }
+.cd-choice:has(input:disabled) { cursor: not-allowed; color: var(--color-text-muted); background: transparent; }
+.cd-choice:has(input:focus-visible) { outline: 2px solid #0F766E; outline-offset: 2px; }
+[data-theme="dark"] .cd-choice.is-failed:has(input:checked) { background: rgba(248, 113, 113, .1); }
+@media (max-width: 480px) { .cd-choices { grid-template-columns: minmax(0, 1fr); } }
+
+.cd-failed-panel { padding: 16px; border-radius: 10px; background: var(--color-danger-light); }
+[data-theme="dark"] .cd-failed-panel { background: rgba(248, 113, 113, .08); }
+
+.cd-note { padding: 12px 14px; border-radius: 8px; font-size: 13px; background: var(--color-info-light); color: var(--color-info-hover); }
+.cd-note.is-expired { background: var(--color-warning-light); color: var(--color-warning-hover); }
+[data-theme="dark"] .cd-note { background: rgba(56, 189, 248, .1); color: #7DD3FC; }
+[data-theme="dark"] .cd-note.is-expired { background: rgba(251, 191, 36, .1); color: #FCD34D; }
+
+.cd-details { border: 1px solid var(--color-border-light); border-radius: 10px; padding: 4px 14px; background: var(--color-surface-hover); }
+
+.cd-foot { display: flex; align-items: center; gap: 8px; padding: 16px 28px; border-top: 1px solid var(--color-border-light); background: var(--color-surface-card); }
+.cd-count { font-size: 13px; color: var(--color-text-muted); }
+.cd-btn {
+    height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border);
+    background: var(--color-surface-card); color: var(--color-text-primary);
+    font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+}
+.cd-btn:hover { background: var(--color-surface-hover); }
+.cd-foot .cd-btn:first-of-type { margin-left: auto; }
+.cd-btn-primary { border-color: transparent; background: #0F766E; color: #fff; }
+.cd-btn-primary:hover { background: #0C5D57; }
+.cd-btn:disabled { opacity: .5; cursor: default; }
+.cd-btn-primary:disabled:hover { background: #0F766E; }
+.cd button:focus-visible, .cd-close:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+
+@media (max-width: 480px) {
+    .cd-head, .cd-body, .cd-foot { padding-left: 16px; padding-right: 16px; }
+}
+
+/* Embedded in another modal (requests.js): that host owns the title and the
+   footer, so only the fields show. */
+.cd.is-embedded { height: auto; }
+.cd.is-embedded .cd-head { display: none; }
+.cd.is-embedded .cd-body { padding: 0; overflow: visible; }

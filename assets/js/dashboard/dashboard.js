@@ -179,12 +179,37 @@ class Dashboard {
             }, 300));
         }
 
-        // Status filter
+        // Status filter: a segmented control writing the hidden #statusFilter
+        // that loadComponentList() reads.
+        const statusSegments = document.getElementById('statusSegments');
         const statusFilter = document.getElementById('statusFilter');
-        if (statusFilter) {
-            statusFilter.addEventListener('change', (e) => {
-                this.handleFilterChange('status', e.target.value);
+        if (statusSegments && statusFilter) {
+            statusSegments.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-status]');
+                if (!button || button.getAttribute('aria-pressed') === 'true') return;
+                statusSegments.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+                statusFilter.value = button.dataset.status;
+                this.handleFilterChange('status', statusFilter.value);
             });
+        }
+
+        // Row density, remembered per browser.
+        const densityToggle = document.getElementById('densityToggle');
+        if (densityToggle) {
+            let density = 'compact';
+            try { density = localStorage.getItem('inventory_density') || 'compact'; } catch (e) { /* storage blocked */ }
+            this.applyDensity(density);
+            densityToggle.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-density]');
+                if (!button) return;
+                this.applyDensity(button.dataset.density);
+                try { localStorage.setItem('inventory_density', button.dataset.density); } catch (err) { /* storage blocked */ }
+            });
+        }
+
+        const exportCsv = document.getElementById('exportComponentsCsv');
+        if (exportCsv) {
+            exportCsv.addEventListener('click', () => this.exportComponentsCsv());
         }
 
         // Select all
@@ -193,10 +218,17 @@ class Dashboard {
             selectAllComponents.addEventListener('change', (e) => this.toggleSelectAll(e.target.checked));
         }
 
-        // Bulk actions
-        const bulkUpdateStatus = document.getElementById('bulkUpdateStatus');
-        if (bulkUpdateStatus) {
-            bulkUpdateStatus.addEventListener('click', () => this.showBulkUpdateModal());
+        // Bulk actions. Status, location and flag are one modal; each button
+        // opens it on its own field.
+        const bulkButtons = { bulkUpdateStatus: 'bulkStatus', bulkMoveLocation: 'bulkLocation', bulkSetFlag: 'bulkFlag' };
+        Object.entries(bulkButtons).forEach(([id, field]) => {
+            const button = document.getElementById(id);
+            if (button) button.addEventListener('click', () => this.showBulkUpdateModal(field));
+        });
+
+        const bulkClearSelection = document.getElementById('bulkClearSelection');
+        if (bulkClearSelection) {
+            bulkClearSelection.addEventListener('click', () => this.clearSelection());
         }
 
         const bulkDelete = document.getElementById('bulkDelete');
@@ -428,21 +460,17 @@ class Dashboard {
         const host = search?.parentElement;
         if (!search || !host) return;
 
-        // The inventory toolbar holds its controls as direct flex siblings, so
-        // this goes in as one too — after the status filter when there is one.
-        const statusFilter = document.getElementById('statusFilter');
-        const anchor = (statusFilter && statusFilter.parentElement === host) ? statusFilter : search;
+        // The search sits inside a <label>, so the filter goes in after that
+        // label as a sibling chip in the same flex row.
+        const anchor = search.closest('label') || search;
+        const row = anchor.parentElement;
 
         const select = document.createElement('select');
         select.id = 'componentLocationFilter';
         select.setAttribute('aria-label', 'Filter by location');
-        // Same classes as #statusFilter, so it lines up with the control beside
-        // it and needs no new compiled CSS.
-        select.className = statusFilter
-            ? statusFilter.className
-            : 'px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] bg-surface-card text-text-primary';
-        select.innerHTML = '<option value="">All locations</option>';
-        host.insertBefore(select, anchor.nextSibling);
+        select.className = 'inv-chip';
+        select.innerHTML = '<option value="">Location: Any</option>';
+        row.insertBefore(select, anchor.nextSibling);
 
         api.locations.list().then(result => {
             const locations = (result?.success && result.data?.locations) || [];
@@ -452,11 +480,12 @@ class Dashboard {
                 select.remove();
                 return;
             }
-            select.innerHTML = '<option value="">All locations</option>' + locations.map(loc =>
+            select.innerHTML = '<option value="">Location: Any</option>' + locations.map(loc =>
                 `<option value="${utils.escapeHtml(loc.location_uuid)}">${utils.escapeHtml(loc.name)}</option>`
             ).join('');
 
             select.addEventListener('change', () => {
+                select.classList.toggle('is-active', select.value !== '');
                 // A filter change is a new result set, so go back to page 1 —
                 // staying on page 4 of a 2-page result shows nothing.
                 this.currentPage = 1;
@@ -483,6 +512,11 @@ class Dashboard {
             // to all twelve inventory pages' markup — one place to change, and no
             // twelve-file diff for one dropdown.
             this.ensureLocationFilter(componentType);
+
+            const addLabel = document.getElementById('addComponentLabel');
+            if (addLabel) addLabel.textContent = `Add ${utils.componentLabelsSingular?.[componentType] || componentType.toUpperCase()}`;
+            // Not awaited: the table should not wait on the counts.
+            this.loadInventoryCounts(componentType, forceRefresh);
 
             const search = document.getElementById('componentSearch')?.value || '';
             const params = { limit: this.itemsPerPage, offset: (this.currentPage - 1) * this.itemsPerPage };
@@ -724,59 +758,257 @@ class Dashboard {
     renderComponentTable(components, componentType) {
         const tbody = document.getElementById('componentsTableBody');
         if (!tbody) return;
+        this.closeRowMenu();
+        // Kept so the row menu and the CSV export can find a row by ID.
+        this.componentRows = new Map(components.map(c => [Number(c.ID), c]));
+        const singular = utils.componentLabelsSingular?.[componentType] || componentType.toUpperCase();
         if (components.length === 0) {
+            const filtered = (document.getElementById('componentSearch')?.value || '') !== ''
+                || (document.getElementById('statusFilter')?.value || '') !== ''
+                || (document.getElementById('componentLocationFilter')?.value || '') !== '';
+            const canAdd = document.getElementById('addComponentBtn')?.style.display !== 'none';
             tbody.innerHTML = `
-                <tr><td colspan="7" class="empty-state">
-                    <div class="flex flex-col items-center text-center py-16 px-6">
-                        <div class="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
-                            <i class="fas fa-box-open text-primary text-xl"></i>
-                        </div>
-                        <h3 class="text-lg font-semibold text-text-primary mb-1">No Components Found</h3>
-                        <p class="text-sm text-text-secondary mb-6">No ${componentType} components match your search criteria.</p>
-                        <button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddForm()">
-                            <i class="fas fa-plus text-xs"></i> Add First ${componentType.toUpperCase()}
-                        </button>
-                    </div>
+                <tr><td colspan="7" class="inv-empty">
+                    <h3>${filtered ? 'Nothing matches these filters' : `No ${utils.escapeHtml(singular)} units yet`}</h3>
+                    <p>${filtered ? 'Change the search, status or location to see more.' : 'Units appear here once they are added to inventory.'}</p>
+                    ${!filtered && canAdd ? `<button type="button" class="inv-btn inv-btn-primary" onclick="dashboard.showAddForm()"><i class="fas fa-plus" aria-hidden="true"></i> Add ${utils.escapeHtml(singular)}</button>` : ''}
                 </td></tr>`;
+            this.updateSelectAllCheckbox();
             return;
         }
         tbody.innerHTML = components.map(component => {
+            const id = Number(component.ID);
             const modelName = component.ModelName || null;
-            const serialNumber = component.SerialNumber || component.UUID || 'N/A';
+            const serialNumber = component.SerialNumber || component.AssetTag || component.UUID || 'N/A';
             // The full physical address the backend resolved for this unit:
             // "Yotta Noida · RACK 682 · U21" when it is installed in a racked
             // server, "Yotta Noida · Shelf B3" when it is free stock. Falls back
             // to the row's own Location text before the location seeders are run.
-            const location = component.address_text || component.Location || '—';
-            const vendorName = component.VendorName || '';
-            const primaryDisplay = modelName ? utils.escapeHtml(modelName) : utils.escapeHtml(serialNumber);
-            const secondaryDisplay = modelName ? `<span class="block font-mono text-xs text-text-muted mt-0.5">${utils.escapeHtml(serialNumber)}</span>` : '';
-            const vendorBadge = vendorName ? `<span class="block text-xs text-text-muted mt-0.5"><i class="fas fa-truck text-[10px] mr-1"></i>${utils.escapeHtml(vendorName)}</span>` : '';
+            const location = component.address_text || component.Location || '';
+            const primaryDisplay = utils.escapeHtml(modelName || serialNumber);
+            const secondaryDisplay = modelName ? `<span class="inv-mono inv-serial">${utils.escapeHtml(serialNumber)}</span>` : '';
+            const selected = this.selectedItems.has(id);
+
+            let installedIn = '<span class="inv-dim">—</span>';
+            if (component.ServerUUID) {
+                const label = component.server_name || utils.truncateText(component.ServerUUID, 20);
+                installedIn = `<a class="inv-link" href="../server/builder.html?config=${encodeURIComponent(component.ServerUUID)}">${utils.escapeHtml(label)}</a>`;
+            }
 
             return `
-            <tr class="h-16 transition-colors hover:bg-surface-hover">
-                <td class="px-4 py-3 align-middle h-16" data-label="Select"><input type="checkbox" class="component-checkbox" value="${component.ID}" onchange="dashboard.handleItemSelection(this)"></td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Model"><span class="font-semibold text-text-primary text-sm">${primaryDisplay}</span>${secondaryDisplay}${vendorBadge}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Status">${utils.createStatusBadge(component.Status)}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Server UUID">${component.ServerUUID ? `<code class="font-mono text-xs text-text-secondary bg-surface-secondary border border-border-light rounded px-1.5 py-0.5">${utils.truncateText(component.ServerUUID, 20)}</code>` : '<span class="text-text-muted">—</span>'}</td>
-                <td class="px-4 py-3 align-middle h-16 text-sm text-text-secondary" data-label="Location">${utils.escapeHtml(location)}</td>
-                <td class="px-4 py-3 align-middle h-16 text-sm text-text-secondary tabular-nums" data-label="Purchase Date">${utils.formatDate(component.PurchaseDate)}</td>
-                <td class="px-4 py-3 align-middle h-16" data-label="Actions">
-                    <div class="action-buttons flex items-center gap-1.5">
-                        <button class="action-btn view w-9 h-9 rounded-lg text-text-muted hover:bg-surface-hover hover:text-text-primary border border-transparent hover:border-border transition-colors flex items-center justify-center" onclick="dashboard.showComponentViewModal('${componentType}', ${component.ID})" title="View Details" aria-label="View component details">
-                            <i class="fas fa-eye text-sm"></i>
-                        </button>
-                        ${api.utils.hasPermission(`${componentType}.edit`) ? `<button class="action-btn btn-icon-mobile edit px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-primary hover:text-primary transition-colors flex items-center" onclick="dashboard.showEditForm('${componentType}', ${component.ID})" title="Edit" aria-label="Edit component">
-                            <i class="fas fa-pen text-xs"></i><span class="hidden sm:inline ml-1.5">Edit</span>
-                        </button>` : ''}
-                        ${api.utils.hasPermission(`${componentType}.delete`) ? `<button class="action-btn btn-icon-mobile delete px-3 py-2 min-h-[36px] text-sm rounded-lg text-text-secondary border border-border hover:border-danger hover:text-danger transition-colors flex items-center" onclick="dashboard.handleDeleteComponent('${componentType}', ${component.ID})" title="Delete" aria-label="Delete component">
-                            <i class="fas fa-trash text-xs"></i><span class="hidden sm:inline ml-1.5">Delete</span>
-                        </button>` : ''}
-                    </div>
-                </td>
+            <tr class="${selected ? 'is-selected' : ''}">
+                <td data-label="Select"><input type="checkbox" class="component-checkbox" value="${id}" ${selected ? 'checked' : ''} aria-label="Select ${primaryDisplay}" onchange="dashboard.handleItemSelection(this)"></td>
+                <td data-label="Model"><div class="inv-model"><span class="inv-model-name">${primaryDisplay}</span>${secondaryDisplay}</div></td>
+                <td data-label="Status">${this._inventoryStatus(component.Status)}</td>
+                <td data-label="Installed in">${installedIn}</td>
+                <td data-label="Location" class="inv-loc">${location ? utils.escapeHtml(location) : '<span class="inv-dim">—</span>'}</td>
+                <td data-label="Warranty">${this._warrantyCell(component.WarrantyEndDate)}</td>
+                <td data-label="Actions"><button type="button" class="inv-more" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for ${primaryDisplay}" onclick="dashboard.openRowMenu(this, ${id})">⋯</button></td>
             </tr>
         `;
         }).join('');
+        this.updateSelectAllCheckbox();
+    }
+
+    _inventoryStatus(status) {
+        const map = { 1: ['s-available', 'Available'], 2: ['s-inuse', 'In use'], 0: ['s-failed', 'Failed'] };
+        const [cls, label] = map[Number(status)] || ['s-unknown', 'Unknown'];
+        return `<span class="inv-status ${cls}">${label}</span>`;
+    }
+
+    /** "Mar 2029", amber inside 90 days, red once past. */
+    _warrantyCell(value) {
+        if (!value) return '<span class="inv-dim">—</span>';
+        const end = new Date(String(value).replace(' ', 'T'));
+        if (isNaN(end)) return '<span class="inv-dim">—</span>';
+        const days = (end - Date.now()) / 86400000;
+        const cls = days < 0 ? 'is-expired' : (days <= 90 ? 'is-soon' : '');
+        const text = end.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+        const title = days < 0 ? 'Warranty expired' : `Warranty ends ${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        return `<span class="inv-mono inv-warranty ${cls}" title="${title}">${text}</span>`;
+    }
+
+    applyDensity(density) {
+        const comfortable = density === 'comfortable';
+        document.getElementById('componentsTable')?.classList.toggle('is-comfortable', comfortable);
+        document.querySelectorAll('#densityToggle button').forEach(b =>
+            b.setAttribute('aria-pressed', String(b.dataset.density === (comfortable ? 'comfortable' : 'compact'))));
+    }
+
+    /**
+     * The per-status counts on the segmented filter and the subtitle. They come
+     * from the same cached dashboard counts the sidebar shows, so they describe
+     * the whole type, not the current search or location.
+     */
+    async loadInventoryCounts(componentType, forceRefresh = false) {
+        const summary = document.getElementById('inventorySummary');
+        if (!window.sidebarManager?.getComponentCounts) return;
+        try {
+            const counts = (await window.sidebarManager.getComponentCounts(forceRefresh))?.[componentType];
+            if (!counts) return;
+            document.querySelectorAll('#statusSegments [data-count]').forEach(el => {
+                const n = counts[el.dataset.count];
+                el.textContent = n === undefined || n === null ? '' : Number(n).toLocaleString();
+            });
+            if (summary) {
+                const total = Number(counts.total || 0);
+                summary.textContent = `${total.toLocaleString()} ${total === 1 ? 'unit' : 'units'} · ${Number(counts.available || 0).toLocaleString()} available`;
+            }
+        } catch (error) {
+            // Counts are decoration; the table still works without them.
+            console.debug('Inventory counts unavailable:', error);
+        }
+    }
+
+    /** One menu element for every row, positioned against the clicked button. */
+    openRowMenu(button, id) {
+        const wasOpen = this._rowMenuButton === button;
+        this.closeRowMenu();
+        if (wasOpen) return;
+
+        const type = this.currentComponent;
+        const items = [`<button type="button" role="menuitem" data-act="view"><i class="fas fa-eye" aria-hidden="true"></i>View details</button>`];
+        if (api.utils.hasPermission(`${type}.edit`)) {
+            items.push(`<button type="button" role="menuitem" data-act="edit"><i class="fas fa-pen" aria-hidden="true"></i>Edit</button>`);
+        }
+        if (api.utils.hasPermission(`${type}.delete`)) {
+            items.push(`<button type="button" role="menuitem" data-act="delete" class="is-danger"><i class="fas fa-trash" aria-hidden="true"></i>Delete</button>`);
+        }
+
+        const menu = document.createElement('div');
+        menu.className = 'inv-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = items.join('');
+        document.body.appendChild(menu);
+
+        const rect = button.getBoundingClientRect();
+        const width = menu.offsetWidth;
+        const height = menu.offsetHeight;
+        const top = rect.bottom + 4 + height > window.innerHeight ? rect.top - 4 - height : rect.bottom + 4;
+        menu.style.top = `${Math.max(8, top)}px`;
+        menu.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
+
+        button.setAttribute('aria-expanded', 'true');
+        this._rowMenu = menu;
+        this._rowMenuButton = button;
+
+        menu.addEventListener('click', (e) => {
+            const act = e.target.closest('button[data-act]')?.dataset.act;
+            if (!act) return;
+            this.closeRowMenu();
+            if (act === 'view') this.showComponentViewModal(type, id);
+            else if (act === 'edit') this.showEditForm(type, id);
+            else if (act === 'delete') this.handleDeleteComponent(type, id);
+        });
+        menu.addEventListener('keydown', (e) => {
+            const buttons = [...menu.querySelectorAll('button')];
+            const i = buttons.indexOf(document.activeElement);
+            if (e.key === 'ArrowDown') { e.preventDefault(); buttons[(i + 1) % buttons.length].focus(); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); buttons[(i - 1 + buttons.length) % buttons.length].focus(); }
+            else if (e.key === 'Escape') { e.preventDefault(); this.closeRowMenu(); button.focus(); }
+            else if (e.key === 'Tab') { this.closeRowMenu(); }
+        });
+        menu.querySelector('button').focus();
+
+        // Any click elsewhere, scroll or resize closes it. Added on the next
+        // tick so the click that opened it does not also close it.
+        this._rowMenuDismiss = (e) => {
+            if (e.type === 'mousedown' && (menu.contains(e.target) || button.contains(e.target))) return;
+            this.closeRowMenu();
+        };
+        setTimeout(() => {
+            if (this._rowMenu !== menu) return;
+            document.addEventListener('mousedown', this._rowMenuDismiss);
+            window.addEventListener('resize', this._rowMenuDismiss);
+            document.addEventListener('scroll', this._rowMenuDismiss, true);
+        });
+    }
+
+    closeRowMenu() {
+        if (this._rowMenuDismiss) {
+            document.removeEventListener('mousedown', this._rowMenuDismiss);
+            window.removeEventListener('resize', this._rowMenuDismiss);
+            document.removeEventListener('scroll', this._rowMenuDismiss, true);
+            this._rowMenuDismiss = null;
+        }
+        this._rowMenu?.remove();
+        this._rowMenuButton?.setAttribute('aria-expanded', 'false');
+        this._rowMenu = null;
+        this._rowMenuButton = null;
+    }
+
+    clearSelection() {
+        this.selectedItems.clear();
+        document.querySelectorAll('.component-checkbox').forEach(cb => {
+            cb.checked = false;
+            cb.closest('tr')?.classList.remove('is-selected');
+        });
+        this.updateSelectAllCheckbox();
+        this.updateBulkActions();
+    }
+
+    /**
+     * Every row matching the current search, status and location, not just the
+     * loaded page: it pages through the list at the API's 500-row cap.
+     */
+    async exportComponentsCsv() {
+        const type = this.currentComponent;
+        const button = document.getElementById('exportComponentsCsv');
+        const params = {};
+        const search = document.getElementById('componentSearch')?.value || '';
+        const status = document.getElementById('statusFilter')?.value ?? '';
+        const locationUuid = document.getElementById('componentLocationFilter')?.value || '';
+        if (search) params.search = search;
+        if (status !== '') params.status = status;
+        if (locationUuid) params.location_uuid = locationUuid;
+
+        try {
+            if (button) button.disabled = true;
+            utils.showLoading(true, 'Preparing export...');
+            const rows = [];
+            for (let offset = 0; ; offset += 500) {
+                const result = await api.components.list(type, { ...params, limit: 500, offset });
+                const page = result?.data?.components || [];
+                rows.push(...page);
+                const total = Number(result?.data?.total_count ?? 0);
+                if (page.length < 500 || rows.length >= total) break;
+            }
+            if (!rows.length) {
+                toast.warning('Nothing to export for these filters');
+                return;
+            }
+
+            const statusText = { 0: 'Failed', 1: 'Available', 2: 'In use' };
+            const header = ['Model', 'Serial number', 'Asset tag', 'Status', 'Installed in', 'Location', 'Warranty ends', 'Purchase date', 'Vendor', 'Flag', 'Notes', 'UUID'];
+            // Quote every cell, and defuse anything a spreadsheet would run as a formula.
+            const cell = (v) => {
+                let s = v === null || v === undefined ? '' : String(v);
+                if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+                return `"${s.replace(/"/g, '""')}"`;
+            };
+            const lines = [header.map(cell).join(',')].concat(rows.map(c => [
+                c.ModelName, c.SerialNumber, c.AssetTag, statusText[Number(c.Status)] ?? c.Status,
+                c.server_name || c.ServerUUID, c.address_text || c.Location, c.WarrantyEndDate, c.PurchaseDate,
+                c.VendorName, c.Flag, c.Notes, c.UUID
+            ].map(cell).join(',')));
+
+            const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${type}-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            toast.success(`Exported ${rows.length.toLocaleString()} ${rows.length === 1 ? 'row' : 'rows'}`);
+        } catch (error) {
+            console.error('Error exporting components:', error);
+            utils.showAlert(error.message || 'Export failed', 'error');
+        } finally {
+            if (button) button.disabled = false;
+            utils.showLoading(false);
+        }
     }
 
     renderServerList(servers) {
@@ -1142,53 +1374,23 @@ class Dashboard {
         const paginationContainer = document.getElementById('pagination');
         const paginationInfo = document.getElementById('paginationInfo');
         if (!paginationContainer || !pagination) return;
-        const start = pagination.total === 0 ? 0 : pagination.offset + 1;
-        const end = Math.min(pagination.offset + pagination.limit, pagination.total);
-        paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} items`;
-        const totalPages = Math.ceil(pagination.total / pagination.limit);
+        const total = Number(pagination.total) || 0;
+        const start = total === 0 ? 0 : pagination.offset + 1;
+        const end = Math.min(pagination.offset + pagination.limit, total);
+        paginationInfo.textContent = total === 0
+            ? '0 matching'
+            : `${start.toLocaleString()}–${end.toLocaleString()} of ${total.toLocaleString()} matching`;
+        const totalPages = Math.max(1, Math.ceil(total / pagination.limit));
         const currentPage = pagination.page;
-        let paginationHTML = '';
 
-        // Previous Button
-        paginationHTML += `
-            <button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} 
-                    onclick="window.dashboard.goToPage(${currentPage - 1})" 
-                    title="Previous Page">
-                <i class="fas fa-chevron-left"></i> 
-                <span class="hidden sm:inline">Previous</span>
-            </button>`;
-
-        const startPage = Math.max(1, currentPage - 2);
-        const endPage = Math.min(totalPages, currentPage + 2);
-
-        if (startPage > 1) {
-            paginationHTML += `<button class="pagination-btn" onclick="window.dashboard.goToPage(1)">1</button>`;
-            if (startPage > 2) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
-                        onclick="window.dashboard.goToPage(${i})">
-                    ${i}
-                </button>`;
-        }
-
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) paginationHTML += `<span class="pagination-ellipsis">...</span>`;
-            paginationHTML += `<button class="pagination-btn" onclick="window.dashboard.goToPage(${totalPages})">${totalPages}</button>`;
-        }
-
-        // Next Button
-        paginationHTML += `
-            <button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} 
-                    onclick="window.dashboard.goToPage(${currentPage + 1})" 
-                    title="Next Page">
-                <span class="hidden sm:inline">Next</span>
-                <i class="fas fa-chevron-right"></i>
-            </button>`;
-
-        paginationContainer.innerHTML = paginationHTML;
+        // Previous / page / Next. The page indicator only appears when there is
+        // more than one page to be on.
+        paginationContainer.innerHTML = totalPages === 1 ? '' : `
+            <button type="button" class="inv-btn" ${currentPage <= 1 ? 'disabled' : ''}
+                    onclick="window.dashboard.goToPage(${currentPage - 1})">Previous</button>
+            <span class="inv-page-no inv-mono">${currentPage} / ${totalPages}</span>
+            <button type="button" class="inv-btn" ${currentPage >= totalPages ? 'disabled' : ''}
+                    onclick="window.dashboard.goToPage(${currentPage + 1})">Next</button>`;
     }
 
     goToPage(page) {
@@ -1217,6 +1419,7 @@ class Dashboard {
     handleItemSelection(checkbox) {
         const id = parseInt(checkbox.value);
         if (checkbox.checked) this.selectedItems.add(id); else this.selectedItems.delete(id);
+        checkbox.closest('tr')?.classList.toggle('is-selected', checkbox.checked);
         this.updateBulkActions();
         this.updateSelectAllCheckbox();
     }
@@ -1231,11 +1434,10 @@ class Dashboard {
     updateSelectAllCheckbox() {
         const selectAllCheckbox = document.getElementById('selectAllComponents');
         const checkboxes = document.querySelectorAll('.component-checkbox');
-        if (selectAllCheckbox && checkboxes.length > 0) {
-            const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-            selectAllCheckbox.checked = checkedCount === checkboxes.length;
-            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
-        }
+        if (!selectAllCheckbox) return;
+        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+        selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
     }
 
     updateBulkActions() {
@@ -1271,39 +1473,17 @@ class Dashboard {
 
             const formHtml = await response.text();
 
-            // Hide loading spinner before showing modal
+            // Hide loading spinner before showing the drawer
             utils.showLoading(false);
 
-            this.showModal(`Add New ${this.currentComponent.toUpperCase()}`, formHtml);
+            const singular = utils.componentLabelsSingular?.[this.currentComponent] || this.currentComponent.toUpperCase();
+            this.openDrawer(formHtml, `Add ${singular}`);
 
-            // Load and initialize the form JavaScript
-            const scriptSrc = '../../assets/js/forms/add-form.js';
-            const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
-
-            if (!existingScript) {
-                const script = document.createElement('script');
-                script.src = scriptSrc;
-                script.onload = () => {
-                    if (typeof initializeAddComponentForm === 'function') {
-                        initializeAddComponentForm(this.currentComponent);
-                    } else {
-                        console.error('initializeAddComponentForm function not found!');
-                    }
-                };
-                script.onerror = (error) => {
-                    console.error('Failed to load add-form.js:', error);
-                    utils.showAlert('Failed to load form script', 'error');
-                };
-                document.body.appendChild(script);
-            } else {
-                // Script already loaded, just initialize the form
-                if (typeof initializeAddComponentForm === 'function') {
-                    initializeAddComponentForm(this.currentComponent);
-                } else {
-                    console.error('initializeAddComponentForm function not found!');
-                }
-            }
+            await this._loadFormScript('../../assets/js/forms/add-form.js', 'initializeAddComponentForm');
+            const form = initializeAddComponentForm(this.currentComponent);
+            this._drawerGuard = () => (typeof form.hasUserInput === 'function' && form.hasUserInput() ? 1 : 0);
         } catch (error) {
+            this.closeDrawer();
             console.error('Error loading add form:', error);
             utils.showAlert(`Failed to load the add component form: ${error.message}`, 'error');
         } finally {
@@ -3118,22 +3298,116 @@ class Dashboard {
             const response = await fetch('../../pages/forms/edit-component.html');
             if (!response.ok) throw new Error('Could not load form HTML.');
             const formHtml = await response.text();
-            this.showModal(`Edit ${componentType.toUpperCase()}`, formHtml);
-            const scriptSrc = '../../assets/js/forms/edit-form.js';
-            if (!document.querySelector(`script[src="${scriptSrc}"]`)) {
-                const script = document.createElement('script');
-                script.src = scriptSrc;
-                script.onload = () => { if (typeof initializeEditFormComponent === 'function') initializeEditFormComponent(componentType, componentId); };
-                document.body.appendChild(script);
-            } else {
-                if (typeof initializeEditFormComponent === 'function') initializeEditFormComponent(componentType, componentId);
-            }
+            // Opened from the details modal, that modal goes first: the drawer
+            // replaces it rather than stacking over it.
+            this._closeCenteredModal();
+            const singular = utils.componentLabelsSingular?.[componentType] || componentType.toUpperCase();
+            this.openDrawer(formHtml, `Edit ${singular}`);
+
+            // The list row carries the model name and server name; {type}-get
+            // does not, and the drawer's header wants both.
+            const row = this.componentRows?.get(Number(componentId)) || null;
+            await this._loadFormScript('../../assets/js/forms/edit-form.js', 'initializeEditFormComponent');
+            const form = initializeEditFormComponent(componentType, componentId, { row });
+            this._drawerGuard = () => Object.keys(form.collectChangedFields() || {}).length;
         } catch (error) {
             console.error('Error loading edit form:', error);
+            this.closeDrawer();
             utils.showAlert(error.message || 'Failed to load the edit component form', 'error');
         } finally {
             utils.showLoading(false);
         }
+    }
+
+    /**
+     * Load a form script once. Resolves when `globalName` (the function the
+     * script declares) exists.
+     */
+    _loadFormScript(src, globalName) {
+        if (typeof window[globalName] === 'function') return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Failed to load the form script'));
+            document.body.appendChild(script);
+        });
+    }
+
+    /**
+     * The Add / Edit component drawer ("B · Focus"). Holds one form fragment;
+     * the fragment's own head and footer supply the title, Close, Discard and
+     * Save. Styles: assets/css/component-drawer.css.
+     */
+    openDrawer(html, label) {
+        this.closeDrawer();
+        const root = document.createElement('div');
+        root.className = 'cd-root';
+        root.innerHTML = `
+            <div class="cd-backdrop" data-drawer-dismiss></div>
+            <aside class="cd-drawer" role="dialog" aria-modal="true" aria-label="${utils.escapeHtml(label)}">${html}</aside>`;
+        document.body.appendChild(root);
+        document.body.classList.add('cd-open');
+        this._drawerRoot = root;
+        this._drawerOpener = document.activeElement;
+        this._drawerGuard = null;
+        requestAnimationFrame(() => root.classList.add('is-open'));
+
+        root.addEventListener('click', (e) => {
+            if (e.target.closest('[data-drawer-dismiss], [data-drawer-close]')) {
+                e.preventDefault();
+                this.requestCloseDrawer();
+            }
+        });
+        this._drawerKeydown = (e) => {
+            // While the discard confirm is up, it owns the keyboard.
+            if (!this._drawerRoot || this._drawerConfirming) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.requestCloseDrawer();
+            } else if (e.key === 'Tab') {
+                const focusable = [...root.querySelectorAll('.cd-drawer a[href], .cd-drawer button, .cd-drawer input, .cd-drawer select, .cd-drawer textarea')]
+                    .filter(el => !el.disabled && el.type !== 'hidden' && el.offsetParent !== null);
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+        };
+        document.addEventListener('keydown', this._drawerKeydown);
+        setTimeout(() => root.querySelector('.cd-close')?.focus(), 50);
+    }
+
+    /** Close, asking first when the form reports unsaved changes. */
+    async requestCloseDrawer() {
+        if (!this._drawerRoot || this._drawerConfirming) return;
+        const pending = typeof this._drawerGuard === 'function' ? this._drawerGuard() : 0;
+        if (pending > 0) {
+            this._drawerConfirming = true;
+            let ok = false;
+            try {
+                ok = await utils.confirm(
+                    `You have ${pending} unsaved ${pending === 1 ? 'change' : 'changes'}. Close and discard ${pending === 1 ? 'it' : 'them'}?`,
+                    'Discard changes'
+                );
+            } finally {
+                this._drawerConfirming = false;
+            }
+            if (!ok) return;
+        }
+        this.closeDrawer();
+    }
+
+    closeDrawer() {
+        if (!this._drawerRoot) return;
+        document.removeEventListener('keydown', this._drawerKeydown);
+        this._drawerRoot.remove();
+        this._drawerRoot = null;
+        this._drawerGuard = null;
+        document.body.classList.remove('cd-open');
+        if (this._drawerOpener && document.contains(this._drawerOpener)) this._drawerOpener.focus();
+        this._drawerOpener = null;
     }
 
     async showComponentViewModal(componentType, componentId) {
@@ -3440,7 +3714,7 @@ class Dashboard {
                 const result = await api.components.delete(componentType, componentId);
                 if (result.success) {
                     utils.showAlert('Component deleted successfully', 'success');
-                    await this.loadComponentList(componentType);
+                    await this.loadComponentList(componentType, true);
                     await this.loadDashboard();
                 }
             } catch (error) {
@@ -3452,16 +3726,17 @@ class Dashboard {
         }
     }
 
-    async showBulkUpdateModal() {
+    /** @param focusField the select to focus first: bulkStatus, bulkLocation or bulkFlag */
+    async showBulkUpdateModal(focusField = 'bulkStatus') {
         if (this.selectedItems.size === 0) {
             utils.showAlert('Please select items to update', 'warning');
             return;
         }
         const modalContent = `
             <div style="max-width: 400px;">
-                <div class="form-group"><label class="form-label">Update Status</label><select id="bulkStatus" class="form-select"><option value="">Keep Current</option><option value="1">Available</option><option value="2">In Use</option><option value="0">Failed</option></select></div>
-                <div class="form-group"><label class="form-label">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Loading locations…</option></select></div>
-                <div class="form-group"><label class="form-label">Update Flag</label><select id="bulkFlag" class="form-select"><option value="">Keep Current</option><option value="Backup">Backup</option><option value="Critical">Critical</option><option value="Maintenance">Maintenance</option><option value="Testing">Testing</option><option value="Production">Production</option></select></div>
+                <div class="form-group"><label class="form-label" for="bulkStatus">Update Status</label><select id="bulkStatus" class="form-select"><option value="">Keep Current</option><option value="1">Available</option><option value="2">In Use</option><option value="0">Failed</option></select></div>
+                <div class="form-group"><label class="form-label" for="bulkLocation">Update Location</label><select id="bulkLocation" class="form-select"><option value="">Loading locations…</option></select></div>
+                <div class="form-group"><label class="form-label" for="bulkFlag">Update Flag</label><select id="bulkFlag" class="form-select"><option value="">Keep Current</option><option value="Backup">Backup</option><option value="Critical">Critical</option><option value="Maintenance">Maintenance</option><option value="Testing">Testing</option><option value="Production">Production</option></select></div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;"><button class="btn btn-secondary" onclick="dashboard.closeModal()">Cancel</button><button class="btn btn-primary" onclick="dashboard.executeBulkUpdate()">Update ${this.selectedItems.size} Items</button></div>
             </div>
         `;
@@ -3472,6 +3747,8 @@ class Dashboard {
         api.locations.populateSelect(document.getElementById('bulkLocation'), {
             placeholder: 'Keep Current'
         });
+        // After showModal()'s own 100ms focus on the first input, or it wins.
+        setTimeout(() => document.getElementById(focusField)?.focus(), 150);
     }
 
     async executeBulkUpdate() {
@@ -3500,7 +3777,7 @@ class Dashboard {
                 utils.showAlert(`Successfully updated ${result.data.updated} components`, 'success');
                 this.selectedItems.clear();
                 this.closeModal();
-                await this.loadComponentList(this.currentComponent);
+                await this.loadComponentList(this.currentComponent, true);
                 await this.loadDashboard();
             }
         } catch (error) {
@@ -3531,7 +3808,7 @@ class Dashboard {
                     utils.showAlert('Failed to delete any components', 'error');
                 }
                 this.selectedItems.clear();
-                await this.loadComponentList(this.currentComponent);
+                await this.loadComponentList(this.currentComponent, true);
                 await this.loadDashboard();
             } catch (error) {
                 console.error('Error bulk deleting components:', error);
@@ -3796,6 +4073,16 @@ class Dashboard {
     }
 
     closeModal() {
+        // The add and edit forms close themselves through closeModal(); when
+        // they live in the drawer, that is what they mean.
+        if (this._drawerRoot) {
+            this.closeDrawer();
+            return;
+        }
+        this._closeCenteredModal();
+    }
+
+    _closeCenteredModal() {
         const modal = document.getElementById('modalContainer');
         if (modal) {
             // Remove the outside click event listener

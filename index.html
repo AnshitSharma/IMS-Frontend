@@ -107,21 +107,21 @@
             color: #2A333B;
         }
 
-        /* Validation Error Styling */
+        /* Validation Error Styling — the message sits below the box
+           (script.js inserts it after .input-group, never inside it). */
         .field-error {
-            width: 100%;
-            color: #DC2626;
-            font-size: 0.75rem;
-            margin: 0.25rem 0 0.5rem;
-            flex-basis: 100%;
-            order: 3;
+            color: #B91C1C;
+            font-size: 12px;
             font-weight: 500;
-            padding-left: 0.125rem;
         }
 
-        .input-group:has(.field-error) {
-            border-color: #DC2626 !important;
-            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08) !important;
+        .input-group.has-error,
+        .input-group.has-error:hover {
+            border-color: #DC2626;
+        }
+
+        .input-group.has-error:focus-within {
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
         }
 
         /* Custom Checkbox */
@@ -251,6 +251,162 @@
         .capability-row + .capability-row {
             border-top: 1px solid #2A3138;
         }
+
+        /* Sign-in column — the "A · Refined" board, self-contained so it does
+           not depend on which utilities the compiled tailwind.css carries. */
+        /* Desktop split: brand 60% / sign-in 40% (the sign-in side is flex-1).
+           Between 1024 and 1279px the 40% column is ~410-510px, so its side
+           padding drops to keep the 380px form at full width. */
+        @media (min-width: 1024px) {
+            .brand-panel {
+                width: 60%;
+                flex-shrink: 0;
+            }
+        }
+
+        @media (min-width: 1024px) and (max-width: 1279px) {
+            .auth-panel {
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+        }
+
+        .auth-panel {
+            background: #F6F7F8;
+            color: #12181D;
+            font-size: 14px;
+        }
+
+        .auth-stack {
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .auth-head {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .auth-head h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            letter-spacing: -.01em;
+            color: #12181D;
+        }
+
+        .auth-head p {
+            margin: 0;
+            color: #5B6670;
+        }
+
+        #microsoftSignIn:not(.hidden) {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #6B7680;
+            font-size: 12px;
+        }
+
+        .auth-divider::before,
+        .auth-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #E3E6E8;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .auth-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .auth-field .input-group,
+        .auth-field-pw .input-group {
+            padding: 0 14px;
+        }
+
+        .auth-field .input-group input,
+        .auth-field-pw .input-group input {
+            flex: 1 1 120px;
+            min-width: 0;
+            height: 42px;
+            padding: 0;
+            background: transparent;
+        }
+
+        /* Password field: "Forgot?" sits top-right on screen but after the
+           input in the DOM, so Tab goes username -> password -> Forgot?. */
+        .auth-field-pw {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            row-gap: 6px;
+        }
+
+        .auth-field-pw > label {
+            grid-row: 1;
+            grid-column: 1;
+        }
+
+        .auth-field-pw > .auth-forgot {
+            grid-row: 1;
+            grid-column: 2;
+        }
+
+        .auth-field-pw > .input-group,
+        .auth-field-pw > .field-error {
+            grid-column: 1 / -1;
+        }
+
+        .auth-forgot {
+            font-size: 13px;
+            color: #0F766E;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .auth-forgot:hover {
+            color: #0C5D57;
+        }
+
+        .auth-forgot:focus-visible {
+            outline: 2px solid #0F766E;
+            outline-offset: 2px;
+        }
+
+        .auth-remember {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #2A333B;
+            cursor: pointer;
+        }
+
+        .auth-remember input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: #0F766E;
+        }
     </style>
 </head>
 
@@ -260,7 +416,7 @@
     <div class="relative z-10 flex h-full">
 
         <!-- Left Panel: Branding (Visible on Desktop) -->
-        <div class="hidden lg:flex w-[44%] xl:w-[42%] flex-col justify-between p-12 xl:p-14 relative overflow-hidden brand-grid">
+        <div class="brand-panel hidden lg:flex flex-col justify-between p-12 xl:p-14 relative overflow-hidden brand-grid">
 
             <!-- Header Logo -->
             <div class="flex items-center gap-3 relative z-10">
@@ -307,11 +463,11 @@
         </div>
 
         <!-- Right Panel: Auth Forms -->
-        <div class="flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
-            <div class="w-full max-w-[380px]">
+        <div class="auth-panel flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
+            <div class="auth-stack">
 
                 <!-- Mobile Logo (visible only on small screens) -->
-                <div class="lg:hidden mb-10">
+                <div class="lg:hidden mb-6">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
                             <i class="fas fa-server text-white text-base" aria-hidden="true"></i>
@@ -325,75 +481,63 @@
 
                 <!-- Login Form -->
                 <div id="loginForm" class="form-container active">
-                    <div class="mb-7">
-                        <h2 class="text-2xl font-semibold text-text-primary mb-1.5 tracking-tight">Sign in</h2>
-                        <p class="text-text-muted text-sm">Use your BDC account.</p>
-                    </div>
-
-                    <!-- Microsoft (Entra ID) sign-in.
-                         Hidden until auth-microsoft_status reports the feature
-                         configured, so an unconfigured deployment shows only the
-                         username form. The divider lives inside so it hides too. -->
-                    <div id="microsoftSignIn" class="hidden mb-6">
-                        <button type="button" id="microsoftLoginBtn"
-                            class="ms-signin-btn w-full flex items-center justify-center gap-3 text-sm font-medium text-text-primary">
-                            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                                <rect x="0" y="0" width="7.5" height="7.5" fill="#F25022" />
-                                <rect x="8.5" y="0" width="7.5" height="7.5" fill="#7FBA00" />
-                                <rect x="0" y="8.5" width="7.5" height="7.5" fill="#00A4EF" />
-                                <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900" />
-                            </svg>
-                            <span id="microsoftLoginBtnText">Continue with Microsoft</span>
-                        </button>
-
-                        <div class="flex items-center gap-3 mt-6">
-                            <div class="h-px flex-1 bg-border-light"></div>
-                            <span class="text-xs text-text-muted">or with username</span>
-                            <div class="h-px flex-1 bg-border-light"></div>
+                    <div class="auth-stack">
+                        <div class="auth-head">
+                            <h2>Sign in</h2>
+                            <p>Use your BDC account.</p>
                         </div>
-                    </div>
 
-                    <form id="loginFormElement" class="space-y-5">
-                        <div class="space-y-1.5">
-                            <label for="loginUsername" class="field-label">Username</label>
-                            <div class="input-group flex flex-wrap items-center px-3.5 relative">
-                                <input type="text" id="loginUsername" name="username"
-                                    required maxlength="50" autocomplete="username"
-                                    class="flex-1 bg-transparent py-2.5">
+                        <!-- Microsoft (Entra ID) sign-in.
+                             Hidden until auth-microsoft_status reports the feature
+                             configured, so an unconfigured deployment shows only the
+                             username form. The divider lives inside so it hides too. -->
+                        <div id="microsoftSignIn" class="hidden">
+                            <button type="button" id="microsoftLoginBtn"
+                                class="ms-signin-btn w-full flex items-center justify-center gap-2.5 text-sm font-medium text-[#12181D]">
+                                <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                                    <rect x="0" y="0" width="7.5" height="7.5" fill="#F25022" />
+                                    <rect x="8.5" y="0" width="7.5" height="7.5" fill="#7FBA00" />
+                                    <rect x="0" y="8.5" width="7.5" height="7.5" fill="#00A4EF" />
+                                    <rect x="8.5" y="8.5" width="7.5" height="7.5" fill="#FFB900" />
+                                </svg>
+                                <span id="microsoftLoginBtnText">Continue with Microsoft</span>
+                            </button>
+                            <div class="auth-divider">or with username</div>
+                        </div>
+
+                        <form id="loginFormElement" class="auth-form" novalidate>
+                            <div class="auth-field">
+                                <label for="loginUsername" class="field-label">Username</label>
+                                <div class="input-group flex flex-wrap items-center relative">
+                                    <input type="text" id="loginUsername" name="username"
+                                        required maxlength="50" autocomplete="username">
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="space-y-1.5">
-                            <div class="flex items-center justify-between">
+                            <div class="auth-field-pw">
                                 <label for="loginPassword" class="field-label">Password</label>
-                                <a href="#" id="forgotPasswordLink" class="text-link">Forgot password?</a>
+                                <div class="input-group flex flex-wrap items-center relative">
+                                    <input type="password" id="loginPassword" name="password"
+                                        required maxlength="128" autocomplete="current-password">
+                                    <button type="button" id="toggleLoginPassword" class="pw-toggle" aria-label="Show password">
+                                        <i class="fas fa-eye text-sm" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <a href="#" id="forgotPasswordLink" class="auth-forgot">Forgot?</a>
                             </div>
-                            <div class="input-group flex flex-wrap items-center px-3.5 relative">
-                                <input type="password" id="loginPassword" name="password"
-                                    required maxlength="128" autocomplete="current-password"
-                                    class="flex-1 bg-transparent py-2.5">
-                                <button type="button" id="toggleLoginPassword" class="pw-toggle" aria-label="Show password">
-                                    <i class="fas fa-eye text-sm" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                        </div>
 
-                        <label class="custom-checkbox flex items-center gap-2.5 cursor-pointer group select-none text-[13px]">
-                            <input type="checkbox" id="rememberMe" class="sr-only">
-                            <div class="checkbox-box w-4 h-4 border border-border-dark rounded-[4px] bg-surface-card relative transition-colors flex-shrink-0 flex items-center justify-center group-hover:border-primary">
-                                <i class="checkbox-icon fas fa-check text-[9px] text-white opacity-0 transition-opacity" aria-hidden="true"></i>
-                            </div>
-                            <span class="text-[#2A333B]">Keep me signed in on this device</span>
-                        </label>
+                            <label class="auth-remember">
+                                <input type="checkbox" id="rememberMe">
+                                Keep me signed in for 30 days
+                            </label>
 
-                        <button type="submit" id="loginBtn"
-                            class="btn-primary w-full text-white text-sm font-semibold relative">
-                            <span class="relative z-10 btn-text flex items-center justify-center gap-2">
-                                Sign in
-                            </span>
-                            <div class="btn-loader"></div>
-                        </button>
-                    </form>
+                            <button type="submit" id="loginBtn"
+                                class="btn-primary w-full text-white text-sm font-semibold relative">
+                                <span class="relative z-10 btn-text flex items-center justify-center gap-2">Sign in</span>
+                                <div class="btn-loader"></div>
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
             </div>
@@ -424,7 +568,7 @@
             </button>
             <h2 class="text-xl font-semibold text-text-primary mb-1 tracking-tight">Reset password</h2>
             <p class="text-text-muted text-sm mb-6">Enter your email and we'll send a reset link.</p>
-            <form id="forgotPasswordForm">
+            <form id="forgotPasswordForm" novalidate>
                 <div class="space-y-1.5 mb-5">
                     <label for="forgotEmail" class="field-label">Email</label>
                     <div class="input-group flex flex-wrap items-center px-3.5 relative">

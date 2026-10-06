@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
     <title>Components - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="../../assets/css/component-drawer.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script>
         (function () {
@@ -44,6 +45,171 @@
             });
         })();
     </script>
+    <style>
+        /* Inventory list, "A · Refined". Page-scoped and built on the theme's
+           own variables so dark mode follows; only the status hues are local. */
+        .inv {
+            --inv-available: #0F766E; --inv-inuse: #0369A1; --inv-failed: #B91C1C; --inv-warn: #B45309;
+            --inv-selected: #F2FBF9; --inv-bulk: #0F2E2B; --inv-chip-bg: #F0F2F3;
+            color: var(--color-text-primary); font-size: 14px;
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        [data-theme="dark"] .inv {
+            --inv-available: #2DD4BF; --inv-inuse: #38BDF8; --inv-failed: #F87171; --inv-warn: #FBBF24;
+            --inv-selected: rgba(45, 212, 191, .07); --inv-bulk: #10322F; --inv-chip-bg: var(--color-surface-secondary);
+        }
+        .inv-main { padding: 24px 28px; }
+        @media (max-width: 639px) { .inv-main { padding: 16px; } }
+        .inv-mono { font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+        .inv-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+        .inv-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .inv-title h1 { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.25; letter-spacing: -.01em; }
+        .inv-sub { color: var(--color-text-muted); font-size: 13px; min-height: 1.4em; }
+        .inv-head-actions { display: flex; gap: 8px; }
+
+        .inv-btn {
+            height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border);
+            background: var(--color-surface-card); color: var(--color-text-primary);
+            font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+        }
+        .inv-btn:hover { background: var(--color-surface-hover); }
+        .inv-btn:disabled { opacity: .55; cursor: default; }
+        .inv-btn-icon { width: 36px; padding: 0; justify-content: center; color: var(--color-text-secondary); }
+        .inv-btn-primary { border-color: transparent; background: #0F766E; color: #fff; }
+        .inv-btn-primary:hover { background: #0C5D57; }
+        .inv-btn i { font-size: 12px; }
+
+        .inv-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .inv-seg { display: flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; background: var(--color-surface-card); }
+        .inv-seg button {
+            height: 34px; padding: 0 14px; border: 0; background: transparent; color: var(--color-text-primary);
+            font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+        .inv-seg button + button { border-left: 1px solid var(--color-border-light); }
+        .inv-seg button:hover { background: var(--color-surface-hover); }
+        .inv-seg button[aria-pressed="true"] { background: var(--color-text-primary); color: var(--color-surface-card); }
+        .inv-seg button[aria-pressed="true"] .c-available,
+        .inv-seg button[aria-pressed="true"] .c-failed { color: inherit; }
+        .inv-seg .c-available { color: var(--inv-available); }
+        .inv-seg .c-failed { color: var(--inv-failed); }
+        .inv-seg-sm button { padding: 0 10px; font-size: 12px; }
+        .inv-seg-sm button[aria-pressed="true"] { background: var(--color-surface-secondary); color: var(--color-text-primary); }
+
+        .inv-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .inv-search {
+            display: flex; align-items: center; gap: 8px; height: 34px; width: 240px; max-width: 100%;
+            padding: 0 12px; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-surface-card);
+            color: var(--color-text-muted); font-size: 12px;
+        }
+        .inv-search:focus-within { border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .inv-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--color-text-primary); outline: none; }
+        .inv-chip {
+            height: 34px; padding: 0 30px 0 12px; border-radius: 999px; border: 1px solid var(--color-border);
+            background-color: var(--color-surface-card); color: var(--color-text-primary); font: inherit; font-size: 13px; cursor: pointer;
+            appearance: none; -webkit-appearance: none; max-width: 240px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10' fill='none' stroke='%236B7680' stroke-width='1.4'%3E%3Cpath d='M2 4l3 3 3-3'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
+        }
+        [data-theme="dark"] .inv-chip, [data-theme="dark"] .inv-search input { color-scheme: dark; }
+        .inv-chip.is-active { border-color: #0F766E; background-color: rgba(15, 118, 110, .1); color: var(--inv-available); }
+        .inv-density { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-muted); }
+
+        .inv-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; min-width: 0; }
+        .inv-bulk { align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; background: var(--inv-bulk); color: #fff; font-size: 13px; }
+        .inv-bulk-btn {
+            height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .3);
+            background: transparent; color: #fff; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+        }
+        .inv-bulk-btn:hover { background: rgba(255, 255, 255, .08); }
+        .inv-bulk-clear { border-color: transparent; color: rgba(255, 255, 255, .75); margin-left: auto; }
+        .inv-bulk-delete { border-color: transparent; color: #FCA5A5; }
+
+        /* relative: the header's absolutely-positioned sr-only label must be
+           clipped here, or it widens the whole page when the table scrolls. */
+        .inv-scroll { overflow-x: auto; position: relative; }
+        .inv-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .inv-table th {
+            font-size: 12px; font-weight: 500; color: var(--color-text-muted); text-align: left; padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border); white-space: nowrap; background: var(--color-surface-hover);
+        }
+        .inv-table td { padding: 0 12px; height: 52px; border-bottom: 1px solid var(--color-border-light); white-space: nowrap; color: var(--color-text-primary); }
+        .inv-table.is-comfortable td { height: 64px; }
+        .inv-table tbody tr:last-child td { border-bottom: 0; }
+        .inv-table tbody tr:hover td { background: var(--color-surface-hover); }
+        .inv-table tbody tr.is-selected td { background: var(--inv-selected); }
+        .inv-table input[type="checkbox"] { width: 15px; height: 15px; accent-color: #0F766E; cursor: pointer; vertical-align: middle; }
+        .inv-col-check { width: 36px; }
+        .inv-col-more { width: 44px; }
+        .inv-model { display: flex; flex-direction: column; gap: 1px; }
+        .inv-model-name { font-weight: 500; }
+        .inv-serial { font-size: 12px; color: var(--color-text-muted); }
+        .inv-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--inv-st); }
+        .inv-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--inv-st); }
+        .inv-status.s-available { --inv-st: var(--inv-available); }
+        .inv-status.s-inuse { --inv-st: var(--inv-inuse); }
+        .inv-status.s-failed { --inv-st: var(--inv-failed); }
+        .inv-status.s-unknown { --inv-st: var(--color-text-muted); }
+        .inv-link { color: var(--inv-available); text-decoration: none; }
+        .inv-link:hover { text-decoration: underline; }
+        .inv-loc { color: var(--color-text-secondary); white-space: normal !important; min-width: 180px; }
+        .inv-dim { color: var(--color-text-muted); }
+        .inv-warranty.is-soon { color: var(--inv-warn); }
+        .inv-warranty.is-expired { color: var(--inv-failed); }
+        .inv-more {
+            width: 28px; height: 28px; border: 0; background: transparent; border-radius: 6px; cursor: pointer;
+            color: var(--color-text-muted); font-size: 16px; line-height: 1; letter-spacing: 1px;
+        }
+        .inv-more:hover, .inv-more[aria-expanded="true"] { background: var(--color-surface-secondary); color: var(--color-text-primary); }
+
+        .inv-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px; font-size: 13px; color: var(--color-text-muted); border-top: 1px solid var(--color-border-light); }
+        .inv-pager { display: flex; align-items: center; gap: 6px; }
+        .inv-pager .inv-btn { height: 30px; font-size: 13px; }
+        .inv-page-no { padding: 0 6px; }
+
+        .inv-empty { text-align: center; padding: 56px 24px !important; height: auto !important; white-space: normal !important; }
+        .inv-empty h3 { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+        .inv-empty p { margin: 0 0 16px; font-size: 13px; color: var(--color-text-muted); }
+
+        .inv-menu {
+            position: fixed; z-index: 1001; min-width: 168px; padding: 4px; border-radius: 8px;
+            background: var(--color-surface-card); border: 1px solid var(--color-border);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+        }
+        .inv-menu button {
+            display: flex; width: 100%; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border: 0; border-radius: 6px;
+            background: transparent; color: var(--color-text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+        }
+        .inv-menu button:hover, .inv-menu button:focus-visible { background: var(--color-surface-hover); outline: none; }
+        .inv-menu button i { width: 14px; font-size: 12px; color: var(--color-text-muted); }
+        .inv-menu .is-danger, .inv-menu .is-danger i { color: var(--color-danger); }
+
+        .inv button:focus-visible, .inv select:focus-visible, .inv a:focus-visible, .inv input[type="checkbox"]:focus-visible {
+            outline: 2px solid #0F766E; outline-offset: 2px;
+        }
+
+        /* Phones: the shared .table-responsive rules turn rows into cards, so
+           the card shell steps back and each row carries its own border. */
+        @media (max-width: 639px) {
+            .inv-card { background: transparent; border: 0; border-radius: 0; overflow: visible; }
+            .inv-bulk { border-radius: 10px; margin-bottom: 12px; }
+            .inv-table td { height: auto; white-space: normal; border-bottom: 0; padding: 6px 0; }
+            .inv-table tbody tr { position: relative; }
+            .inv-table td[data-label="Actions"] { position: absolute; top: 12px; right: 12px; padding: 0; margin: 0; border: 0; }
+            .inv-table td[data-label="Actions"]::before { display: none; }
+            .inv-table td[data-label="Model"] { padding-right: 36px; }
+            .inv-table td.inv-empty::before { display: none; }
+            .inv-table tbody tr:hover td, .inv-table tbody tr.is-selected td { background: transparent; }
+            .inv-table tbody tr.is-selected { border-color: #0F766E; }
+            .inv-foot { border-top: 0; padding: 4px 0; }
+            .inv-density { display: none; }
+            .inv-search { width: 100%; }
+            .inv-filters { width: 100%; }
+            .inv-seg { width: 100%; overflow-x: auto; }
+            .inv-seg button { flex: 1 0 auto; justify-content: center; }
+        }
+    </style>
 </head>
 
 <body class="bg-surface-main">
@@ -56,106 +222,87 @@
             <div id="sidebar-placeholder"></div>
 
             <!-- Main Content -->
-            <main class="main-content flex-1 p-4 sm:p-6">
+            <main class="main-content flex-1 inv-main">
                 <!-- Component List View -->
-                <div id="componentView" class="content-section active">
-                    <div class="content-header mb-6">
-                        <h2 id="componentTitle" class="text-2xl font-bold text-text-primary mb-4">Components</h2>
-                        <div
-                            class="header-actions flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
-                            <div class="search-filter-group flex flex-col sm:flex-row gap-3 sm:flex-1 w-full sm:w-auto">
-                                <input type="text" id="componentSearch" placeholder="Search components..."
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] w-full sm:flex-1 bg-surface-card text-text-primary">
-                                <select id="statusFilter"
-                                    class="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent min-h-[44px] bg-surface-card text-text-primary">
-                                    <option value="">All Status</option>
-                                    <option value="1">Available</option>
-                                    <option value="2">In Use</option>
-                                    <option value="0">Failed</option>
-                                </select>
-                            </div>
-                            <button
-                                class="btn btn-primary px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                                id="addComponentBtn" style="display: none;">
-                                <i class="fas fa-plus"></i> Add Component
+                <div id="componentView" class="content-section active inv">
+                    <div class="inv-head">
+                        <div class="inv-title">
+                            <h1 id="componentTitle">Components</h1>
+                            <span id="inventorySummary" class="inv-sub"></span>
+                        </div>
+                        <div class="inv-head-actions">
+                            <button type="button" id="refreshComponents" class="inv-btn inv-btn-icon"
+                                aria-label="Refresh" title="Refresh">
+                                <i class="fas fa-sync-alt" aria-hidden="true"></i>
                             </button>
-                            <button
-                                class="btn btn-secondary px-4 py-2 bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center gap-2"
-                                id="refreshComponents">
-                                <i class="fas fa-sync-alt"></i> Refresh
+                            <button type="button" id="exportComponentsCsv" class="inv-btn">Export CSV</button>
+                            <button type="button" id="addComponentBtn" class="inv-btn inv-btn-primary" style="display: none;">
+                                <i class="fas fa-plus" aria-hidden="true"></i> <span id="addComponentLabel">Add</span>
                             </button>
                         </div>
                     </div>
 
-
-                    <!-- Components Table -->
-                    <div class="table-container bg-surface-card rounded-lg shadow-sm overflow-hidden">
-                        <table class="w-full table-base components-table table-responsive" id="componentsTable">
-                            <thead class="bg-surface-hover border-b border-border">
-                                <tr id="componentsTableHeader">
-                                    <th class="px-4 py-3 text-left h-14 align-middle">
-                                        <input type="checkbox" id="selectAllComponents" class="w-4 h-4">
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Model
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Status</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Server UUID
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Location</th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Purchase Date
-                                    </th>
-                                    <th
-                                        class="px-4 py-3 text-left text-sm font-semibold text-text-secondary h-14 align-middle">
-                                        Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="componentsTableBody" class="divide-y divide-border">
-                                <!-- Table rows will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div class="pagination-container mt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div class="pagination-info text-sm text-text-muted text-center sm:text-left">
-                            <span id="paginationInfo">Showing 0 of 0 items</span>
+                    <!-- Toolbar. dashboard.js injects the location filter into
+                         .search-filter-group, right after the search box. -->
+                    <div class="inv-toolbar">
+                        <div class="inv-seg" role="group" aria-label="Status" id="statusSegments">
+                            <button type="button" data-status="" aria-pressed="true">All <span class="inv-mono" data-count="total"></span></button>
+                            <button type="button" data-status="1" aria-pressed="false">Available <span class="inv-mono c-available" data-count="available"></span></button>
+                            <button type="button" data-status="2" aria-pressed="false">In use <span class="inv-mono" data-count="in_use"></span></button>
+                            <button type="button" data-status="0" aria-pressed="false">Failed <span class="inv-mono c-failed" data-count="failed"></span></button>
                         </div>
-                        <div class="pagination flex items-center gap-1 sm:gap-2 flex-wrap justify-center" id="pagination">
-                            <!-- Pagination buttons will be populated by JavaScript -->
+                        <!-- Read by loadComponentList(); the segments above write it. -->
+                        <input type="hidden" id="statusFilter" value="">
+                        <div class="search-filter-group inv-filters">
+                            <label class="inv-search">
+                                <i class="fas fa-search" aria-hidden="true"></i>
+                                <input type="search" id="componentSearch" placeholder="Search this list" aria-label="Search this list" autocomplete="off">
+                            </label>
                         </div>
-                    </div>
-
-                    <!-- Bulk Actions -->
-                    <div class="bulk-actions hidden fixed bottom-0 left-0 right-0 bg-surface-card border-t border-border p-3 sm:p-4 shadow-lg z-50"
-                        id="bulkActions">
-                        <div class="max-w-screen-2xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                            <div class="bulk-info text-sm text-text-primary text-center sm:text-left">
-                                <span id="selectedCount">0</span> items selected
-                            </div>
-                            <div class="bulk-buttons flex flex-col sm:flex-row gap-2 sm:gap-3">
-                                <button
-                                    class="btn btn-secondary btn-icon-mobile px-4 py-2 min-h-[44px] bg-surface-hover text-text-secondary rounded-lg hover:bg-border transition-colors flex items-center justify-center gap-2"
-                                    id="bulkUpdateStatus">
-                                    <i class="fas fa-edit"></i><span class="hidden sm:inline">Update Status</span>
-                                </button>
-                                <button
-                                    class="btn btn-danger btn-icon-mobile px-4 py-2 min-h-[44px] bg-danger text-white rounded-lg hover:bg-danger-600 transition-colors flex items-center justify-center gap-2"
-                                    id="bulkDelete">
-                                    <i class="fas fa-trash"></i><span class="hidden sm:inline">Delete Selected</span>
-                                </button>
+                        <div class="inv-density">
+                            <span id="densityLabel">Density</span>
+                            <div class="inv-seg inv-seg-sm" role="group" aria-labelledby="densityLabel" id="densityToggle">
+                                <button type="button" data-density="compact" aria-pressed="true">Compact</button>
+                                <button type="button" data-density="comfortable" aria-pressed="false">Comfortable</button>
                             </div>
                         </div>
                     </div>
+
+                    <section class="inv-card">
+                        <!-- Bulk actions: shown by updateBulkActions() while rows are selected. -->
+                        <div class="inv-bulk" id="bulkActions" style="display: none;" role="region" aria-label="Bulk actions">
+                            <span><b id="selectedCount">0</b> selected</span>
+                            <button type="button" class="inv-bulk-btn" id="bulkUpdateStatus">Change status</button>
+                            <button type="button" class="inv-bulk-btn" id="bulkMoveLocation">Move location</button>
+                            <button type="button" class="inv-bulk-btn" id="bulkSetFlag">Set flag</button>
+                            <button type="button" class="inv-bulk-btn inv-bulk-clear" id="bulkClearSelection">Clear</button>
+                            <button type="button" class="inv-bulk-btn inv-bulk-delete" id="bulkDelete">Delete</button>
+                        </div>
+
+                        <div class="inv-scroll">
+                            <table class="inv-table table-responsive" id="componentsTable">
+                                <thead>
+                                    <tr id="componentsTableHeader">
+                                        <th class="inv-col-check"><input type="checkbox" id="selectAllComponents" aria-label="Select all on this page"></th>
+                                        <th>Model</th>
+                                        <th>Status</th>
+                                        <th>Installed in</th>
+                                        <th>Location</th>
+                                        <th>Warranty</th>
+                                        <th class="inv-col-more"><span class="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="componentsTableBody">
+                                    <!-- Table rows will be populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="inv-foot">
+                            <span id="paginationInfo"></span>
+                            <div class="inv-pager" id="pagination"></div>
+                        </div>
+                    </section>
                 </div>
             </main>
         </div>

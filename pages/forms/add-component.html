@@ -1,30 +1,28 @@
-<!-- Add Component Form - Modal Content Only -->
+<!-- Add Component. Opened in dashboard.openDrawer(); requests.js embeds it in its
+     own modal instead, and add-form.js then hides the head and footer. Every id
+     here is read by add-form.js — rename one there too, or not at all. -->
 <link rel="stylesheet" href="../../assets/css/tailwind.css">
+<link rel="stylesheet" href="../../assets/css/component-drawer.css">
 
-<div class="max-w-4xl mx-auto">
-    <!-- Form header hidden when in modal - modal has its own header -->
-    <div class="form-header hidden">
-        <button class="back-btn" onclick="goBack()">
-            <i class="fas fa-arrow-left"></i>
-        </button>
-        <h2 id="formTitle">Add Component</h2>
-        <button class="close-btn" onclick="closeForm()">
-            <i class="fas fa-times"></i>
+<form id="addComponentForm" class="component-form cd" novalidate>
+    <div class="cd-head">
+        <div class="cd-head-text">
+            <span id="formEyebrow" class="cd-eyebrow">New unit</span>
+            <h2 id="formTitle">Add component</h2>
+        </div>
+        <button type="button" class="cd-close" onclick="closeForm()" aria-label="Close">
+            <i class="fas fa-times" aria-hidden="true"></i>
         </button>
     </div>
 
-    <form id="addComponentForm" class="component-form">
-        <!-- Component Type Selection -->
-        <div class="form-section mb-6">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Type</h3>
-            <div class="form-group">
-                <label
-                    class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Select
-                    Component Type</label>
-                <select id="componentType"
-                    class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    required>
-                    <option value="">Choose Component Type</option>
+    <div class="cd-body">
+        <!-- Component type. Hidden by add-form.js when the page already says
+             which type this is; it must stay the first .form-section. -->
+        <div class="form-section cd-section">
+            <div class="cd-field">
+                <label for="componentType" class="cd-req">Component type</label>
+                <select id="componentType" required>
+                    <option value="">Choose a component type</option>
                     <option value="cpu">CPU</option>
                     <option value="motherboard">Motherboard</option>
                     <option value="ram">RAM</option>
@@ -42,212 +40,148 @@
             </div>
         </div>
 
-        <!-- Component Specification (Dynamic based on type) -->
-        <div id="specificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Specification</h3>
-
-            <!-- Cascading Dropdowns for components with JSON data -->
+        <!-- Model: cascading dropdowns from the ims-data specs -->
+        <div id="specificationSection" class="form-section cd-section hidden">
+            <span class="cd-section-title">Model</span>
             <div id="cascadingDropdowns" class="hidden">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div class="form-group" id="dropdown1Group">
-                        <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
-                            id="dropdown1Label">Field 1</label>
-                        <select id="dropdown1Select"
-                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <div class="cd-grid">
+                    <div class="cd-field" id="dropdown1Group">
+                        <label for="dropdown1Select" class="cd-req" id="dropdown1Label">Field 1</label>
+                        <select id="dropdown1Select">
                             <option value="">Select</option>
                         </select>
                     </div>
-
-                    <div class="form-group" id="dropdown2Group">
-                        <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
-                            id="dropdown2Label">Field 2</label>
-                        <select id="dropdown2Select"
-                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
-                            disabled>
+                    <div class="cd-field" id="dropdown2Group">
+                        <label for="dropdown2Select" class="cd-req" id="dropdown2Label">Field 2</label>
+                        <select id="dropdown2Select" disabled>
                             <option value="">Select</option>
                         </select>
                     </div>
-
-                    <div class="form-group" id="dropdown3Group">
-                        <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
-                            id="dropdown3Label">Field 3</label>
-                        <select id="dropdown3Select"
-                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
-                            disabled>
+                    <div class="cd-field" id="dropdown3Group">
+                        <label for="dropdown3Select" class="cd-req" id="dropdown3Label">Field 3</label>
+                        <select id="dropdown3Select" disabled>
                             <option value="">Select</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Additional row for 4-level dropdowns (RAM, Storage) -->
-                <div class="grid grid-cols-1 gap-4 hidden" id="dropdown4Row">
-                    <div class="form-group" id="dropdown4Group">
-                        <label
-                            class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger"
-                            id="dropdown4Label">Specific Model</label>
-                        <select id="dropdown4Select"
-                            class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-surface-secondary disabled:cursor-not-allowed"
-                            disabled>
-                            <option value="">Select Model</option>
+                <!-- Fourth level, for the types that have one (RAM, storage) -->
+                <div class="hidden" id="dropdown4Row" style="margin-top: 12px;">
+                    <div class="cd-field" id="dropdown4Group">
+                        <label for="dropdown4Select" class="cd-req" id="dropdown4Label">Specific model</label>
+                        <select id="dropdown4Select" disabled>
+                            <option value="">Select model</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Component Details Display -->
-            <div id="componentDetails"
-                class="component-details bg-surface-hover border border-border-light rounded-lg p-4 mt-4 hidden">
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-3 border-b border-border-light">Selected Component Details</h4>
+            <div id="componentDetails" class="cd-details hidden">
                 <div id="detailsContent">
-                    <!-- Details will be populated dynamically -->
+                    <!-- Filled by add-form.js once a model is picked -->
                 </div>
             </div>
         </div>
 
-        <!-- Component Identification -->
-        <div id="identificationSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Component Identification</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Component
-                        UUID</label>
-                    <input type="text" id="componentUUID"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-secondary text-text-primary cursor-not-allowed"
-                        readonly required>
-                    <small class="block mt-1 text-sm text-text-muted">Auto-filled from component selection</small>
+        <!-- Identity -->
+        <div id="identificationSection" class="form-section cd-section hidden">
+            <span class="cd-section-title">Identity</span>
+            <div class="cd-grid">
+                <div class="cd-field">
+                    <label for="componentUUID" class="cd-req">Spec UUID</label>
+                    <input type="text" id="componentUUID" readonly required>
+                    <span class="cd-hint">Filled in from the model you pick.</span>
                 </div>
-
-                <div class="form-group">
+                <div class="cd-field">
                     <!-- Optional by default; add-form.js marks it required for the
                          component types that must carry a serial (storage, SFP). -->
-                    <label id="serialNumberLabel" class="block text-sm font-medium text-text-secondary mb-2">Serial
-                        Number <span id="serialNumberOptionalHint" class="text-xs font-medium text-text-muted">(optional)</span></label>
-                    <input type="text" id="serialNumber"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="Manufacturer serial, if readable">
-                    <small id="serialNumberHelp" class="block mt-1 text-sm text-text-muted">Leave blank if the label is missing or
-                        unreadable. Every unit gets its own asset tag either way.</small>
+                    <label for="serialNumber" id="serialNumberLabel">Serial number <span id="serialNumberOptionalHint" class="cd-opt">(optional)</span></label>
+                    <input type="text" id="serialNumber" placeholder="Manufacturer serial, if readable">
+                    <span id="serialNumberHelp" class="cd-hint">Leave blank if the label is missing or unreadable. Every unit gets its own asset tag either way.</span>
                 </div>
             </div>
         </div>
 
-        <!-- Status and Assignment -->
-        <div id="statusSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Status & Assignment</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Status</label>
-                    <select id="status"
-                        class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required>
-                        <!-- No "In Use": a unit arriving in inventory is not
-                             installed in anything yet, and the backend refuses
-                             that value from a form. [H-03/F-10] -->
-                        <option value="">Select Status</option>
-                        <option value="1">Available</option>
-                        <option value="0">Failed</option>
-                    </select>
+        <!-- Status. The cards write the hidden #status that add-form.js reads.
+             No "In use" choice: a unit arriving in inventory is not installed in
+             anything yet, and the backend refuses that value from a form.
+             [H-03/F-10] -->
+        <div id="statusSection" class="form-section cd-section hidden">
+            <span class="cd-section-title" id="addStatusTitle">Status</span>
+            <div class="cd-choices" role="radiogroup" aria-labelledby="addStatusTitle">
+                <label class="cd-choice"><input type="radio" name="addStatusChoice" value="1" checked> Available</label>
+                <label class="cd-choice" title="Set automatically when the unit is installed in a server"><input type="radio" name="addStatusChoice" value="2" disabled> In use</label>
+                <label class="cd-choice is-failed"><input type="radio" name="addStatusChoice" value="0"> Failed</label>
+            </div>
+            <input type="hidden" id="status" value="1">
+            <div class="cd-failed-panel hidden" id="failDateGroup">
+                <div class="cd-grid">
+                    <div class="cd-field">
+                        <label for="failDate">Failed on</label>
+                        <input type="date" id="failDate">
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Vendor Selection -->
-        <div id="vendorSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Vendor / Supplier</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Vendor</label>
-                    <select id="vendorSelect"
-                        class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="">-- No Vendor --</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Location Information -->
-        <div id="locationSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Location Information</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label
-                        class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-danger">Location</label>
-                    <select id="location"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        required>
+        <!-- Location -->
+        <div id="locationSection" class="form-section cd-section hidden">
+            <span class="cd-section-title">Location</span>
+            <div class="cd-grid">
+                <div class="cd-field">
+                    <label for="location" class="cd-req">Site</label>
+                    <select id="location" required>
                         <option value="">Loading locations…</option>
                     </select>
-                    <p class="text-xs text-text-muted mt-1">The site this unit is at. Required — a part with no site is a part nobody can go and find.</p>
                 </div>
-
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Store / Shelf</label>
-                    <input type="text" id="storeLocation" maxlength="100"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                        placeholder="e.g., Shelf B3, Bin 12">
-                    <p class="text-xs text-text-muted mt-1">Where the part sits while it is in stock. Once it is installed in a server, its address comes from that server's rack instead.</p>
+                <div class="cd-field">
+                    <label for="storeLocation">Shelf / bin</label>
+                    <input type="text" id="storeLocation" maxlength="100" placeholder="e.g. Shelf B3, Bin 12">
                 </div>
+            </div>
+            <span class="cd-hint">Where the unit sits while it is in stock. Once it is installed, its address comes from the server's rack.</span>
+            <!-- Derived from the rack placement once installed; always empty for a new unit. -->
+            <input type="hidden" id="rackPosition" value="">
+        </div>
 
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Rack Position</label>
-                    <input type="text" id="rackPosition" readonly
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-muted focus:outline-none"
-                        placeholder="Set automatically when installed">
-                    <p class="text-xs text-text-muted mt-1">Derived from the server's rack placement — it updates on its own when the server moves.</p>
+        <!-- Purchase. #vendorSection and #datesSection are shown separately by
+             add-form.js (a type with no spec file shows no vendor list), so they
+             stay two sections. -->
+        <div id="vendorSection" class="form-section cd-section hidden">
+            <span class="cd-section-title">Purchase</span>
+            <div class="cd-grid">
+                <div class="cd-field">
+                    <label for="vendorSelect">Vendor</label>
+                    <select id="vendorSelect">
+                        <option value="">No vendor</option>
+                    </select>
                 </div>
             </div>
         </div>
 
-        <!-- Date Information -->
-        <div id="datesSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Date Information</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Purchase Date</label>
-                    <input type="date" id="purchaseDate"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+        <div id="datesSection" class="form-section cd-section hidden">
+            <div class="cd-grid">
+                <div class="cd-field">
+                    <label for="purchaseDate">Purchased</label>
+                    <input type="date" id="purchaseDate">
                 </div>
-
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Installation Date</label>
-                    <input type="date" id="installationDate"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <div class="cd-field">
+                    <label for="warrantyEndDate">Warranty ends</label>
+                    <input type="date" id="warrantyEndDate">
                 </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Warranty End Date</label>
-                    <input type="date" id="warrantyEndDate"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                </div>
-                <div class="form-group hidden" id="failDateGroup">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Fail Date</label>
-                    <input type="date" id="failDate"
-                        class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <div class="cd-field">
+                    <label for="installationDate">Installed on</label>
+                    <input type="date" id="installationDate">
                 </div>
             </div>
         </div>
 
-        <!-- Flag and Notes -->
-        <div id="flagSection" class="form-section mb-6 hidden">
-            <h3 class="text-xs font-semibold uppercase tracking-wider text-text-muted pb-2.5 mb-4 border-b border-border-light">Additional Information</h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Flag</label>
-                    <select id="flag"
-                        class="form-select w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="">No Flag</option>
+        <div id="flagSection" class="form-section cd-section hidden">
+            <div class="cd-grid">
+                <div class="cd-field">
+                    <label for="flag">Flag</label>
+                    <select id="flag">
+                        <option value="">No flag</option>
                         <option value="Backup">Backup</option>
                         <option value="Critical">Critical</option>
                         <option value="Maintenance">Maintenance</option>
@@ -255,121 +189,72 @@
                         <option value="Production">Production</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <!-- Empty div for spacing -->
-                </div>
             </div>
         </div>
 
-        <!-- Notes -->
-        <div id="notesSection" class="form-section mb-6 hidden">
-            <div class="form-group">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
-                <textarea id="notes"
-                    class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-y"
-                    rows="4" placeholder="Additional notes, specifications, or remarks..."></textarea>
+        <div id="notesSection" class="form-section cd-section hidden">
+            <div class="cd-field">
+                <label for="notes">Notes</label>
+                <textarea id="notes" rows="3" placeholder="Anything worth knowing about this unit"></textarea>
             </div>
         </div>
+    </div>
 
-        <!-- Form Actions -->
-        <div class="form-actions flex items-center justify-end gap-3 mt-6 pt-6 border-t border-border-light">
-            <button type="button"
-                class="btn btn-secondary px-6 py-2 bg-surface-secondary text-text-primary rounded-lg hover:bg-surface-hover transition-colors"
-                onclick="closeForm()">
-                Cancel
-            </button>
-            <button type="submit"
-                class="btn btn-primary px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2"
-                id="submitBtn">
-                <span class="btn-text">Add Component</span>
-                <span class="btn-loader hidden">
-                    <i class="fas fa-spinner fa-spin"></i>
-                </span>
-            </button>
-        </div>
-    </form>
-</div>
-
+    <div class="cd-foot form-actions">
+        <button type="button" class="cd-btn" onclick="closeForm()">Cancel</button>
+        <button type="submit" class="cd-btn cd-btn-primary" id="submitBtn">
+            <span class="btn-text">Add component</span>
+            <span class="btn-loader" style="display: none;">
+                <i class="fas fa-spinner fa-spin" aria-hidden="true"></i>
+            </span>
+        </button>
+    </div>
+</form>
 
 <style>
-    .detail-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--color-border-light, #E2E8F0);
-    }
-
-    .detail-label {
-        font-weight: 500;
-        color: var(--color-text-muted, #64748B);
-    }
-
-    .detail-value {
-        color: var(--color-text-primary, #0F172A);
-    }
-
-    .spec-item {
+    /* The spec rows add-form.js writes into #detailsContent. */
+    .spec-item, .detail-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 0.75rem 0;
+        gap: 12px;
+        padding: 9px 0;
         border-bottom: 1px solid var(--color-border-light, #E2E8F0);
+        font-size: 13px;
     }
 
-    .spec-item:last-child {
+    .spec-item:last-child, .detail-item:last-child {
         border-bottom: none;
     }
 
-    .spec-label {
+    .spec-label, .detail-label {
         display: flex;
         align-items: center;
-        font-weight: 500;
+        gap: 8px;
         color: var(--color-text-muted, #64748B);
-        gap: 0.5rem;
     }
 
     .spec-label i {
         color: var(--color-primary, #0D9488);
-        width: 16px;
+        width: 14px;
         flex-shrink: 0;
     }
 
-    .spec-value {
+    .spec-value, .detail-value {
         color: var(--color-text-primary, #0F172A);
-        font-weight: 600;
+        font-weight: 500;
         text-align: right;
-        flex-shrink: 0;
-    }
-
-    @media (max-width: 768px) {
-        .spec-item {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.5rem;
-            padding: 1rem 0;
-        }
-
-        .spec-value {
-            text-align: left;
-            font-size: 0.95rem;
-        }
-
-        .spec-label {
-            font-size: 0.9rem;
-        }
     }
 
     @media (max-width: 480px) {
-        .spec-item {
-            padding: 0.75rem 0;
+        .spec-item, .detail-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
         }
 
-        .spec-label {
-            font-size: 0.85rem;
-        }
-
-        .spec-value {
-            font-size: 0.9rem;
+        .spec-value, .detail-value {
+            text-align: left;
         }
     }
 

@@ -72,6 +72,7 @@ class AddComponentForm {
         // display, not the `hidden` class: .hidden is emitted before .flex in
         // the compiled Tailwind, so it would not win against `flex` here.
         if (this.embedded) {
+            document.getElementById('addComponentForm')?.classList.add('is-embedded');
             const ownActions = document.querySelector('#addComponentForm .form-actions');
             if (ownActions) ownActions.style.display = 'none';
         }
@@ -80,7 +81,7 @@ class AddComponentForm {
             document.getElementById('componentType').value = componentType;
 
             // Hide the component type section when pre-selected
-            const componentTypeSection = document.querySelector('.form-section');
+            const componentTypeSection = document.querySelector('#addComponentForm .form-section');
             if (componentTypeSection) {
                 componentTypeSection.style.display = 'none';
             }
@@ -126,6 +127,16 @@ class AddComponentForm {
         if (statusSelect) {
             statusSelect.addEventListener('change', () => this.toggleFailDate());
         }
+
+        // The status cards write the hidden #status that collectFormData() and
+        // toggleFailDate() read, and announce it as a change of that field.
+        document.querySelectorAll('#addComponentForm input[name="addStatusChoice"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (!radio.checked || !statusSelect) return;
+                statusSelect.value = radio.value;
+                statusSelect.dispatchEvent(new Event('change'));
+            });
+        });
 
         // Form submission. Embedded, the host modal owns it: an Enter keypress
         // in a field must not add the component for real behind the host's back.
@@ -210,7 +221,13 @@ class AddComponentForm {
         this.currentComponentType = componentType;
         this.applySerialRequirement(componentType);
         this.componentSpecification = {};
-        document.getElementById('formTitle').textContent = `Add ${componentType.toUpperCase()} Component`;
+        const singular = (window.utils && utils.componentLabelsSingular && utils.componentLabelsSingular[componentType])
+            || componentType.toUpperCase();
+        document.getElementById('formTitle').textContent = `Add ${singular}`;
+        const eyebrow = document.getElementById('formEyebrow');
+        if (eyebrow) eyebrow.textContent = `${singular} · New unit`;
+        const submitText = document.querySelector('#submitBtn .btn-text');
+        if (submitText) submitText.textContent = this.canAddDirectly() ? `Add ${singular}` : 'Submit request';
 
         try {
             // Show loading
@@ -1941,7 +1958,7 @@ class AddComponentForm {
                         window.dashboard.closeModal();
                         // Refresh component list and dashboard
                         if (window.dashboard.loadComponentList) {
-                            window.dashboard.loadComponentList(this.currentComponentType);
+                            window.dashboard.loadComponentList(this.currentComponentType, true);
                         }
                         if (window.dashboard.loadDashboard) {
                             window.dashboard.loadDashboard();
@@ -2255,6 +2272,18 @@ class AddComponentForm {
         throw new Error('API layer is not loaded — cannot submit the component.');
     }
 
+    /**
+     * Whether closing would throw away anything the user entered. The type and
+     * the defaults the form fills itself (UUID, status, location) do not count.
+     */
+    hasUserInput() {
+        const filled = (id) => (document.getElementById(id)?.value || '').trim() !== '';
+        return filled('dropdown1Select') || filled('serialNumber') || filled('storeLocation')
+            || filled('purchaseDate') || filled('warrantyEndDate') || filled('installationDate')
+            || filled('vendorSelect') || filled('flag') || filled('notes')
+            || document.getElementById('status')?.value === '0';
+    }
+
     resetForm() {
         document.getElementById('addComponentForm').reset();
         this.hideAllSections();
@@ -2331,6 +2360,11 @@ function goBack() {
 }
 
 function closeForm() {
+    // In the drawer, the drawer decides: it asks only when something was entered.
+    if (window.dashboard && window.dashboard._drawerRoot && typeof window.dashboard.requestCloseDrawer === 'function') {
+        window.dashboard.requestCloseDrawer();
+        return;
+    }
     if (confirm('Are you sure you want to close this form? Any unsaved changes will be lost.')) {
         if (window.dashboard && typeof window.dashboard.closeModal === 'function') {
             window.dashboard.closeModal();

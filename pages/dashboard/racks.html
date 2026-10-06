@@ -7,6 +7,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' https://ims.bdcms.bharatdatacenter.com;">
     <title>Rack View - BDC Inventory</title>
     <link rel="stylesheet" href="../../assets/css/tailwind.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@700&family=JetBrains+Mono:wght@400;500&display=swap">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <script>
         (function () {
@@ -20,11 +21,6 @@
            Self-contained styles (rk-*) so JS-generated markup never
            depends on Tailwind's compiled utility set.
            ============================================================ */
-        .rk-mono {
-            font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", "Menlo", "Consolas", monospace;
-            font-variant-numeric: tabular-nums;
-        }
-
         /* ---- rack list cards ---- */
         .rk-rackcard {
             width: 100%;
@@ -48,145 +44,136 @@
         .rk-occ { height: 6px; border-radius: 999px; background: var(--rk-occ-track, #e5e7eb); overflow: hidden; }
         .rk-occ__fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #2dd4bf, #0d9488); transition: width .35s ease; }
 
-        /* ---- the cabinet ---- */
+        /* ---- the cabinet ("C · Chassis" elevation) ----
+           A dark physical object in both themes. Every entry (a server, a
+           device, an enclosure, an empty U) is absolutely positioned on a
+           pitch of one U plus a 2px gap, so a 2U box is exactly two rows tall. */
         .rk-cabinet {
-            --rk-u: 26px;
-            --rk-rail: 15px;
-            background: linear-gradient(180deg, #3b4048 0%, #262a30 100%);
-            border: 1px solid #14171b;
-            border-radius: 12px;
-            padding: 14px 16px 18px;
-            box-shadow: 0 18px 40px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .06);
-            display: inline-block;
-            max-width: 100%;
+            --rk-u: 16px;
+            --rk-gap: 2px;
+            --rk-pitch: calc(var(--rk-u) + var(--rk-gap));
+            --rk-ink: #E6EAEE;
+            --rk-dim: #6B7785;
+            --rk-faint: #4F5A66;
+            --rk-accent: #4CC9F0;
+            width: min(100%, 560px);
+            display: flex; flex-direction: column; gap: 10px;
+            padding: 16px;
+            background: #0E1114;
+            border: 1px solid #1F252C;
+            border-radius: 10px;
+            color: var(--rk-ink);
+            font-family: 'IBM Plex Sans', system-ui, sans-serif;
         }
-        .rk-cabinet__plate {
-            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-            color: #c8cfd9; margin-bottom: 12px; padding: 0 2px;
+        .rk-mono, .rk-cabinet .rk-mono {
+            font-family: 'JetBrains Mono', ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+            font-variant-numeric: tabular-nums;
         }
-        .rk-cabinet__name { font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .82rem; }
-        .rk-cabinet__meta { font-size: .72rem; color: #8b94a1; }
+        .rk-cabinet__plate { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .rk-cabinet__name {
+            font-family: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
+            font-size: 26px; font-weight: 700; line-height: 1.1; text-transform: uppercase;
+            overflow-wrap: anywhere;
+        }
+        .rk-cabinet__meta { font-size: 12px; color: #8A96A3; }
 
-        .rk-rack { display: flex; align-items: stretch; }
-
-        /* U-number gutters */
-        .rk-gutter { display: flex; flex-direction: column; width: 30px; flex: none; }
-        .rk-gutter--right { width: 22px; }
-        .rk-gutter__cell {
-            height: var(--rk-u);
-            display: flex; align-items: center; justify-content: center;
-            font-size: .62rem; color: #7c8593;
-            border-right: 1px solid rgba(255, 255, 255, .04);
+        /* the box: rail | U labels + entries | rail */
+        .rk-rack {
+            display: flex; gap: 6px;
+            padding: 10px 8px;
+            background: #0A0C0E;
+            border: 1px solid #2A323B;
+            border-radius: 6px;
         }
-        .rk-gutter--right .rk-gutter__cell { border-right: none; border-left: 1px solid rgba(255, 255, 255, .04); }
-
-        /* the bay: rails + slot grid */
-        .rk-bay {
-            position: relative;
-            flex: 1 1 auto;
-            min-width: 270px;
-            padding: 0 var(--rk-rail);
-            background: #11151a;
-            /* inset (not border) so it adds no height — keeps grid aligned with the U gutter */
-            box-shadow: inset 0 2px 0 #0b0e12, inset 0 -2px 0 #0b0e12;
+        .rk-rail {
+            flex: none; width: 10px; border-radius: 2px;
+            background: repeating-linear-gradient(#1A2026 0 3px, #0A0C0E 3px 6px);
         }
-        /* mounting rails with the EIA 3-hole-per-U pattern */
-        .rk-bay::before, .rk-bay::after {
-            content: ""; position: absolute; top: 0; bottom: 0; width: var(--rk-rail);
-            background-color: #20262d;
-            background-image: repeating-linear-gradient(to bottom,
-                    transparent 0, transparent calc(var(--rk-u) / 3 - 4px),
-                    rgba(0, 0, 0, .85) calc(var(--rk-u) / 3 - 4px), rgba(0, 0, 0, .85) calc(var(--rk-u) / 3));
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .03);
-        }
-        .rk-bay::before { left: 0; }
-        .rk-bay::after { right: 0; }
+        .rk-grid { position: relative; flex: 1 1 auto; min-width: 0; }
 
-        .rk-grid {
-            position: relative;
-            /* faint per-U separators */
-            background-image: repeating-linear-gradient(to bottom,
-                    rgba(255, 255, 255, .035) 0, rgba(255, 255, 255, .035) 1px,
-                    transparent 1px, transparent var(--rk-u));
+        .rk-ulabel {
+            position: absolute; left: 0; width: 26px;
+            padding-top: 3px; text-align: right;
+            font-size: 9px; line-height: 1; color: var(--rk-faint);
+            pointer-events: none;
         }
+        /* every entry sits right of the label column */
+        .rk-slot, .rk-sled, .rk-encl { position: absolute; left: 34px; right: 0; }
 
-        /* empty U slot — a place-here target */
+        /* empty U — a place-here target */
         .rk-slot {
-            position: absolute; left: 4px; right: 4px;
-            display: flex; align-items: center; justify-content: center;
-            background: transparent; border: 1px dashed transparent; border-radius: 4px;
-            color: transparent; font-size: .68rem; cursor: pointer;
-            transition: background .12s ease, color .12s ease, border-color .12s ease;
+            display: flex; align-items: center; justify-content: flex-end;
+            padding: 0 10px;
+            background: transparent;
+            border: 1px dashed #252C34; border-radius: 2px;
+            color: var(--rk-faint); font-size: 10px; cursor: pointer;
+            transition: border-color .12s ease, color .12s ease, background .12s ease;
         }
-        .rk-slot:hover { background: rgba(20, 184, 166, .12); border-color: rgba(20, 184, 166, .55); color: #5eead4; }
-        .rk-slot:focus-visible { outline: 2px solid #14b8a6; outline-offset: 1px; color: #5eead4; }
+        .rk-slot:hover { border-color: var(--rk-accent); color: var(--rk-accent); background: rgba(76, 201, 240, .06); }
+        .rk-slot:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 1px; color: var(--rk-accent); }
         .rk-slot__hint { pointer-events: none; }
 
-        /* a server sled (faceplate) */
+        /* a server or network device */
         .rk-sled {
-            position: absolute; left: 4px; right: 4px;
             display: flex; align-items: center; gap: 10px;
-            padding: 0 10px 0 12px;
-            border-radius: 5px;
-            border-left: 4px solid var(--st, #64748b);
-            background:
-                repeating-linear-gradient(180deg, rgba(255, 255, 255, .035) 0 1px, transparent 1px 5px),
-                linear-gradient(180deg, #2b3138, #1d2228);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 2px rgba(0, 0, 0, .5);
-            color: #e7ebf0; cursor: pointer; overflow: hidden;
-            transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+            padding: 0 10px;
+            background: #1A2026;
+            border: 1px solid #29313A; border-radius: 2px;
+            color: var(--rk-ink); font-size: 12px; cursor: pointer; overflow: hidden;
+            transition: border-color .12s ease, background .12s ease;
         }
-        /* ---- blade enclosure: one box occupying a U range, holding a grid of bays ----
-           The frame is positioned exactly like a sled (top + height in U). Its bays
-           are a CSS GRID rather than absolutely-positioned cells, so row-major grid
-           order IS the backend's 1-based slot numbering with no offset arithmetic to
-           get wrong -- see RackEnclosure::slotGeometry(). */
+        .rk-sled:hover { border-color: #3B4651; background: #1E252C; }
+        .rk-sled.is-selected { border-color: var(--rk-accent); background: #10232B; }
+        .rk-sled:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: 1px; }
+        .rk-sled__led { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--st); }
+        .rk-sled__name { flex: 1 1 auto; min-width: 3rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rk-sled__meta { flex: 0 1 auto; min-width: 0; max-width: 45%; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; color: var(--rk-dim); }
+
+        /* blade enclosure: a rail naming the box, then its bays as a grid.
+           Row-major grid order IS the backend's 1-based slot numbering, so
+           there is no offset arithmetic to get wrong -- see
+           RackEnclosure::slotGeometry(). */
         .rk-encl {
-            position: absolute; left: 4px; right: 4px;
             display: flex; align-items: stretch;
-            border-radius: 5px;
-            border: 1px solid rgba(148, 163, 184, .35);
-            border-left: 4px solid #64748b;
-            background: linear-gradient(180deg, #21262c, #171b20);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 1px 2px rgba(0, 0, 0, .5);
+            background: #1A2026;
+            border: 1px solid #29313A; border-radius: 2px;
             overflow: hidden;
         }
+        .rk-encl.is-selected { border-color: var(--rk-accent); }
         .rk-encl__rail {
-            flex: none; width: 96px; min-width: 0;
-            display: flex; flex-direction: column; justify-content: center; gap: 2px;
-            padding: 0 8px; text-align: left;
-            background: rgba(255, 255, 255, .04);
-            border-right: 1px solid rgba(148, 163, 184, .25);
-            color: #e7ebf0; cursor: pointer;
+            flex: 0 0 42%; min-width: 0;
+            display: flex; align-items: center; gap: 10px;
+            padding: 0 10px; text-align: left;
+            background: transparent; border: 0; border-right: 1px solid #29313A;
+            color: var(--rk-ink); font-size: 12px; cursor: pointer;
+            --st: #8A96A3;
         }
-        .rk-encl__rail:hover { background: rgba(255, 255, 255, .08); }
-        .rk-encl__rail:focus-visible { outline: 2px solid #5eead4; outline-offset: -2px; }
-        .rk-encl__name { font-weight: 600; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rk-encl__meta { color: #9aa4b2; font-size: .64rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rk-encl__bays { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; padding: 2px; }
+        .rk-encl__rail:hover { background: #1E252C; }
+        .rk-encl__rail:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: -2px; }
+        .rk-encl__name { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rk-encl__meta { flex: none; font-size: 10px; color: var(--rk-dim); }
+        .rk-encl__bays { flex: 1 1 0; min-width: 0; display: grid; gap: 2px; padding: 2px; }
 
-        /* an empty bay — a place-here target inside the enclosure */
+        /* an empty bay */
         .rk-encl__bay {
             display: flex; align-items: center; justify-content: center;
-            min-width: 0; border-radius: 3px;
-            border: 1px dashed rgba(148, 163, 184, .3);
-            background: rgba(0, 0, 0, .25);
-            color: #6b7686; font-size: .64rem; cursor: pointer;
-            transition: background .12s ease, color .12s ease, border-color .12s ease;
+            min-width: 0; border-radius: 2px;
+            border: 1px dashed #2F3842; background: transparent;
+            color: var(--rk-faint); font-size: 9px; cursor: pointer;
+            transition: border-color .12s ease, color .12s ease;
         }
-        .rk-encl__bay:hover { background: rgba(20, 184, 166, .12); border-color: rgba(20, 184, 166, .55); color: #5eead4; }
-        .rk-encl__bay:focus-visible { outline: 2px solid #14b8a6; outline-offset: -2px; color: #5eead4; }
+        .rk-encl__bay:hover { border-color: var(--rk-accent); color: var(--rk-accent); }
+        .rk-encl__bay:focus-visible { outline: 2px solid var(--rk-accent); outline-offset: -2px; color: var(--rk-accent); }
 
-        /* a sled INSIDE a bay: same faceplate, but a grid item rather than an
-           absolutely-positioned full-width strip */
+        /* a sled inside a bay: a grid item, not a positioned strip */
         .rk-sled--bay {
             position: relative; left: auto; right: auto;
-            min-width: 0; gap: 6px; padding: 0 6px 0 8px;
-            border-radius: 3px; border-left-width: 3px;
-            font-size: .74rem;
+            min-width: 0; gap: 5px; padding: 0 5px;
+            background: #222932; border-color: #313B45;
+            font-size: 10px;
         }
-        .rk-sled--bay:hover { transform: none; }
-        .rk-sled--bay .rk-sled__name { font-size: .74rem; min-width: 0; }
+        .rk-sled--bay .rk-sled__led { width: 5px; height: 5px; }
+        .rk-sled--bay .rk-sled__name { min-width: 0; }
 
         /* ---- enclosure bay roster (the "what is inside this FX2s" list) ----
            Hand-written rather than Tailwind: `last:border-b-0` and
@@ -197,28 +184,19 @@
         .rk-roster__link { text-decoration: none; }
         .rk-roster__link:hover { text-decoration: underline; }
 
-        .rk-sled:hover { filter: brightness(1.08); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 6px 16px rgba(0, 0, 0, .45); transform: translateX(1px); }
-        .rk-sled:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
-        .rk-sled__led { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--st); box-shadow: 0 0 7px var(--st); }
-        /* server name takes priority and truncates last; chassis is secondary and gives way first */
-        .rk-sled__name { flex: 1 1 auto; min-width: 4.5rem; font-weight: 600; font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .rk-sled__chassis { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #9aa4b2; font-size: .68rem; }
-        .rk-sled__u { flex: none; color: #cbd5e1; font-size: .68rem; }
-        .rk-sled__h { flex: none; color: #9aa4b2; font-size: .68rem; }
-
-        /* status hues */
-        .st-draft     { --st: #64748b; }
-        .st-validated { --st: #f59e0b; }
-        .st-built     { --st: #10b981; }
-        .st-finalized { --st: #14b8a6; }
-        .st-device    { --st: #6366f1; }
-        .st-orphaned  { --st: #ef4444; }
-        .rk-sled.st-orphaned { background: linear-gradient(180deg, #3a2630, #271a20); }
+        /* status LEDs */
+        .st-draft     { --st: #8A96A3; }
+        .st-validated { --st: #F5A524; }
+        .st-built     { --st: #3DDC97; }
+        .st-finalized { --st: #4CC9F0; }
+        .st-device    { --st: #B39DFF; }
+        .st-orphaned  { --st: #FF6B6B; }
+        .rk-sled.st-orphaned { border-color: rgba(255, 107, 107, .45); }
 
         /* legend */
         .rk-legend { display: flex; flex-wrap: wrap; gap: 14px; }
         .rk-legend__item { display: inline-flex; align-items: center; gap: 7px; font-size: .74rem; color: var(--rk-legend-text, #6b7280); }
-        .rk-legend__dot { width: 10px; height: 10px; border-radius: 3px; background: var(--st); }
+        .rk-legend__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--st); }
 
         /* status pill on rack cards */
         .rk-badge { display: inline-flex; align-items: center; gap: 5px; font-size: .68rem; padding: 2px 8px; border-radius: 999px; background: var(--rk-badge-bg, #f3f4f6); color: var(--rk-badge-text, #4b5563); }
@@ -229,18 +207,15 @@
             --rk-occ-track: #374151; --rk-badge-bg: #374151; --rk-badge-text: #d1d5db;
             --rk-legend-text: #9ca3af;
         }
-        [data-theme="dark"] .rk-cabinet { box-shadow: 0 18px 40px rgba(0, 0, 0, .5), 0 0 0 1px rgba(255, 255, 255, .04), inset 0 1px 0 rgba(255, 255, 255, .06); }
 
         @media (max-width: 640px) {
-            .rk-cabinet { --rk-u: 24px; padding: 12px; }
-            .rk-sled__chassis { display: none; }
-            /* The rail keeps the enclosure name; the bay grid needs the width more
-               than the meta line does. */
-            .rk-encl__rail { width: 68px; padding: 0 5px; }
-            .rk-encl__meta { display: none; }
+            .rk-cabinet { padding: 12px; }
+            .rk-cabinet__name { font-size: 22px; }
+            .rk-sled__meta, .rk-encl__meta { display: none; }
+            .rk-encl__rail { flex-basis: 36%; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .rk-rackcard, .rk-occ__fill, .rk-slot, .rk-sled, .rk-encl__bay { transition: none; }
+            .rk-rackcard, .rk-occ__fill, .rk-slot, .rk-sled, .rk-encl__rail, .rk-encl__bay { transition: none; }
         }
     </style>
 </head>

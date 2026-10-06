@@ -81,6 +81,7 @@ class RackView {
         // .rk-encl, so it must be tested before the enclosure rail.
         this.el.elevation?.addEventListener('click', (e) => {
             const sled = e.target.closest('.rk-sled');
+            if (sled) this.markSelected(sled);
             if (sled && sled.dataset.deviceId) { this.openDeviceActions(parseInt(sled.dataset.deviceId, 10)); return; }
             if (sled && sled.dataset.configUuid) { this.openServerActions(sled.dataset.configUuid); return; }
 
@@ -91,7 +92,11 @@ class RackView {
             }
 
             const rail = e.target.closest('.rk-encl__rail');
-            if (rail && rail.dataset.enclosureUuid) { this.openEnclosureActions(rail.dataset.enclosureUuid); return; }
+            if (rail && rail.dataset.enclosureUuid) {
+                this.markSelected(rail.closest('.rk-encl'));
+                this.openEnclosureActions(rail.dataset.enclosureUuid);
+                return;
+            }
 
             const slot = e.target.closest('.rk-slot');
             if (slot && slot.dataset.u) this.openPlaceServer(parseInt(slot.dataset.u, 10));
@@ -240,44 +245,47 @@ class RackView {
 
         // Vertical offset (in U rows from the top of the bay) for a given U number.
         const rowsFromTop = (u) => topDown ? (u - 1) : (N - u);
+        // An entry covering `h` U whose visually-top U is `topU`: one pitch
+        // (U + gap) per row, minus the trailing gap so neighbours never touch.
+        const place = (topU, h) => `top:calc(${rowsFromTop(topU)} * var(--rk-pitch)); height:calc(${h} * var(--rk-pitch) - var(--rk-gap));`;
+        const visualTop = (x) => topDown ? x.start_u : x.end_u;
+        const uRange = (x) => x.u_height > 1 ? `U${x.start_u}–U${x.end_u}` : `U${x.start_u}`;
+        // "ProLiant DL360 Gen9 (823840-B21)" -> "ProLiant DL360 Gen9": the part
+        // number is noise at this size; the full name stays in the title.
+        const shortModel = (name) => String(name || '').replace(/\s*\(.*\)\s*$/, '');
 
-        // ---- gutter (U numbers) ----
-        const gutterCells = [];
-        for (let i = 0; i < N; i++) {
-            // Top-to-bottom order
-            const u = topDown ? (i + 1) : (N - i);
-            gutterCells.push(`<div class="rk-gutter__cell rk-mono">${u}</div>`);
-        }
+        // One U label per entry, at the entry's top row, as on a real rack.
+        const labels = [];
+        const label = (topU) => labels.push(
+            `<span class="rk-ulabel rk-mono" style="top:calc(${rowsFromTop(topU)} * var(--rk-pitch));">U${topU}</span>`);
 
         // ---- empty slots ----
         const slots = [];
         for (let u = 1; u <= N; u++) {
             if (covered.has(u)) continue;
-            const top = rowsFromTop(u);
+            label(u);
             slots.push(`
-                <button type="button" class="rk-slot" data-u="${u}"
-                    style="top:calc(${top} * var(--rk-u)); height:var(--rk-u);"
-                    aria-label="Place a server at U${u}">
-                    <span class="rk-slot__hint"><i class="fas fa-plus"></i> Place</span>
+                <button type="button" class="rk-slot" data-u="${u}" style="${place(u, 1)}"
+                    aria-label="Empty U${u}, place a server here">
+                    <span class="rk-slot__hint rk-mono">place here</span>
                 </button>`);
         }
 
-        // ---- server sleds ----
+        // ---- servers ----
         const sleds = servers.map(s => {
-            const top = rowsFromTop(topDown ? s.start_u : s.end_u);
+            label(visualTop(s));
             const statusClass = s.orphaned ? 'st-orphaned' : this.statusClass(s.configuration_status);
-            const uLabel = s.u_height > 1 ? `U${s.start_u}–U${s.end_u}` : `U${s.start_u}`;
-            const chassis = s.chassis_name ? `<span class="rk-sled__chassis">${utils.escapeHtml(s.chassis_name)}</span>` : '';
+            const model = shortModel(s.chassis_name);
+            const meta = [model, `${s.u_height}U`].filter(Boolean).join(' ');
+            const title = `${s.server_name} · ${uRange(s)}${s.chassis_name ? ' · ' + s.chassis_name : ''} · ${s.orphaned ? 'Orphaned' : this.statusText(s.configuration_status)}`;
             return `
                 <div class="rk-sled ${statusClass}" data-config-uuid="${utils.escapeHtml(s.config_uuid)}"
-                    tabindex="0" role="button"
-                    style="top:calc(${top} * var(--rk-u)); height:calc(${s.u_height} * var(--rk-u));"
-                    aria-label="${utils.escapeHtml(s.server_name)} at ${uLabel}, ${s.u_height}U">
-                    <span class="rk-sled__led"></span>
-                    <span class="rk-sled__name">${utils.escapeHtml(s.server_name)}</span>
-                    ${chassis}
-                    <span class="rk-sled__u rk-mono">${uLabel}</span>
-                    <span class="rk-sled__h rk-mono">${s.u_height}U</span>
+                    tabindex="0" role="button" style="${place(visualTop(s), s.u_height)}"
+                    title="${utils.escapeHtml(title)}"
+                    aria-label="${utils.escapeHtml(s.server_name)} at ${uRange(s)}, ${s.u_height}U">
+                    <span class="rk-sled__led" aria-hidden="true"></span>
+                    <span class="rk-sled__name rk-mono">${utils.escapeHtml(s.server_name)}</span>
+                    <span class="rk-sled__meta rk-mono">${utils.escapeHtml(meta)}</span>
                 </div>`;
         });
 
@@ -285,58 +293,54 @@ class RackView {
         // Drawn with the server block's own markup and classes, so a switch reads
         // as the same kind of object; only the hue and the data attribute differ.
         const deviceBlocks = devices.map(d => {
-            const top = rowsFromTop(topDown ? d.start_u : d.end_u);
-            const uLabel = d.u_height > 1 ? `U${d.start_u}–U${d.end_u}` : `U${d.start_u}`;
+            label(visualTop(d));
             const tag = d.serial_number || d.asset_tag || '';
             const kind = d.device_type ? ` (${d.device_type})` : '';
+            const meta = [d.device_type, `${d.u_height}U`].filter(Boolean).join(' ');
             return `
                 <div class="rk-sled st-device" data-device-id="${d.inventory_id}"
-                    tabindex="0" role="button"
-                    style="top:calc(${top} * var(--rk-u)); height:calc(${d.u_height} * var(--rk-u));"
-                    aria-label="${utils.escapeHtml(d.model_name)}${utils.escapeHtml(kind)} at ${uLabel}, ${d.u_height}U">
-                    <span class="rk-sled__led"></span>
-                    <span class="rk-sled__name">${utils.escapeHtml(d.model_name)}</span>
-                    ${tag ? `<span class="rk-sled__chassis">${utils.escapeHtml(tag)}</span>` : ''}
-                    <span class="rk-sled__u rk-mono">${uLabel}</span>
-                    <span class="rk-sled__h rk-mono">${d.u_height}U</span>
+                    tabindex="0" role="button" style="${place(visualTop(d), d.u_height)}"
+                    title="${utils.escapeHtml(`${d.model_name}${tag ? ' · ' + tag : ''} · ${uRange(d)}`)}"
+                    aria-label="${utils.escapeHtml(d.model_name)}${utils.escapeHtml(kind)} at ${uRange(d)}, ${d.u_height}U">
+                    <span class="rk-sled__led" aria-hidden="true"></span>
+                    <span class="rk-sled__name rk-mono">${utils.escapeHtml(d.model_name)}</span>
+                    <span class="rk-sled__meta rk-mono">${utils.escapeHtml(meta)}</span>
                 </div>`;
         });
 
         // ---- enclosures ----
-        // Positioned exactly like a sled. The bays are a CSS grid, so grid
-        // row-major order is the backend's 1-based slot numbering: slot 1 is
-        // top-left, matching Dell's own FX2s bay labelling.
+        // The bays are a CSS grid, so grid row-major order is the backend's
+        // 1-based slot numbering: slot 1 is top-left, matching Dell's own FX2s
+        // bay labelling.
         const enclosureFrames = enclosures.map(e => {
-            const top = rowsFromTop(topDown ? e.start_u : e.end_u);
-            const uLabel = e.u_height > 1 ? `U${e.start_u}–U${e.end_u}` : `U${e.start_u}`;
-
+            label(visualTop(e));
             const bays = e.slots.map(slot => {
                 if (!slot.occupied) {
                     return `
-                        <button type="button" class="rk-encl__bay" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
+                        <button type="button" class="rk-encl__bay rk-mono" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
                             data-slot="${slot.slot_index}"
                             aria-label="Install a server in bay ${slot.slot_index} of ${utils.escapeHtml(e.name)}">
-                            <span class="rk-slot__hint"><i class="fas fa-plus"></i> Bay ${slot.slot_index}</span>
+                            <span class="rk-slot__hint">bay ${slot.slot_index}</span>
                         </button>`;
                 }
                 const statusClass = slot.orphaned ? 'st-orphaned' : this.statusClass(slot.configuration_status);
                 return `
                     <div class="rk-sled rk-sled--bay ${statusClass}" data-config-uuid="${utils.escapeHtml(slot.config_uuid)}"
-                        tabindex="0" role="button"
+                        tabindex="0" role="button" title="${utils.escapeHtml(`${slot.server_name} · bay ${slot.slot_index}`)}"
                         aria-label="${utils.escapeHtml(slot.server_name)} in bay ${slot.slot_index} of ${utils.escapeHtml(e.name)}">
-                        <span class="rk-sled__led"></span>
-                        <span class="rk-sled__name">${utils.escapeHtml(slot.server_name)}</span>
-                        <span class="rk-sled__u rk-mono">B${slot.slot_index}</span>
+                        <span class="rk-sled__led" aria-hidden="true"></span>
+                        <span class="rk-sled__name rk-mono">${utils.escapeHtml(slot.server_name)}</span>
                     </div>`;
             }).join('');
 
             return `
-                <div class="rk-encl" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
-                    style="top:calc(${top} * var(--rk-u)); height:calc(${e.u_height} * var(--rk-u));">
+                <div class="rk-encl" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}" style="${place(visualTop(e), e.u_height)}">
                     <button type="button" class="rk-encl__rail" data-enclosure-uuid="${utils.escapeHtml(e.enclosure_uuid)}"
-                        aria-label="${utils.escapeHtml(e.name)}, ${utils.escapeHtml(e.model || 'enclosure')}, ${uLabel}, ${e.slots_used} of ${e.slot_count} bays used">
-                        <span class="rk-encl__name">${utils.escapeHtml(e.name)}</span>
-                        <span class="rk-encl__meta rk-mono">${uLabel} · ${e.slots_used}/${e.slot_count}</span>
+                        title="${utils.escapeHtml(`${e.name} · ${e.model || 'enclosure'} · ${uRange(e)}`)}"
+                        aria-label="${utils.escapeHtml(e.name)}, ${utils.escapeHtml(e.model || 'enclosure')}, ${uRange(e)}, ${e.slots_used} of ${e.slot_count} bays used">
+                        <span class="rk-sled__led" aria-hidden="true"></span>
+                        <span class="rk-encl__name rk-mono">${utils.escapeHtml(e.name)}</span>
+                        <span class="rk-encl__meta rk-mono">${e.slots_used}/${e.slot_count} sleds</span>
                     </button>
                     <div class="rk-encl__bays"
                         style="grid-template-columns:repeat(${e.slot_cols},minmax(0,1fr));grid-template-rows:repeat(${e.slot_rows},minmax(0,1fr));">
@@ -345,25 +349,22 @@ class RackView {
                 </div>`;
         });
 
-        const rightGutter = gutterCells.map(c => c).join('');
-
         this.el.elevation.innerHTML = `
             <div class="rk-cabinet">
                 <div class="rk-cabinet__plate">
                     <span class="rk-cabinet__name">${utils.escapeHtml(r.name)}</span>
-                    <span class="rk-cabinet__meta rk-mono">${N}U · ${r.used_u} used · ${r.free_u} free</span>
+                    <span class="rk-cabinet__meta rk-mono">${r.used_u} / ${N}U · ${r.free_u} free</span>
                 </div>
                 <div class="rk-rack">
-                    <div class="rk-gutter">${gutterCells.join('')}</div>
-                    <div class="rk-bay">
-                        <div class="rk-grid" style="height:calc(${N} * var(--rk-u));">
-                            ${slots.join('')}
-                            ${sleds.join('')}
-                            ${deviceBlocks.join('')}
-                            ${enclosureFrames.join('')}
-                        </div>
+                    <div class="rk-rail" aria-hidden="true"></div>
+                    <div class="rk-grid" style="height:calc(${N} * var(--rk-pitch) - var(--rk-gap));">
+                        ${labels.join('')}
+                        ${slots.join('')}
+                        ${sleds.join('')}
+                        ${deviceBlocks.join('')}
+                        ${enclosureFrames.join('')}
                     </div>
-                    <div class="rk-gutter rk-gutter--right">${rightGutter}</div>
+                    <div class="rk-rail" aria-hidden="true"></div>
                 </div>
             </div>`;
 
@@ -372,6 +373,7 @@ class RackView {
             sled.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
+                    this.markSelected(sled);
                     if (sled.dataset.deviceId) { this.openDeviceActions(parseInt(sled.dataset.deviceId, 10)); }
                     else { this.openServerActions(sled.dataset.configUuid); }
                 }
@@ -1254,6 +1256,13 @@ class RackView {
 
     closeModal() {
         this.el.modal?.classList.add('hidden');
+        this.markSelected(null);
+    }
+
+    /** Outline the unit whose actions are open; null clears it. */
+    markSelected(el) {
+        this.el.elevation?.querySelectorAll('.is-selected').forEach(x => x.classList.remove('is-selected'));
+        if (el) el.classList.add('is-selected');
     }
 
     statusClass(status) {

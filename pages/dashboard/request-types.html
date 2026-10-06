@@ -15,28 +15,135 @@
         })();
     </script>
     <style>
-        /* Step flow "spine" — the signature element. Step chips connected by a
-           directional rail to read as the request's actual flow. Uses the app's
-           CSS variables so it tracks light/dark themes automatically. */
-        .flow-rail { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; }
-        .flow-node {
-            position: relative; display: flex; flex-direction: column; gap: 2px;
-            padding: 8px 12px; border: 1px solid var(--color-border, #e5e7eb);
-            border-radius: 10px; background: var(--color-surface-secondary, #f8fafc);
-            min-width: 0;
+        /* Request types — the "Types" board's layout (type list + flow of step
+           cards) in the Refined theme. Plain CSS on the theme variables: the
+           Tailwind build is hand-compiled, and the variables carry dark mode. */
+        .rtx {
+            --rtx-accent: #0F766E; --rtx-accent-ink: #0C5D57; --rtx-accent-soft: #E6F2F0; --rtx-sel: #F2FBF9;
+            --rtx-red: #B91C1C; --rtx-red-soft: #FDECEC;
+            color: var(--color-text-primary); font-size: 14px;
+            display: flex; gap: 20px; align-items: flex-start;
         }
-        .flow-node + .flow-node { margin-left: 26px; }
-        .flow-node + .flow-node::before {
-            content: "\f054"; font-family: "Font Awesome 6 Free"; font-weight: 900;
-            position: absolute; left: -20px; top: 50%; transform: translateY(-50%);
-            font-size: 10px; color: var(--color-text-muted, #94a3b8);
+        [data-theme="dark"] .rtx {
+            --rtx-accent: #2DD4BF; --rtx-accent-ink: #5EEAD4; --rtx-accent-soft: rgba(45, 212, 191, .12); --rtx-sel: rgba(45, 212, 191, .07);
+            --rtx-red: #F87171; --rtx-red-soft: rgba(248, 113, 113, .12);
         }
-        .flow-node .flow-stage-name { font-size: 12px; font-weight: 600; line-height: 1.2; }
-        .flow-node .flow-owner { font-size: 10px; }
+        [data-theme="dark"] .rtx input, [data-theme="dark"] .rtx select, [data-theme="dark"] .rtx textarea { color-scheme: dark; }
+        /* These rules set display, and load after tailwind.css, so they would
+           otherwise beat its .hidden; JS hides things with that class. */
+        .rtx .hidden, .rtx.hidden { display: none !important; }
+        .rtx-mono { font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+        .rtx-card { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; }
+        .rtx-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+
+        .rtx-nav { flex: 0 0 260px; padding: 12px; display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; max-height: calc(100vh - 120px); overflow-y: auto; }
+        .rtx-nav .rtx-label { padding: 4px 10px 10px; }
+        .rtx-nav-item {
+            display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border: 0; border-radius: 8px;
+            background: transparent; color: var(--color-text-primary); font: inherit; text-align: left; cursor: pointer; width: 100%;
+        }
+        .rtx-nav-item:hover { background: var(--color-surface-hover); }
+        .rtx-nav-item.is-on { background: var(--rtx-sel); box-shadow: inset 3px 0 0 var(--rtx-accent); }
+        .rtx-nav-item.is-archived .rtx-nav-name { color: var(--color-text-muted); }
+        .rtx-nav-name { font-weight: 500; overflow-wrap: anywhere; }
+        .rtx-nav-meta { font-size: 11.5px; color: var(--color-text-muted); }
+        .rtx-nav-new { color: var(--rtx-accent); font-weight: 500; }
+
+        .rtx-main { flex: 1 1 0; min-width: 0; }
+        .rtx-editor { display: flex; flex-direction: column; gap: 20px; }
+        .rtx-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .rtx-top h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; }
+        .rtx-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+        .rtx-badge.is-active { background: var(--rtx-accent-soft); color: var(--rtx-accent-ink); }
+        .rtx-badge.is-archived, .rtx-badge.is-system { background: var(--color-surface-secondary); color: var(--color-text-secondary); }
+        .rtx-top-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+        .rtx-btn {
+            height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--color-border);
+            background: var(--color-surface-card); color: var(--color-text-primary);
+            font: inherit; font-size: 13.5px; font-weight: 500; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; text-decoration: none;
+        }
+        .rtx-btn:hover { background: var(--color-surface-hover); }
+        .rtx-btn:disabled { opacity: .5; cursor: default; }
+        .rtx-btn i { font-size: 12px; }
+        .rtx-btn-icon { width: 36px; padding: 0; justify-content: center; color: var(--color-text-secondary); }
+        .rtx-btn-primary { border-color: transparent; background: #0F766E; color: #fff; }
+        .rtx-btn-primary:hover { background: #0C5D57; }
+        .rtx-btn-danger { color: var(--rtx-red); }
+        .rtx-btn-danger:hover { background: var(--rtx-red-soft); }
+        .rtx button:focus-visible, .rtx a:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+
+        .rtx-details { padding: 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .rtx-span { grid-column: 1 / -1; }
+        .rtx-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .rtx-field > label, .rtx-field > .rtx-flabel { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); }
+        .rtx input[type="text"], .rtx select, .rtx textarea {
+            width: 100%; min-height: 38px; border: 1px solid var(--color-border); border-radius: 8px; padding: 0 10px;
+            font: inherit; font-size: 13.5px; color: var(--color-text-primary); background: var(--color-surface-card);
+        }
+        .rtx textarea { padding: 8px 10px; line-height: 1.45; resize: vertical; }
+        .rtx input:focus, .rtx select:focus, .rtx textarea:focus { outline: none; border-color: #0F766E; box-shadow: 0 0 0 3px rgba(15, 118, 110, .15); }
+        .rtx input[readonly] { border-style: dashed; color: var(--color-text-muted); }
+        .rtx-hint { font-size: 12px; color: var(--color-text-muted); line-height: 1.45; }
+        .rtx-checks { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13.5px; }
+        .rtx-checks label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+        .rtx input[type="checkbox"] { width: 15px; height: 15px; accent-color: #0F766E; }
+
+        .rtx-sec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+        .rtx-flowwrap { display: flex; align-items: stretch; flex-wrap: wrap; gap: 16px 0; }
+        .rtx-flow { display: contents; }
+        .rtx-step {
+            position: relative; width: 260px; padding: 16px; margin-right: 34px;
+            display: flex; flex-direction: column; gap: 12px;
+            background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 10px; cursor: default;
+        }
+        .rtx-step.is-on { border-color: var(--rtx-accent); box-shadow: 0 0 0 1px var(--rtx-accent); }
+        .rtx-step::after {
+            content: '→'; position: absolute; right: -24px; top: 50%; transform: translateY(-50%);
+            font-family: 'IBM Plex Mono', ui-monospace, monospace; color: var(--color-text-muted); font-size: 16px;
+        }
+        .rtx-step-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .rtx-step-n { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; font-weight: 500; color: var(--rtx-accent); }
+        .rtx-step-tools { display: flex; gap: 2px; }
+        .rtx-step-tools button {
+            width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-muted); cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+        }
+        .rtx-step-tools button:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+        .rtx-step-tools .stage-remove:hover { background: var(--rtx-red-soft); color: var(--rtx-red); }
+        .rtx-owner { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px; }
+        .rtx-does {
+            border: 0; background: none; padding: 0; text-align: left; cursor: pointer;
+            font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--color-text-muted);
+        }
+        .rtx-does.is-acts { color: var(--rtx-accent); }
+        .rtx-does:hover { text-decoration: underline; }
+        .rtx-step .stage-effect { display: none; }
+        .rtx-add {
+            width: 150px; min-height: 200px; border: 1px dashed var(--color-border-dark); border-radius: 10px; background: transparent;
+            color: var(--rtx-accent); font: inherit; font-weight: 500; cursor: pointer;
+        }
+        .rtx-add:hover { background: var(--rtx-sel); }
+
+        .rtx-effect { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .rtx-effect .stage-effect > div { border: 0 !important; background: none !important; padding: 0 !important; }
+        .rtx-effect .stage-effect .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 8px; }
+        .rtx-effect .stage-effect label:has(.stage-action) {
+            padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; font-size: 13px;
+        }
+        .rtx-effect .stage-effect label:has(.stage-action:checked) { border-color: var(--rtx-accent); background: var(--rtx-sel); }
+        .rtx-effect .stage-effect code { display: block; font-size: 11px; margin-top: 2px; }
+        .rtx-effect .stage-effect-on + * { }
+
+        @media (max-width: 1023px) {
+            .rtx { flex-direction: column; }
+            .rtx-nav { position: static; flex: none; width: 100%; max-height: none; }
+        }
         @media (max-width: 640px) {
-            .flow-node { width: 100%; }
-            .flow-node + .flow-node { margin-left: 0; margin-top: 22px; }
-            .flow-node + .flow-node::before { content: "\f078"; left: 50%; top: -18px; transform: translateX(-50%); }
+            .rtx-details { grid-template-columns: minmax(0, 1fr); }
+            .rtx-step { width: 100%; margin-right: 0; margin-bottom: 30px; }
+            .rtx-step::after { content: '↓'; right: auto; left: 50%; top: auto; bottom: -26px; transform: translateX(-50%); }
+            .rtx-add { width: 100%; min-height: 64px; }
         }
     </style>
 </head>
@@ -50,70 +157,41 @@
 
             <main class="main-content flex-1 p-4 sm:p-6">
                 <div id="pipelineTypesView" class="content-section active">
-                    <div class="content-header mb-6">
-                        <div class="flex flex-wrap items-start justify-between gap-3 mb-1">
-                            <div>
-                                <h2 class="text-2xl font-bold text-text-primary">Request Types</h2>
-                                <p class="text-sm text-text-muted mt-1">Define the steps a request flows through and who owns each one.</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <a href="requests.html" class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] flex items-center gap-2">
-                                    <i class="fas fa-inbox"></i> <span class="hidden sm:inline">Requests</span>
-                                </a>
-                                <button id="refreshTypesBtn"
-                                    class="px-4 py-2 border border-border rounded-lg hover:bg-surface-hover transition-colors text-text-primary min-h-[44px] min-w-[44px]"
-                                    title="Refresh">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
-                                <button id="createTypeBtn"
-                                    class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors flex items-center gap-2 min-h-[44px]">
-                                    <i class="fas fa-plus"></i> New Type
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Loading -->
                     <div id="typesLoadingState" class="text-center py-12 hidden">
-                        <i class="fas fa-spinner fa-spin text-4xl text-primary mb-4"></i>
+                        <i class="fas fa-spinner fa-spin text-3xl text-primary mb-4"></i>
                         <p class="text-text-muted">Loading request types...</p>
                     </div>
 
                     <!-- Error -->
-                    <div id="typesErrorState" class="text-center py-12 bg-surface-card rounded-lg hidden">
-                        <i class="fas fa-exclamation-triangle text-4xl text-danger mb-4"></i>
+                    <div id="typesErrorState" class="text-center py-12 bg-surface-card rounded-lg border border-border hidden">
+                        <i class="fas fa-exclamation-triangle text-3xl text-danger mb-4"></i>
                         <p class="text-text-primary font-semibold mb-2">Couldn't load request types</p>
                         <p id="typesErrorMessage" class="text-text-muted mb-4"></p>
-                        <button onclick="requestTypesManager.load()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Try Again</button>
+                        <button type="button" onclick="requestTypesManager.load()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">Try again</button>
                     </div>
 
                     <!-- Empty -->
                     <div id="typesEmptyState" class="text-center py-16 bg-surface-card rounded-lg border border-dashed border-border hidden">
-                        <i class="fas fa-sliders text-4xl text-text-muted mb-4"></i>
                         <p class="text-text-primary font-semibold mb-2">No request types yet</p>
                         <p class="text-text-muted mb-4">Create one to describe how a kind of request moves through your team.</p>
-                        <button id="createFirstTypeBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
-                            <i class="fas fa-plus mr-2"></i>New Type
+                        <button type="button" id="createFirstTypeBtn" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600">
+                            <i class="fas fa-plus mr-2"></i>New type
                         </button>
                     </div>
 
-                    <!-- Types grid -->
-                    <div id="typesGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-4"></div>
+                    <!-- Type list + editor -->
+                    <div id="typesGrid" class="rtx hidden">
+                        <nav class="rtx-card rtx-nav" aria-label="Request types">
+                            <div class="rtx-label">Request types</div>
+                            <div id="typesNav"></div>
+                            <button type="button" id="createTypeBtn" class="rtx-nav-item rtx-nav-new">+ New type</button>
+                            <a href="requests.html" class="rtx-nav-item rtx-nav-meta" style="text-decoration:none">← Back to requests</a>
+                        </nav>
+                        <div class="rtx-main" id="typeEditor"></div>
+                    </div>
                 </div>
             </main>
-        </div>
-    </div>
-
-    <!-- Type editor modal -->
-    <div id="modalContainer" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center hidden" style="z-index: 2000;">
-        <div class="modal bg-surface-card rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[92vh] overflow-hidden">
-            <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
-                <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">New Request Type</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
-                    <i class="fas fa-times text-xl"></i>
-                </button>
-            </div>
-            <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(92vh-120px)]" id="modalBody"></div>
         </div>
     </div>
 
