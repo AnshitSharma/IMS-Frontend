@@ -1292,7 +1292,9 @@ class ConfigurationPage {
                 } else if (config.type === 'range') {
                     // Get current range value
                     const rangeInput = document.getElementById(`${key}Range`);
-                    if (rangeInput) {
+                    // A slider still at its minimum is untouched and filters nothing:
+                    // CPU max-memory starts at 1 TB, which hid every desktop part (0.128 TB).
+                    if (rangeInput && parseFloat(rangeInput.value) > parseFloat(rangeInput.min)) {
                         const rangeValue = parseFloat(rangeInput.value);
                         const property = propertyMap[key] || key;
                         const componentValue = parseFloat(this.formatValue(component[property]));
