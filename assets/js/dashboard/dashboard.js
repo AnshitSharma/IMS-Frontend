@@ -1465,14 +1465,10 @@ class Dashboard {
                     <h3 class="text-lg font-semibold text-text-primary mb-1">No Servers Found</h3>
                     <p class="text-sm text-text-secondary mb-6">${api.utils.hasPermission('server.create')
                         ? 'Start building your first server configuration'
-                        : 'You do not currently have permission to build a server'}</p>
-                    ${api.utils.hasPermission('server.create')
-                        ? `<button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
-                        <i class="fas fa-plus text-xs"></i> Create New Server
-                    </button>`
-                        : `<a href="requests.html" class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2">
-                        <i class="fas fa-unlock-alt text-xs"></i> Request build access
-                    </a>`}
+                        : 'Fill in the server form and it is sent to an admin for approval'}</p>
+                    <button class="px-5 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-hover transition-colors font-medium text-sm inline-flex items-center gap-2" onclick="dashboard.showAddServerForm()">
+                        <i class="fas fa-plus text-xs"></i> ${api.utils.hasPermission('server.create') ? 'Create New Server' : 'Request a New Server'}
+                    </button>
                 </div>`;
 
         // The badge now reads status_v2 first — see _serverStatusPresentation().
@@ -1948,6 +1944,9 @@ class Dashboard {
     }
 
     async showAddServerForm() {
+        // Without server.create the same form raises a New Server request; an
+        // admin approves it and the server is created and placed for them.
+        const asRequest = !api.utils.hasPermission('server.create');
         const formContent = `
         <form id="createServerForm" class="max-w-lg mx-auto">
             <!-- Header Section with Icon -->
@@ -1957,7 +1956,9 @@ class Dashboard {
                         <i class="fas fa-server text-white text-2xl"></i>
                     </div>
                     <div class="text-center">
-                        <p class="text-sm text-slate-500">Configure your new server infrastructure</p>
+                        <p class="text-sm text-slate-500">${asRequest
+                            ? 'This is sent as a request. Once an admin approves it, the server is created for you.'
+                            : 'Configure your new server infrastructure'}</p>
                     </div>
                 </div>
             </div>
@@ -2084,13 +2085,13 @@ class Dashboard {
                 </button>
                 <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg font-medium hover:from-teal-700 hover:to-teal-800 shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2 transform hover:-translate-y-0.5">
                     <i class="fas fa-plus text-sm"></i>
-                    Create Server
+                    ${asRequest ? 'Submit request' : 'Create Server'}
                 </button>
             </div>
         </form>
     `;
 
-        this.showModal('Create New Server', formContent);
+        this.showModal(asRequest ? 'Request a New Server' : 'Create New Server', formContent);
 
         // Initialize toggle functionality
         const toggle = document.getElementById('advancedViewToggle');
@@ -2222,6 +2223,14 @@ class Dashboard {
                     return;
                 }
 
+                if (asRequest) {
+                    await this.submitServerRequest({
+                        serverName, description, isVirtual, serialNumber,
+                        location, locationUuid, rackUuid, bayMatch, startU, uHeight
+                    });
+                    return;
+                }
+
                 try {
                     utils.showLoading(true, 'Creating server...');
                     // ONE CALL. Creation, location and placement commit together
@@ -2267,6 +2276,68 @@ class Dashboard {
             });
         }
     }
+
+    /**
+     * The Create Server form, raised as a New Server request.
+     *
+     * The payload is what the direct create sends, so an approval creates and
+     * places the server exactly as the button would have, owned by the
+     * requester. The request's own description repeats the serial and the
+     * placement in words, because the approver sees the description and not
+     * the uuids.
+     *
+     * @param f  the fields the submit handler has already validated
+     */
+    async submitServerRequest(f) {
+        const payload = { server_name: f.serverName };
+        if (f.description) payload.description = f.description;
+
+        const lines = ['Raised from the Build Server form because I cannot create servers directly.'];
+        if (f.isVirtual) {
+            payload.is_virtual = true;
+            lines.push('Template build (virtual): no serial, location or rack.');
+        } else {
+            payload.serial_number = f.serialNumber;
+            payload.location_uuid = f.locationUuid;
+            if (f.bayMatch) {
+                payload.enclosure_uuid = f.bayMatch[1];
+                payload.slot_index = parseInt(f.bayMatch[2], 10);
+            } else {
+                payload.rack_uuid = f.rackUuid;
+                payload.start_u = f.startU;
+                payload.u_height = f.uHeight;
+            }
+            const text = (id) => {
+                const select = document.getElementById(id);
+                return (select?.selectedOptions[0]?.textContent || '').trim();
+            };
+            // The rack option ends in "(10U free of 42U)" -- true when picked, not later.
+            const rack = text('serverRack').replace(/\s*\([^)]*free of[^)]*\)\s*$/, '');
+            lines.push(`Serial: ${f.serialNumber}`);
+            lines.push(`Where: ${f.location}, ${rack}, ${text('rackPosition')}`
+                + (f.bayMatch ? '' : ` (${f.uHeight}U)`));
+        }
+        if (f.description) lines.push(`Notes: ${f.description}`);
+
+        try {
+            utils.showLoading(true, 'Submitting request...');
+            const result = await api.requests.submitAction('server.config.create', payload, {
+                title: `New server "${f.serverName}"`,
+                description: lines.join('\n')
+            });
+            const ref = result?.data?.ticket_number ? `Request ${result.data.ticket_number}` : 'Request';
+            toast.success(`${ref} submitted. The server will be created once an admin approves it.`, 8000);
+            this.closeModal();
+        } catch (error) {
+            // A refused request carries its reasons in data.errors, and the
+            // message alone is only "Failed to create pipeline".
+            const reasons = (error.data?.errors || []).map(e => String(e).replace(/^Action \d+: /, ''));
+            utils.showAlert(reasons.length ? reasons.join(' ') : (error.message || 'The request could not be submitted'), 'error');
+        } finally {
+            utils.showLoading(false);
+        }
+    }
+
     /**
      * Populate the Create Server form's Rack + Position dropdowns from the real
      * racks / rack_servers data. Position lists only the FREE U slots of the chosen
@@ -2295,35 +2366,6 @@ class Dashboard {
             positionSelect.innerHTML = `<option value="">${utils.escapeHtml(label)}</option>`;
             positionSelect.disabled = true;
         };
-
-        const res = await api.racks.list();
-
-        if (!res?.success) {
-            rackSelect.innerHTML = '<option value="">Racks unavailable</option>';
-            rackSelect.disabled = true;
-            resetPositions('—');
-            showHint(res?.message || 'Could not load racks, so a server cannot be created right now — a physical server has to be placed when it is created.');
-            return;
-        }
-
-        const racks = res.data?.racks || [];
-        if (racks.length === 0) {
-            rackSelect.innerHTML = '<option value="">No racks available</option>';
-            rackSelect.disabled = true;
-            resetPositions('—');
-            showHint('No racks exist yet — create one in Rack View before creating a server.');
-            return;
-        }
-
-        // No "-- Not racked --": a physical server must be placed, and offering a
-        // choice the backend refuses is a trap rather than an option.
-        rackSelect.innerHTML = '<option value="">-- Choose a rack --</option>' + racks.map(r => {
-            const loc = r.location ? ` — ${utils.escapeHtml(r.location)}` : '';
-            return `<option value="${utils.escapeHtml(r.rack_uuid)}">${utils.escapeHtml(r.name)}${loc} (${r.free_u}U free of ${r.total_u}U)</option>`;
-        }).join('');
-        rackSelect.disabled = false;
-        resetPositions('-- Select a rack first --');
-        clearHint();
 
         // Layout of the rack currently selected, so changing the U-height can
         // re-filter the positions without re-fetching it.
@@ -2405,6 +2447,123 @@ class Dashboard {
         };
 
         heightSelect?.addEventListener('change', renderPositions);
+
+        // WITHOUT rack.view, rack-list and rack-get are refused, and this form is
+        // how such a user raises a New Server request. location-racks is the
+        // requester-facing view of the same occupancy -- free runs and free bays,
+        // nothing else -- so their racks come from the location they pick.
+        if (!api.utils.hasPermission('rack.view')) {
+            const locationSelect = document.getElementById('serverLocation');
+            let racksHere = [];
+            rackSelect.innerHTML = '<option value="">-- Choose a location first --</option>';
+            rackSelect.disabled = true;
+            resetPositions('-- Select a rack first --');
+
+            locationSelect?.addEventListener('change', async () => {
+                const locationUuid = api.locations.selectedUuid(locationSelect);
+                racksHere = [];
+                currentRack = null;
+                resetPositions('-- Select a rack first --');
+                clearHint();
+                rackSelect.disabled = true;
+
+                if (!locationUuid) {
+                    rackSelect.innerHTML = '<option value="">-- Choose a location first --</option>';
+                    return;
+                }
+
+                rackSelect.innerHTML = '<option value="">Loading racks…</option>';
+                let racks = null;
+                try {
+                    const result = await api.locations.racks(locationUuid);
+                    racks = result?.success ? (result.data?.racks || []) : null;
+                } catch (error) {
+                    racks = null;
+                }
+
+                // The location may have changed while this was loading.
+                if (api.locations.selectedUuid(locationSelect) !== locationUuid) return;
+
+                if (racks === null) {
+                    rackSelect.innerHTML = '<option value="">Racks unavailable</option>';
+                    showHint('Could not load the racks at this location.');
+                    return;
+                }
+                if (racks.length === 0) {
+                    rackSelect.innerHTML = '<option value="">No racks at this location</option>';
+                    showHint('This location has no racks yet — pick another location.');
+                    return;
+                }
+
+                racksHere = racks;
+                rackSelect.innerHTML = '<option value="">-- Choose a rack --</option>' + racks.map(r =>
+                    `<option value="${utils.escapeHtml(r.rack_uuid)}">${utils.escapeHtml(r.name)} (${r.free_u}U free of ${r.total_u}U)</option>`
+                ).join('');
+                rackSelect.disabled = false;
+            });
+
+            rackSelect.addEventListener('change', () => {
+                const rack = racksHere.find(r => r.rack_uuid === rackSelect.value);
+                currentRack = null;
+                occupied = new Set();
+                enclosures = [];
+
+                if (!rack) {
+                    resetPositions('-- Select a rack first --');
+                    clearHint();
+                    return;
+                }
+
+                // location-racks lists the FREE runs; every U outside them is taken,
+                // enclosures included, so renderPositions() can work unchanged.
+                const free = new Set();
+                (rack.free_intervals || []).forEach(gap => {
+                    for (let u = gap.start_u; u <= gap.end_u; u++) free.add(u);
+                });
+                for (let u = 1; u <= rack.total_u; u++) {
+                    if (!free.has(u)) occupied.add(u);
+                }
+                // Free bays only, by index, in the shape renderPositions() reads.
+                enclosures = (rack.enclosures || []).map(e => ({
+                    enclosure_uuid: e.enclosure_uuid,
+                    name: e.name,
+                    slots: (e.free_slots || []).map(slot => ({ slot_index: slot, occupied: false }))
+                }));
+
+                currentRack = rack;
+                renderPositions();
+            });
+            return;
+        }
+
+        const res = await api.racks.list();
+
+        if (!res?.success) {
+            rackSelect.innerHTML = '<option value="">Racks unavailable</option>';
+            rackSelect.disabled = true;
+            resetPositions('—');
+            showHint(res?.message || 'Could not load racks, so a server cannot be created right now — a physical server has to be placed when it is created.');
+            return;
+        }
+
+        const racks = res.data?.racks || [];
+        if (racks.length === 0) {
+            rackSelect.innerHTML = '<option value="">No racks available</option>';
+            rackSelect.disabled = true;
+            resetPositions('—');
+            showHint('No racks exist yet — create one in Rack View before creating a server.');
+            return;
+        }
+
+        // No "-- Not racked --": a physical server must be placed, and offering a
+        // choice the backend refuses is a trap rather than an option.
+        rackSelect.innerHTML = '<option value="">-- Choose a rack --</option>' + racks.map(r => {
+            const loc = r.location ? ` — ${utils.escapeHtml(r.location)}` : '';
+            return `<option value="${utils.escapeHtml(r.rack_uuid)}">${utils.escapeHtml(r.name)}${loc} (${r.free_u}U free of ${r.total_u}U)</option>`;
+        }).join('');
+        rackSelect.disabled = false;
+        resetPositions('-- Select a rack first --');
+        clearHint();
 
         rackSelect.addEventListener('change', async () => {
             const rackUuid = rackSelect.value;

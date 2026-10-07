@@ -16,128 +16,314 @@
         })();
     </script>
     <style>
-        /* Knowledge Base — page-scoped styling.
-           Driven entirely by the existing design-system custom properties so the page
-           needs no new Tailwind utilities (and therefore no CSS rebuild). */
-        .kb-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
-        @media (max-width: 1023px) { .kb-layout { grid-template-columns: 1fr; gap: 16px; } }
+        /* Help & Guide — page-scoped styling.
+           Built on the theme custom properties and refined.css, so it needs no new
+           Tailwind utilities (and therefore no CSS rebuild), and dark mode follows
+           the theme variables on its own.
 
-        .kb-rail { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 10px; }
-        @media (max-width: 1023px) { .kb-rail { position: static; } }
+           The "pictures" are small HTML copies of real screens (.kb-shot), drawn
+           with the m- classes below and labelled with numbered pins that match the
+           legend under each one. They are decorative to assistive tech
+           (role="img" + aria-label); the legend carries the meaning. */
 
+        .kb-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 44px; align-items: start; }
+        @media (max-width: 1023px) { .kb-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+
+        /* ---- contents rail ---- */
+        .kb-rail { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 12px; }
         .kb-rail-nav { display: flex; flex-direction: column; gap: 1px; }
         .kb-rail-nav a {
-            font-size: 13px; padding: 6px 10px; border-radius: 6px; text-decoration: none;
-            color: var(--color-text-secondary); display: flex; gap: 9px; align-items: baseline;
-            border-left: 2px solid transparent; transition: background-color .15s, color .15s;
+            font-size: 13.5px; padding: 7px 10px; border-radius: 6px; text-decoration: none;
+            color: var(--color-text-secondary); border-left: 2px solid transparent;
         }
         .kb-rail-nav a:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
-        .kb-rail-nav a.is-active {
-            background: var(--rf-tint); color: var(--rf-accent-ink);
-            font-weight: 600; border-left-color: #0F766E;
-        }
-        .kb-rail-nav a .kb-idx {
-            font-family: "IBM Plex Mono", ui-monospace, monospace;
-            font-size: 11px; color: var(--color-text-muted); min-width: 16px;
-        }
+        .kb-rail-nav a.is-active { background: var(--rf-tint); color: var(--rf-accent-ink); font-weight: 600; border-left-color: #0F766E; }
         .kb-rail-nav a.is-hidden { display: none; }
+        @media (max-width: 1023px) {
+            .kb-rail { position: static; }
+            .kb-rail-nav { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+            .kb-rail-nav a { border: 1px solid var(--color-border); background: var(--color-surface-card); padding: 6px 10px; }
+            .kb-rail-nav a.is-active { border-color: #0F766E; }
+        }
 
-        .kb-section { margin-bottom: 44px; scroll-margin-top: 90px; max-width: 74ch; }
-        .kb-section > h3 {
-            font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--color-text-primary);
-            margin: 0 0 4px; padding-top: 22px; border-top: 1px solid var(--color-border-light);
+        /* ---- prose ---- */
+        .kb-section { margin-bottom: 52px; scroll-margin-top: 90px; }
+        .kb-section > h2 {
+            font-size: 21px; font-weight: 600; letter-spacing: -.01em; color: var(--color-text-primary);
+            margin: 0 0 8px; padding-top: 24px; border-top: 1px solid var(--color-border-light);
         }
-        .kb-section > h3 .kb-eyebrow {
-            display: block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-            font-size: 12px; color: var(--rf-accent-ink);
-            font-weight: 500; margin-bottom: 6px;
-        }
-        .kb-section h4 {
-            font-size: 15px; font-weight: 600; color: var(--color-text-primary); margin: 24px 0 6px;
-        }
-        .kb-section p { font-size: 14px; line-height: 1.65; color: var(--color-text-secondary); margin: 10px 0; }
-        .kb-section ul { margin: 10px 0; padding-left: 20px; }
-        .kb-section li { font-size: 14px; line-height: 1.6; color: var(--color-text-secondary); margin: 4px 0; }
+        .kb-section:first-of-type > h2 { border-top: 0; padding-top: 0; }
+        .kb-section h3 { font-size: 16px; font-weight: 600; color: var(--color-text-primary); margin: 30px 0 6px; scroll-margin-top: 90px; }
+        .kb-section p, .kb-section li { font-size: 14.5px; line-height: 1.65; color: var(--color-text-secondary); }
+        .kb-section p { margin: 8px 0; max-width: 70ch; }
+        .kb-section ul { margin: 8px 0; padding-left: 20px; max-width: 70ch; list-style: disc; }
+        .kb-section li { margin: 5px 0; }
         .kb-section strong { color: var(--color-text-primary); font-weight: 600; }
+        .kb-section a:not(.kb-task) { color: var(--rf-accent-ink); text-underline-offset: 2px; }
         .kb-section code {
-            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
+            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px;
             background: var(--color-surface-secondary); border: 1px solid var(--color-border-light);
             border-radius: 4px; padding: 1px 5px; color: var(--color-text-primary);
         }
+        .kb-lead { font-size: 15.5px !important; color: var(--color-text-primary) !important; }
 
-        .kb-table-wrap {
-            overflow-x: auto; margin: 14px 0; border: 1px solid var(--color-border);
-            border-radius: 8px; background: var(--color-surface-card);
+        /* ---- three jobs ---- */
+        .kb-jobs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin: 16px 0 6px; max-width: 760px;
+            border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-card); }
+        .kb-job { padding: 14px 16px; border-right: 1px solid var(--color-border-light); }
+        .kb-job:last-child { border-right: 0; }
+        .kb-job h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--color-text-primary); display: flex; gap: 8px; align-items: center; }
+        .kb-job h4 i { color: var(--rf-accent-ink); font-size: 13px; }
+        .kb-job p { margin: 0; font-size: 13.5px; line-height: 1.55; }
+        @media (max-width: 639px) {
+            .kb-jobs { grid-template-columns: 1fr; }
+            .kb-job { border-right: 0; border-bottom: 1px solid var(--color-border-light); }
+            .kb-job:last-child { border-bottom: 0; }
         }
-        .kb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        .kb-table th, .kb-table td {
-            padding: 10px 14px; text-align: left; vertical-align: top;
-            border-bottom: 1px solid var(--color-border-light);
-        }
-        .kb-table th {
-            font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-hover);
-            font-weight: 500; white-space: nowrap;
-        }
-        .kb-table td { color: var(--color-text-secondary); }
-        .kb-table tr:last-child td { border-bottom: none; }
-        .kb-num { font-variant-numeric: tabular-nums; text-align: right; }
 
+        /* ---- task links ---- */
+        .kb-tasks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; margin: 12px 0 4px; max-width: 760px; }
+        .kb-task {
+            display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 14px;
+            border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card);
+            color: var(--color-text-primary); text-decoration: none; font-size: 14px; font-weight: 500;
+        }
+        .kb-task:hover { border-color: #0F766E; background: var(--rf-tint); }
+        .kb-task i { width: 16px; text-align: center; color: var(--rf-accent-ink); font-size: 13px; }
+
+        /* ---- numbered steps (a real sequence) ---- */
+        .kb-steps { display: flex; flex-direction: column; margin: 14px 0; max-width: 70ch; }
+        .kb-step { display: grid; grid-template-columns: 28px 1fr; gap: 12px; position: relative; padding-bottom: 14px; }
+        .kb-step:not(:last-child)::before {
+            content: ""; position: absolute; left: 13.5px; top: 28px; bottom: 0; width: 1px; background: var(--color-border);
+        }
+        .kb-step-dot {
+            width: 28px; height: 28px; border-radius: 50%; background: var(--color-surface-card);
+            border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center;
+            font-size: 12.5px; font-weight: 600; color: var(--rf-accent-ink); z-index: 1;
+        }
+        .kb-step p { margin: 3px 0 0; }
+
+        /* ---- notes and examples ---- */
         .kb-note {
-            border-left: 3px solid #0F766E; background: var(--color-surface-card);
-            border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 16px 0;
+            border-left: 3px solid #0F766E; background: var(--color-surface-card); border-radius: 0 8px 8px 0;
+            padding: 12px 16px; margin: 16px 0; max-width: 72ch;
         }
         .kb-note.is-warn { border-left-color: var(--color-warning); }
         .kb-note.is-stop { border-left-color: var(--color-danger); }
-        .kb-note-title {
-            display: block; font-size: 13px; color: var(--color-text-primary);
-            font-weight: 600; margin-bottom: 2px;
-        }
+        .kb-note-title { display: block; font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 2px; }
         .kb-note p { margin: 4px 0; }
+        .kb-example { background: var(--rf-tint); border-radius: 8px; padding: 12px 16px; margin: 16px 0; max-width: 72ch; }
+        .kb-example-title { display: block; font-size: 13px; font-weight: 600; color: var(--rf-accent-ink); margin-bottom: 2px; }
+        .kb-example p { margin: 4px 0; color: var(--color-text-primary); }
 
-        .kb-steps { display: flex; flex-direction: column; margin: 16px 0; }
-        .kb-step { display: grid; grid-template-columns: 30px 1fr; gap: 12px; position: relative; padding-bottom: 16px; }
-        .kb-step:not(:last-child)::before {
-            content: ""; position: absolute; left: 14.5px; top: 28px; bottom: 0;
-            width: 1px; background: var(--color-border);
-        }
-        .kb-step-dot {
-            width: 30px; height: 30px; border-radius: 50%; background: var(--color-surface-card);
-            border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: center;
-            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; font-weight: 600;
-            color: var(--color-primary); z-index: 1;
-        }
-        .kb-step h5 { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin: 4px 0 2px; }
-        .kb-step p { margin: 0; }
+        /* ---- tables ---- */
+        .kb-table-wrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-card); max-width: 820px; }
+        .kb-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .kb-table th, .kb-table td { padding: 11px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-border-light); line-height: 1.5; }
+        .kb-table th { font-size: 12px; color: var(--color-text-muted); background: var(--color-surface-hover); font-weight: 500; white-space: nowrap; }
+        .kb-table td { color: var(--color-text-secondary); }
+        .kb-table td:first-child { color: var(--color-text-primary); font-weight: 500; }
+        .kb-table tr:last-child td { border-bottom: none; }
+        .kb-table code { white-space: normal; }
 
-        /* Shape and type only — colour comes from the app's existing translucent-tint
-           utilities (bg-success/10 + text-success, as used elsewhere in the UI), which
-           read correctly on both the light and dark surfaces. */
-        .kb-chip {
-            display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace;
-            font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap;
-        }
-
+        /* ---- flow of states ---- */
         .kb-flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 14px 0; }
-        .kb-flow .kb-state {
-            font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px;
-            padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 6px;
-            background: var(--color-surface-card); color: var(--color-text-secondary);
+        .kb-state {
+            font-size: 13px; padding: 5px 11px; border: 1px solid var(--color-border); border-radius: 6px;
+            background: var(--color-surface-card); color: var(--color-text-primary); white-space: nowrap;
         }
-        .kb-flow .kb-state.is-end { border-color: var(--color-success); color: var(--color-success-hover); }
-        .kb-flow .kb-arrow { color: var(--color-text-muted); font-size: 12px; }
+        .kb-state.is-end { border-color: #0F766E; color: var(--rf-accent-ink); font-weight: 600; }
+        .kb-state.is-stop { border-color: var(--color-danger); color: var(--color-danger); }
+        .kb-arrow { color: var(--color-text-muted); font-size: 12px; }
 
-        .kb-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 14px 0; }
-        .kb-card {
-            background: var(--color-surface-card); border: 1px solid var(--color-border);
-            border-radius: 8px; padding: 12px 14px;
-        }
-        .kb-card h5 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
-        .kb-card p { margin: 0; font-size: 13px; }
+        /* ---- status key ---- */
+        .kb-key { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; max-width: 70ch; }
+        .kb-key div { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: baseline; font-size: 14.5px; color: var(--color-text-secondary); }
+        .kb-key b { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; color: var(--color-text-primary); }
 
-        .kb-empty {
-            display: none; padding: 28px 4px; font-size: 14px; color: var(--color-text-muted);
+        /* ---- FAQ ---- */
+        .kb-faq { max-width: 72ch; border-top: 1px solid var(--color-border-light); margin-top: 12px; }
+        .kb-faq details { border-bottom: 1px solid var(--color-border-light); }
+        .kb-faq summary {
+            cursor: pointer; list-style: none; padding: 14px 28px 14px 0; position: relative;
+            font-size: 14.5px; font-weight: 600; color: var(--color-text-primary);
         }
+        .kb-faq summary::-webkit-details-marker { display: none; }
+        .kb-faq summary::after {
+            content: "+"; position: absolute; right: 4px; top: 12px; font-size: 18px; font-weight: 400; color: var(--color-text-muted);
+        }
+        .kb-faq details[open] summary::after { content: "\2212"; }
+        .kb-faq summary:focus-visible { outline: 2px solid #0F766E; outline-offset: 2px; }
+        .kb-faq details > div { padding: 0 0 14px; }
+        .kb-faq details p { margin: 0 0 6px; }
+
+        .kb-empty { display: none; padding: 28px 4px; font-size: 14px; color: var(--color-text-muted); }
         .kb-empty.is-shown { display: block; }
+
+        /* ---- pictures of screens ---- */
+        .kb-fig { margin: 18px 0 24px; max-width: 760px; }
+        .kb-shot {
+            border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-main);
+            padding: 22px 20px 20px; overflow-x: auto; font-size: 12.5px; line-height: 1.4; color: var(--color-text-primary);
+        }
+        .kb-shot-title { font-size: 11.5px; color: var(--color-text-muted); margin: -8px 0 12px; }
+        .kb-fig figcaption { margin-top: 12px; }
+        .kb-legend { list-style: none !important; margin: 0 !important; padding: 0 !important; display: grid; gap: 7px; }
+        .kb-legend li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; margin: 0; font-size: 14px; line-height: 1.55; }
+        .kb-legend li .kb-pin { margin-top: 1px; box-shadow: none; }
+        .kb-pin {
+            width: 20px; height: 20px; border-radius: 50%; background: #0F766E; color: #fff;
+            font-size: 11px; font-weight: 700; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 0 2px var(--color-surface-main); flex: none;
+        }
+        /* A pinned element must not clip its own pin, whatever its own overflow is. */
+        .kb-t { position: relative; overflow: visible !important; }
+        .kb-t > .kb-pin { position: absolute; top: -10px; right: -10px; z-index: 2; }
+        /* For short text, where a corner pin would sit on the letters: beside it instead. */
+        .kb-t > .kb-pin.is-side { top: 50%; right: auto; left: calc(100% + 6px); transform: translateY(-50%); }
+
+        .m-screen { background: var(--color-surface-card); border: 1px solid var(--color-border); border-radius: 8px; }
+        .m-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .m-h { font-size: 15px; font-weight: 600; }
+        .m-sub { font-size: 11.5px; color: var(--color-text-muted); }
+        .m-btn {
+            display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; white-space: nowrap;
+            border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface-card); font-weight: 500;
+        }
+        .m-btn.is-primary { background: #0F766E; border-color: #0F766E; color: #fff; font-weight: 600; }
+        .m-btn.is-danger { color: var(--color-danger); }
+        .m-btn i { font-size: 10px; }
+        .m-field {
+            display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 30px; padding: 0 10px;
+            border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface-card);
+            color: var(--color-text-muted); white-space: nowrap; overflow: hidden;
+        }
+        .m-field.is-filled { color: var(--color-text-primary); }
+        .m-field.is-tall { height: 46px; align-items: flex-start; padding-top: 7px; }
+        .m-field i { font-size: 9px; color: var(--color-text-muted); }
+        .m-lbl { display: block; font-size: 11px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 4px; }
+        .m-req { color: var(--color-danger); }
+        .m-seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; background: var(--color-surface-card); }
+        .m-seg > span { padding: 6px 10px; border-right: 1px solid var(--color-border-light); white-space: nowrap; }
+        .m-seg > span:last-child { border-right: 0; }
+        .m-seg > span:first-child { border-radius: 5px 0 0 5px; }
+        .m-seg .is-on { background: var(--color-text-primary); color: var(--color-surface-card); }
+        .m-seg .m-n { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; margin-left: 4px; opacity: .8; }
+        .m-table { width: 100%; border-collapse: collapse; }
+        .m-table th { text-align: left; font-weight: 500; font-size: 11px; color: var(--color-text-muted); background: var(--color-surface-hover); padding: 7px 10px; border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+        .m-table td { padding: 9px 10px; border-bottom: 1px solid var(--color-border-light); white-space: nowrap; vertical-align: middle; }
+        .m-table tr:last-child td { border-bottom: 0; }
+        .m-mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--color-text-muted); }
+        .m-link { color: var(--rf-accent-ink); }
+        .m-st { display: inline-flex; align-items: center; gap: 6px; }
+        .m-box { width: 13px; height: 13px; border: 1px solid var(--color-border-dark); border-radius: 3px; display: inline-block; }
+        .m-tag { font-size: 10px; font-weight: 600; letter-spacing: .04em; padding: 2px 7px; border-radius: 4px; background: var(--color-surface-secondary); color: var(--color-text-muted); white-space: nowrap; }
+        .m-part {
+            display: inline-flex; flex-direction: column; gap: 1px; padding: 5px 26px 5px 9px; position: relative;
+            border: 1px solid var(--color-border); border-left: 3px solid #0F766E; border-radius: 6px; background: var(--color-surface-card); white-space: nowrap;
+        }
+        .m-part::after { content: "\00D7"; position: absolute; right: 9px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); font-size: 13px; }
+        .m-part.is-locked { padding-right: 9px; }
+        .m-part.is-locked::after { content: none; }
+        .m-pick { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 1px dashed var(--rf-accent-ink); border-radius: 6px; color: var(--rf-accent-ink); font-weight: 500; white-space: nowrap; }
+        .m-banner { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 6px; border: 1px solid; }
+        .m-banner.is-ok { border-color: rgba(15, 118, 110, .35); background: var(--rf-tint); color: var(--rf-accent-ink); }
+        .m-banner.is-bad { border-color: rgba(185, 28, 28, .35); background: rgba(185, 28, 28, .06); color: var(--color-danger); }
+        .m-toast {
+            display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; max-width: 440px;
+            background: var(--color-surface-card); border: 1px solid var(--color-border); border-left: 3px solid var(--color-success);
+            border-radius: 8px; box-shadow: 0 10px 28px -14px rgba(0, 0, 0, .35);
+        }
+        .m-toast i { color: var(--color-success); margin-top: 2px; }
+        .m-toast b { display: block; font-weight: 600; margin-bottom: 2px; }
+        .m-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+        .m-cap { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-text-muted); }
+
+        /* app frame (Getting around) */
+        .m-app { min-width: 560px; overflow: hidden; }
+        .m-top { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--color-border); }
+        .m-brand { display: flex; align-items: center; gap: 7px; font-weight: 600; color: var(--color-text-primary); }
+        .m-brand i { color: #0F766E; }
+        .m-ico { width: 28px; height: 28px; border: 1px solid var(--color-border); border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: var(--color-text-secondary); }
+        .m-ico i { font-size: 11px; }
+        .m-user { display: flex; align-items: center; gap: 8px; }
+        .m-av { width: 28px; height: 28px; border-radius: 7px; background: #0F766E; color: #fff; display: inline-flex; align-items: center; justify-content: center; }
+        .m-av i { font-size: 11px; }
+        .m-body { display: grid; grid-template-columns: 170px 1fr; }
+        .m-side { border-right: 1px solid var(--color-border-light); padding: 10px 8px; display: flex; flex-direction: column; gap: 1px; }
+        .m-side .m-cap { padding: 8px 8px 4px; font-family: "IBM Plex Mono", ui-monospace, monospace; letter-spacing: .1em; }
+        .m-nav { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-radius: 5px; color: var(--color-text-primary); }
+        .m-nav.is-on { background: var(--rf-tint); color: var(--rf-accent-ink); font-weight: 600; }
+        .m-nav span:last-child { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; color: var(--color-text-muted); }
+        .m-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+        .m-attn { border: 1px solid var(--color-border); border-radius: 7px; }
+        .m-attn > div { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--color-border-light); }
+        .m-attn > div:first-child { border-top: 0; font-weight: 600; }
+
+        /* parts bar (Dashboard) */
+        .m-bar { display: flex; height: 9px; border-radius: 5px; overflow: hidden; gap: 2px; margin: 10px 0; }
+        .m-bar span { display: block; }
+        .m-c-spare { background: var(--rf-available); }
+        .m-c-inst { background: #94A3B8; }
+        .m-c-fail { background: var(--rf-failed); }
+        .m-sw { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+        /* the add drawer */
+        .m-drawer { max-width: 470px; margin: 0 auto; }
+        .m-drawer-head { padding: 12px 16px; border-bottom: 1px solid var(--color-border-light); }
+        .m-drawer-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+        .m-drawer-foot { padding: 10px 16px; border-top: 1px solid var(--color-border-light); display: flex; justify-content: space-between; gap: 8px; }
+        .m-qty { display: inline-flex; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
+        .m-qty > span { width: 34px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-right: 1px solid var(--color-border-light); }
+        .m-qty > span:last-child { border-right: 0; }
+        .m-radio { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 6px; }
+        .m-radio.is-on { border-color: #0F766E; background: var(--rf-tint); }
+        .m-dotr { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--color-border-dark); display: inline-block; }
+        .m-radio.is-on .m-dotr { border: 4px solid #0F766E; }
+
+        /* server card */
+        .m-card { max-width: 340px; margin: 0 auto; }
+        .m-card-head { display: flex; justify-content: space-between; gap: 10px; padding: 14px 14px 10px; }
+        .m-icons { display: inline-flex; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
+        .m-icons > span { width: 28px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-right: 1px solid var(--color-border); color: var(--color-text-muted); }
+        .m-icons > span:last-child { border-right: 0; }
+        .m-icons i { font-size: 10px; }
+        .m-draft { font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--rf-warn); }
+        .m-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; padding: 12px 14px; border-top: 1px solid var(--color-border-light); }
+        .m-facts b { display: block; font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .m-card-foot { padding: 10px 14px 14px; }
+        .m-card-foot .m-btn { width: 100%; justify-content: center; height: 32px; }
+
+        /* builder */
+        .m-build { min-width: 600px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+        .m-build-table td:first-child { width: 150px; }
+        .m-build-table td { white-space: normal; }
+        .m-comp b { display: block; font-weight: 600; }
+
+        /* request detail */
+        .m-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+        .m-steps div { border-top: 3px solid var(--color-border); padding-top: 6px; }
+        .m-steps div.is-done { border-top-color: #0F766E; }
+        .m-steps div.is-now { border-top-color: var(--rf-inuse); }
+        .m-steps b { display: block; font-weight: 600; }
+        .m-yours { background: var(--color-surface-hover); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+        /* notifications panel */
+        .m-notif { max-width: 380px; margin: 0 auto; overflow: hidden; }
+        .m-notif-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--color-border-light); }
+        .m-pill { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; }
+        .m-pill.is-on { background: var(--color-text-primary); color: var(--color-surface-card); font-weight: 600; }
+        .m-notif-item { padding: 10px 12px 10px 24px; position: relative; border-bottom: 1px solid var(--color-border-light); }
+        .m-notif-item::before { content: ""; position: absolute; left: 10px; top: 15px; width: 7px; height: 7px; border-radius: 50%; background: #0F766E; }
+        .m-notif-foot { display: flex; align-items: center; gap: 12px; padding: 9px 12px; background: var(--color-surface-hover); color: var(--color-text-secondary); }
+        .m-check { width: 12px; height: 12px; border-radius: 3px; background: #0F766E; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 8px; margin-right: 4px; vertical-align: -1px; }
+        .m-uncheck { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--color-border-dark); display: inline-block; margin-right: 4px; vertical-align: -1px; }
+
+        @media (max-width: 639px) {
+            .kb-shot { padding: 18px 14px 14px; }
+            .m-grid2 { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 
@@ -155,550 +341,794 @@
                     <div class="rf-head">
                         <div>
                             <h1>Help &amp; guide</h1>
-                            <div class="rf-sub">How to track hardware, build server configurations that fit together, and move work through Requests.</div>
+                            <div class="rf-sub">Step-by-step help for everyday work in BDC Inventory. Pick a task below, or use the list on the left.</div>
                         </div>
                     </div>
 
                     <div class="kb-layout">
                         <!-- Contents rail -->
                         <aside class="kb-rail">
-                            <label for="kbFilter" class="sr-only">Filter sections</label>
+                            <label for="kbFilter" class="sr-only">Search the guide</label>
                             <div class="rf-search" style="min-width:0">
                                 <i class="fas fa-magnifying-glass text-xs" aria-hidden="true"></i>
-                                <input type="search" id="kbFilter" placeholder="Filter topics" autocomplete="off">
+                                <input type="search" id="kbFilter" placeholder="Search the guide" autocomplete="off">
                             </div>
-                            <nav class="kb-rail-nav" id="kbRailNav">
-                                <a href="#kb-start"><span class="kb-idx">01</span>Getting Started</a>
-                                <a href="#kb-dash"><span class="kb-idx">02</span>The Dashboard</a>
-                                <a href="#kb-locations"><span class="kb-idx">03</span>Locations</a>
-                                <a href="#kb-inventory"><span class="kb-idx">04</span>Managing Inventory</a>
-                                <a href="#kb-build"><span class="kb-idx">05</span>Building a Server</a>
-                                <a href="#kb-compat"><span class="kb-idx">06</span>Compatibility</a>
-                                <a href="#kb-racks"><span class="kb-idx">07</span>Rack View</a>
-                                <a href="#kb-requests"><span class="kb-idx">08</span>Requests</a>
-                                <a href="#kb-admin"><span class="kb-idx">09</span>Request Types &amp; Vendors</a>
-                                <a href="#kb-reference"><span class="kb-idx">10</span>Reference</a>
-                                <a href="#kb-trouble"><span class="kb-idx">11</span>Troubleshooting</a>
+                            <nav class="kb-rail-nav" id="kbRailNav" aria-label="Guide contents">
+                                <a href="#kb-start">Start here</a>
+                                <a href="#kb-around">Getting around</a>
+                                <a href="#kb-find">Find a part</a>
+                                <a href="#kb-add">Add new parts</a>
+                                <a href="#kb-change">Edit, report or remove a part</a>
+                                <a href="#kb-build">Build a server</a>
+                                <a href="#kb-servers">Look after a server</a>
+                                <a href="#kb-fit">When parts don't fit</a>
+                                <a href="#kb-requests">Requests</a>
+                                <a href="#kb-words">Words you'll see</a>
+                                <a href="#kb-help">Something's not working</a>
                             </nav>
                         </aside>
 
                         <!-- Content -->
                         <div id="kbContent">
-                            <p class="kb-empty" id="kbEmpty">No topics match that search.</p>
+                            <p class="kb-empty" id="kbEmpty">Nothing in the guide matches that. Try a shorter word, like <em>serial</em> or <em>request</em>.</p>
 
-                            <!-- 01 -->
+                            <!-- ============================================================ -->
                             <section class="kb-section" id="kb-start">
-                                <h3><span class="kb-eyebrow">01</span>Getting Started</h3>
+                                <h2>Start here</h2>
+                                <p class="kb-lead">BDC Inventory is where we record every piece of server hardware we own: what it is, where it is, and which server it is in.</p>
+                                <p>Almost everything you do here is one of three jobs.</p>
 
-                                <h4>Signing in</h4>
-                                <p>Enter your username and password. Tick <strong>Remember me</strong> only on your own machine — it keeps you signed in between browser sessions. On a shared workstation leave it unticked.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">A sign-in lasts 24 hours</span>
-                                    <p>After that you are returned to the login screen. Closing the browser also ends the session's ability to renew itself quietly, even with Remember me ticked — so a tab left open overnight will usually ask you to sign in again in the morning. Save long forms as you go rather than leaving them open.</p>
+                                <div class="kb-jobs">
+                                    <div class="kb-job"><h4><i class="fas fa-boxes-stacked" aria-hidden="true"></i>Parts</h4><p>Record hardware when it arrives, find it later, and report it when it breaks.</p></div>
+                                    <div class="kb-job"><h4><i class="fas fa-server" aria-hidden="true"></i>Servers</h4><p>Put parts together into a server. The system checks that they fit.</p></div>
+                                    <div class="kb-job"><h4><i class="fas fa-inbox" aria-hidden="true"></i>Requests</h4><p>Ask for something you can't do yourself. An admin approves it and the system does it.</p></div>
                                 </div>
 
-                                <h4>Forgotten password</h4>
-                                <p>Use the reset link on the login screen. You will be emailed a single-use link to set a new password. An administrator can also reset it for you from Access Control — in that case nothing is emailed, they hand you the new password directly, and you are signed out of every device.</p>
+                                <h3>What do you want to do?</h3>
+                                <div class="kb-tasks">
+                                    <a class="kb-task" href="#kb-find"><i class="fas fa-magnifying-glass" aria-hidden="true"></i>Find a part</a>
+                                    <a class="kb-task" href="#kb-add"><i class="fas fa-plus" aria-hidden="true"></i>Add new parts</a>
+                                    <a class="kb-task" href="#kb-change"><i class="fas fa-triangle-exclamation" aria-hidden="true"></i>Report a broken part</a>
+                                    <a class="kb-task" href="#kb-build"><i class="fas fa-server" aria-hidden="true"></i>Build a server</a>
+                                    <a class="kb-task" href="#kb-requests"><i class="fas fa-inbox" aria-hidden="true"></i>Ask for something I can't do</a>
+                                    <a class="kb-task" href="#kb-notifications"><i class="fas fa-bell" aria-hidden="true"></i>See what needs me</a>
+                                </div>
 
-                                <h4>What you can see, and what you can do</h4>
-                                <p>The system shows you what your role allows, but it no longer simply hides the work. New accounts start on the <strong>Viewer</strong> role, which can see everything and change nothing directly. Rather than greying out <strong>Add Component</strong> and <strong>Build Server</strong>, the system leaves those buttons in place and turns them into Requests: you fill in the same form, and it goes for approval instead of being written straight away.</p>
+                                <h3>Signing in</h3>
+                                <ul>
+                                    <li>Type your username and password, then click <strong>Sign in</strong>. If you have a company Microsoft account, you can click <strong>Continue with Microsoft</strong> instead.</li>
+                                    <li>Tick <strong>Keep me signed in for 30 days</strong> only on your own computer. On a shared computer, leave it unticked and sign out when you leave.</li>
+                                    <li>Forgot your password? Click <strong>Forgot?</strong> next to the password box and enter your work email. You will get an email with a link to set a new one.</li>
+                                </ul>
+
+                                <h3>Changing your password</h3>
+                                <p>Click the arrow next to your name at the top right, then <strong>Change password</strong>. A new password needs at least 8 characters, with one capital letter, one number and one symbol such as <code>#</code> or <code>!</code>. Once it is changed you are signed out, so sign in again with the new one.</p>
 
                                 <div class="kb-note">
-                                    <span class="kb-note-title">Which pages are genuinely restricted</span>
-                                    <p>Rack View and Settings &rarr; Request Types are administrator-only. Everything else — including Requests — is on every signed-in user's sidebar. If a button carries the tooltip <em>"You will be asked to submit this as a request for approval"</em>, that is not a fault; it is the normal route for your role.</p>
+                                    <span class="kb-note-title">If you're not allowed to do something</span>
+                                    <p>Everyone can look at everything. What you can change depends on your role. When you can't make a change yourself, the button for it usually still works: you fill in the same form, and it is sent to an admin as a Request. Once they approve it, the system makes the change for you.</p>
+                                    <p>For example, you click <strong>Add RAM</strong>, fill in the form and save. Instead of the RAM being added, you see <em>"Request TKT-20261008-0012 submitted. The component will be added once an admin approves it."</em> The RAM shows up in the list after approval.</p>
                                 </div>
                             </section>
 
-                            <!-- 02 -->
-                            <section class="kb-section" id="kb-dash">
-                                <h3><span class="kb-eyebrow">02</span>The Dashboard</h3>
-                                <p>The dashboard starts with <strong>Needs your attention</strong>: requests waiting on you or your team, part types with failed units, and part types with no spares (or fewer than 1 in 20) left. Each line has a button that takes you straight there. When there is nothing to act on, it says so.</p>
-                                <p><strong>Parts</strong> shows how much you can still build with. The bar at the top splits every part on record into spare, installed and failed; below it, each part type you stock gets a row such as <em>20 spare of 136</em>. Click a row to open that type's list. Types with nothing on record are listed on one line at the bottom.</p>
-                                <p><strong>Server builds</strong> counts servers at each stage, in order: Draft, Building, Validated, Finalized. <strong>Recent activity</strong> shows the latest changes by server name, with repeated entries grouped (<em>added 3 parts to 7U - Dell PowerEdge R630</em>). <strong>View all</strong> opens the full activity log.</p>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-around">
+                                <h2>Getting around</h2>
+                                <p>Every page has the same top bar and the same menu on the left.</p>
 
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Reading the numbers</span>
-                                    <p><strong>Spare</strong> is in stock and free to use in a build. <strong>Installed</strong> is in a server. <strong>Failed</strong> is marked faulty and left out when building. The three always add up to the total.</p>
-                                </div>
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the screen layout: top bar with bell, theme button and your name; menu on the left.">
+                                        <div class="m-screen m-app">
+                                            <div class="m-top">
+                                                <span class="m-brand"><i class="fas fa-server" aria-hidden="true"></i>BDC Inventory</span>
+                                                <span class="m-row" style="gap:18px">
+                                                    <span class="m-ico kb-t"><i class="fas fa-bell" aria-hidden="true"></i><span class="kb-pin">1</span></span>
+                                                    <span class="m-ico kb-t"><i class="fas fa-moon" aria-hidden="true"></i><span class="kb-pin">2</span></span>
+                                                    <span class="m-user kb-t"><span style="text-align:right"><b style="display:block;font-weight:600">Your name</b><span class="m-sub">Technician</span></span><span class="m-av"><i class="fas fa-user" aria-hidden="true"></i></span><i class="fas fa-chevron-down" style="font-size:10px;color:var(--color-text-muted)" aria-hidden="true"></i><span class="kb-pin">3</span></span>
+                                                </span>
+                                            </div>
+                                            <div class="m-body">
+                                                <div class="m-side kb-t">
+                                                    <span class="kb-pin">4</span>
+                                                    <span class="m-cap">Overview</span>
+                                                    <span class="m-nav is-on"><span>Dashboard</span><span></span></span>
+                                                    <span class="m-nav"><span>Servers</span><span>79</span></span>
+                                                    <span class="m-cap">Inventory</span>
+                                                    <span class="m-nav"><span>CPUs</span><span>141</span></span>
+                                                    <span class="m-nav"><span>RAM</span><span>655</span></span>
+                                                    <span class="m-nav"><span>Storage</span><span>171</span></span>
+                                                    <span class="m-nav" style="color:var(--color-text-muted)"><span>&hellip;</span><span></span></span>
+                                                    <span class="m-cap">Management</span>
+                                                    <span class="m-nav"><span>Locations</span><span></span></span>
+                                                    <span class="m-nav"><span>Requests</span><span></span></span>
+                                                    <span class="m-cap">Help</span>
+                                                    <span class="m-nav"><span>Help &amp; Guide</span><span></span></span>
+                                                </div>
+                                                <div class="m-main">
+                                                    <span class="m-h">Dashboard</span>
+                                                    <div class="m-attn">
+                                                        <div>Needs your attention</div>
+                                                        <div><span>2 requests are waiting on you or your team</span><span class="m-btn">Open requests</span></div>
+                                                        <div><span>3 SFP modules are marked failed</span><span class="m-btn">View SFP modules</span></div>
+                                                        <div><span>No riser cards spare</span><span class="m-btn">View riser cards</span></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Bell:</strong> Requests that need you. A number on it means something new. See <a href="#kb-notifications">Notifications</a>.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Moon:</strong> switches the screen between light and dark.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Your name:</strong> click the arrow to change your password or sign out.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Menu:</strong> every page you can open. The number next to a part type is how many we have on record.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
+                                <p>On a phone, tap the <i class="fas fa-bars" aria-label="menu"></i> button at the top left to open the menu.</p>
+
+                                <h3>The Dashboard</h3>
+                                <p>The Dashboard is the home page. Click <strong>BDC Inventory</strong> at the top left to get back to it from anywhere.</p>
+                                <ul>
+                                    <li><strong>Needs your attention</strong> lists what to act on today. Each line has a button that takes you straight there.</li>
+                                    <li><strong>Parts</strong> shows how much spare hardware we have, by part type.</li>
+                                    <li><strong>Server builds</strong> counts the servers at each stage, and <strong>Recent activity</strong> shows the latest changes.</li>
+                                </ul>
+
+                                <figure class="kb-fig" style="max-width:560px">
+                                    <div class="kb-shot" role="img" aria-label="Picture of a parts bar: 140 CPUs, 21 spare, 117 installed, 2 failed.">
+                                        <div class="m-screen" style="padding:14px 16px">
+                                            <div><span style="font-size:20px;font-weight:600">140</span> <span class="m-sub" style="font-size:12.5px">CPUs on record</span></div>
+                                            <div class="m-bar"><span class="m-c-spare" style="width:15%"></span><span class="m-c-inst" style="width:83.5%"></span><span class="m-c-fail" style="width:1.5%"></span></div>
+                                            <div class="m-row" style="gap:16px;color:var(--color-text-secondary)">
+                                                <span><span class="m-sw m-c-spare"></span><b>21</b> spare, ready to use</span>
+                                                <span><span class="m-sw m-c-inst"></span><b>117</b> installed in servers</span>
+                                                <span><span class="m-sw m-c-fail"></span><b>2</b> failed</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption><p style="margin:0">How to read it: we have 140 CPUs. 21 are free to use, 117 are inside servers and 2 are broken. The three numbers always add up to the total.</p></figcaption>
+                                </figure>
                             </section>
 
-                            <!-- 03 -->
-                            <section class="kb-section" id="kb-locations">
-                                <h3><span class="kb-eyebrow">03</span>Locations</h3>
-                                <p><strong>Locations</strong> lists every site the company holds hardware at — name, description, address, coordinates and notes. It is the newest page in the system and the one most other pages now depend on.</p>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-find">
+                                <h2>Find a part</h2>
+                                <p>Each kind of part has its own page under <strong>Inventory</strong> in the menu: CPUs, RAM, Storage and so on. Not sure what a part is? See <a href="#kb-words">Words you'll see</a>.</p>
 
-                                <div class="kb-note is-stop">
-                                    <span class="kb-note-title">Locations feed every other form</span>
-                                    <p>The Location dropdown on component forms, server forms and rack forms is loaded from this page. The old hardcoded list of sites is gone. If a site is missing here, nothing can be filed against it anywhere else — add it here first.</p>
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the RAM page with tabs, search box, location and filters, and one row of the list.">
+                                        <div style="min-width:600px">
+                                            <div class="m-row" style="justify-content:space-between;margin-bottom:12px">
+                                                <div><div class="m-h">RAM</div><div class="m-sub">655 units, 106 available</div></div>
+                                                <div class="m-row"><span class="m-btn">Export CSV</span><span class="m-btn">Import</span><span class="m-btn is-primary"><i class="fas fa-plus" aria-hidden="true"></i>Add RAM</span></div>
+                                            </div>
+                                            <div class="m-row" style="margin-bottom:14px;gap:10px">
+                                                <span class="kb-t" style="display:inline-flex"><span class="m-seg"><span class="is-on">All<span class="m-n">655</span></span><span>Available<span class="m-n">106</span></span><span>In use<span class="m-n">549</span></span><span>Failed<span class="m-n">0</span></span></span><span class="kb-pin">1</span></span>
+                                                <span class="m-field kb-t" style="width:130px"><span><i class="fas fa-magnifying-glass" aria-hidden="true"></i> Search this list</span><span class="kb-pin">2</span></span>
+                                                <span class="m-field is-filled kb-t">Location: Any <i class="fas fa-chevron-down" aria-hidden="true"></i><span class="kb-pin">3</span></span>
+                                                <span class="m-field is-filled kb-t">Filters <i class="fas fa-chevron-down" aria-hidden="true"></i><span class="kb-pin">4</span></span>
+                                            </div>
+                                            <div class="m-screen" style="overflow:hidden">
+                                                <table class="m-table">
+                                                    <thead><tr><th></th><th>Model</th><th>Status</th><th>Installed in</th><th>Location</th><th></th></tr></thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td><span class="m-box"></span></td>
+                                                            <td><b style="font-weight:600">Samsung DDR4 32GB RDIMM</b><div class="m-mono">414C4266</div></td>
+                                                            <td><span class="m-st"><span class="rf-dot rf-st-inuse"></span>In use</span></td>
+                                                            <td class="m-link">26U 27U - HPE ProLiant DL380</td>
+                                                            <td>CtrlS Noida, Rack 1</td>
+                                                            <td><span class="m-ico kb-t" style="border:0">&middot;&middot;&middot;<span class="kb-pin">5</span></span></td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td><span class="m-box"></span></td>
+                                                            <td><b style="font-weight:600">Samsung DDR4 32GB RDIMM</b><div class="m-mono">415E69B1</div></td>
+                                                            <td><span class="m-st"><span class="rf-dot rf-st-available"></span>Available</span></td>
+                                                            <td style="color:var(--color-text-muted)">&ndash;</td>
+                                                            <td>CtrlS Noida, Shelf B3</td>
+                                                            <td><span class="m-ico" style="border:0">&middot;&middot;&middot;</span></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Tabs:</strong> show every unit, or only the ones that are available, in use or failed.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Search:</strong> type part of a serial number, asset tag, model name, place or note.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Location:</strong> show only one site.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Filters:</strong> narrow by details such as capacity, brand, flag or warranty. Each one you pick shows as a small tag above the list that you can remove.</span></li>
+                                            <li><span class="kb-pin">5</span><span><strong>The &middot;&middot;&middot; button:</strong> View details, Edit or Delete for that unit.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
+
+                                <p>Click the server name in the <strong>Installed in</strong> column to open that server.</p>
+
+                                <div class="kb-example">
+                                    <span class="kb-example-title">Example</span>
+                                    <p>You need a free 32 GB RAM stick at CtrlS Noida. Open <strong>RAM</strong>, click the <strong>Available</strong> tab, set <strong>Location</strong> to CtrlS Noida, and type <code>32GB</code> in the search box.</p>
                                 </div>
 
-                                <h4>What a location shows</h4>
-                                <p>The <strong>Objects</strong> column carries chips counting the racks, servers and components held at that site. Click a location's name to expand the racks it contains, each showing used and free U, its server count and its floor; administrators can jump straight into Rack View from there.</p>
-
-                                <h4>Retiring and deleting</h4>
-                                <p>A site that is no longer in use should be switched off with the <strong>In service</strong> toggle rather than deleted — that keeps its history intact. If you do delete a site that still holds hardware, the system does not refuse: it opens a <strong>Move everything to</strong> dialog and asks which site should take the contents. Deleting an empty site just asks you to confirm.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Saving a location cascades</span>
-                                    <p>Changing a site re-stamps the records held there, and tells you how many: <em>"Location saved &middot; re-stamped 4 server(s) and 37 component(s)"</em>. Editing a rack's location does the same for everything in the rack. You never update those records one by one.</p>
-                                </div>
+                                <p><strong>Export CSV</strong> downloads exactly what is on screen, filters included, as a file you can open in Excel.</p>
                             </section>
 
-                            <!-- 04 -->
-                            <section class="kb-section" id="kb-inventory">
-                                <h3><span class="kb-eyebrow">04</span>Managing Inventory</h3>
-                                <p>Thirteen kinds of hardware are tracked, each with its own page:</p>
-
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th>Page</th><th>What it holds</th></tr></thead>
-                                        <tbody>
-                                            <tr><td>CPUs</td><td>Processors. The socket type drives most compatibility rules.</td></tr>
-                                            <tr><td>RAM</td><td>Memory modules, with ECC and registered distinctions.</td></tr>
-                                            <tr><td>Storage</td><td>Drives of all form factors — 2.5-inch, 3.5-inch, M.2, U.2.</td></tr>
-                                            <tr><td>Motherboards</td><td>System boards. Define socket, memory slots, and PCIe layout.</td></tr>
-                                            <tr><td>Network Cards</td><td>NICs, including their port types.</td></tr>
-                                            <tr><td>Caddies</td><td>Drive trays. Must match the drive form factor and the chassis.</td></tr>
-                                            <tr><td>Chassis</td><td>The enclosure, with its rack height in U.</td></tr>
-                                            <tr><td>PCIe Cards</td><td>Expansion cards that consume lanes and slots.</td></tr>
-                                            <tr><td>Riser Cards</td><td>Adapters that redirect PCIe slots within a chassis.</td></tr>
-                                            <tr><td>HBA Cards</td><td>Host bus adapters for storage connectivity.</td></tr>
-                                            <tr><td>SFP Modules</td><td>Optical and direct-attach network transceivers.</td></tr>
-                                            <tr><td>Compute Platforms</td><td>Whole server boxes stocked as single units. See <em>Building a Server</em>.</td></tr>
-                                            <tr><td>Network Devices</td><td>Routers, switches and MUXes. They are racked beside servers, never built into one. See <em>Rack View</em>.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <h4>Adding a component</h4>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-add">
+                                <h2>Add new parts</h2>
+                                <p>Add every unit to stock when it arrives, before it goes into a server.</p>
 
                                 <div class="kb-steps">
                                     <div class="kb-step"><div class="kb-step-dot">1</div><div>
-                                        <h5>Pick the model</h5>
-                                        <p>Cascading dropdowns narrow from brand, to series, to model. You are choosing from the hardware catalogue, not typing freehand.</p>
+                                        <p>Open the page for that part, for example <strong>RAM</strong>, and click <strong>Add RAM</strong>.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">2</div><div>
-                                        <h5>Identify the physical unit</h5>
-                                        <p>Enter the serial number — required for <strong>Storage</strong> and <strong>SFP</strong>, optional but strongly advised elsewhere. An asset tag is generated for you, and the confirmation names it: <em>"Added as BDC-CPU-000128 — label the unit with this tag."</em></p>
+                                        <p>Choose the model. Fill the boxes in order, because each choice narrows the next one. For RAM that is memory type, then capacity, then form factor, then the exact model.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">3</div><div>
-                                        <h5>Say where it is</h5>
-                                        <p><strong>Location is required</strong> and comes from the Locations page. Use <strong>Store / Shelf</strong> for where loose stock physically sits — <em>Shelf B3, Bin 12</em>. <strong>Rack Position is read-only</strong>: it fills itself in when the unit is installed in a server that is racked.</p>
+                                        <p>Type the serial number from the label on the part. It is required for Storage and SFP modules. For other parts, leave it blank only if the label is missing or unreadable.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">4</div><div>
-                                        <h5>Add dates and notes</h5>
-                                        <p>Purchase, installation, and warranty-end dates are optional but make warranty reporting useful.</p>
-                                    </div></div>
-                                </div>
-
-                                <div class="kb-note is-stop">
-                                    <span class="kb-note-title">The model must exist in the catalogue</span>
-                                    <p>Every component is checked against the catalogue before saving. If your model is not in the dropdowns it must be added there first. Do not pick the nearest match — compatibility checking would then run against the wrong specification.</p>
-                                </div>
-
-                                <h4>Finding things</h4>
-                                <p>Every inventory page carries a search box, a status filter and a <strong>location filter</strong>. The location filter searches the whole inventory for that site, not just the rows currently on screen.</p>
-                                <p>The search box matches an asset tag, a serial number, a UUID, a location, a rack position, anything written in Notes — and, since 2026-09-21, <strong>the model itself</strong>. Searching <em>Samsung</em> now finds every Samsung unit, not only the ones whose Notes happen to mention Samsung. Nothing that used to match has stopped matching; this only widens the net.</p>
-                                <p><strong>Filters</strong>, next to the location filter, narrows the list by what a unit is and what is recorded on it. What a unit is depends on the type: brand, capacity and memory type for RAM; drive type, capacity, form factor and interface for storage; socket for CPUs and motherboards; and so on. What is recorded on it is the same on every page: vendor, flag, and warranty (in warranty, expiring within 90 days, expired, or not recorded). Each choice shows how many units have it, and only values you actually stock are offered. Ticking two values in one group shows either; ticking in two groups shows units that match both. Active filters sit above the table as chips you can remove one at a time, the page link keeps them so a filtered view can be reloaded or shared, and <strong>Export CSV</strong> exports exactly what the filters show.</p>
-
-                                <h4>Editing, deleting, and bulk actions</h4>
-                                <p>Rows show <strong>Edit</strong> and <strong>Delete</strong> only if your role includes them. Several rows can be selected for a bulk status update or bulk delete — useful when a shipment arrives or a batch is retired. <strong>Add Component</strong> is shown to everyone; without create permission it raises a Request instead of writing the record, and the same is true of the edit form.</p>
-                                <p><strong>Adding many units at once.</strong> In the Add drawer, set <strong>Quantity</strong> for identical units (32 of the same DIMM) and paste their serials one per line. To add several models together, press <strong>Add to batch</strong> after each one, then add the whole batch in one go. Every unit gets its own asset tag, and the drawer lists them all so they can be copied out for labelling. If some units are refused, the rest are still added, and the refused ones stay in the batch with the reason. Bulk adding needs create permission; without it, the form raises a Request for one unit at a time.</p>
-                                <p><strong>Importing from Excel.</strong> <strong>Import</strong>, next to Export CSV, adds units from an <code>.xlsx</code> file, up to 1,000 at a time. Start from <strong>Download sample file</strong>: it is built fresh each time, so its pick-lists always hold today's models, sites and vendors, and its <em>Models</em> sheet lists every model with its details and UUID. Use one row per unit when you know the serial, or one row with a Quantity for identical units without serials. Nothing is written until the whole file passes: every row is checked against the same rules as adding a unit by hand, including serial numbers already in inventory, and any problem is listed by row and column so you can fix the file and choose it again. Once everything passes, the import adds the units and lists their asset tags, and <strong>Download results</strong> gives you the same list as a spreadsheet. Only <code>.xlsx</code> files are accepted, and the button shows only to people who can add that type directly.</p>
-
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">A unit installed in a server cannot be deleted</span>
-                                    <p>The delete is refused and names the culprit: <em>"This cpu is installed in server configuration(s) &hellip; Remove it from the configuration before deleting it."</em> In a bulk delete the rest of the batch still goes through and the blocked rows are listed individually. If the system cannot establish one way or the other whether a unit is in use, it refuses rather than guessing.</p>
-                                </div>
-                            </section>
-
-                            <!-- 05 -->
-                            <section class="kb-section" id="kb-build">
-                                <h3><span class="kb-eyebrow">05</span>Building a Server</h3>
-                                <p>The Server Builder assembles a configuration from units already in inventory, checking at each step that the parts fit together. There are two ways to start: install a <strong>compute platform</strong> — a whole box we stock — or build up from a bare motherboard.</p>
-
-                                <div class="kb-steps">
-                                    <div class="kb-step"><div class="kb-step-dot">1</div><div>
-                                        <h5>Start the configuration</h5>
-                                        <p>Name it, and enter the <strong>serial number</strong> printed on the box. That is the manufacturer's serial, not a tag the system invents, and it is required for a real server; virtual and bench builds are exempt. A serial already on file is refused by name: <em>"Serial number 'X' is already recorded against the server 'Y'."</em> Set the location, and if it is going straight into a rack, its U height.</p>
-                                    </div></div>
-                                    <div class="kb-step"><div class="kb-step-dot">2</div><div>
-                                        <h5>Install a platform, or choose the motherboard first</h5>
-                                        <p>With a platform, the board and chassis arrive with it. Building up instead, pick the motherboard first — nearly every later rule derives from the board, and picking it first lets the builder filter everything else for you.</p>
-                                    </div></div>
-                                    <div class="kb-step"><div class="kb-step-dot">3</div><div>
-                                        <h5>Add components, guided by the fit lists</h5>
-                                        <p>For each type the builder shows what fits and what does not, with a reason on every entry — and separates parts that fit <em>and</em> are in stock from those already in use elsewhere.</p>
-                                    </div></div>
-                                    <div class="kb-step"><div class="kb-step-dot">4</div><div>
-                                        <h5>Validate</h5>
-                                        <p>Validation lists missing required components and shows how much of each resource you have consumed.</p>
+                                        <p>Choose the <strong>Site</strong>. This is required. You can also say where it sits in <strong>Shelf / bin</strong>, for example <code>Shelf B3, Bin 12</code>.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">5</div><div>
-                                        <h5>Finalise and place it</h5>
-                                        <p>A finalised configuration can be assigned to a rack at a U position, or into a bay in a blade enclosure.</p>
+                                        <p>Click <strong>Add RAM</strong>. Write the asset tag it gives you on a label and stick it on the part.</p>
                                     </div></div>
                                 </div>
 
-                                <h4>Compute platforms</h4>
-                                <p>A compute platform is a whole server box held in stock as a unit. Pick the platform, then its <strong>version</strong> — the version is the SKU we actually hold on the shelf. Its motherboard and chassis come with the box and are never stocked separately, so you will not find them on the Motherboards or Chassis pages as loose parts.</p>
-                                <p>Versions you cannot pick are still listed, with the reason why — usually that the box, or a card that ships with it, is not in stock. Parts that are bolted in at the factory are never stock-checked and never make a version unselectable.</p>
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the Add RAM panel with model boxes, serial number, quantity, site and the Add RAM button.">
+                                        <div class="m-screen m-drawer">
+                                            <div class="m-drawer-head"><div class="m-sub">RAM, new unit</div><div class="m-h">Add RAM</div></div>
+                                            <div class="m-drawer-body">
+                                                <div class="m-grid2 kb-t">
+                                                    <span class="kb-pin">1</span>
+                                                    <div><span class="m-lbl">Memory Type <span class="m-req">*</span></span><span class="m-field is-filled">DDR4 <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div><span class="m-lbl">Capacity (GB) <span class="m-req">*</span></span><span class="m-field is-filled">32 <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div><span class="m-lbl">Form Factor <span class="m-req">*</span></span><span class="m-field is-filled">RDIMM <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div><span class="m-lbl">Specific Model <span class="m-req">*</span></span><span class="m-field is-filled">Samsung DDR4 32GB&hellip; <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                </div>
+                                                <div class="m-grid2">
+                                                    <div class="kb-t"><span class="m-lbl">Serial number (optional)</span><span class="m-field is-filled">415E69B1</span><span class="kb-pin">2</span></div>
+                                                    <div class="kb-t" style="justify-self:start"><span class="m-lbl">Quantity</span><span class="m-qty"><span>&minus;</span><span>1</span><span>+</span></span><span class="kb-pin">3</span></div>
+                                                </div>
+                                                <div><span class="m-lbl">Status</span>
+                                                    <div class="m-row" style="flex-wrap:nowrap">
+                                                        <span class="m-radio is-on"><span class="m-dotr"></span>Available</span>
+                                                        <span class="m-radio" style="color:var(--color-text-muted)"><span class="m-dotr"></span>In use</span>
+                                                        <span class="m-radio"><span class="m-dotr"></span>Failed</span>
+                                                    </div>
+                                                </div>
+                                                <div class="m-grid2 kb-t">
+                                                    <span class="kb-pin">4</span>
+                                                    <div><span class="m-lbl">Site <span class="m-req">*</span></span><span class="m-field is-filled">CtrlS Noida <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div><span class="m-lbl">Shelf / bin</span><span class="m-field is-filled">Shelf B3, Bin 12</span></div>
+                                                </div>
+                                            </div>
+                                            <div class="m-drawer-foot kb-t">
+                                                <span class="m-btn"><i class="fas fa-plus" aria-hidden="true"></i>Add to batch</span>
+                                                <span class="m-row"><span class="m-btn">Cancel</span><span class="m-btn is-primary">Add RAM</span></span>
+                                                <span class="kb-pin">5</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Model:</strong> pick from each box, top left to bottom right.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Serial number:</strong> copied from the label on the part.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Quantity:</strong> for several identical units at once. See below.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Site and Shelf / bin:</strong> where the part is now.</span></li>
+                                            <li><span class="kb-pin">5</span><span><strong>Add RAM</strong> saves it. <strong>Add to batch</strong> keeps it aside so you can add a different model too.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
 
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">Changing or removing a platform releases the whole build</span>
-                                    <p>Both <strong>Change</strong> and <strong>Remove</strong> free every component currently installed back to available stock. The system refuses the first attempt and re-asks, listing exactly what would be released. Slots the platform supplies carry a locked <em>Compute platform</em> badge — you cannot remove that board or chassis on its own unless a separately stocked twin of the same model exists. Neither is possible at all once the server is finalized.</p>
-                                </div>
-
-                                <h4>Six components are required</h4>
-                                <p>A configuration is not complete until it has all of: <strong>chassis</strong>, <strong>motherboard</strong>, <strong>CPU</strong>, <strong>RAM</strong>, <strong>storage</strong>, and a <strong>network card</strong>. Whatever is absent is named in one line — <code>Missing required component(s): chassis, nic</code>. This is checked when you validate or finalise, never while you are still adding parts.</p>
-
-                                <h4>The resource budget</h4>
-                                <p>Validation shows where you stand against the board's limits. A single-socket board with a 128-lane CPU reports something like:</p>
-
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th>Resource</th><th class="kb-num">Max</th><th class="kb-num">Used</th><th class="kb-num">Free</th></tr></thead>
-                                        <tbody>
-                                            <tr><td>CPU sockets</td><td class="kb-num">1</td><td class="kb-num">1</td><td class="kb-num">0</td></tr>
-                                            <tr><td>Memory slots</td><td class="kb-num">8</td><td class="kb-num">0</td><td class="kb-num">8</td></tr>
-                                            <tr><td>Memory capacity (GB)</td><td class="kb-num">2048</td><td class="kb-num">0</td><td class="kb-num">2048</td></tr>
-                                            <tr><td>PCIe lanes</td><td class="kb-num">128</td><td class="kb-num">0</td><td class="kb-num">128</td></tr>
-                                            <tr><td>PCIe slots &times;16</td><td class="kb-num">5</td><td class="kb-num">0</td><td class="kb-num">5</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <p>PCIe lanes are attributed to their source, so you can see the budget comes from the CPU rather than the board. There is no longer an overall compatibility score — a build is described by the rules it passes and fails, not by a number.</p>
-
-                                <h4>Editing and moving a finished server</h4>
-                                <p>Each server card carries an <strong>Edit</strong> button for its name, description, serial number and location, and a separate panel for <strong>changing its status</strong>. That panel lists only the moves your role can actually make, marks the ones that need the build validated first, and takes an optional reason. Below it is the server's movement history, including <code>Request #NN</code> where a move came from an approved Request. Administrators also get a <strong>Move server</strong> button for rack placement.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Finalising is no longer a one-way door</span>
-                                    <p>A server finalized by mistake can be sent back to Building, given the permission for it. Note also that working on a build's <em>parts</em> and editing the build's <em>own details</em> are separate permissions — you may well be able to add a CPU to a server you cannot rename.</p>
-                                </div>
-
-                                <h4>Trying things out safely</h4>
-                                <p>The <strong>Server Compatibility</strong> page is a bench for experimenting. Builds made there are sandboxes and never reserve real stock, so you can test a combination without taking parts out of circulation. A bench build may even hold hardware we do not own — only the model has to exist in the catalogue.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Sandbox builds are kept separate</span>
-                                    <p>A sandbox build does not appear in the ordinary server list — it belongs to the Server Compatibility bench, and it is kept out of the template picker too. It also cannot be finalized: <em>"This is a compatibility bench build and cannot be finalized&hellip; rebuild it as a real server to deploy it."</em> If a test build seems to have vanished, that is why; it has not been deleted.</p>
-                                </div>
-                            </section>
-
-                            <!-- 06 -->
-                            <section class="kb-section" id="kb-compat">
-                                <h3><span class="kb-eyebrow">06</span>Understanding Compatibility</h3>
-                                <p>Every check returns findings in three buckets. Which bucket you are looking at tells you what to do next.</p>
-
-                                <div class="kb-cards">
-                                    <div class="kb-card"><h5><span class="kb-chip bg-danger/10 text-danger">Issues</span></h5><p>Hard stops. The combination will not work and cannot be saved.</p></div>
-                                    <div class="kb-card"><h5><span class="kb-chip bg-warning/10 text-warning">Warnings</span></h5><p>It will work, but something is compromised or unnecessary.</p></div>
-                                    <div class="kb-card"><h5><span class="kb-chip bg-success/10 text-success">Recommendations</span></h5><p>How to resolve it — often naming the parts that would fit.</p></div>
-                                </div>
-
-                                <h4>Issues you will actually meet</h4>
-
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th>Message</th><th>What it means</th></tr></thead>
-                                        <tbody>
-                                            <tr><td><code>CPU socket LGA3647 incompatible with motherboard socket SP3</code></td><td>Intel processor, AMD board. Sockets must match exactly.</td></tr>
-                                            <tr><td><code>CPU limit exceeded: motherboard supports maximum 1 CPUs</code></td><td>You are adding a second processor to a single-socket board.</td></tr>
-                                            <tr><td><code>&hellip; is not a CPU generation this motherboard supports</code></td><td>The socket fits but the generation does not. One socket can span several generations — LGA2011-3, LGA3647, SP3 and AM4 all do — and a mismatched pair will not boot.</td></tr>
-                                            <tr><td><code>Incompatible CPU pairing</code></td><td>Two different processor models in one machine. See the note below.</td></tr>
-                                            <tr><td><code>SFP type QSFP+ not compatible with NIC port type SFP+</code></td><td>The transceiver does not fit that port — different physical formats.</td></tr>
-                                            <tr><td><code>Storage form factor (2.5-inch) not supported by caddy</code></td><td>The drive tray is for a different drive size.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                                <p>Leave <strong>Status</strong> on <strong>Available</strong> for a new part. After saving you see a message like this. The code in it is the part's <strong>asset tag</strong>, our own ID for that one unit:</p>
+                                <figure class="kb-fig" style="max-width:480px">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the message: Added as BDC-RAM-000412, label the unit with this tag.">
+                                        <div class="m-toast"><i class="fas fa-circle-check" aria-hidden="true"></i><div><b>Success</b>Added as <span class="rf-mono">BDC-RAM-000412</span> &mdash; label the unit with this tag.</div></div>
+                                    </div>
+                                </figure>
+                                <p>To find that unit again later, type its asset tag into the search box.</p>
 
                                 <div class="kb-note is-stop">
-                                    <span class="kb-note-title">A matching socket is not enough for two CPUs</span>
-                                    <p>Multi-socket machines need <em>identical</em> processor models. Two CPUs can share a socket type and still be rejected — the system says so explicitly: <em>"Multi-socket configurations require the same CPU model — a matching socket is not sufficient."</em> This catches people out regularly.</p>
+                                    <span class="kb-note-title">The model isn't in the list?</span>
+                                    <p>Don't pick one that looks close. Ask an admin to add the right model first. A wrong model means the fit checks will be wrong when the part goes into a server.</p>
                                 </div>
 
-                                <h4>Warnings worth reading</h4>
+                                <h3>Adding many at once</h3>
+                                <ul>
+                                    <li><strong>Many of the same model:</strong> set <strong>Quantity</strong>, for example 32, and paste the serial numbers one per line.</li>
+                                    <li><strong>Several different models:</strong> fill in the first one and click <strong>Add to batch</strong>. Repeat for each model, then add them all together.</li>
+                                    <li><strong>From an Excel sheet:</strong> click <strong>Import</strong>, then <strong>Download sample file</strong>. Fill it in, up to 1,000 rows, and choose the file. Nothing is saved until every row is right. Any mistakes are listed by row and column, so you can fix the sheet and try again.</li>
+                                </ul>
+                                <p>Every unit gets its own asset tag, and the panel lists them all so you can copy them for labels. Import and adding many at once only work if you can add that part type yourself. If you can't, add units one at a time and each one becomes a Request.</p>
+                            </section>
 
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th>Message</th><th>What to do</th></tr></thead>
-                                        <tbody>
-                                            <tr><td><code>ECC memory used with non-ECC motherboard</code></td><td>The RAM works but error correction is disabled. Fine for a lab machine, usually wrong for production.</td></tr>
-                                            <tr><td><code>M.2/U.2 storage does not require caddy</code></td><td>You have added a tray that is not needed — these drives connect directly.</td></tr>
-                                            <tr><td><code>NIC compatibility check skipped — specifications pending</code></td><td>The catalogue entry for that card is incomplete, so it could not be checked. Verify by hand.</td></tr>
-                                        </tbody>
-                                    </table>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-change">
+                                <h2>Edit, report or remove a part</h2>
+                                <p>All three start from the <strong>&middot;&middot;&middot;</strong> button at the end of the part's row. You only see <strong>Edit</strong> and <strong>Delete</strong> there if your role allows them.</p>
+
+                                <h3>Fix a mistake</h3>
+                                <p>Click <strong>&middot;&middot;&middot;</strong>, then <strong>Edit</strong>. Change what's wrong and save.</p>
+
+                                <h3>Report a broken part</h3>
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div><p>Click <strong>&middot;&middot;&middot;</strong>, then <strong>Edit</strong>.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div><p>Under <strong>Status</strong>, choose <strong>Failed</strong>, and fill in the <strong>Failed on</strong> date.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div><p>Write what's wrong in <strong>Notes</strong>, for example <em>No display output, tested in two servers</em>. Save.</p></div></div>
                                 </div>
-
-                                <h4>Why a part was rejected</h4>
-                                <p>When a component is blocked, every failing rule is named — not just the first. Adding an Intel processor to a board that already had an AMD one returns three findings at once: the socket does not match, the socket count is exceeded, and the models cannot be mixed. Work through them together; fixing only the first would still leave the part rejected.</p>
+                                <p>A failed part can't be picked when building a server. When it's repaired, set it back to <strong>Available</strong>.</p>
 
                                 <div class="kb-note is-warn">
-                                    <span class="kb-note-title">Checks get stricter as the catalogue fills in</span>
-                                    <p>Some rules stay quiet when the catalogue has nothing to check against — the generation rule is inert for a board with no generation data recorded. As those entries are completed, combinations that were accepted before will start being refused. That is the rule working, not a regression.</p>
+                                    <span class="kb-note-title">Is the broken part inside a server?</span>
+                                    <p>Its status is locked while it's installed. Take it out first: open the server, click <strong>&times;</strong> on the part, then mark it Failed. Or raise a <strong>Swap Hardware</strong> request to replace it with a working one.</p>
+                                </div>
+
+                                <h3>Delete a part</h3>
+                                <p>Click <strong>&middot;&middot;&middot;</strong>, then <strong>Delete</strong>. A part that is inside a server can't be deleted. The message names the server, so take the part out of it first.</p>
+
+                                <h3>Change many at once</h3>
+                                <p>Tick the boxes at the start of the rows. A bar appears with <strong>Change status</strong>, <strong>Move location</strong>, <strong>Set flag</strong> and <strong>Delete</strong>.</p>
+                                <div class="kb-example">
+                                    <span class="kb-example-title">Example</span>
+                                    <p>20 SSDs were moved from Noida Office to Yotta Noida. On the <strong>Storage</strong> page, set <strong>Location</strong> to Noida Office, tick the 20 drives, click <strong>Move location</strong> and choose Yotta Noida.</p>
                                 </div>
                             </section>
 
-                            <!-- 07 -->
-                            <section class="kb-section" id="kb-racks">
-                                <h3><span class="kb-eyebrow">07</span>Rack View</h3>
-                                <p>Rack View maps physical space. A rack records its name, its site, its floor or room, and its height in rack units, and shows how many U are used and how many remain.</p>
-
-                                <h4>Creating a rack</h4>
-                                <p>Give it a name, pick its <strong>location</strong> from the Locations page — it is a dropdown now, not free text — and add the <strong>floor or room</strong>. Set its height in U. The setting worth pausing over is <strong>U numbering direction</strong>: racks can be numbered top-down or bottom-up. Match what is physically labelled on the rack in the hall, or every position you record afterwards will be off.</p>
-
-                                <h4>Placing servers</h4>
-                                <p>Servers can be placed from the rack map, or from the <strong>Move server</strong> button on the server card itself. Unassigned servers are listed alongside the map so you can see what is waiting. Unassigning returns a server to that pool without altering its configuration.</p>
-
-                                <h4>Blade enclosures and bays</h4>
-                                <p><strong>Add enclosure</strong> installs a chassis such as an FX2s at a start U, optionally with its service tag. It is drawn in the elevation as a framed box with a grid of numbered bays. Clicking an empty bay installs a server into it — there is no U to choose, because the bay decides the position. Clicking the enclosure's rail opens a dialog with the roster of what is inside, and lets you rename it, re-tag it, move it to a different start U, or remove it. A server already in a bay can be moved to another bay, or out into the rack directly.</p>
-
-                                <h4>Network devices</h4>
-                                <p><strong>Place network device</strong> racks a router, switch or MUX in the current rack. Choose the device from stock and the start U; its height comes from the catalogue, so there is no height to type. It is drawn in the elevation like a server, in its own colour, and occupies U space exactly as a server does, so a switch and a server can never claim the same U. Clicking one lets you move it to another position or remove it from the rack, and removing it leaves it at the same site, back in stock. A device from a different site can be racked here: the rack decides where it is, so it takes the rack's site and the move is recorded in its history. A device that is racked cannot be edited to a different status or site, or deleted, until it is removed from the rack.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Two servers can share a U — inside an enclosure</span>
-                                    <p>Four sleds in one FX2s legitimately occupy the same rack units. Overlap checking treats the enclosure as the thing occupying that space, and the servers inside it as belonging to the enclosure rather than to the rack.</p>
-                                </div>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Free space is calculated, not typed</span>
-                                    <p>Used and free U are derived from what is placed in the rack and how tall it is. Moving a rack or a server also re-stamps the location onto every component inside it. A move is checked at the moment it happens, not when it was asked for — so an approved Move Server request can still be refused if the space filled up in the meantime.</p>
-                                </div>
-                            </section>
-
-                            <!-- 08 -->
-                            <section class="kb-section" id="kb-requests">
-                                <h3><span class="kb-eyebrow">08</span>Requests</h3>
-                                <p>A Request is a piece of work that moves through people — a memory upgrade, a decommission, a new build. Each follows a <strong>Request Type</strong>, which defines the ordered <strong>Steps</strong> it passes through. Requests are numbered <code>TKT-YYYYMMDD-NNNN</code> and carry a priority of <span class="kb-chip bg-surface-secondary text-text-muted">low</span> <span class="kb-chip bg-surface-secondary text-text-muted">medium</span> <span class="kb-chip bg-surface-secondary text-text-muted">high</span> or <span class="kb-chip bg-danger/10 text-danger">urgent</span>.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Requests are open to everyone</span>
-                                    <p>Every signed-in user can raise a Request, and claim and complete steps on one. Only administrators approve or reject. If your role cannot see the whole queue you will land on <strong>Created by me</strong> rather than My Queue — that is the right tab for you, not an empty system.</p>
-                                    <p>That tab shows every Request you are <strong>involved in</strong>, not only the ones waiting on you right now: one you raised, and one where any step — not just the current step — is assigned to you, to your team, or claimed by you. Before 2026-09-21 a Request where you owned, say, step 3 of five was missing from the list until it reached your step, even though opening it by link worked. <strong>My Queue</strong> is still deliberately narrower: it is what needs your action now.</p>
-                                </div>
-
-                                <h4>Raising one</h4>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-build">
+                                <h2>Build a server</h2>
+                                <p>In BDC Inventory, a server is a list of real parts from stock. The builder only offers parts that are free and that fit, and checks each one before adding it.</p>
 
                                 <div class="kb-steps">
                                     <div class="kb-step"><div class="kb-step-dot">1</div><div>
-                                        <h5>Say what should happen</h5>
-                                        <p>The form opens with a dropdown of concrete actions rather than a blank box: add, remove or replace a part in a server; create, update or re-status a server; move a server; add, edit or relocate an inventory record; rack, move or remove a network device. Each choice renders its own fields. For inventory records the real Add or Edit Component form is embedded directly in the request.</p>
+                                        <p>Go to <strong>Servers</strong> and click <strong>Build Server</strong>.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">2</div><div>
-                                        <h5>Pick the server</h5>
-                                        <p>A searchable picker finds servers by name, location, rack or UUID, with an <em>Any server</em> option where the work is not tied to one. Some request types are configured not to ask about a server or components at all — a door-access request, for instance.</p>
+                                        <p>Fill in <strong>Server Name</strong>, <strong>Serial Number</strong> (printed on the machine, and different for every server), <strong>Location</strong>, <strong>Rack</strong> and <strong>Position</strong>. If the server is taller than 1U, set <strong>Rack Units (U)</strong> before picking the position. Click <strong>Create Server</strong>. The builder opens.</p>
                                     </div></div>
                                     <div class="kb-step"><div class="kb-step-dot">3</div><div>
-                                        <h5>Check the title and submit</h5>
-                                        <p>The title writes itself from your choices and is marked as such; type over it if you prefer your own. The description is optional now. On submit the Request moves to its first step and appears in the queue for whoever owns it.</p>
+                                        <p>Click <strong>Select Server Compute Platform</strong>. Pick the server model, then the version we have in stock, and click <strong>Install Platform</strong>. It brings its own motherboard and chassis.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">4</div><div>
+                                        <p>Go down the list. On each row click <strong>Choose&hellip;</strong> (for example <strong>Choose CPU</strong>), or <strong>Add More</strong> for another of the same kind. Click <strong>Add</strong> next to the part you want.</p>
+                                    </div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">5</div><div>
+                                        <p>Click <strong>Finish Setup</strong>, check the summary, and click <strong>Confirm &amp; Save Configuration</strong>.</p>
                                     </div></div>
                                 </div>
 
-                                <h4>Checks while you fill the form in</h4>
-                                <p>The form looks at real stock as you go. If nothing of the chosen model is free it says so — <em>"We have none of these free"</em> — and offers to raise an add-to-inventory request as a prerequisite. If the part exists but sits at a different site from the server, it offers a <strong>Hardware Handover</strong> instead, naming who is carrying the part. Only that person can confirm the arrival, and their confirmation closes the handover.</p>
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the server builder: platform, a list of installed parts, buttons to add more, the compatibility line and Finish Setup.">
+                                        <div class="m-screen m-build">
+                                            <div class="m-row" style="justify-content:flex-end">
+                                                <span class="m-row kb-t"><span class="m-btn" style="background:var(--rf-tint);color:var(--rf-accent-ink);border-color:transparent"><i class="fas fa-server" aria-hidden="true"></i>HPE ProLiant DL380 Gen10 - 16SFF</span><span class="m-btn"><i class="fas fa-right-left" aria-hidden="true"></i>Change</span><span class="m-btn"><i class="fas fa-xmark" aria-hidden="true"></i>Remove</span><span class="kb-pin">1</span></span>
+                                            </div>
+                                            <div class="m-screen" style="overflow:visible">
+                                                <table class="m-table m-build-table">
+                                                    <thead><tr><th>Component</th><th>Installed</th></tr></thead>
+                                                    <tbody>
+                                                        <tr><td class="m-comp"><b>CPU</b><span class="m-sub">Processor</span></td>
+                                                            <td><span class="m-row"><span class="m-part kb-t">Intel Platinum 8168<span class="kb-pin">2</span></span><span class="m-part">Intel Platinum 8168</span><span class="m-tag"><i class="fas fa-lock" aria-hidden="true"></i> 2/2 CPU sockets in use</span></span></td></tr>
+                                                        <tr><td class="m-comp"><b>Motherboard</b><span class="m-sub">System Board</span></td>
+                                                            <td><span class="m-row"><span class="m-part is-locked">HPE ProLiant DL380 Gen10 System Board</span><span class="m-tag"><i class="fas fa-lock" aria-hidden="true"></i> Compute platform</span></span></td></tr>
+                                                        <tr><td class="m-comp"><b>Memory</b><span class="m-sub">RAM Modules</span></td>
+                                                            <td><span class="m-row"><span class="m-part">SK hynix DDR4 32GB<span class="m-mono">317FE09B</span></span><span class="m-part">SK hynix DDR4 32GB<span class="m-mono">9140D623</span></span><span class="m-pick kb-t"><i class="fas fa-plus" aria-hidden="true"></i>Add More<span class="kb-pin">3</span></span></span></td></tr>
+                                                        <tr><td class="m-comp"><b>Caddy</b><span class="m-sub">Drive Mounting</span></td>
+                                                            <td><span class="m-pick">Choose Caddy</span></td></tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <div class="m-row" style="justify-content:center"><span class="m-btn is-primary kb-t" style="height:34px;padding:0 20px"><i class="fas fa-circle-check" aria-hidden="true"></i>Finish Setup<span class="kb-pin">4</span></span></div>
+                                            <div class="m-banner is-ok kb-t"><i class="fas fa-circle-check" aria-hidden="true"></i>Compatibility: all components are compatible.<span class="kb-pin">5</span></div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Compute platform:</strong> the server box this build is based on.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>An installed part.</strong> Click its <strong>&times;</strong> to take it out and put it back in stock. A lock means it came with the platform and can't be removed on its own.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Add More / Choose&hellip;:</strong> opens the list of parts that fit and are free.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Finish Setup:</strong> shows a summary. If something is missing it says so, with an <strong>Auto Fix</strong> button that opens the right list.</span></li>
+                                            <li><span class="kb-pin">5</span><span><strong>Compatibility line:</strong> green means everything fits. Amber means there are problems listed underneath. See <a href="#kb-fit">When parts don't fit</a>.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
 
-                                <h4>Prerequisites and frozen Requests</h4>
-                                <p>A Request can have children — prerequisites that must be resolved before it can proceed. While one is outstanding the parent is <strong>Frozen</strong> and shows a lock banner naming the blockers; Reject and Cancel still work on a frozen Request, only progress is held. In the list, cards carry chips for <strong>Blocked</strong>, <strong>Last attempt failed</strong>, and <strong>for #TKT-&hellip;</strong> when the Request is itself a prerequisite of another. Prerequisites can nest three deep.</p>
-
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">A rejected prerequisite still freezes its parent</span>
-                                    <p>A refused blocker never counts as met. Someone has to cancel or reject the parent, or an administrator has to detach the rejected child, before the parent can move again.</p>
+                                <div class="kb-example">
+                                    <span class="kb-example-title">Example</span>
+                                    <p>A DL380 Gen10 with 2 CPUs, 16 sticks of 32 GB RAM and 8 SSDs. Install the <strong>HPE ProLiant DL380 Gen10</strong> platform, then add 2 CPUs, 16 RAM sticks and 8 storage drives. Check that a network card is listed, then click <strong>Finish Setup</strong>.</p>
                                 </div>
 
-                                <h4>Approval performs the work</h4>
-                                <p>On the step that carries the effect the button reads <strong>Approve &amp; run N actions</strong> rather than complete-and-advance, and an <strong>Actions</strong> panel lists what will happen, in order. After it runs, the same panel shows what it produced — asset tag, inventory ID, server, revision, the fields that changed.</p>
+                                <h3>Every server needs these six</h3>
+                                <p>Chassis, motherboard, CPU, RAM, storage and a network card. The compute platform already gives you the chassis and the motherboard.</p>
+
+                                <div class="kb-note is-warn">
+                                    <span class="kb-note-title">Changing or removing the platform empties the server</span>
+                                    <p><strong>Change</strong> and <strong>Remove</strong> put every part in the build back into stock. The system asks you to confirm first and lists what will be released.</p>
+                                </div>
+
+                                <p>Can't build servers with your role? Click <strong>Build Server</strong> anyway and fill in the same form. The button reads <strong>Submit request</strong>, and the server is created once an admin approves it. Track it under <a href="#kb-requests">Requests</a>.</p>
+
+                                <h3>Try a build without using real stock</h3>
+                                <p>If <strong>Server Compatibility</strong> is in your menu, use it as a test bench. Click <strong>New Test Build</strong> and add parts the same way as in the builder. Nothing is reserved, so you can even try parts that are already in other servers. Every part you try is recorded as fitting or not, with the reason. Test builds don't appear on the Servers page and can't be finished.</p>
+                            </section>
+
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-servers">
+                                <h2>Look after a server</h2>
+                                <p>The <strong>Servers</strong> page has a card for every server. Use the search box and the <strong>All Status</strong> list at the top to find one. Servers that sit in a blade enclosure, such as a Dell FX2s, are grouped under it as Bay 1, Bay 2 and so on.</p>
+
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of a server card: name, serial number, edit, history and delete buttons, status, facts and the Configure button.">
+                                        <div class="m-screen m-card">
+                                            <div class="m-card-head">
+                                                <div style="min-width:0"><b style="display:block;font-size:14px;font-weight:600">10U 11U - HPE ProLiant DL380</b><span class="m-mono kb-t">SGH036T9Q3<span class="kb-pin is-side">1</span></span></div>
+                                                <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+                                                    <span class="kb-t" style="display:inline-flex"><span class="m-icons"><span><i class="fas fa-pen" aria-hidden="true"></i></span><span><i class="fas fa-clock-rotate-left" aria-hidden="true"></i></span><span><i class="fas fa-trash" aria-hidden="true"></i></span></span><span class="kb-pin">2</span></span>
+                                                    <span class="m-draft kb-t">DRAFT<span class="kb-pin is-side">3</span></span>
+                                                </div>
+                                            </div>
+                                            <div class="m-facts kb-t">
+                                                <span class="kb-pin">4</span>
+                                                <div><span class="m-cap">Location</span><b>CtrlS Noida</b></div>
+                                                <div><span class="m-cap">Server</span><b>HPE ProLiant DL380 Gen10</b></div>
+                                                <div><span class="m-cap">Storage</span><b>8&times; 1TB NVMe +</b></div>
+                                                <div><span class="m-cap">RAM</span><b>512GB/1.5TB</b></div>
+                                                <div><span class="m-cap">Public IP</span><b>&ndash;</b></div>
+                                                <div><span class="m-cap">Private IP</span><b>10.0.4.12</b></div>
+                                            </div>
+                                            <div class="m-card-foot kb-t"><span class="m-btn is-primary">Configure</span><span class="kb-pin">5</span></div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Name</strong>, and the serial number printed on the machine.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Pencil:</strong> edit the name, serial number, description, notes, IP addresses and status. <strong>Clock:</strong> every change made to this server, by whom and when. <strong>Bin:</strong> delete the server.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Status:</strong> where the server is in its life. See the table below.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Facts:</strong> where it is, what model it is, its drives, its RAM (installed out of the most it can take, so <code>512GB/1.5TB</code> means 512 GB fitted) and its IP addresses.</span></li>
+                                            <li><span class="kb-pin">5</span><span><strong>Configure:</strong> opens the builder to add or remove parts.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
+
+                                <h3>Record IP addresses</h3>
+                                <p>Click the pencil and scroll to <strong>IP addresses</strong>. Click <strong>Add IP</strong>, type the address (for example <code>10.0.4.12</code>), choose <strong>Private</strong> or <strong>Public</strong>, add a label if it helps (for example <code>iDRAC</code>), then click <strong>Save IPs</strong>. This works even after the server is finalized.</p>
+
+                                <h3>Change a server's status</h3>
+                                <p>Click the pencil. Under <strong>Status</strong>, choose from <strong>Move to</strong>, add a reason if it's useful, and click <strong>Change status</strong>. The list only shows the moves your role allows. If the one you need isn't there, raise a <strong>Change Server Status</strong> request.</p>
+
+                                <div class="kb-flow" aria-label="Server stages in order">
+                                    <span class="kb-state">Draft</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state">Building</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state">Validated</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state">Finalized</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state is-end">Deployed</span>
+                                </div>
+
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>Status</th><th>What it means</th><th>Can parts change?</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>Draft</td><td>Just created. Parts are still being chosen.</td><td>Yes</td></tr>
+                                            <tr><td>Building</td><td>Being put together.</td><td>Yes</td></tr>
+                                            <tr><td>Validating</td><td>Being checked.</td><td>No</td></tr>
+                                            <tr><td>Validated</td><td>All parts are confirmed to fit.</td><td>No</td></tr>
+                                            <tr><td>Finalized</td><td>Complete and locked.</td><td>No</td></tr>
+                                            <tr><td>Deployed</td><td>In use.</td><td>No</td></tr>
+                                            <tr><td>Maintenance</td><td>Taken out of use for a while, for repairs or upgrades.</td><td>Yes</td></tr>
+                                            <tr><td>Retired</td><td>Taken out of use for good.</td><td>No</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p>Need to swap a part in a finalized server? Change its status to <strong>Building</strong> or <strong>Maintenance</strong> first. The <strong>Move to</strong> list shows which moves are possible from where it is now. If yours isn't there, ask for it with a request.</p>
+
+                                <h3>Move a server to another rack</h3>
+                                <p>Raise a <strong>Move Server</strong> request with the new location, rack and U position. Every part inside the server moves with it.</p>
+
+                                <h3>Delete a server</h3>
+                                <p>Click the bin on its card. A server can only be deleted once all its parts are removed. If any are left, you see a message such as <em>"This server still has 2 components installed (1 CPU, 1 motherboard). Remove all components from the server before deleting it."</em></p>
+                            </section>
+
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-fit">
+                                <h2>When parts don't fit</h2>
+                                <p>Every time you add a part, the system checks it against everything already in the server. If it doesn't fit, it tells you why. Problems in <strong>red</strong> stop the part being added. <strong>Amber</strong> warnings mean it will work, but check first. Many messages also suggest what would fit instead.</p>
+
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>The message says</th><th>In plain words</th><th>What to do</th></tr></thead>
+                                        <tbody>
+                                            <tr><td><code>CPU socket LGA3647 incompatible with motherboard socket SP3</code></td><td>The processor doesn't physically fit this board.</td><td>Pick a CPU with the same socket as the board.</td></tr>
+                                            <tr><td><code>CPU limit exceeded: motherboard supports maximum 1 CPUs</code></td><td>The board only has room for one CPU.</td><td>Use one CPU, or a board with two sockets.</td></tr>
+                                            <tr><td><code>Multi-socket configurations require the same CPU model</code></td><td>Two CPUs in one server must be exactly the same model.</td><td>Change one so both match.</td></tr>
+                                            <tr><td><code>&hellip; is not a CPU generation this motherboard supports</code></td><td>It fits the socket, but the board can't run this generation.</td><td>Pick a CPU the board supports.</td></tr>
+                                            <tr><td><code>SFP type QSFP+ not compatible with NIC port type SFP+</code></td><td>The module is the wrong shape for the network port.</td><td>Use the module type the port takes.</td></tr>
+                                            <tr><td><code>Storage form factor (2.5-inch) not supported by caddy</code></td><td>The drive tray is a different size from the drive.</td><td>Use a caddy made for that drive size.</td></tr>
+                                            <tr><td><code>ECC memory used with non-ECC motherboard</code> (warning)</td><td>It works, but the memory's error protection is switched off.</td><td>Fine for a test machine. Usually wrong for a live server.</td></tr>
+                                            <tr><td><code>M.2/U.2 storage does not require caddy</code> (warning)</td><td>This drive doesn't need a tray.</td><td>Remove the caddy.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="kb-note">
+                                    <span class="kb-note-title">Read every reason, not just the first</span>
+                                    <p>A part can fail more than one check. For example, an Intel CPU added to a board that already has an AMD CPU gets three messages at once: wrong socket, too many CPUs, and different models. Fixing only the first still leaves it blocked.</p>
+                                </div>
+                                <p>Adding an SFP module? The system first asks which network card it plugs into.</p>
+                            </section>
+
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-requests">
+                                <h2>Requests</h2>
+                                <p>A Request asks for work to be done. It moves through steps, and an admin approves it. For most request types, once approved, the system makes the change itself and records it as done by you.</p>
+
+                                <h3>Raise a request</h3>
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div><p>Go to <strong>Requests</strong> and click <strong>New request</strong>.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div><p>Choose the <strong>Request type</strong> (see the table below) and a <strong>Priority</strong>: Low, Medium, High or Urgent.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div><p>Fill in the boxes that appear. They change with the type, and are usually the server, the part type and the model.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">4</div><div><p>The <strong>Title</strong> fills itself in from your choices. Change it if you like, and add a <strong>Description</strong> if it helps the approver.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">5</div><div><p>Click <strong>Create request</strong>. It gets a number like <code>TKT-20261008-0012</code>.</p></div></div>
+                                </div>
+
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the New Request form filled in for Install Hardware.">
+                                        <div class="m-screen" style="max-width:560px;overflow:hidden">
+                                            <div style="padding:12px 16px;border-bottom:1px solid var(--color-border-light)" class="m-h">New Request</div>
+                                            <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+                                                <div class="m-grid2">
+                                                    <div class="kb-t"><span class="m-lbl">Request type <span class="m-req">*</span></span><span class="m-field is-filled">Install Hardware <i class="fas fa-chevron-down" aria-hidden="true"></i></span><span class="kb-pin">1</span></div>
+                                                    <div class="kb-t"><span class="m-lbl">Priority</span><span class="m-field is-filled">Medium <i class="fas fa-chevron-down" aria-hidden="true"></i></span><span class="kb-pin">2</span></div>
+                                                </div>
+                                                <div class="m-sub"><span class="kb-t">Approval path: Admin Approval (Administrator)<span class="kb-pin is-side">3</span></span></div>
+                                                <div class="kb-t" style="display:flex;flex-direction:column;gap:10px;padding:10px 12px;border:1px solid var(--color-border-light);border-radius:6px">
+                                                    <span class="kb-pin">4</span>
+                                                    <div><span class="m-lbl">What should happen <span class="m-req">*</span></span><span class="m-field is-filled">Add a component to a server <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div><span class="m-lbl">Which server <span class="m-req">*</span></span><span class="m-field is-filled">10U 11U - HPE ProLiant DL380 Gen10 <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    <div class="m-grid2">
+                                                        <div><span class="m-lbl">Component type <span class="m-req">*</span></span><span class="m-field is-filled">Storage <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                        <div><span class="m-lbl">Model <span class="m-req">*</span></span><span class="m-field is-filled">Intel SSDPE2KX010T8 <i class="fas fa-chevron-down" aria-hidden="true"></i></span></div>
+                                                    </div>
+                                                </div>
+                                                <div><span class="m-lbl" style="display:flex;justify-content:space-between"><span class="kb-t">Title<span class="kb-pin is-side">5</span></span><span class="m-sub">Written from your choices</span></span><span class="m-field is-filled">Fit STORAGE on 10U 11U - HPE ProLiant DL380 Gen10</span></div>
+                                                <div class="m-row" style="justify-content:flex-end"><span class="m-btn">Cancel</span><span class="m-btn is-primary"><i class="fas fa-play" aria-hidden="true"></i>Create request</span></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Request type:</strong> what kind of work this is.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Priority:</strong> how urgent it is.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Approval path:</strong> the steps it will go through, and who does each one.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>The details:</strong> these boxes change with the type you chose.</span></li>
+                                            <li><span class="kb-pin">5</span><span><strong>Title:</strong> written for you. You can type over it.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
+
+                                <div class="kb-example">
+                                    <span class="kb-example-title">Example</span>
+                                    <p>Server <em>10U 11U - HPE ProLiant DL380 Gen10</em> needs one more SSD. Choose <strong>Install Hardware</strong>, pick that server, set <strong>Component type</strong> to Storage, pick the model and click <strong>Create request</strong>.</p>
+                                </div>
+
+                                <p>The form checks real stock while you fill it in. If we have no free unit of that model, it says <em>We have none of these free</em> and offers to raise the stock record first. If the part is at a different site from the server, it offers a <strong>Hardware Handover</strong> and asks who is carrying it.</p>
+
+                                <h3>Which request type to choose</h3>
+                                <div class="kb-table-wrap">
+                                    <table class="kb-table">
+                                        <thead><tr><th>I want to&hellip;</th><th>Choose</th></tr></thead>
+                                        <tbody>
+                                            <tr><td>Put a part into a server</td><td>Install Hardware</td></tr>
+                                            <tr><td>Replace a part in a server with another</td><td>Swap Hardware</td></tr>
+                                            <tr><td>Take a part out of a server and back to stock</td><td>Return Hardware to Stock</td></tr>
+                                            <tr><td>Add new parts to stock</td><td>Add Inventory Record</td></tr>
+                                            <tr><td>Correct the details of a part already in stock</td><td>Update Inventory Record</td></tr>
+                                            <tr><td>Create a new server</td><td>None here: click <strong>Build Server</strong> on the Servers page. It sends the request for you.</td></tr>
+                                            <tr><td>Change a server's name, location, description or notes</td><td>Update Server Details</td></tr>
+                                            <tr><td>Change a server's status, for example Finalized to Maintenance</td><td>Change Server Status</td></tr>
+                                            <tr><td>Move a server to another site, rack or U position</td><td>Move Server</td></tr>
+                                            <tr><td>Carry a part to another site</td><td>Hardware Handover</td></tr>
+                                            <tr><td>Get into the server room or the inventory room</td><td>Server Room Access, or Inventory Room Access</td></tr>
+                                            <tr><td>Anything else</td><td>General Request</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <h3>Follow your request</h3>
+                                <p>The <strong>Requests</strong> page has three tabs at the top:</p>
+                                <ul>
+                                    <li><strong>My queue:</strong> requests waiting on you or your team right now.</li>
+                                    <li><strong>Created by me:</strong> requests you raised, and any request where one of the steps is yours.</li>
+                                    <li><strong>All:</strong> every request. You only see this tab if your role allows it.</li>
+                                </ul>
+                                <p>Click a request to see its steps, who has it now, and everything that happened. Use the search box and the <strong>Status</strong>, <strong>Priority</strong> and <strong>Type</strong> lists to narrow things down.</p>
+
+                                <div class="kb-flow" aria-label="Request stages">
+                                    <span class="kb-state">In progress</span><span class="kb-arrow">&rarr;</span>
+                                    <span class="kb-state is-end">Completed</span>
+                                    <span class="kb-arrow" style="margin:0 6px">or</span>
+                                    <span class="kb-state is-stop">Rejected</span>
+                                    <span class="kb-state">Cancelled</span>
+                                </div>
+                                <p><strong>Rejected</strong> means the approver said no, and their reason is shown. <strong>Cancelled</strong> means it was withdrawn. Neither can be restarted, so raise a new request if it's still needed.</p>
 
                                 <div class="kb-note is-stop">
-                                    <span class="kb-note-title">Three rules govern approval</span>
-                                    <p>Only an administrator or super admin can approve. The work is always performed on behalf of the person who raised the Request, not the approver. And nobody approves or rejects their own Request — <em>"Cannot approve your own request (separation of duties)"</em>. Note also that no Request can delete anything: adding, editing, moving and re-statusing are the only things approval can do.</p>
+                                    <span class="kb-note-title">"Last approval rolled back"</span>
+                                    <p>Approval was tried, something blocked it, and nothing was changed. A red box on the request says why, for example a serial number that already belongs to another unit. Once the cause is fixed, the admin can approve again.</p>
                                 </div>
-
                                 <div class="kb-note is-warn">
-                                    <span class="kb-note-title">If execution fails, nothing is changed</span>
-                                    <p>A failed action rolls the whole approval back and leaves a red banner — <em>"Approval was rolled back — nothing was changed"</em> — with the error. The step stays active, so fix the cause and approve again. A common cause is the location gate: <em>"This component is at X, and the server is at Y. Raise a Hardware Handover request to move the part first."</em></p>
+                                    <span class="kb-note-title">Blocked or frozen</span>
+                                    <p>The request is waiting for another request to finish first, such as adding the part to stock. The lock message names that request. It moves on by itself once the other one is done.</p>
                                 </div>
 
-                                <h4>Working a step</h4>
-                                <p>Each step has an owner — usually a role rather than a named person, so anyone holding that role can pick it up. <strong>Claim</strong> a step to signal you are working on it, then complete it to advance the Request. A step can be skipped where it does not apply. <strong>Reject</strong> is a button on every actionable step, with a box for the reason, and it is available even on frozen Requests where Approve deliberately is not. Progress reads as steps done against total.</p>
-
-                                <h4>Notifications</h4>
-                                <p>The <strong>bell</strong> at the top of every page tells you when a Request needs you: a step reaches you or your team, or a step is reassigned to you. It also tells you when a Request you raised is completed, rejected or cancelled, or when one of its prerequisites is resolved. You are never notified about something you did yourself. Click a notification to open its Request.</p>
-                                <p>The same notification is also sent by <strong>email</strong> and as a personal message in <strong>Microsoft Teams</strong>. Turn either off with the switches at the bottom of the bell. A switch that is greyed out cannot reach you yet: your IMS account has no email address, or Teams has not been set up.</p>
-
-                                <h4>Lifecycle</h4>
-
-                                <div class="kb-flow">
-                                    <span class="kb-state">draft</span><span class="kb-arrow">&rarr;</span>
-                                    <span class="kb-state">in_progress</span><span class="kb-arrow">&rarr;</span>
-                                    <span class="kb-state is-end">completed</span>
+                                <h3>Work on a step</h3>
+                                <p>Some steps are given to a team, such as Technician. When one reaches your team, it shows in <strong>My queue</strong> and on the bell.</p>
+                                <div class="kb-steps">
+                                    <div class="kb-step"><div class="kb-step-dot">1</div><div><p>Open the request from <strong>My queue</strong>.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">2</div><div><p>Click <strong>Accept step</strong> so your team knows you have it.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">3</div><div><p>Do the work, then write a short note on what you did.</p></div></div>
+                                    <div class="kb-step"><div class="kb-step-dot">4</div><div><p>Click <strong>Complete &amp; advance</strong>. The request moves to the next step.</p></div></div>
                                 </div>
-                                <p>Two endings stop a Request early: <span class="kb-chip bg-danger/10 text-danger">rejected</span> when the work is declined, and <span class="kb-chip bg-surface-secondary text-text-muted">cancelled</span> when it is withdrawn. Neither can be resumed — raise a fresh Request instead.</p>
-                                <p>The activity trail on each Request gains a filter bar — search, action, user and date range — once there is more than one entry to sift.</p>
+
+                                <figure class="kb-fig">
+                                    <div class="kb-shot" role="img" aria-label="Picture of a request with three steps: the first is done and the second is yours, with a notes box and Complete and advance and Reject buttons.">
+                                        <div class="m-screen" style="max-width:600px;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+                                            <div>
+                                                <div class="m-row"><span class="m-mono">TKT-20261008-0012 &middot; General Request</span><span class="m-tag">Medium</span></div>
+                                                <div class="m-h" style="margin-top:4px">Replace fan in 10U 11U - HPE ProLiant DL380 Gen10</div>
+                                            </div>
+                                            <div class="m-steps kb-t">
+                                                <span class="kb-pin">1</span>
+                                                <div class="is-done"><b>1 &middot; Approval</b><span class="m-sub">Done</span></div>
+                                                <div class="is-now"><b>2 &middot; Execution</b><span class="m-sub">Claimed by you</span></div>
+                                                <div><b>3 &middot; Deployment</b><span class="m-sub">Administrator</span></div>
+                                            </div>
+                                            <div class="m-yours">
+                                                <b>Your step: Execution</b>
+                                                <span class="m-field is-tall kb-t">Notes about what you did (optional)<span class="kb-pin">2</span></span>
+                                                <span class="m-row" style="gap:20px"><span class="m-btn is-primary kb-t">Complete &amp; advance<span class="kb-pin">3</span></span><span class="m-btn is-danger kb-t">Reject<span class="kb-pin">4</span></span></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <figcaption>
+                                        <ol class="kb-legend">
+                                            <li><span class="kb-pin">1</span><span><strong>Steps:</strong> what's done, what's with you now, and what comes next.</span></li>
+                                            <li><span class="kb-pin">2</span><span><strong>Notes:</strong> what you did, for example <em>Fan replaced, server back up at 14:20</em>.</span></li>
+                                            <li><span class="kb-pin">3</span><span><strong>Complete &amp; advance:</strong> your part is done, so the request moves on.</span></li>
+                                            <li><span class="kb-pin">4</span><span><strong>Reject:</strong> it can't be done. Write why. The person who raised it sees your reason.</span></li>
+                                        </ol>
+                                    </figcaption>
+                                </figure>
+                                <p>Steps called <strong>Admin Approval</strong> are done by admins, so you won't be asked to act on them.</p>
+
+                                <h3>Carrying hardware to another site</h3>
+                                <p>If a <strong>Hardware Handover</strong> names you as the person carrying the part, a step comes to you after approval. When the part has arrived, open the request and complete your step. Only you can confirm it, and that closes the request.</p>
+
+                                <h3 id="kb-notifications">Notifications</h3>
+                                <figure class="kb-fig" style="max-width:480px">
+                                    <div class="kb-shot" role="img" aria-label="Picture of the notifications panel with one unread notification and the Email and Teams boxes.">
+                                        <div class="m-screen m-notif">
+                                            <div class="m-notif-head"><b style="font-weight:600">Notifications</b><span class="m-pill is-on">Unread 1</span><span class="m-pill">All</span><span class="m-sub" style="margin-left:auto">Mark all read</span></div>
+                                            <div class="m-notif-item"><b style="display:block;font-weight:600">Request TKT-20261008-0012 needs you: Execution</b><span class="m-sub">Replace fan in 10U 11U has reached the step Execution, which is assigned to you or your team.</span></div>
+                                            <div class="m-notif-foot"><span>Also send to</span><span><span class="m-check"><i class="fas fa-check" aria-hidden="true"></i></span>Email</span><span><span class="m-uncheck"></span>Teams</span></div>
+                                        </div>
+                                    </div>
+                                </figure>
+                                <p>The bell at the top tells you when a request needs you or your team, when a step is passed to you, and when a request you raised is completed, rejected or cancelled. You're never told about something you did yourself. Click a notification to open the request.</p>
+                                <p>Tick <strong>Email</strong> or <strong>Teams</strong> under <strong>Also send to</strong> to get the same message there. A box you can't tick means that channel isn't set up for your account yet.</p>
                             </section>
 
-                            <!-- 09 -->
-                            <section class="kb-section" id="kb-admin">
-                                <h3><span class="kb-eyebrow">09</span>Request Types &amp; Vendors</h3>
-                                <p>These are administrator sections. They are described here so everyone understands what the system can do, even if the pages are not available to you.</p>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-words">
+                                <h2>Words you'll see</h2>
 
-                                <h4>Request Types</h4>
-                                <p>A Request Type is a named, ordered list of Steps. For each step you set a name, a position, instructions for whoever performs it, and a default owner — normally a role. Write the instructions as if for someone who has not done the task before; they are the only guidance the person working the step receives.</p>
-                                <p>A step can be marked <strong>"On approval, perform the request's work"</strong>. Ticking it reveals a checklist of action types — server builds, component inventory — and that checklist is the <em>ceiling</em> of what anyone raising this type may ask for. A separate <strong>"What the form asks for"</strong> block decides whether the create form asks about a server and a list of components at all.</p>
-
-                                <div class="kb-note">
-                                    <span class="kb-note-title">Temporary access has been retired</span>
-                                    <p>Approving a step no longer grants anyone permissions for a period. A Request now describes work, and approval performs that work as the requester. Old steps built on the previous model display read-only as <em>"Legacy effect &mdash; grants temporary access. This model was retired; approving this step no longer grants anything."</em> Access to a room or a store is still requestable — an approver opens the door and records it.</p>
+                                <h3>Part status</h3>
+                                <div class="kb-key">
+                                    <div><b><span class="rf-dot rf-st-available"></span>Available</b><span>In stock and free to use.</span></div>
+                                    <div><b><span class="rf-dot rf-st-inuse"></span>In use</b><span>Inside a server. This is set by itself when the part is added to a server.</span></div>
+                                    <div><b><span class="rf-dot rf-st-failed"></span>Failed</b><span>Broken. It can't be picked when building.</span></div>
                                 </div>
 
-                                <div class="kb-note">
-                                    <span class="kb-note-title">General Request cannot be changed</span>
-                                    <p>It is built in and cannot be renamed, archived, or deleted — only its steps edited. Build a new type rather than repurposing it.</p>
-                                </div>
-                                <p>Types can be deactivated when a process is retired, which stops new Requests choosing them while existing ones keep their steps. A type can also be deleted outright; the Requests that used it keep its name on record.</p>
-
-                                <h4>Vendors</h4>
-                                <p>Vendors record who supplied hardware — name, contact details, what they sell, and notes. Components link to a vendor, which is what makes "everything we bought from this supplier" answerable.</p>
-
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">Vendor records hold sensitive data</span>
-                                    <p>The vendor form includes banking details. Do not screenshot or share that page outside the team.</p>
-                                </div>
-
-                                <h4>Activity Log</h4>
-                                <p>The Activity Log records who did what and when — components added and removed, servers changed, roles assigned. It is the first place to look when something changed and nobody remembers changing it. It now filters by free text, by date range and by user, so you can narrow to one person on one afternoon; if a search returns nothing it says the filters matched nothing rather than that the log is empty.</p>
-
-                                <div class="kb-note is-warn">
-                                    <span class="kb-note-title">The log records IP addresses</span>
-                                    <p>Entries include the client IP of whoever performed the action. Redact before sharing screenshots outside the team.</p>
-                                </div>
-
-                                <h4>Access Control</h4>
-                                <p>Administrators can reset another user's password from the Users list. The dialog takes the new password twice plus <em>your own</em> password to confirm, and can generate a strong one for you. Nothing is emailed — you hand the password over yourself — and the target is signed out of every device. You cannot reset your own this way; use Change password in the account menu. Deleting a user who has raised Requests keeps their history under a placeholder rather than erasing it.</p>
-                            </section>
-
-                            <!-- 10 -->
-                            <section class="kb-section" id="kb-reference">
-                                <h3><span class="kb-eyebrow">10</span>Reference</h3>
-
-                                <h4>Component status</h4>
-
+                                <h3>The parts, in plain words</h3>
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
-                                        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+                                        <thead><tr><th>Page</th><th>What it is</th></tr></thead>
                                         <tbody>
-                                            <tr><td><span class="kb-chip bg-success/10 text-success">Available</span></td><td>In stock and free to assign to a server.</td></tr>
-                                            <tr><td><span class="kb-chip bg-surface-secondary text-text-muted">In Use</span></td><td>Installed in a server configuration.</td></tr>
-                                            <tr><td><span class="kb-chip bg-danger/10 text-danger">Failed</span></td><td>Faulty. Excluded from the fit lists when building.</td></tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <p>You may occasionally see finer-grained states such as <code>installed</code> or <code>reserved</code> on records created by automated processes. Treat <code>installed</code> as In Use.</p>
-
-                                <h4>Server status</h4>
-
-                                <div class="kb-table-wrap">
-                                    <table class="kb-table">
-                                        <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
-                                        <tbody>
-                                            <tr><td><code>Draft</code></td><td>Being assembled. Incomplete configurations are expected here.</td></tr>
-                                            <tr><td><code>Building</code></td><td>Actively being worked on. Parts can be added and removed.</td></tr>
-                                            <tr><td><code>Validating</code></td><td>Being checked against the rules.</td></tr>
-                                            <tr><td><code>Validated</code></td><td>Passed the compatibility and completeness checks.</td></tr>
-                                            <tr><td><code>Finalized</code></td><td>Committed. Its parts are reserved; the platform can no longer be changed.</td></tr>
-                                            <tr><td><code>Deployed</code></td><td>In service.</td></tr>
-                                            <tr><td><code>Maintenance</code></td><td>Out of service temporarily. Parts can be changed again.</td></tr>
-                                            <tr><td><code>Retired</code></td><td>Taken out of service.</td></tr>
+                                            <tr><td>CPUs</td><td>The processor: the chip that does the computing.</td></tr>
+                                            <tr><td>RAM</td><td>Memory sticks that plug into the motherboard.</td></tr>
+                                            <tr><td>Storage</td><td>Drives that keep data: hard disks, SSDs and NVMe drives.</td></tr>
+                                            <tr><td>Motherboards</td><td>The main board every other part plugs into.</td></tr>
+                                            <tr><td>Network Cards</td><td>Cards that give the server its network ports. Also called NICs.</td></tr>
+                                            <tr><td>Caddies</td><td>Trays that hold a drive in the front of the server.</td></tr>
+                                            <tr><td>Compute Platforms</td><td>A complete server box bought as one unit, with its own motherboard and chassis.</td></tr>
+                                            <tr><td>Chassis</td><td>The metal case of the server.</td></tr>
+                                            <tr><td>PCIe Cards</td><td>Add-on cards that plug into a slot on the motherboard.</td></tr>
+                                            <tr><td>Riser Cards</td><td>Small boards that let add-on cards fit inside the case.</td></tr>
+                                            <tr><td>HBA Cards</td><td>Cards that connect many drives to the server.</td></tr>
+                                            <tr><td>SFP Modules</td><td>Small plugs that go into a network port so a fibre or copper cable can connect.</td></tr>
+                                            <tr><td>Network Devices</td><td>Switches, routers and MUXes. They sit in the rack next to servers, never inside one.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div class="kb-note">
-                                    <span class="kb-note-title">When parts can change</span>
-                                    <p>Parts can only be added or removed while a server is in Draft, Building or Maintenance.</p>
-                                </div>
-
-                                <h4>Compute platforms</h4>
-                                <p>The catalogue holds known server platforms — HPE ProLiant DL360, DL380, DL325 and DL385 across several generations, Dell PowerEdge, and others. A platform is stocked as a whole box, and each <strong>version</strong> of it is a distinct SKU with its own count on the shelf. Installing one supplies the build's motherboard and chassis; those are not separately stocked parts.</p>
-
-                                <h4>Glossary</h4>
-
+                                <h3>Other words</h3>
                                 <div class="kb-table-wrap">
                                     <table class="kb-table">
-                                        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+                                        <thead><tr><th>Word</th><th>Meaning</th></tr></thead>
                                         <tbody>
-                                            <tr><td>U</td><td>Rack unit — 1.75 inches of vertical rack space. A 2U server occupies two.</td></tr>
-                                            <tr><td>Socket</td><td>The physical processor mount. <code>SP3</code> is AMD; <code>LGA3647</code> and <code>LGA2011-3</code> are Intel. Not interchangeable.</td></tr>
-                                            <tr><td>Generation</td><td>Which family of processors a board accepts. One socket can span several, and the wrong generation will not boot even though it fits.</td></tr>
-                                            <tr><td>ECC</td><td>Error-correcting memory. Needs board support, otherwise correction is simply disabled.</td></tr>
-                                            <tr><td>PCIe lane</td><td>The bandwidth budget for expansion cards, supplied mostly by the CPU. Cards consume lanes; you can run out.</td></tr>
-                                            <tr><td>Caddy</td><td>The tray holding a drive in a chassis. Must match the drive size and the chassis.</td></tr>
-                                            <tr><td>SFP / QSFP+</td><td>Pluggable network transceiver formats. QSFP+ is larger and will not fit an SFP+ port.</td></tr>
-                                            <tr><td>HBA</td><td>Host bus adapter — a card connecting storage devices to the system.</td></tr>
-                                            <tr><td>Compute platform</td><td>A whole server box stocked as one unit, supplying its own board and chassis.</td></tr>
-                                            <tr><td>Version</td><td>The specific SKU of a compute platform that we hold in stock.</td></tr>
-                                            <tr><td>Enclosure / bay</td><td>A blade chassis placed in a rack, and the numbered slots inside it that each hold a server.</td></tr>
-                                            <tr><td>Network device</td><td>A router, switch or MUX. Stocked like any component, racked like a server, and never installed inside one.</td></tr>
-                                            <tr><td>Prerequisite</td><td>A Request raised inside another that must be resolved before the parent can move.</td></tr>
-                                            <tr><td>Hardware handover</td><td>A Request tracking a part being physically carried between sites; the carrier confirms arrival.</td></tr>
-                                            <tr><td>Store / Shelf</td><td>Where a loose unit physically sits at its site — a shelf or bin reference.</td></tr>
-                                            <tr><td>Serial number</td><td>The manufacturer's number printed on the unit. You type it in.</td></tr>
-                                            <tr><td>Asset tag</td><td>The identifier the system generates for a unit, such as <code>BDC-CPU-000128</code>.</td></tr>
+                                            <tr><td>Asset tag</td><td>Our own ID for one unit, given by the system when you add it. Looks like <code>BDC-RAM-000412</code>. Put it on a label on the part.</td></tr>
+                                            <tr><td>Serial number</td><td>The maker's number printed on the part or machine. You type it in.</td></tr>
+                                            <tr><td>Model</td><td>The exact product, such as <em>Samsung DDR4 32GB RDIMM</em>. Many units can share one model.</td></tr>
+                                            <tr><td>Site / Location</td><td>The building the hardware is in, such as CtrlS Noida or Yotta Noida.</td></tr>
+                                            <tr><td>Shelf / bin</td><td>Where a loose part sits at its site.</td></tr>
+                                            <tr><td>Rack</td><td>The tall frame in the server room that servers are bolted into.</td></tr>
+                                            <tr><td>U</td><td>One slot of height in a rack. A "2U" server takes two slots.</td></tr>
+                                            <tr><td>Bay</td><td>A numbered slot inside a blade enclosure that holds one small server.</td></tr>
+                                            <tr><td>Compute platform version</td><td>The exact kind of server box we hold, such as <em>HPE ProLiant DL380 Gen10 - 16SFF</em>.</td></tr>
+                                            <tr><td>Flag</td><td>A label you can put on a part: Backup, Critical, Maintenance, Testing or Production.</td></tr>
+                                            <tr><td>Request</td><td>A piece of work someone asked for, with a number like <code>TKT-20261008-0012</code>.</td></tr>
+                                            <tr><td>Step</td><td>One stage of a request, done by one person or team.</td></tr>
+                                            <tr><td>UUID</td><td>A long ID the system uses behind the scenes. You rarely need it.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
                             </section>
 
-                            <!-- 11 -->
-                            <section class="kb-section" id="kb-trouble">
-                                <h3><span class="kb-eyebrow">11</span>Troubleshooting</h3>
-
-                                <h4>I was signed out unexpectedly</h4>
-                                <p>A sign-in lasts 24 hours, and closing the browser ends the session's ability to renew itself even with Remember me ticked. Sign in again — unsaved form data is lost, so save long entries as you go.</p>
-
-                                <h4>A page or button is missing</h4>
-                                <p>Rack View and Request Types are administrator-only. Most other buttons are not hidden from you: if you lack the permission, <strong>Add Component</strong> and <strong>Build Server</strong> stay on screen and raise a Request instead. If a row's Edit or Delete is genuinely absent, that one is a permissions matter — ask an administrator.</p>
-
-                                <h4>The model I need is not in the dropdown</h4>
-                                <p>The hardware catalogue does not have it yet; it must be added there first. Do not substitute a similar model — compatibility checking would then run against the wrong specification.</p>
-
-                                <h4>I cannot save a component without a location</h4>
-                                <p>Location is required and is chosen from the Locations page. If the site you need is not listed, it has to be created there first.</p>
-
-                                <h4>I cannot delete a component</h4>
-                                <p>It is installed in a server. The message names the configuration — remove it from that build first, then delete. In a bulk delete the unaffected rows still go through.</p>
-
-                                <h4>A component will not add to my build</h4>
-                                <p>Read every finding, not just the first. Common causes: socket mismatch, a CPU generation the board does not support, full CPU or memory slots, mixed processor models, or a transceiver that does not match the port. The fit lists tell you what <em>would</em> work.</p>
-
-                                <h4>I cannot remove the motherboard or chassis</h4>
-                                <p>They came with the compute platform and are locked to it. Change or remove the platform instead — which releases the whole build — unless a separately stocked unit of the same model exists, in which case that spare can be removed on its own.</p>
-
-                                <h4>I cannot delete a server configuration</h4>
-                                <p>Configurations with components still attached refuse to delete and say so — for example, <em>"This server still has 2 components installed (1 CPU, 1 motherboard). Remove all components from the server before deleting it."</em> Remove the components, then delete.</p>
-
-                                <h4>I finalized a server by mistake</h4>
-                                <p>It can be sent back to Building. The status panel on the server card lists the move if your role includes it; otherwise ask an administrator.</p>
-
-                                <h4>I can edit a server's parts but not its name</h4>
-                                <p>Those are two different permissions. Working on the components in a build and editing the build's own details — name, description, location, status — are granted separately.</p>
-
-                                <h4>My Request is frozen</h4>
-                                <p>It has an unresolved prerequisite; the lock banner names it. Resolve or cancel the child. A <em>rejected</em> prerequisite still counts as unresolved — an administrator has to detach it, or the parent has to be cancelled.</p>
-
-                                <h4>My approval was rolled back</h4>
-                                <p>An action failed part-way and everything was undone, so nothing changed. The banner carries the error and the step stays active. If the reason is that the part is at another site, raise a Hardware Handover first.</p>
-
-                                <h4>I cannot approve my own Request</h4>
-                                <p>That is deliberate — separation of duties. Someone else with administrator rights has to approve it.</p>
-
-                                <h4>My test build has vanished</h4>
-                                <p>Builds made on the Server Compatibility bench are sandboxes and do not appear in the ordinary server list. Look for it there.</p>
-
-                                <h4>The numbers look wrong after a change</h4>
-                                <p>Dashboard counts are derived from inventory. Refresh the page; if they still look wrong, check the Activity Log to see what actually changed.</p>
+                            <!-- ============================================================ -->
+                            <section class="kb-section" id="kb-help">
+                                <h2>Something's not working</h2>
+                                <p>Click a question to see the answer.</p>
+                                <div class="kb-faq">
+                                    <details><summary>I was signed out</summary><div>
+                                        <p>Sign-ins don't last forever. Even with <strong>Keep me signed in</strong> ticked, you may be asked to sign in again after a day or after closing the browser. Anything you hadn't saved is lost, so save long forms as you go.</p>
+                                    </div></details>
+                                    <details><summary>A button is missing, or I can't edit something</summary><div>
+                                        <p>Your role doesn't include that change. Raise a Request for it instead. See <a href="#kb-requests">Which request type to choose</a>.</p>
+                                    </div></details>
+                                    <details><summary>The model I need isn't in the list</summary><div>
+                                        <p>It isn't in our hardware catalogue yet. Ask an admin to add it. Don't pick a similar model.</p>
+                                    </div></details>
+                                    <details><summary>I can't save a part: Site is required</summary><div>
+                                        <p>Choose the site the part is at. If the site isn't in the list, ask someone who manages <strong>Locations</strong> to add it.</p>
+                                    </div></details>
+                                    <details><summary>I can't delete a part, or can't mark it Failed</summary><div>
+                                        <p>It's inside a server. Open that server, take the part out with <strong>&times;</strong>, then try again.</p>
+                                    </div></details>
+                                    <details><summary>A part won't go into my server</summary><div>
+                                        <p>Read every reason shown, not just the first. Then pick from the list the builder offers, because it only shows parts that fit. See <a href="#kb-fit">When parts don't fit</a>.</p>
+                                    </div></details>
+                                    <details><summary>The list of parts to pick from is empty</summary><div>
+                                        <p>No free unit fits this server. Check the part's page under the <strong>Available</strong> tab. If there are none, they need adding to stock first.</p>
+                                    </div></details>
+                                    <details><summary>I can't remove the motherboard or chassis</summary><div>
+                                        <p>They came with the compute platform and are locked to it. To change them, change or remove the platform. Remember this puts every part in the server back into stock.</p>
+                                    </div></details>
+                                    <details><summary>I can't add or remove parts in a server</summary><div>
+                                        <p>Parts can only change while the server is in Draft, Building or Maintenance. Change its status first, or raise a <strong>Change Server Status</strong> request.</p>
+                                    </div></details>
+                                    <details><summary>I finalized a server by mistake</summary><div>
+                                        <p>Click the pencil on its card and move it back to <strong>Building</strong>. If your role can't, raise a <strong>Change Server Status</strong> request.</p>
+                                    </div></details>
+                                    <details><summary>I can't delete a server</summary><div>
+                                        <p>It still has parts in it. Open it with <strong>Configure</strong>, remove every part, then delete it.</p>
+                                    </div></details>
+                                    <details><summary>My request says "Last approval rolled back"</summary><div>
+                                        <p>Nothing was changed. The red box on the request says why. Fix that, or tell the approver, and it can be approved again.</p>
+                                    </div></details>
+                                    <details><summary>My request is frozen</summary><div>
+                                        <p>It's waiting for another request to finish first. The lock message names it. Open that one to see where it's stuck.</p>
+                                    </div></details>
+                                    <details><summary>My test build has disappeared</summary><div>
+                                        <p>Test builds live on the <strong>Server Compatibility</strong> page, not on Servers. Look for it there.</p>
+                                    </div></details>
+                                    <details><summary>The numbers look wrong</summary><div>
+                                        <p>Click <strong>Refresh</strong> at the top of the page. If they still look wrong, open the server's history (the clock icon on its card) to see what changed.</p>
+                                    </div></details>
+                                </div>
                             </section>
 
                         </div>
@@ -719,7 +1149,7 @@
     <script defer src="../../components/navbar.js"></script>
     <script>
         /**
-         * KnowledgeBase — contents rail filtering and scroll-spy for the Help & Guide page.
+         * KnowledgeBase — search, contents rail and scroll-spy for the Help & Guide page.
          * Static content only: no API calls, and nothing is interpolated into innerHTML.
          */
         class KnowledgeBase {
@@ -727,6 +1157,7 @@
                 this.filterInput = document.getElementById('kbFilter');
                 this.railLinks = Array.from(document.querySelectorAll('#kbRailNav a'));
                 this.sections = Array.from(document.querySelectorAll('.kb-section'));
+                this.questions = Array.from(document.querySelectorAll('.kb-faq details'));
                 this.emptyState = document.getElementById('kbEmpty');
                 this.observer = null;
                 this.init();
@@ -745,6 +1176,7 @@
                 if (!query) {
                     this.sections.forEach(section => { section.style.display = ''; });
                     this.railLinks.forEach(link => link.classList.remove('is-hidden'));
+                    this.questions.forEach(q => { q.open = false; });
                     if (this.emptyState) this.emptyState.classList.remove('is-shown');
                     return;
                 }
@@ -757,6 +1189,12 @@
 
                     const link = this.railLinks.find(a => a.getAttribute('href') === `#${section.id}`);
                     if (link) link.classList.toggle('is-hidden', !hit);
+                });
+
+                // Open the answers that contain the search, so a match is not hidden
+                // inside a closed question.
+                this.questions.forEach(q => {
+                    q.open = q.textContent.toLowerCase().indexOf(query) > -1;
                 });
 
                 if (this.emptyState) this.emptyState.classList.toggle('is-shown', matches === 0);
