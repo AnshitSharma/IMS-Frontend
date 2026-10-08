@@ -1462,7 +1462,7 @@ class RequestsManager {
      * the whole request at approval time — after an admin had already looked at
      * it. Better to make the impossible unpickable.
      */
-    async fillRelocateLocations() {
+    async fillRelocateLocations({ rackRequired = false } = {}) {
         const locationSelect = document.getElementById('plRelocateLocation');
         const rackSelect = document.getElementById('plRelocateRack');
         if (!locationSelect) return;
@@ -1513,12 +1513,14 @@ class RequestsManager {
             }
 
             // Blank stays available on purpose: "move it to the site, leave it
-            // out of a rack" is a real request.
+            // out of a rack" is a real request. A new physical server has no
+            // such option, so there the blank is only the prompt.
             //
             // free_u alone was misleading: 12U free in six 2U gaps takes no 4U
             // server. The largest single opening is what decides whether a
             // machine fits, so both are shown.
-            rackSelect.innerHTML = '<option value="">-- No rack --</option>' + racks.map(rack => {
+            const blank = rackRequired ? '-- Choose a rack --' : '-- No rack --';
+            rackSelect.innerHTML = `<option value="">${blank}</option>` + racks.map(rack => {
                 const floor = rack.floor ? ` \u00b7 Floor ${utils.escapeHtml(rack.floor)}` : '';
                 const biggest = Number.isFinite(rack.largest_free_u)
                     ? `, largest gap ${rack.largest_free_u}U` : '';
@@ -1573,6 +1575,81 @@ class RequestsManager {
             if (baySelect.value) startU.value = '';
         };
         baySelect.onchange();
+    }
+
+    /**
+     * Wire the New Server form: the site -> rack cascade is fillRelocateLocations()'s,
+     * and the Position dropdown follows the rack and the height. A template has
+     * no box, so ticking it hides everything physical.
+     */
+    wireNewServerForm() {
+        const virtual = document.getElementById('plNewServerVirtual');
+        const physical = document.getElementById('plNewServerPhysical');
+        if (!virtual || !physical) return;
+
+        virtual.addEventListener('change', () => {
+            physical.classList.toggle('hidden', virtual.checked);
+            this.autoTitle();
+        });
+        ['plRelocateLocation', 'plRelocateRack', 'plNewServerHeight'].forEach((id) => {
+            document.getElementById(id)?.addEventListener('change', () => this.fillNewServerPositions());
+        });
+        this.fillRelocateLocations({ rackRequired: true });
+    }
+
+    /**
+     * The New Server form's Position dropdown: every start U where a server of
+     * the chosen height fits, then the free enclosure bays -- the same choices
+     * Build Server offers. location-racks already carried the rack's free runs
+     * and free bays, so there is no second fetch, and no rack.view is needed.
+     */
+    fillNewServerPositions() {
+        const rackSelect = document.getElementById('plRelocateRack');
+        const heightSelect = document.getElementById('plNewServerHeight');
+        const select = document.getElementById('plNewServerPosition');
+        if (!select) return;
+
+        // The rack must be at the chosen site: on a location change this runs
+        // before the cascade has cleared the old site's rack.
+        const locationUuid = document.getElementById('plRelocateLocation')?.value || '';
+        const rack = (this.relocateRacks || []).find(
+            (r) => r.rack_uuid === rackSelect?.value && r.location_uuid === locationUuid);
+        if (!rack) {
+            select.innerHTML = '<option value="">Choose a rack first</option>';
+            select.disabled = true;
+            return;
+        }
+
+        const height = Math.max(1, parseInt(heightSelect?.value || '1', 10));
+        const starts = [];
+        (rack.free_intervals || []).forEach((gap) => {
+            for (let u = gap.start_u; u + height - 1 <= gap.end_u; u++) starts.push(u);
+        });
+        const bays = [];
+        (rack.enclosures || []).forEach((e) => (e.free_slots || []).forEach((slot) => {
+            bays.push({ value: `bay:${e.enclosure_uuid}:${slot}`, name: e.name, slot });
+        }));
+
+        if (!starts.length && !bays.length) {
+            select.innerHTML = `<option value="">No ${height}U space free in this rack</option>`;
+            select.disabled = true;
+            return;
+        }
+
+        const previous = select.value;
+        const uGroup = !starts.length ? '' : '<optgroup label="Rack position">' + starts.map((u) =>
+            `<option value="${u}">${height > 1 ? `U${u}–U${u + height - 1}` : `U${u}`}</option>`
+        ).join('') + '</optgroup>';
+        const bayGroup = !bays.length ? '' : '<optgroup label="Enclosure bay">' + bays.map((b) =>
+            `<option value="${utils.escapeHtml(b.value)}" data-name="${utils.escapeHtml(b.name)}">${utils.escapeHtml(b.name)} · bay ${b.slot}</option>`
+        ).join('') + '</optgroup>';
+        select.innerHTML = '<option value="">Choose a position...</option>' + uGroup + bayGroup;
+        select.disabled = false;
+
+        // Keep the choice if it is still on offer after a height change.
+        if (previous && Array.from(select.options).some((o) => o.value === previous)) {
+            select.value = previous;
+        }
     }
 
     /**
@@ -1659,6 +1736,9 @@ class RequestsManager {
         }
         if (this.actionType === 'server.relocate') {
             this.fillRelocateLocations();
+        }
+        if (this.actionType === 'server.config.create') {
+            this.wireNewServerForm();
         }
         if (this.actionType === 'inventory.component.relocate') {
             this.fillHandoverLocations();
@@ -2034,22 +2114,59 @@ class RequestsManager {
                     <div id="plLocationWarn"></div>`;
 
             case 'server.config.create':
+                // The same details Build Server asks for, because an approval
+                // creates the server on the same terms: a physical server is
+                // refused without its serial, site and position. The site -> rack
+                // cascade reuses the Move server ids so fillRelocateLocations()
+                // drives both.
                 return `
                     <div>
                         <label class="${LABEL}">Server name <span class="text-danger">*</span></label>
                         <input type="text" data-action-field="server_name" maxlength="150" class="${INPUT}" placeholder="e.g. web-prod-04">
                     </div>
-                    <div>
-                        <label class="${LABEL}">Location</label>
-                        <select data-action-field="location" class="${INPUT}" data-location-name-select>
-                            <option value="">Optional</option>
-                        </select>
+                    <label class="flex items-start gap-2 text-sm text-text-secondary cursor-pointer">
+                        <input type="checkbox" id="plNewServerVirtual" class="mt-0.5">
+                        <span>Template only &mdash; no physical machine, so no serial, location or rack</span>
+                    </label>
+                    <div id="plNewServerPhysical" class="space-y-3">
+                        <div>
+                            <label class="${LABEL}">Serial number <span class="text-danger">*</span></label>
+                            <input type="text" data-action-field="serial_number" maxlength="50" class="${INPUT}" placeholder="Printed on the server">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="${LABEL}">Location <span class="text-danger">*</span></label>
+                                <select data-action-field="location_uuid" class="${INPUT}" id="plRelocateLocation">
+                                    <option value="">Loading locations\u2026</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="${LABEL}">Rack <span class="text-danger">*</span></label>
+                                <select data-action-field="rack_uuid" class="${INPUT}" id="plRelocateRack">
+                                    <option value="">Choose a location first</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="${LABEL}">Rack units (U) <span class="text-danger">*</span></label>
+                                <select data-action-field="u_height" class="${INPUT}" id="plNewServerHeight">
+                                    ${[1, 2, 3, 4, 5, 6, 8, 10].map((u) => `<option value="${u}">${u}U</option>`).join('')}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="${LABEL}">Position <span class="text-danger">*</span></label>
+                                <select class="${INPUT}" id="plNewServerPosition" disabled>
+                                    <option value="">Choose a rack first</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                     <div>
                         <label class="${LABEL}">Description</label>
                         <input type="text" data-action-field="description" maxlength="255" class="${INPUT}" placeholder="Optional">
                     </div>
-                    <p class="text-xs text-text-muted">The rack and U position are set when the server is placed in a rack \u2014 ask for a move once it exists.</p>`;
+                    <p class="text-xs text-text-muted">Set the height before picking a position: only free positions are listed. The position is checked again when the request is approved, so a slot taken in the meantime means the request is refused rather than forced.</p>`;
 
             case 'server.config.update':
                 return `
@@ -3735,6 +3852,35 @@ class RequestsManager {
             }
         }
 
+        // A new server carries what Build Server sends: serial, site, and a rack
+        // + start U + height or an enclosure bay. A template carries none of
+        // them -- the backend would otherwise try to place it. The names are
+        // display-only snapshots for the summary; the executor acts on the ids.
+        if (this.actionType === 'server.config.create') {
+            if (document.getElementById('plNewServerVirtual')?.checked) {
+                ['serial_number', 'location_uuid', 'rack_uuid', 'u_height'].forEach((k) => delete payload[k]);
+                payload.is_virtual = true;
+            } else {
+                const locName = document.getElementById('plRelocateLocation')?.selectedOptions?.[0]?.dataset?.name;
+                const rackName = document.getElementById('plRelocateRack')?.selectedOptions?.[0]?.dataset?.name;
+                if (locName) payload.location_name = locName;
+                if (rackName) payload.rack_name = rackName;
+
+                const positionSelect = document.getElementById('plNewServerPosition');
+                const bay = /^bay:(.+):(\d+)$/.exec(positionSelect?.value || '');
+                if (bay) {
+                    payload.enclosure_uuid = bay[1];
+                    payload.slot_index = bay[2];
+                    const encName = positionSelect.selectedOptions?.[0]?.dataset?.name;
+                    if (encName) payload.enclosure_name = encName;
+                    // The enclosure owns the U range, so it decides the height.
+                    delete payload.u_height;
+                } else if (positionSelect?.value) {
+                    payload.start_u = positionSelect.value;
+                }
+            }
+        }
+
         // A handover names a UNIT, so the model select is a stepping stone to
         // the unit list and never part of the payload -- the executor refuses an
         // unexpected parameter outright. The names ride along as display-only
@@ -3883,6 +4029,15 @@ class RequestsManager {
         if (this.actionType === 'server.config.update'
             && (!p.fields || Object.keys(p.fields).length === 0)) {
             problems.push('Change at least one detail');
+        }
+
+        // A physical server is refused at approval without all of these, so
+        // they are asked for now. A template needs only its name.
+        if (this.actionType === 'server.config.create' && !p.is_virtual) {
+            if (!p.serial_number) problems.push('Enter the serial number');
+            if (!p.location_uuid) problems.push('Choose the location');
+            if (!p.rack_uuid) problems.push('Choose the rack');
+            else if (!p.start_u && !p.enclosure_uuid) problems.push('Choose the position');
         }
 
         return problems;

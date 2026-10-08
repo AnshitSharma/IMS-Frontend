@@ -2311,8 +2311,15 @@ class Dashboard {
                 const select = document.getElementById(id);
                 return (select?.selectedOptions[0]?.textContent || '').trim();
             };
-            // The rack option ends in "(10U free of 42U)" -- true when picked, not later.
-            const rack = text('serverRack').replace(/\s*\([^)]*free of[^)]*\)\s*$/, '');
+            // The rack option ends in "(10U free of 42U)" -- true when picked, not
+            // later -- and, for a rack.view user, carries " — <site>" before that.
+            const rack = text('serverRack')
+                .replace(/\s*\([^)]*free of[^)]*\)\s*$/, '')
+                .replace(/ — .*$/, '');
+            // Display-only snapshots for the request's one-line summary.
+            payload.location_name = f.location;
+            payload.rack_name = rack;
+            if (f.bayMatch) payload.enclosure_name = text('rackPosition').replace(/ — bay \d+$/, '');
             lines.push(`Serial: ${f.serialNumber}`);
             lines.push(`Where: ${f.location}, ${rack}, ${text('rackPosition')}`
                 + (f.bayMatch ? '' : ` (${f.uHeight}U)`));
