@@ -700,10 +700,13 @@ function checkExistingToken() {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', function (e) {
-    // Enter key to submit forms
+    // Enter in one of the sign-in form's own fields submits it. Only there: run
+    // for every Enter on the page, this swallowed Enter on the "Forgot?" link
+    // (the reset dialog never opened from the keyboard) and in the reset
+    // dialog's email field (which submitted the sign-in form instead).
     if (e.key === 'Enter' && !e.shiftKey) {
         const activeForm = document.querySelector('.form-container.active form');
-        if (activeForm) {
+        if (activeForm && e.target instanceof HTMLInputElement && activeForm.contains(e.target)) {
             e.preventDefault();
             activeForm.dispatchEvent(new Event('submit'));
         }
