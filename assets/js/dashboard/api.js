@@ -229,11 +229,20 @@ window.api = {
     // need a try/catch around every call. The Requests and Request Types pages
     // each used to carry their own byte-identical fetch-with-refresh-and-retry
     // helper; both now come through here.
+    //
+    // A refusal keeps the API's `code` and `data`. Dropping them left every
+    // `result.data?.errors` branch on the Requests pages dead, so a field error
+    // reached the user as a bare "Failed to create pipeline".
     async requestEnvelope(action, fields = {}) {
         try {
             return await this.request(action, fields);
         } catch (error) {
-            return { success: false, message: error.message || 'Request failed' };
+            return {
+                success: false,
+                message: error.message || 'Request failed',
+                code: error.code ?? null,
+                data: error.data ?? null
+            };
         }
     },
 

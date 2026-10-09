@@ -79,6 +79,12 @@ class RequestsManager {
         // The request a new one is being raised as a PREREQUISITE for, while the
         // create form is open. Set by showCreate(parent), read by submitCreate().
         this.parentContext = null;
+        // submitCreate() in flight. A double-click used to send two creates
+        // and make two requests.
+        this.creating = false;
+        // One idempotency key per opened create form, sent with every submit of
+        // it: a resend of the same form replays the first create server-side.
+        this.createKey = null;
         // The last answer from pipeline-component-location for the action being
         // built. match === false is the only value that warns; null means the
         // system cannot tell (seeders unrun, server unplaced, stock unlocated)
@@ -180,7 +186,7 @@ class RequestsManager {
 
         byId('createPipelineBtn')?.addEventListener('click', () => this.showCreate());
         byId('createFirstPipelineBtn')?.addEventListener('click', () => this.showCreate());
-        byId('refreshPipelinesBtn')?.addEventListener('click', () => this.load());
+        byId('refreshPipelinesBtn')?.addEventListener('click', () => this.refresh());
 
         document.querySelectorAll('.scope-tab').forEach((tab) => {
             tab.addEventListener('click', () => {
@@ -322,6 +328,16 @@ class RequestsManager {
         }
     }
 
+    // The toolbar Refresh: the list AND the request open beside it. Reloading
+    // only the list left the open request describing a state the list had
+    // already moved past — a prerequisite cancelled elsewhere still read
+    // "frozen" until the row was clicked again.
+    refresh() {
+        this.load();
+        const open = !document.getElementById('detailModal')?.classList.contains('hidden');
+        if (open && this.currentDetail?.id) this.openDetail(this.currentDetail.id, { keepView: true });
+    }
+
     // Move the list to a scope and keep the tab strip saying the same thing.
     // Both halves used to live in the click handler, so every other caller that
     // changed this.scope left the highlighted tab lying.
@@ -330,6 +346,7 @@ class RequestsManager {
         this.page = 1;
         document.querySelectorAll('.scope-tab').forEach((t) => {
             t.classList.toggle('active', t.dataset.scope === scope);
+            t.setAttribute('aria-selected', String(t.dataset.scope === scope));
         });
     }
 
@@ -457,9 +474,11 @@ class RequestsManager {
                 if (!one.success) throw new Error(one.message || 'Failed to load');
                 (this.filters.status === 'in_progress' ? open : closed).data = one.data;
             } else {
+                // 'closed' is every terminal status. Asking for 'completed'
+                // left cancelled and rejected requests on no column at all.
                 const [o, c] = await Promise.all([
                     api.requestEnvelope('pipeline-list', { ...base, status: 'in_progress' }),
-                    api.requestEnvelope('pipeline-list', { ...base, status: 'completed', limit: 12 })
+                    api.requestEnvelope('pipeline-list', { ...base, status: 'closed', limit: 12 })
                 ]);
                 if (!o.success) throw new Error(o.message || 'Failed to load');
                 open = o;
@@ -471,7 +490,9 @@ class RequestsManager {
             this.boardClosed = closed.data?.pipelines || [];
             this.boardClosedTotal = closed.data?.total || 0;
             this.firstLoadDone = true;
-            this.setScopeCount(this.total);
+            // The same number List shows for these filters. It used to be the
+            // open total alone, so a Cancelled filter read "All 0" above cards.
+            this.setScopeCount(this.total + this.boardClosedTotal);
             document.getElementById('pipelinesPagination')?.classList.add('hidden');
             this.renderBoard();
         } catch (e) {
@@ -712,6 +733,7 @@ class RequestsManager {
         // z-index, so the detail one has to go before this one appears.
         this.parentContext = parent;
         if (parent) this.closeModal('detailModal');
+        this.createKey = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
         const body = document.getElementById('modalBody');
         document.getElementById('modalTitle').textContent = parent ? 'New Prerequisite Request' : 'New Request';
@@ -4082,6 +4104,7 @@ class RequestsManager {
     }
 
     async submitCreate() {
+        if (this.creating) return;
         const pipeline_template_id = document.getElementById('plType').value;
         const title = document.getElementById('plTitle').value.trim();
         const description = document.getElementById('plDescription').value.trim();
@@ -4106,6 +4129,7 @@ class RequestsManager {
 
         const fields = { pipeline_template_id, title, description, priority, items: JSON.stringify(items) };
         if (target_server_uuid) fields.target_server_uuid = target_server_uuid;
+        if (this.createKey) fields.idempotency_key = this.createKey;
 
         const action = this.collectAction();
         if (action) fields.actions = JSON.stringify([action]);
@@ -4123,6 +4147,11 @@ class RequestsManager {
             utils.showAlert(`Note: this adds a different model from the one #${wanted.ticket_number} needs (${wanted.label}). Raising it anyway.`, 'warning');
         }
 
+        // Locked until the answer is back. Set after the checks above, which
+        // return without sending anything.
+        const button = document.getElementById('plSubmit');
+        this.creating = true;
+        if (button) { button.disabled = true; button.classList.add('opacity-60'); }
         try {
             const result = await api.requestEnvelope('pipeline-create', fields);
             if (!result.success) {
@@ -4179,11 +4208,16 @@ class RequestsManager {
             else if (result.data?.pipeline_id) this.openDetail(result.data.pipeline_id);
         } catch (e) {
             utils.showAlert('Failed to create request: ' + e.message, 'error');
+        } finally {
+            this.creating = false;
+            if (button) { button.disabled = false; button.classList.remove('opacity-60'); }
         }
     }
 
     // ----- Detail + stepper --------------------------------------------------
-    async openDetail(id) {
+    // keepView: a Refresh of the request already open, so the Activity filter
+    // and the scroll position the reader had stay put.
+    async openDetail(id, { keepView = false } = {}) {
         // Two clicks on the same row (or a row clicked while another request is
         // still loading) used to run two pipeline-get calls and render whichever
         // came back last. Only the newest open wins.
@@ -4193,7 +4227,7 @@ class RequestsManager {
             if (seq !== this.detailSeq) return;
             if (!result.success) return utils.showAlert(result.message || 'Failed to load request', 'error');
             this.currentDetail = result.data.pipeline;
-            this.historyFilter = { q: '', action: '', user: '', from: '', to: '' };
+            if (!keepView) this.historyFilter = { q: '', action: '', user: '', from: '', to: '' };
             // Only when there is a gap to name: loading the catalogue is eleven
             // static fetches, and someone merely reading a request should not pay
             // for them. Cached after the first call either way.
@@ -4204,7 +4238,7 @@ class RequestsManager {
             this.renderDetail(this.currentDetail);
             document.getElementById('detailModal').classList.remove('hidden');
             document.getElementById('detailEmpty')?.classList.add('hidden');
-            document.getElementById('detailBody')?.scrollTo?.(0, 0);
+            if (!keepView) document.getElementById('detailBody')?.scrollTo?.(0, 0);
             this.markSelectedRow();
         } catch (e) {
             utils.showAlert('Failed to load request: ' + e.message, 'error');
