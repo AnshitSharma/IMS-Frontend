@@ -124,6 +124,14 @@ class RequestsManager {
             cancel: can('pipeline.cancel'),
             templateManage: can('pipeline.template_manage')
         };
+        // Reject, reassign, cancelling someone else's request, detaching a
+        // prerequisite and approving a step that performs work are admin /
+        // super_admin only in the API, whatever ACL grants say. technician and
+        // manager hold pipeline.cancel/.reassign/.manage, so gating these on
+        // grants alone showed them buttons that always 403'd (role QA, QA-13).
+        this.isApprover = (window.api?.utils?.hasRole)
+            ? window.api.utils.hasRole(['admin', 'super_admin'])
+            : true;
 
         const user = (window.api && window.api.getUser) ? window.api.getUser() : null;
         if (user) {
@@ -627,6 +635,12 @@ class RequestsManager {
         if (!owner || owner.type !== 'role') return false;
         if (this.currentRoleIds.includes(Number(owner.id))) return true;
         const held = this.currentRoleNames.map((n) => String(n).toLowerCase());
+        // An Administrator-owned step is a super_admin's step too: the rule the
+        // backend applies to My queue and to who is notified (role QA, QA-18).
+        if (held.includes('super_admin')
+            && [owner.slug, owner.name].some((k) => ['admin', 'administrator'].includes(String(k || '').toLowerCase()))) {
+            return true;
+        }
         return [owner.slug, owner.name]
             .some((k) => k && held.includes(String(k).toLowerCase()));
     }
@@ -4367,7 +4381,7 @@ class RequestsManager {
                 ${this.prerequisitesBlock(p)}
                 ${items}
                 ${this.renderHistoryBlock(p)}
-                ${(!terminal && (this.perms.cancel || this.perms.manage)) ? `
+                ${(!terminal && this.canCancel(p)) ? `
                     <div class="rqx-d-foot">
                         <button type="button" id="plCancelPipeline" class="rqx-btn rqx-btn-danger">Cancel request</button>
                     </div>` : ''}
@@ -4486,7 +4500,7 @@ class RequestsManager {
                 <button type="button" data-open-request="${b.id}" class="font-mono text-xs font-semibold text-primary hover:underline">#${utils.escapeHtml(b.ticket_number)}</button>
                 <span class="text-xs text-text-secondary">${utils.escapeHtml(b.pipeline_type_name || 'Request')}</span>
                 ${this.statusBadge(b.status)}
-                ${(b.status === 'rejected' && this.perms.manage) ? `
+                ${(b.status === 'rejected' && this.perms.manage && this.isApprover) ? `
                     <button type="button" data-unlink-child="${b.id}"
                         class="px-2 py-0.5 text-xs border border-border rounded text-text-muted hover:bg-surface-hover transition-colors">
                         <i class="fas fa-link-slash mr-1"></i>Detach
@@ -4682,6 +4696,18 @@ class RequestsManager {
      * gate — this only decides whether to show the button. The depth cap is left
      * to the backend, because the full chain is not in this response.
      */
+    /**
+     * Mirrors pipeline-cancel.php: an admin or super admin cancels any request;
+     * anyone else only one they raised, and only until any of its work has run,
+     * because cancelling never undoes work (role QA, QA-13 / QA-15).
+     */
+    canCancel(p) {
+        if (this.isApprover) return this.perms.cancel || this.perms.manage;
+        if (!this.perms.create && !this.perms.manage) return false;
+        if (Number(p.created_by?.id) !== Number(this.currentUserId)) return false;
+        return !(p.actions || []).some((a) => a.status === 'executed');
+    }
+
     canRaisePrerequisite(p) {
         if (['completed', 'cancelled', 'rejected'].includes(p.status)) return false;
         if (!this.perms.create && !this.perms.manage) return false;
@@ -4934,6 +4960,12 @@ class RequestsManager {
             : 'An action';
         const code = failure.error_code
             ? ` <code class="font-mono">${utils.escapeHtml(failure.error_code)}</code>` : '';
+        // The request's own details were refused (a serial another unit holds,
+        // no location, ...). The payload cannot be edited, so approving again
+        // fails the same way — say so instead of "approve again" (role QA, QA-17).
+        const advice = failure.error_code === 'request_data_rejected'
+            ? 'Nothing was changed, but approving again will fail the same way: the problem is in this request\'s own details. Reject it with a reason so the requester can raise a corrected one.'
+            : 'The request is still open and the step is still active. Fix the cause and approve again.';
 
         return `
             <div class="mt-4 flex items-start gap-2 px-4 py-3 rounded-lg border border-danger bg-danger-light">
@@ -4944,7 +4976,7 @@ class RequestsManager {
                         ${where} failed:${code} ${utils.escapeHtml(failure.message || 'no reason given')}
                     </div>
                     <div class="text-xs text-text-muted mt-1">
-                        The request is still open and the step is still active. Fix the cause and approve again.
+                        ${advice}
                     </div>
                 </div>
             </div>`;
@@ -5000,10 +5032,11 @@ class RequestsManager {
         // only honest thing to render is why, and the ways out that DO work.
         // Reject and Cancel stay available deliberately — they are the exits.
         if (pipeline.blocked) {
-            const showReject = (this.perms.act || this.perms.manage)
-                && (this.perms.manage
-                    || (stage.owner && stage.owner.type === 'user' && Number(stage.owner.id) === Number(this.currentUserId))
-                    || (stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId)));
+            const mine = (stage.owner && stage.owner.type === 'user' && Number(stage.owner.id) === Number(this.currentUserId))
+                || (stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId));
+            const heldByOther = stage.claimed_by && Number(stage.claimed_by.id) !== Number(this.currentUserId);
+            const showReject = this.isApprover && (this.perms.act || this.perms.manage)
+                && (mine || (this.perms.manage && !heldByOther));
 
             return `
                 <div class="mt-3 space-y-2" data-stage-actions="${stage.id}">
@@ -5028,15 +5061,27 @@ class RequestsManager {
         const eligible = this.eligibleForStage(stage);
         const needsClaim = stage.owner && stage.owner.type === 'role' && !stage.claimed_by;
         const claimedByMe = stage.claimed_by && Number(stage.claimed_by.id) === Number(this.currentUserId);
+        const claimedByOther = stage.claimed_by && !claimedByMe;
         const ownedByMe = stage.owner && stage.owner.type === 'user' && Number(stage.owner.id) === Number(this.currentUserId);
+        // Only an admin or super admin approves a step that performs work, and
+        // only they may take one (PipelineManager::claimStage / approverRefusal).
+        const canTake = stage.effect_type !== 'execute_request' || this.isApprover;
 
-        const showAccept = needsClaim && eligible && (this.perms.claim || this.perms.manage);
-        const canComplete = this.perms.manage || ownedByMe || claimedByMe;
-        const showComplete = (this.perms.act || this.perms.manage) && canComplete && (!needsClaim || this.perms.manage);
-        const showReassign = this.perms.reassign || this.perms.manage;
+        const showAccept = needsClaim && eligible && (this.perms.claim || this.perms.manage) && canTake;
+        // A claim binds pipeline.manage too (role QA, QA-12); the person a step
+        // is assigned to by name can still act on it.
+        const canComplete = ownedByMe || claimedByMe || (this.perms.manage && !claimedByOther);
+        const showComplete = (this.perms.act || this.perms.manage) && canComplete && (!needsClaim || this.perms.manage) && canTake;
+        const showReject = showComplete && this.isApprover;
+        const showReassign = this.isApprover && (this.perms.reassign || this.perms.manage);
 
         if (!showAccept && !showComplete && !showReassign) {
-            return `<p class="text-xs text-text-muted mt-2 italic">This step is with ${utils.escapeHtml(stage.owner?.name || 'someone else')}.</p>`;
+            const why = claimedByOther
+                ? `This step is claimed by ${utils.escapeHtml(stage.claimed_by.username || 'someone else')}.`
+                : (!canTake
+                    ? 'Only an admin or super admin can approve this step.'
+                    : `This step is with ${utils.escapeHtml(stage.owner?.name || 'someone else')}.`);
+            return `<p class="text-xs text-text-muted mt-2 italic">${why}</p>`;
         }
 
         // Does completing THIS step perform the request's work? Only the step
@@ -5058,10 +5103,10 @@ class RequestsManager {
                 <div class="flex flex-wrap gap-2">
                     ${showAccept ? `<button data-act="claim" data-stage="${stage.id}" class="rqx-btn rqx-btn-primary">Accept step</button>` : ''}
                     ${showComplete ? `<button data-act="complete" data-stage="${stage.id}" ${performs ? `data-performs="${count}"` : ''} class="rqx-btn rqx-btn-primary">${approveLabel}</button>` : ''}
-                    ${showComplete ? `<button data-act="reject-toggle" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger">Reject</button>` : ''}
+                    ${showReject ? `<button data-act="reject-toggle" data-stage="${stage.id}" class="rqx-btn rqx-btn-danger">Reject</button>` : ''}
                     ${showReassign ? `<button data-act="reassign-toggle" data-stage="${stage.id}" class="rqx-btn">Reassign</button>` : ''}
                 </div>
-                ${showComplete ? `
+                ${showReject ? `
                     <div data-reject-form="${stage.id}" class="hidden pt-1">
                         <textarea data-reject-reason="${stage.id}" rows="2" placeholder="Why are you rejecting this? The requester will see it."
                             class="w-full px-3 py-2 text-sm border border-danger rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
