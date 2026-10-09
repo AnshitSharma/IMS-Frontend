@@ -19,6 +19,31 @@ class ToastNotification {
         } else {
             this.container = document.querySelector('.toast-container');
         }
+
+        // Screen readers hear toasts through these two regions, not the visible
+        // stack: polite for most, assertive for errors, and nothing read twice.
+        // A live region has to exist before its text changes or the change is
+        // not announced, so they are made here, once.
+        this.announcers = {
+            polite: this.createAnnouncer('polite'),
+            assertive: this.createAnnouncer('assertive')
+        };
+    }
+
+    createAnnouncer(politeness) {
+        const el = document.createElement('div');
+        el.setAttribute('aria-live', politeness);
+        el.setAttribute('aria-atomic', 'true');
+        el.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;';
+        document.body.appendChild(el);
+        return el;
+    }
+
+    announce(text, assertive) {
+        const region = assertive ? this.announcers.assertive : this.announcers.polite;
+        // Cleared first so the same message twice in a row is still read.
+        region.textContent = '';
+        setTimeout(() => { region.textContent = text; }, 50);
     }
 
     /**
@@ -47,14 +72,14 @@ class ToastNotification {
         const toastHtml = `
             <div class="toast toast-${type}" id="${toastId}">
                 <div class="toast-icon">
-                    <i class="fas ${iconMap[type]}"></i>
+                    <i class="fas ${iconMap[type]}" aria-hidden="true"></i>
                 </div>
                 <div class="toast-content">
                     <div class="toast-title">${titleMap[type]}</div>
                     <div class="toast-message">${this.escapeHtml(message)}</div>
                 </div>
-                <button class="toast-close" onclick="toastNotification.close('${toastId}')">
-                    <i class="fas fa-times"></i>
+                <button type="button" class="toast-close" aria-label="Dismiss notification" onclick="toastNotification.close('${toastId}')">
+                    <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
                 <div class="toast-progress"></div>
             </div>
@@ -63,6 +88,7 @@ class ToastNotification {
         this.container.insertAdjacentHTML('beforeend', toastHtml);
         const toast = document.getElementById(toastId);
         this.toasts.push(toastId);
+        this.announce(`${titleMap[type]}: ${message}`, type === 'error');
 
         // Trigger entrance animation by setting initial state
         toast.style.opacity = '0';

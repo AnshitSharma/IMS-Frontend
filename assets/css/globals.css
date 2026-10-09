@@ -63,7 +63,9 @@
     /* Text colors */
     --color-text-primary: #161A1D;
     --color-text-secondary: #41494F;
-    --color-text-muted: #6E777E;
+    /* #6E777E measured 4.18:1 on surface-main, under AA for body text.
+       This is 4.76:1 there and 5.20:1 on cards. (UI/UX audit F05, 2026-10-10) */
+    --color-text-muted: #656E75;
     --color-text-disabled: #9CA4AB;
     --color-text-inverse: #F8FAFB;
 
@@ -2505,4 +2507,26 @@
 
 [data-theme="dark"] .hover\:bg-danger-light:hover {
   background-color: rgba(220, 38, 38, 0.14);
+}
+
+/* Field validation on signed-in pages (utils.fieldError). Same reds as
+   sign-in's .field-error and refined.css --rf-failed. The border needs
+   !important: page-scoped input rules (.rtx input[type="text"]) outrank a
+   plain attribute selector, and this is a state that has to show. */
+.field-error-msg {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #B91C1C;
+}
+
+[data-theme="dark"] .field-error-msg {
+  color: #F87171;
+}
+
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #DC2626 !important;
 }

@@ -681,7 +681,7 @@ class ACLManager {
 
         const header = `
             <div class="flex items-center justify-between mb-3">
-                <h5 class="text-sm font-semibold text-text-secondary">${utils.escapeHtml(categoryName)}</h5>
+                <h5 class="text-sm font-semibold text-text-secondary">${utils.escapeHtml(this.categoryLabel(categoryName))}</h5>
                 <label class="flex items-center gap-2 text-xs text-text-muted cursor-pointer">
                     <input type="checkbox" class="category-select-all w-4 h-4" data-category="${utils.escapeHtml(categoryName)}">
                     <span>All</span>
@@ -689,14 +689,20 @@ class ACLManager {
             </div>
         `;
 
+        // The key under each name, as the matrix shows it: two permissions can
+        // share a display name, and the key is what tells them apart.
         const permissionsList = permissions.map(perm => `
-            <label class="flex items-center gap-2 py-1 hover:bg-surface-hover px-2 rounded transition-colors cursor-pointer">
+            <label class="flex items-center gap-2 py-1 hover:bg-surface-hover px-2 rounded transition-colors cursor-pointer"
+                   title="${utils.escapeHtml(perm.description || '')}">
                 <input type="checkbox"
                        class="permission-checkbox w-4 h-4"
                        data-permission-id="${perm.id}"
                        data-category="${utils.escapeHtml(categoryName)}"
                        ${selected.includes(perm.id) ? 'checked' : ''}>
-                <span class="text-sm text-text-secondary">${utils.escapeHtml(perm.display_name || perm.name)}</span>
+                <span class="aclx-perm">
+                    <span class="text-sm text-text-secondary">${utils.escapeHtml(perm.display_name || perm.name)}</span>
+                    <code>${utils.escapeHtml(perm.name)}</code>
+                </span>
             </label>
         `).join('');
 
@@ -737,6 +743,28 @@ class ACLManager {
     // Modal Management
     // ======================
 
+    /**
+     * Dialog semantics, focus and Escape for one of this page's modals, via
+     * utils.dialog. Guarded because a cached utils.js can predate it.
+     */
+    bindDialog(modalId, titleId, onEscape, initialFocus) {
+        const panel = document.querySelector(`#${modalId} .modal`);
+        if (!panel || typeof utils.dialog !== 'function') return;
+        // Each open starts clean: a form reset does not fire the input events
+        // that would clear a message left from the last attempt.
+        panel.querySelectorAll('[aria-invalid="true"]').forEach((el) => utils.clearFieldError(el));
+        this._dialogs = this._dialogs || {};
+        this._dialogs[modalId] = utils.dialog(panel, { labelledBy: titleId, onEscape, initialFocus });
+    }
+
+    releaseDialog(modalId) {
+        const release = this._dialogs && this._dialogs[modalId];
+        if (release) {
+            delete this._dialogs[modalId];
+            release();
+        }
+    }
+
     openCreateRoleModal() {
         try {
             this.editMode = false;
@@ -764,6 +792,7 @@ class ACLManager {
 
             if (modal) {
                 modal.classList.remove('hidden');
+                this.bindDialog('roleModal', 'roleModalTitle', () => this.closeAllModals());
                 // Add opacity to make modal visible (CSS has opacity: 0 by default)
                 setTimeout(() => {
                     modal.style.opacity = '1';
@@ -813,6 +842,7 @@ class ACLManager {
 
             if (modal) {
                 modal.classList.remove('hidden');
+                this.bindDialog('roleModal', 'roleModalTitle', () => this.closeAllModals());
                 setTimeout(() => {
                     modal.style.opacity = '1';
                     const modalContent = modal.querySelector('.modal');
@@ -874,6 +904,7 @@ class ACLManager {
 
             if (modal) {
                 modal.classList.remove('hidden');
+                this.bindDialog('roleDetailsModal', 'roleDetailsTitle', () => this.closeAllModals());
                 setTimeout(() => {
                     modal.style.opacity = '1';
                     const modalContent = modal.querySelector('.modal');
@@ -914,6 +945,8 @@ class ACLManager {
     closeAllModals() {
         const roleModal = document.getElementById('roleModal');
         const roleDetailsModal = document.getElementById('roleDetailsModal');
+        this.releaseDialog('roleModal');
+        this.releaseDialog('roleDetailsModal');
 
         [roleModal, roleDetailsModal].forEach(modal => {
             if (modal) {
@@ -946,6 +979,7 @@ class ACLManager {
         this.populateUserRoleDropdown();
 
         modal.classList.remove('hidden');
+        this.bindDialog('createUserModal', 'createUserModalTitle', () => this.closeCreateUserModal());
         setTimeout(() => {
             modal.style.opacity = '1';
             const modalContent = modal.querySelector('.modal');
@@ -959,6 +993,7 @@ class ACLManager {
     closeCreateUserModal() {
         const modal = document.getElementById('createUserModal');
         if (!modal) return;
+        this.releaseDialog('createUserModal');
 
         modal.style.opacity = '0';
         const modalContent = modal.querySelector('.modal');
@@ -1111,6 +1146,7 @@ class ACLManager {
         });
 
         modal.classList.remove('hidden');
+        this.bindDialog('resetPasswordModal', 'resetPasswordModalTitle', () => this.closeResetPasswordModal(), '#resetNewPassword');
         setTimeout(() => {
             modal.style.opacity = '1';
             const modalContent = modal.querySelector('.modal');
@@ -1125,6 +1161,7 @@ class ACLManager {
     closeResetPasswordModal() {
         const modal = document.getElementById('resetPasswordModal');
         if (!modal) return;
+        this.releaseDialog('resetPasswordModal');
 
         modal.style.opacity = '0';
         const modalContent = modal.querySelector('.modal');
@@ -1339,6 +1376,7 @@ class ACLManager {
         // Roles / Users tab switcher
         document.getElementById('tabRolesBtn')?.addEventListener('click', () => this.switchTab('roles'));
         document.getElementById('tabUsersBtn')?.addEventListener('click', () => this.switchTab('users'));
+        if (typeof utils.tabs === 'function') utils.tabs(document.getElementById('tabRolesBtn')?.closest('[role="tablist"]'));
 
         // Users tab refresh
         document.getElementById('refreshUsersBtn')?.addEventListener('click', async () => {
@@ -1646,22 +1684,26 @@ class ACLManager {
         const roleName = document.getElementById('roleName').value.trim();
         const displayName = document.getElementById('roleDisplayName').value.trim();
 
-        if (!roleName) {
-            toast.error('Role Name is required');
-            document.getElementById('roleName').focus();
+        // The toast announces it; the message under the field stays until the
+        // field is edited. A cached utils.js without fieldError still focuses.
+        const invalid = (id, message) => {
+            toast.error(message);
+            const input = document.getElementById(id);
+            if (typeof utils.fieldError === 'function') utils.fieldError(input, message);
+            else input.focus();
             return false;
+        };
+
+        if (!roleName) {
+            return invalid('roleName', 'Enter a role name');
         }
 
         if (!/^[a-z0-9_]+$/.test(roleName.toLowerCase().replace(/\s+/g, '_'))) {
-            toast.error('Role Name must contain only letters, numbers, and underscores');
-            document.getElementById('roleName').focus();
-            return false;
+            return invalid('roleName', 'Role name can only use letters, numbers and underscores');
         }
 
         if (!displayName) {
-            toast.error('Display Name is required');
-            document.getElementById('roleDisplayName').focus();
-            return false;
+            return invalid('roleDisplayName', 'Enter a display name');
         }
 
         if (this.selectedPermissions.size === 0) {

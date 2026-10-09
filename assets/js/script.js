@@ -329,17 +329,42 @@ function setupForgotPassword() {
     link.addEventListener('click', (e) => {
         e.preventDefault();
         modal.classList.remove('hidden');
+        document.getElementById('forgotEmail')?.focus();
     });
 
     [closeBtn, backdrop].forEach(el => {
-        el?.addEventListener('click', () => {
-            modal.classList.add('hidden');
-            form.reset();
-            clearFieldError(document.getElementById('forgotEmail'));
-        });
+        el?.addEventListener('click', closeForgotModal);
+    });
+
+    // The dialog contract the signed-in pages get from utils.dialog (this page
+    // has no utils.js): Escape closes, and Tab stays inside the card.
+    modal.addEventListener('keydown', (e) => {
+        if (modal.classList.contains('hidden')) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeForgotModal();
+        } else if (e.key === 'Tab') {
+            const els = [...modal.querySelectorAll('button, input')].filter(el => !el.disabled && el.offsetParent !== null);
+            if (!els.length) return;
+            const first = els[0];
+            const last = els[els.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
     });
 
     form.addEventListener('submit', handleForgotPassword);
+}
+
+// Hide the reset dialog, clear it, and put focus back on the link that opened it.
+function closeForgotModal() {
+    const modal = document.getElementById('forgotPasswordModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+    modal.classList.add('hidden');
+    document.getElementById('forgotPasswordForm')?.reset();
+    clearFieldError(document.getElementById('forgotEmail'));
+    document.getElementById('forgotPasswordLink')?.focus();
 }
 
 async function handleForgotPassword(e) {
@@ -363,8 +388,7 @@ async function handleForgotPassword(e) {
         const response = await forgotPasswordUser(email);
         // API returns same message regardless of whether email exists (security best practice)
         showAlert('success', response.message || 'If an account with that email exists, a reset link has been sent.', 'fas fa-check-circle');
-        document.getElementById('forgotPasswordModal').classList.add('hidden');
-        document.getElementById('forgotPasswordForm').reset();
+        closeForgotModal();
     } catch (error) {
         console.error('Forgot password error:', error);
         showAlert('error', error.message || 'Network error. Please check your connection and try again.', 'fas fa-exclamation-circle');

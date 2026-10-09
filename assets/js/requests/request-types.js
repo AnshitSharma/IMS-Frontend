@@ -251,8 +251,8 @@ class RequestTypesManager {
 
                 <section class="rtx-card rtx-details" aria-label="Details">
                     <div class="rtx-field">
-                        <label for="typeName">Name</label>
-                        <input type="text" id="typeName" maxlength="120"
+                        <label for="typeName">Name${isSystem ? '' : ' <span class="text-danger">*</span>'}</label>
+                        <input type="text" id="typeName" maxlength="120" ${isSystem ? '' : 'aria-required="true"'}
                             value="${type ? utils.escapeHtml(type.name) : ''}"
                             placeholder="e.g. RAM upgrade" ${isSystem ? 'readonly' : ''}>
                         ${isSystem ? '<span class="rtx-hint">Built-in type. Its name can\'t be changed.</span>' : ''}
@@ -308,17 +308,17 @@ class RequestTypesManager {
                 </div>
             </div>
             <div class="rtx-field">
-                <label>Name</label>
-                <input type="text" class="stage-name" placeholder="e.g. Approval" maxlength="120" value="${stage ? utils.escapeHtml(stage.name) : ''}">
+                <label>Name <span class="text-danger">*</span></label>
+                <input type="text" class="stage-name" placeholder="e.g. Approval" maxlength="120" aria-required="true" value="${stage ? utils.escapeHtml(stage.name) : ''}">
             </div>
             <div class="rtx-field">
-                <span class="rtx-flabel">Owner</span>
+                <span class="rtx-flabel">Owner <span class="text-danger">*</span></span>
                 <div class="rtx-owner">
                     <select class="stage-owner-type" aria-label="Owner kind">
                         <option value="role" ${ownerType === 'role' ? 'selected' : ''}>Team</option>
                         <option value="user" ${ownerType === 'user' ? 'selected' : ''}>Person</option>
                     </select>
-                    <select class="stage-owner-id" aria-label="Owner"></select>
+                    <select class="stage-owner-id" aria-label="Owner" aria-required="true"></select>
                 </div>
             </div>
             <div class="rtx-field">
@@ -562,6 +562,9 @@ class RequestTypesManager {
             if (!name && !assignee_id) continue; // skip fully-empty steps
 
             const stage = { name, assignee_type, assignee_id, instructions };
+            // Which card it came from, so a refusal can point at the field.
+            // Non-enumerable: it must not ride along in JSON.stringify(stages).
+            Object.defineProperty(stage, 'row', { value: row, enumerable: false });
 
             // Round-trip the effect. updateTemplate() re-inserts every step from
             // exactly what is sent here, so omitting these two fields deletes
@@ -583,14 +586,18 @@ class RequestTypesManager {
         const description = document.getElementById('typeDescription').value.trim();
         const stages = this.collectStages();
 
-        if (!name) {
-            document.getElementById('typeName').focus();
-            return utils.showAlert('Name is required', 'error');
-        }
+        // The toast announces it; the message under the field stays until edited.
+        const invalid = (input, message, after) => {
+            utils.showAlert(message, 'error');
+            if (input && typeof utils.fieldError === 'function') utils.fieldError(input, message, { after });
+            else input?.focus();
+        };
+        if (!name) return invalid(document.getElementById('typeName'), 'Enter a name for this request type');
         if (stages.length === 0) return utils.showAlert('Add at least one step', 'error');
         for (let i = 0; i < stages.length; i++) {
-            if (!stages[i].name) return utils.showAlert(`Step ${i + 1}: name is required`, 'error');
-            if (!stages[i].assignee_id) return utils.showAlert(`Step ${i + 1}: choose an owner`, 'error');
+            const row = stages[i].row;
+            if (!stages[i].name) return invalid(row?.querySelector('.stage-name'), `Step ${i + 1}: enter a name`);
+            if (!stages[i].assignee_id) return invalid(row?.querySelector('.stage-owner-id'), `Step ${i + 1}: choose an owner`, row?.querySelector('.rtx-owner'));
         }
 
         const fields = {

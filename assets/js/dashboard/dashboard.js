@@ -4660,11 +4660,6 @@ class Dashboard {
             modal.classList.remove('hidden');
             modal.removeAttribute('hidden');
 
-            const firstInput = modalBody.querySelector('input, select, textarea, button');
-            if (firstInput) {
-                setTimeout(() => firstInput.focus(), 100);
-            }
-
             // Set up close button event listener
             const closeButton = document.getElementById('modalClose');
             if (closeButton) {
@@ -4672,6 +4667,23 @@ class Dashboard {
                 const newCloseButton = closeButton.cloneNode(true);
                 closeButton.parentNode.replaceChild(newCloseButton, closeButton);
                 newCloseButton.addEventListener('click', () => this.closeModal());
+                // Six pages ship this shell with an icon-only close; name it here
+                // once rather than in each page's markup.
+                if (!newCloseButton.hasAttribute('aria-label')) newCloseButton.setAttribute('aria-label', 'Close dialog');
+                newCloseButton.querySelector('i')?.setAttribute('aria-hidden', 'true');
+            }
+
+            // Dialog role and name, focus moved in and kept in, Escape, and
+            // focus back to the opener on close. Guarded: a cached utils.js can
+            // predate utils.dialog, and then the old first-field focus applies.
+            const panel = modal.querySelector('.modal');
+            if (panel && typeof utils.dialog === 'function') {
+                this._modalRelease = utils.dialog(panel, { labelledBy: 'modalTitle', onEscape: () => this.closeModal() });
+            } else {
+                const firstInput = modalBody.querySelector('input, select, textarea, button');
+                if (firstInput) {
+                    setTimeout(() => firstInput.focus(), 100);
+                }
             }
 
             // Set up click outside to close
@@ -4706,6 +4718,11 @@ class Dashboard {
 
     _closeCenteredModal() {
         const modal = document.getElementById('modalContainer');
+        if (this._modalRelease) {
+            const release = this._modalRelease;
+            this._modalRelease = null;
+            release();
+        }
         if (modal) {
             // Remove the outside click event listener
             if (modal._outsideClickHandler) {
@@ -5117,20 +5134,20 @@ class Dashboard {
 
         return `
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Additional phone</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="${prefix}Phone2">Additional phone</label>
                 <input type="tel" id="${prefix}Phone2" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ..." value="${utils.escapeHtml(vendor.phone2 || '')}">
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Address</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="${prefix}Address">Address</label>
                 <textarea id="${prefix}Address" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="2" placeholder="Street, city, state, postal code...">${utils.escapeHtml(vendor.address || '')}</textarea>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Bank details</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="${prefix}BankDetails">Bank details</label>
                 <textarea id="${prefix}BankDetails" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Account name, account number, IFSC, bank...">${utils.escapeHtml(vendor.bank_details || '')}</textarea>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">What they sell</label>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">${sellsCheckboxes}</div>
+                <span class="block text-sm font-medium text-text-secondary mb-2" id="${prefix}SellsLabel">What they sell</span>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-labelledby="${prefix}SellsLabel">${sellsCheckboxes}</div>
             </div>
         `;
     }
@@ -5144,20 +5161,20 @@ class Dashboard {
         const formHtml = `
             <form id="addVendorForm" class="max-w-2xl">
                 <div class="form-group mb-4">
-                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor name</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500" for="vendorName">Vendor name</label>
                     <input type="text" id="vendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="Enter vendor name">
                 </div>
                 <div class="form-group mb-4">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Email</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="vendorEmail">Email</label>
                     <input type="email" id="vendorEmail" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="vendor@example.com">
                 </div>
                 <div class="form-group mb-4">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="vendorPhone">Phone</label>
                     <input type="tel" id="vendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="+91 ...">
                 </div>
                 ${this.renderVendorExtraFields('vendor')}
                 <div class="form-group mb-4">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="vendorNotes">Notes</label>
                     <textarea id="vendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Additional notes..."></textarea>
                 </div>
                 <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
@@ -5218,20 +5235,20 @@ class Dashboard {
                 <form id="editVendorForm" class="max-w-2xl">
                     <input type="hidden" id="editVendorId" value="${vendor.id}">
                     <div class="form-group mb-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Vendor name</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500" for="editVendorName">Vendor name</label>
                         <input type="text" id="editVendorName" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required value="${utils.escapeHtml(vendor.name || '')}">
                     </div>
                     <div class="form-group mb-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Email</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2" for="editVendorEmail">Email</label>
                         <input type="email" id="editVendorEmail" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" value="${utils.escapeHtml(vendor.email || '')}">
                     </div>
                     <div class="form-group mb-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Phone</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2" for="editVendorPhone">Phone</label>
                         <input type="tel" id="editVendorPhone" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" value="${utils.escapeHtml(vendor.phone || '')}">
                     </div>
                     ${this.renderVendorExtraFields('editVendor', vendor)}
                     <div class="form-group mb-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2" for="editVendorNotes">Notes</label>
                         <textarea id="editVendorNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3">${utils.escapeHtml(vendor.notes || '')}</textarea>
                     </div>
                     <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-border">
@@ -5286,9 +5303,11 @@ class Dashboard {
     }
 
     async handleDeleteVendor(vendorId, vendorName) {
-        if (!confirm(`Are you sure you want to delete vendor "${vendorName}"?\n\nComponents linked to this vendor will have their vendor reference cleared.`)) {
-            return;
-        }
+        const confirmed = await utils.confirm(
+            `Delete vendor "${vendorName}"? Components linked to this vendor will have their vendor reference cleared.`,
+            'Delete vendor'
+        );
+        if (!confirmed) return;
         try {
             utils.showLoading(true, 'Deleting vendor...');
             const result = await api.vendors.delete(vendorId);

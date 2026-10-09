@@ -324,30 +324,30 @@ class LocationsManager {
 
         return `
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500">Location name</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2 required after:content-['_*'] after:text-red-500" for="locationName">Location name</label>
                 <input type="text" id="locationName" maxlength="100" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" required placeholder="e.g. Yotta Noida" value="${v('name')}">
                 <p class="text-xs text-text-muted mt-1">Must be unique. Renaming this updates every rack, server and component that reports it.</p>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="locationDescription">Description</label>
                 <input type="text" id="locationDescription" maxlength="255" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="e.g. CtrlS" value="${v('description')}">
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Address</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="locationAddress">Address</label>
                 <input type="text" id="locationAddress" maxlength="255" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Street, city, postcode" value="${v('address')}">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Latitude</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="locationLatitude">Latitude</label>
                     <input type="text" id="locationLatitude" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="28.5523120" value="${v('latitude')}">
                 </div>
                 <div class="form-group">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">Longitude</label>
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="locationLongitude">Longitude</label>
                     <input type="text" id="locationLongitude" class="form-input w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary" placeholder="77.4834370" value="${v('longitude')}">
                 </div>
             </div>
             <div class="form-group mb-4">
-                <label class="block text-sm font-medium text-text-secondary mb-2">Notes</label>
+                <label class="block text-sm font-medium text-text-secondary mb-2" for="locationNotes">Notes</label>
                 <textarea id="locationNotes" class="form-textarea w-full px-4 py-2 border border-border rounded-lg bg-surface-card text-text-primary focus:outline-none focus:ring-2 focus:ring-primary resize-y" rows="3" placeholder="Additional notes...">${l && l.notes ? utils.escapeHtml(l.notes) : ''}</textarea>
             </div>
         `;

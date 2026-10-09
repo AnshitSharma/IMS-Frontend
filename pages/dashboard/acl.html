@@ -316,9 +316,9 @@
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="roleModalTitle" class="text-xl font-semibold text-text-primary">Create New Role</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors"
-                    id="roleModalClose">
-                    <i class="fas fa-times text-xl"></i>
+                <button type="button" class="modal-close text-text-muted hover:text-text-primary transition-colors"
+                    id="roleModalClose" aria-label="Close dialog">
+                    <i class="fas fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -328,7 +328,7 @@
                     <h4 class="text-lg font-semibold text-text-primary mb-4">Role Information</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-text-secondary mb-2">
+                            <label class="block text-sm font-medium text-text-secondary mb-2" for="roleName">
                                 Role Name <span class="text-danger">*</span>
                             </label>
                             <input type="text" id="roleName"
@@ -336,7 +336,7 @@
                                 placeholder="e.g., admin, manager" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-text-secondary mb-2">
+                            <label class="block text-sm font-medium text-text-secondary mb-2" for="roleDisplayName">
                                 Display Name <span class="text-danger">*</span>
                             </label>
                             <input type="text" id="roleDisplayName"
@@ -345,7 +345,7 @@
                         </div>
                     </div>
                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-text-secondary mb-2">Description</label>
+                        <label class="block text-sm font-medium text-text-secondary mb-2" for="roleDescription">Description</label>
                         <textarea id="roleDescription"
                             class="input-field w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary"
                             rows="3" placeholder="Describe the role and its purpose"></textarea>
@@ -408,9 +408,9 @@
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="roleDetailsTitle" class="text-xl font-semibold text-text-primary">Role: Admin Users</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors"
-                    id="roleDetailsClose">
-                    <i class="fas fa-times text-xl"></i>
+                <button type="button" class="modal-close text-text-muted hover:text-text-primary transition-colors"
+                    id="roleDetailsClose" aria-label="Close dialog">
+                    <i class="fas fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -433,7 +433,7 @@
                 <div class="mb-6">
                     <h5 class="text-md font-semibold text-text-secondary mb-3">Assign User to Role</h5>
                     <div class="flex flex-col sm:flex-row gap-3">
-                        <select id="assignUserSelect"
+                        <select id="assignUserSelect" aria-label="User to assign"
                             class="input-field flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-surface-card text-text-primary">
                             <option value="">Select a user...</option>
                         </select>
@@ -481,10 +481,10 @@
     <div id="createUserModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
-                <h3 class="text-xl font-semibold text-text-primary">Create New User</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors"
-                    id="createUserModalClose">
-                    <i class="fas fa-times text-xl"></i>
+                <h3 id="createUserModalTitle" class="text-xl font-semibold text-text-primary">Create New User</h3>
+                <button type="button" class="modal-close text-text-muted hover:text-text-primary transition-colors"
+                    id="createUserModalClose" aria-label="Close dialog">
+                    <i class="fas fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -492,7 +492,7 @@
                 <p class="text-sm text-text-muted">Set the login credentials and access group for a new user. Only administrators can create users.</p>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="newUserUsername">
                         Username <span class="text-danger">*</span>
                     </label>
                     <input type="text" id="newUserUsername" autocomplete="off" minlength="3" maxlength="50"
@@ -501,7 +501,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="newUserEmail">
                         Email <span class="text-danger">*</span>
                     </label>
                     <input type="email" id="newUserEmail" autocomplete="off" maxlength="100"
@@ -510,7 +510,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="newUserRole">
                         Role / Group <span class="text-danger">*</span>
                     </label>
                     <select id="newUserRole"
@@ -521,7 +521,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="newUserPassword">
                         Password <span class="text-danger">*</span>
                     </label>
                     <div class="relative">
@@ -536,7 +536,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="newUserConfirmPassword">
                         Confirm Password <span class="text-danger">*</span>
                     </label>
                     <div class="relative">
@@ -568,10 +568,10 @@
     <div id="resetPasswordModal" class="modal-overlay fixed inset-0 bg-black/50 flex items-center justify-center z-modal hidden">
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
-                <h3 class="text-xl font-semibold text-text-primary">Reset Password</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors"
-                    id="resetPasswordModalClose">
-                    <i class="fas fa-times text-xl"></i>
+                <h3 id="resetPasswordModalTitle" class="text-xl font-semibold text-text-primary">Reset Password</h3>
+                <button type="button" class="modal-close text-text-muted hover:text-text-primary transition-colors"
+                    id="resetPasswordModalClose" aria-label="Close dialog">
+                    <i class="fas fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
 
@@ -586,7 +586,7 @@
 
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <label class="block text-sm font-medium text-text-secondary">
+                        <label class="block text-sm font-medium text-text-secondary" for="resetNewPassword">
                             New Password <span class="text-danger">*</span>
                         </label>
                         <button type="button" id="generatePasswordBtn"
@@ -606,7 +606,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="resetConfirmPassword">
                         Confirm New Password <span class="text-danger">*</span>
                     </label>
                     <div class="relative">
@@ -621,7 +621,7 @@
                 </div>
 
                 <div class="pt-2 border-t border-border">
-                    <label class="block text-sm font-medium text-text-secondary mb-2">
+                    <label class="block text-sm font-medium text-text-secondary mb-2" for="resetAdminPassword">
                         Your Password <span class="text-danger">*</span>
                     </label>
                     <div class="relative">

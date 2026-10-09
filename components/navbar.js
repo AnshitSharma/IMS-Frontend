@@ -69,10 +69,11 @@ const NAVBAR_HTML = `
                     <i class="fas fa-user"></i>
                 </div>
                 <div class="dropdown relative">
-                    <button class="dropdown-btn text-text-secondary hover:text-text-primary">
-                        <i class="fas fa-chevron-down"></i>
+                    <button type="button" class="dropdown-btn text-text-secondary hover:text-text-primary"
+                        aria-label="Account menu" aria-expanded="false" aria-controls="userMenu">
+                        <i class="fas fa-chevron-down" aria-hidden="true"></i>
                     </button>
-                    <div class="dropdown-content um-menu">
+                    <div class="dropdown-content um-menu" id="userMenu">
                         <a href="#" id="changePassword" class="um-item">
                             <i class="fas fa-key" aria-hidden="true"></i> Change password
                         </a>
@@ -152,6 +153,22 @@ class SharedNavbar {
                     dropdown.classList.toggle('active');
                 }
             });
+
+            // Four places open or close the menu by toggling .active; this
+            // keeps the button's announced state in step with all of them.
+            const dropdown = dropdownBtn.closest('.dropdown');
+            if (dropdown) {
+                new MutationObserver(() => {
+                    dropdownBtn.setAttribute('aria-expanded', String(dropdown.classList.contains('active')));
+                }).observe(dropdown, { attributes: true, attributeFilter: ['class'] });
+
+                dropdown.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && dropdown.classList.contains('active')) {
+                        dropdown.classList.remove('active');
+                        dropdownBtn.focus();
+                    }
+                });
+            }
         }
 
         // Close dropdown when clicking outside
@@ -212,14 +229,14 @@ class SharedNavbar {
         overlay.innerHTML = `
             <div class="modal-content" style="max-width: 460px;">
                 <div class="modal-header">
-                    <h3 class="modal-title">Change Password</h3>
-                    <button type="button" class="modal-close" id="navbarChangePasswordClose">&times;</button>
+                    <h3 class="modal-title" id="navbarChangePasswordTitle">Change Password</h3>
+                    <button type="button" class="modal-close" id="navbarChangePasswordClose" aria-label="Close dialog"><span aria-hidden="true">&times;</span></button>
                 </div>
                 <div class="modal-body">
                     <form id="navbarChangePasswordForm">
-                        <div class="form-group"><label class="form-label required">Current Password</label><input type="password" id="navbarCurrentPassword" class="form-input" required></div>
-                        <div class="form-group"><label class="form-label required">New Password</label><input type="password" id="navbarNewPassword" class="form-input" required minlength="8"><div class="form-help">At least 8 characters, with an uppercase letter, a number and a special character.</div></div>
-                        <div class="form-group"><label class="form-label required">Confirm New Password</label><input type="password" id="navbarConfirmPassword" class="form-input" required></div>
+                        <div class="form-group"><label class="form-label required" for="navbarCurrentPassword">Current Password</label><input type="password" id="navbarCurrentPassword" class="form-input" required autocomplete="current-password"></div>
+                        <div class="form-group"><label class="form-label required" for="navbarNewPassword">New Password</label><input type="password" id="navbarNewPassword" class="form-input" required minlength="8" autocomplete="new-password" aria-describedby="navbarNewPasswordHelp"><div class="form-help" id="navbarNewPasswordHelp">At least 8 characters, with an uppercase letter, a number and a special character.</div></div>
+                        <div class="form-group"><label class="form-label required" for="navbarConfirmPassword">Confirm New Password</label><input type="password" id="navbarConfirmPassword" class="form-input" required autocomplete="new-password"></div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
                             <button type="button" class="btn btn-secondary" id="navbarChangePasswordCancel">Cancel</button>
                             <button type="submit" class="btn btn-primary">Change Password</button>
@@ -232,7 +249,17 @@ class SharedNavbar {
         // Next frame so the opacity transition on .active actually runs.
         requestAnimationFrame(() => overlay.classList.add('active'));
 
-        const close = () => overlay.remove();
+        // Opened from inside the account menu, which has just closed; focus goes
+        // back to the menu button rather than to a link that is now hidden.
+        document.querySelector('.dropdown-btn')?.focus();
+        const release = typeof utils !== 'undefined' && typeof utils.dialog === 'function'
+            ? utils.dialog(overlay.querySelector('.modal-content'), {
+                labelledBy: 'navbarChangePasswordTitle',
+                initialFocus: '#navbarCurrentPassword',
+                onEscape: () => close()
+            })
+            : () => {};
+        const close = () => { release(); overlay.remove(); };
         overlay.querySelector('#navbarChangePasswordClose').addEventListener('click', close);
         overlay.querySelector('#navbarChangePasswordCancel').addEventListener('click', close);
         overlay.addEventListener('click', (e) => {
@@ -243,8 +270,6 @@ class SharedNavbar {
             e.preventDefault();
             await this.submitChangePassword(close);
         });
-
-        setTimeout(() => overlay.querySelector('#navbarCurrentPassword').focus(), 100);
     }
 
     /**

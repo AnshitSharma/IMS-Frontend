@@ -153,8 +153,8 @@
             <div class="flex-1">
                 <p class="alert-text text-sm text-text-primary font-medium"></p>
             </div>
-            <button onclick="closeAlert()" class="text-text-muted hover:text-text-primary transition-colors">
-                <i class="fas fa-times"></i>
+            <button type="button" onclick="closeAlert()" class="text-text-muted hover:text-text-primary transition-colors" aria-label="Dismiss message">
+                <i class="fas fa-times" aria-hidden="true"></i>
             </button>
         </div>
     </div>
@@ -164,11 +164,12 @@
         <!-- Backdrop -->
         <div id="forgotModalBackdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
         <!-- Card -->
-        <div class="relative bg-surface-card rounded-lg border border-border-light p-8 w-full max-w-md mx-4 shadow-modal">
-            <button id="closeForgotModal" class="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors" aria-label="Close">
-                <i class="fas fa-times text-lg"></i>
+        <div class="relative bg-surface-card rounded-lg border border-border-light p-8 w-full max-w-md mx-4 shadow-modal"
+            role="dialog" aria-modal="true" aria-labelledby="forgotModalTitle">
+            <button type="button" id="closeForgotModal" class="absolute top-4 right-4 text-text-muted hover:text-text-primary transition-colors" aria-label="Close dialog">
+                <i class="fas fa-times text-lg" aria-hidden="true"></i>
             </button>
-            <h2 class="text-xl font-semibold text-text-primary mb-1 tracking-tight">Reset password</h2>
+            <h2 id="forgotModalTitle" class="text-xl font-semibold text-text-primary mb-1 tracking-tight">Reset password</h2>
             <p class="text-text-muted text-sm mb-6">Enter your email and we'll send a reset link.</p>
             <form id="forgotPasswordForm" novalidate>
                 <div class="space-y-1.5 mb-5">

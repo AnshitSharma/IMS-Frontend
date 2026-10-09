@@ -128,6 +128,10 @@
         .rqx-detail { position: relative; }
         .rqx-detail-bar { display: none; }
         #detailBody { padding: 24px; }
+        .rqx-outside {
+            margin: 20px 24px 0; padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+            background: var(--color-surface-secondary); color: var(--color-text-secondary);
+        }
         .rqx-backdrop { display: none; }
 
         /* Board view, and any screen too narrow for two columns: the request
@@ -168,6 +172,7 @@
             }
             .rqx-detail:not(.hidden) ~ .rqx-backdrop { display: block; position: fixed; inset: 0; z-index: 1800; background: rgba(15, 20, 24, .32); }
             #detailBody { padding: 20px 16px; }
+            .rqx-outside { margin: 16px 16px 0; }
         }
 
         /* ---- the request itself ---- */
@@ -329,6 +334,7 @@
                                         <i class="fas fa-times" aria-hidden="true"></i>
                                     </button>
                                 </div>
+                                <p id="detailOutside" class="rqx-outside hidden">This request isn't in the current list.</p>
                                 <div id="detailBody"></div>
                             </div>
                             <div class="rqx-backdrop" id="detailBackdrop"></div>
@@ -355,8 +361,8 @@
         <div class="modal bg-surface-card rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[92vh] overflow-hidden">
             <div class="modal-header flex items-center justify-between px-6 py-4 border-b border-border">
                 <h3 id="modalTitle" class="text-xl font-semibold text-text-primary">New Request</h3>
-                <button class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose">
-                    <i class="fas fa-times text-xl"></i>
+                <button type="button" class="modal-close text-text-muted hover:text-text-primary transition-colors" id="modalClose" aria-label="Close dialog">
+                    <i class="fas fa-times text-xl" aria-hidden="true"></i>
                 </button>
             </div>
             <div class="modal-body overflow-y-auto px-6 py-4 max-h-[calc(92vh-120px)]" id="modalBody"></div>

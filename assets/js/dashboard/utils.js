@@ -145,10 +145,10 @@ window.utils = {
             modal.innerHTML = `
                 <div class="modal-content max-w-md mx-4">
                     <div class="modal-header">
-                        <h3 class="text-xl font-semibold text-text-primary">${this.escapeHtml(title)}</h3>
+                        <h3 class="text-xl font-semibold text-text-primary" id="${modalId}_title">${this.escapeHtml(title)}</h3>
                     </div>
                     <div class="modal-body">
-                        <p class="mb-6 text-text-secondary leading-relaxed">${this.escapeHtml(message)}</p>
+                        <p class="mb-6 text-text-secondary leading-relaxed" id="${modalId}_message">${this.escapeHtml(message)}</p>
                         <div class="flex gap-3 justify-end">
                             <button class="btn-secondary" id="${modalId}_cancel">Cancel</button>
                             <button class="btn-danger" id="${modalId}_confirm">Confirm</button>
@@ -158,6 +158,17 @@ window.utils = {
             `;
 
             document.body.appendChild(modal);
+
+            // Cancel takes first focus: Enter on a confirm that just appeared
+            // should not be the thing that deletes.
+            const panel = modal.querySelector('.modal-content');
+            panel.setAttribute('aria-describedby', `${modalId}_message`);
+            const release = this.dialog(panel, {
+                role: 'alertdialog',
+                labelledBy: `${modalId}_title`,
+                initialFocus: `#${modalId}_cancel`,
+                onEscape: () => handleCancel()
+            });
 
             // Trigger animation
             setTimeout(() => {
@@ -170,6 +181,7 @@ window.utils = {
             }, 10);
 
             const handleConfirm = () => {
+                release();
                 modal.style.opacity = '0';
                 const content = modal.querySelector('.modal-content');
                 if (content) {
@@ -183,6 +195,7 @@ window.utils = {
             };
 
             const handleCancel = () => {
+                release();
                 modal.style.opacity = '0';
                 const content = modal.querySelector('.modal-content');
                 if (content) {
@@ -202,16 +215,178 @@ window.utils = {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) handleCancel();
             });
-
-            // Close on Escape key
-            const handleKeyDown = (e) => {
-                if (e.key === 'Escape') {
-                    handleCancel();
-                    document.removeEventListener('keydown', handleKeyDown);
-                }
-            };
-            document.addEventListener('keydown', handleKeyDown);
         });
+    },
+
+    /**
+     * Give a modal that is now on screen the dialog contract: role and name,
+     * focus moved inside, Tab kept inside, Escape, and focus handed back to
+     * whatever opened it. The component drawer (dashboard.js openDrawer) was
+     * the one modal that did all of this; this is that behaviour, shared.
+     *
+     * Dialogs stack: only the topmost one answers keys, so a confirm opened
+     * over a form owns Escape until it closes.
+     *
+     * @param {HTMLElement} panel  The visible box, not the dimmed backdrop.
+     * @param {Object} [opts]
+     * @param {string} [opts.labelledBy]  id of the visible title.
+     * @param {string} [opts.label]  Name to use when there is no title element.
+     * @param {Function} [opts.onEscape]  Escape handler. Omit to leave Escape
+     *     to the page (Requests already has its own).
+     * @param {HTMLElement|string} [opts.initialFocus]  Default: the first
+     *     editable field, else the first control, else the panel.
+     * @param {string} [opts.role]  'dialog' (default) or 'alertdialog'.
+     * @returns {Function} release(restoreFocus = true). Call it on close.
+     */
+    dialog(panel, opts = {}) {
+        if (!panel) return () => {};
+        // Re-binding a dialog that is still open (its content swapped in place)
+        // keeps the original opener; focus is inside the dialog by then.
+        const rebinding = typeof panel._dialogRelease === 'function';
+        const opener = rebinding ? panel._dialogOpener : document.activeElement;
+        if (rebinding) panel._dialogRelease(false);
+        panel._dialogOpener = opener;
+        panel.setAttribute('role', opts.role || 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+        if (opts.labelledBy) panel.setAttribute('aria-labelledby', opts.labelledBy);
+        else if (opts.label) panel.setAttribute('aria-label', opts.label);
+        if (!panel.hasAttribute('tabindex')) panel.setAttribute('tabindex', '-1');
+
+        const stack = utils._dialogStack || (utils._dialogStack = []);
+        stack.push(panel);
+
+        const focusable = () => [...panel.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+            .filter((el) => !el.disabled && el.type !== 'hidden' && el.offsetParent !== null);
+
+        const onKey = (e) => {
+            // A dialog hidden or removed without its release (some path that
+            // bypassed the page's close function) lets go here, rather than
+            // trapping Tab on something nobody can see.
+            if (!panel.isConnected || !panel.getClientRects().length) { release(false); return; }
+            if (stack[stack.length - 1] !== panel) return;
+            if (e.key === 'Escape' && typeof opts.onEscape === 'function') {
+                e.preventDefault();
+                opts.onEscape();
+            } else if (e.key === 'Tab') {
+                const els = focusable();
+                if (!els.length) { e.preventDefault(); panel.focus(); return; }
+                const first = els[0];
+                const last = els[els.length - 1];
+                const inside = panel.contains(document.activeElement);
+                if (e.shiftKey && (!inside || document.activeElement === first || document.activeElement === panel)) {
+                    e.preventDefault(); last.focus();
+                } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+                    e.preventDefault(); first.focus();
+                }
+            }
+        };
+        // Capture phase, so the topmost dialog sees the key before any page-wide
+        // Escape handler; one that checks e.defaultPrevented then leaves it be.
+        document.addEventListener('keydown', onKey, true);
+
+        let released = false;
+        // The open animations run on opacity, which does not block focus, but
+        // a caller may unhide the panel in the same tick; wait one frame.
+        setTimeout(() => {
+            if (released) return;
+            let target = typeof opts.initialFocus === 'string' ? panel.querySelector(opts.initialFocus) : opts.initialFocus;
+            if (!target) {
+                const els = focusable();
+                target = els.find((el) => /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && !el.readOnly && el.type !== 'checkbox')
+                    || els.find((el) => !el.classList.contains('modal-close')) || els[0] || panel;
+            }
+            target.focus();
+        }, 30);
+
+        const release = (restoreFocus = true) => {
+            if (released) return;
+            released = true;
+            document.removeEventListener('keydown', onKey, true);
+            const i = stack.indexOf(panel);
+            if (i !== -1) stack.splice(i, 1);
+            delete panel._dialogRelease;
+            // Take back what was added: the Requests detail is a dialog only
+            // while it is a sheet, and plain page content otherwise.
+            panel.removeAttribute('aria-modal');
+            if (panel.getAttribute('role') === (opts.role || 'dialog')) panel.removeAttribute('role');
+            if (restoreFocus && opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
+        };
+        panel._dialogRelease = release;
+        return release;
+    },
+
+    /**
+     * Show a persistent error under a field and tie it to the field, the way
+     * sign-in does (script.js setFieldError): aria-invalid, aria-describedby,
+     * focus, and gone as soon as the field is edited. The toast still fires;
+     * this is the part that stays put and is announced with the field.
+     *
+     * @param {HTMLElement} input
+     * @param {string} message
+     * @param {Object} [opts]
+     * @param {HTMLElement} [opts.after]  Where the message goes. Default: after
+     *     the input, or after its wrapper when that holds a reveal button.
+     * @param {boolean} [opts.focus=true]
+     */
+    fieldError(input, message, opts = {}) {
+        if (!input) return;
+        this.clearFieldError(input);
+        if (!input.id) input.id = `fld-${Math.random().toString(36).slice(2, 9)}`;
+
+        const msg = document.createElement('p');
+        msg.className = 'field-error-msg';
+        msg.id = `${input.id}-error`;
+        msg.textContent = message;
+
+        const wrapped = input.parentElement && input.parentElement.classList.contains('relative');
+        const anchor = opts.after || (wrapped ? input.parentElement : input);
+        anchor.insertAdjacentElement('afterend', msg);
+
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', msg.id);
+        const clear = () => this.clearFieldError(input);
+        input.addEventListener('input', clear, { once: true });
+        input.addEventListener('change', clear, { once: true });
+        if (opts.focus !== false) input.focus();
+    },
+
+    clearFieldError(input) {
+        if (!input || input.getAttribute('aria-invalid') !== 'true') return;
+        const id = input.getAttribute('aria-describedby');
+        if (id) document.getElementById(id)?.remove();
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
+    },
+
+    /**
+     * Arrow-key movement for a role="tablist": Left/Right (and Home/End) move
+     * focus between tabs, and only the selected tab sits in the Tab order.
+     * Activation stays manual — Enter/Space on the focused tab, which is a
+     * button — because switching tabs loads data on the Requests page.
+     * Page code keeps owning aria-selected; this follows it.
+     */
+    tabs(tablist) {
+        if (!tablist || tablist.dataset.tabsBound === '1') return;
+        tablist.dataset.tabsBound = '1';
+        const all = () => [...tablist.querySelectorAll('[role="tab"]')];
+        const usable = () => all().filter((t) => !t.disabled && t.offsetParent !== null);
+        const sync = () => {
+            const tabs = all();
+            const selected = tabs.find((t) => t.getAttribute('aria-selected') === 'true') || usable()[0];
+            tabs.forEach((t) => { t.tabIndex = t === selected ? 0 : -1; });
+        };
+        tablist.addEventListener('keydown', (e) => {
+            const tabs = usable();
+            const i = tabs.indexOf(document.activeElement);
+            if (i === -1) return;
+            const next = { ArrowRight: tabs[(i + 1) % tabs.length], ArrowLeft: tabs[(i - 1 + tabs.length) % tabs.length],
+                Home: tabs[0], End: tabs[tabs.length - 1] }[e.key];
+            if (!next) return;
+            e.preventDefault();
+            next.focus();
+        });
+        new MutationObserver(sync).observe(tablist, { subtree: true, attributes: true, attributeFilter: ['aria-selected'] });
+        sync();
     },
 
     // Storage helpers

@@ -263,13 +263,13 @@ class SidebarManager {
 
         // Close sidebar when clicking overlay
         mobileOverlay.addEventListener('click', () => {
-            this.closeSidebar();
+            this.closeSidebar(true);
         });
 
         // Close sidebar on close button click
         if (closeSidebarBtn) {
             closeSidebarBtn.addEventListener('click', () => {
-                this.closeSidebar();
+                this.closeSidebar(true);
             });
         }
 
@@ -278,11 +278,15 @@ class SidebarManager {
             document.addEventListener('keydown', (e) => {
                 const sidebarEl = document.querySelector('.sidebar');
                 if (e.key === 'Escape' && sidebarEl && sidebarEl.classList.contains('active')) {
-                    this.closeSidebar();
+                    this.closeSidebar(true);
                 }
             });
             this.escKeyListenerAdded = true;
         }
+
+        // Crossing the lg breakpoint docks or undocks the sidebar.
+        window.matchMedia('(min-width: 1024px)').addEventListener('change', () => this.syncSidebarA11y());
+        this.syncSidebarA11y();
 
         // Attach menu link listeners (new DOM elements after sidebar load)
         this.attachMenuLinkListeners();
@@ -334,12 +338,37 @@ class SidebarManager {
 
         // Prevent body scroll when sidebar is open
         document.body.style.overflow = isActive ? 'hidden' : '';
+
+        this.syncSidebarA11y();
+        if (isActive) document.getElementById('closeSidebarBtn')?.focus();
+    }
+
+    /**
+     * Below lg the closed sidebar sits off-canvas, but its links stayed in the
+     * Tab order and the accessibility tree. `inert` takes them out while it is
+     * closed; at lg and up the sidebar is always on screen and never inert.
+     */
+    syncSidebarA11y() {
+        const sidebar = document.querySelector('.sidebar');
+        if (!sidebar) return;
+        const docked = window.matchMedia('(min-width: 1024px)').matches;
+        const open = sidebar.classList.contains('active');
+        sidebar.inert = !docked && !open;
+
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        if (hamburgerBtn) {
+            if (!sidebar.id) sidebar.id = 'appSidebar';
+            hamburgerBtn.setAttribute('aria-controls', sidebar.id);
+            hamburgerBtn.setAttribute('aria-expanded', String(open));
+        }
     }
 
     /**
      * Close sidebar
+     * @param {boolean} returnFocus  Put focus back on the menu button. For the
+     *     keyboard and pointer dismissals; not for a resize or a link click.
      */
-    closeSidebar() {
+    closeSidebar(returnFocus = false) {
         const sidebar = document.querySelector('.sidebar');
         const mobileOverlay = document.getElementById('mobileOverlay');
         const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -357,6 +386,8 @@ class SidebarManager {
         if (hamburgerBtn) hamburgerBtn.classList.remove('active');
 
         document.body.style.overflow = '';
+        this.syncSidebarA11y();
+        if (returnFocus && hamburgerBtn) hamburgerBtn.focus();
     }
 
     /**

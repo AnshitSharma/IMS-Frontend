@@ -205,6 +205,7 @@ class RequestsManager {
                 this.load();
             });
         });
+        if (typeof utils.tabs === 'function') utils.tabs(byId('scopeTabs'));
 
         const debounce = (fn, ms) => {
             let t;
@@ -250,7 +251,8 @@ class RequestsManager {
         // Escape closes the topmost open modal. A click on the backdrop already
         // did this; the keyboard had no way out of a request at all.
         document.addEventListener('keydown', (e) => {
-            if (e.key !== 'Escape') return;
+            // A confirm open on top (utils.dialog) has already taken this Escape.
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
             const open = ['modalContainer', 'detailModal']
                 .filter((id) => !byId(id)?.classList.contains('hidden'));
             if (!open.length) return;
@@ -258,6 +260,9 @@ class RequestsManager {
             // inside one, so close it first.
             this.closeModal(open.includes('modalContainer') ? 'modalContainer' : 'detailModal');
         });
+
+        // Crossing 1024px turns the open request from a pane into a sheet, or back.
+        window.matchMedia('(min-width: 1024px)').addEventListener('change', () => this.syncDetailDialog());
     }
 
     async loadSupportData() {
@@ -401,9 +406,13 @@ class RequestsManager {
         if (this.scope === 'my_queue') {
             list.innerHTML = group('Waiting on you', this.pipelines);
         } else {
+            // Finished requests are not moving anywhere; they get their own
+            // group, as they get their own column on the board.
+            const closed = (p) => ['completed', 'cancelled', 'rejected'].includes(p.status);
             const mine = this.pipelines.filter((p) => this.waitingOnMe(p));
-            const rest = this.pipelines.filter((p) => !this.waitingOnMe(p));
-            list.innerHTML = group('Waiting on you', mine) + group('Moving elsewhere', rest);
+            const rest = this.pipelines.filter((p) => !this.waitingOnMe(p) && !closed(p));
+            const done = this.pipelines.filter(closed);
+            list.innerHTML = group('Waiting on you', mine) + group('Moving elsewhere', rest) + group('Closed', done);
         }
 
         this.bindOpeners(list);
@@ -458,6 +467,7 @@ class RequestsManager {
         document.querySelectorAll('#viewToggle button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === this.view)));
         // Switching view while a request is open keeps it open, in the shape the
         // new view gives it (pane or sheet).
+        this.syncDetailDialog();
     }
 
     /**
@@ -580,9 +590,15 @@ class RequestsManager {
     markSelectedRow() {
         const open = !document.getElementById('detailModal')?.classList.contains('hidden');
         const id = open && this.currentDetail ? String(this.currentDetail.id) : null;
+        let listed = false;
         document.querySelectorAll('[data-pipeline-id]').forEach((el) => {
-            el.classList.toggle('is-selected', el.dataset.pipelineId === id);
+            const hit = el.dataset.pipelineId === id;
+            el.classList.toggle('is-selected', hit);
+            listed = listed || hit;
         });
+        // The open request is kept when the filters change (it may hold a half-
+        // typed note), but it must not pass for one of the results.
+        document.getElementById('detailOutside')?.classList.toggle('hidden', !id || listed);
     }
 
     // A step is waiting on me when it is assigned to me, to one of my teams, or
@@ -886,6 +902,11 @@ class RequestsManager {
             </div>`;
 
         document.getElementById('modalContainer').classList.remove('hidden');
+        // Escape stays with this page's own handler (it knows which of its two
+        // modals is on top); utils.dialog adds the role, focus and Tab trap.
+        if (typeof utils.dialog === 'function') {
+            this._createRelease = utils.dialog(document.querySelector('#modalContainer .modal'), { labelledBy: 'modalTitle' });
+        }
         this.titleTouched = false;
         // The action ceiling of the chosen request type, and which of its actions
         // this request is building. A type usually allows exactly one.
@@ -3395,8 +3416,8 @@ class RequestsManager {
     async createFromForm() {
         const pipeline_template_id = document.getElementById('plType').value;
         const title = document.getElementById('plTitle').value.trim();
-        if (!pipeline_template_id) { utils.showAlert('Choose a request type', 'error'); return null; }
-        if (!title) { utils.showAlert('Title is required', 'error'); return null; }
+        if (!pipeline_template_id) return this.fieldInvalid('plType', 'Choose a request type');
+        if (!title) return this.fieldInvalid('plTitle', 'Enter a title');
 
         const problems = this.actionProblems();
         if (problems.length) {
@@ -4126,8 +4147,8 @@ class RequestsManager {
         const target_server_uuid = this.selectedServerUuid();
         const items = this.collectComponentItems();
 
-        if (!pipeline_template_id) return utils.showAlert('Choose a request type', 'error');
-        if (!title) return utils.showAlert('Title is required', 'error');
+        if (!pipeline_template_id) return this.fieldInvalid('plType', 'Choose a request type');
+        if (!title) return this.fieldInvalid('plTitle', 'Enter a title');
 
         // A half-filled action would be refused by the backend anyway — it
         // shape-checks every action and dry-runs the command-backed ones — but
@@ -4254,6 +4275,7 @@ class RequestsManager {
             document.getElementById('detailEmpty')?.classList.add('hidden');
             if (!keepView) document.getElementById('detailBody')?.scrollTo?.(0, 0);
             this.markSelectedRow();
+            this.syncDetailDialog();
         } catch (e) {
             utils.showAlert('Failed to load request: ' + e.message, 'error');
         }
@@ -4412,16 +4434,16 @@ class RequestsManager {
         // A single entry is nothing to sift through; the bar would be clutter.
         const bar = entries.length > 1 ? `
             <div class="flex flex-wrap items-center gap-2 mb-2">
-                <input id="plHistorySearch" type="search" placeholder="Search activity..." value="${utils.escapeHtml(f.q)}"
+                <input id="plHistorySearch" type="search" placeholder="Search activity..." aria-label="Search activity" value="${utils.escapeHtml(f.q)}"
                     class="flex-1 min-w-0 ${inputCls}">
-                <select id="plHistoryAction" class="${inputCls}">
-                    ${opt('', 'All events', f.action)}${actions.map((a) => opt(a, a.replace(/_/g, ' '), f.action)).join('')}
+                <select id="plHistoryAction" aria-label="Event" class="${inputCls}">
+                    ${opt('', 'All events', f.action)}${actions.map((a) => opt(a, this.eventLabel(a), f.action)).join('')}
                 </select>
-                <select id="plHistoryUser" class="${inputCls}">
+                <select id="plHistoryUser" aria-label="Person" class="${inputCls}">
                     ${opt('', 'Anyone', f.user)}${users.map((u) => opt(u, u, f.user)).join('')}
                 </select>
-                <input id="plHistoryFrom" type="date" title="From date" value="${utils.escapeHtml(f.from)}" class="${inputCls}">
-                <input id="plHistoryTo" type="date" title="To date" value="${utils.escapeHtml(f.to)}" class="${inputCls}">
+                <input id="plHistoryFrom" type="date" title="From date" aria-label="From date" value="${utils.escapeHtml(f.from)}" class="${inputCls}">
+                <input id="plHistoryTo" type="date" title="To date" aria-label="To date" value="${utils.escapeHtml(f.to)}" class="${inputCls}">
             </div>` : '';
 
         return `
@@ -4448,7 +4470,8 @@ class RequestsManager {
         if (f.to && day > f.to) return false;
 
         if (f.q) {
-            const hay = `${h.action || ''} ${h.notes || ''} ${h.changed_by || ''} ${h.old_value || ''} ${h.new_value || ''}`
+            // The words on screen are searchable as well as the stored ones.
+            const hay = `${h.action || ''} ${this.eventLabel(h.action)} ${h.notes || ''} ${this.noteText(h.notes)} ${h.changed_by || ''} ${h.old_value || ''} ${h.new_value || ''}`
                 .replace(/_/g, ' ').toLowerCase();
             if (!hay.includes(f.q)) return false;
         }
@@ -4462,10 +4485,9 @@ class RequestsManager {
         const entries = (this.currentDetail && this.currentDetail.history) || [];
         const shown = entries.filter((h) => this.historyMatches(h));
 
-        const what = (a) => { const t = (a || '').replace(/_/g, ' '); return t.charAt(0).toUpperCase() + t.slice(1); };
         list.innerHTML = shown.length ? shown.map((h) => `<li class="rqx-act">
             <time>${utils.escapeHtml(this.fmtDate(h.created_at))}</time>
-            <span class="rqx-act-what">${utils.escapeHtml(what(h.action))}${h.notes ? ` · ${utils.escapeHtml(h.notes)}` : ''} <span class="rqx-act-who">· ${utils.escapeHtml(h.changed_by || 'system')}</span></span>
+            <span class="rqx-act-what">${utils.escapeHtml(this.eventLabel(h.action))}${h.notes ? ` · ${utils.escapeHtml(this.noteText(h.notes))}` : ''} <span class="rqx-act-who">· ${utils.escapeHtml(h.changed_by || 'system')}</span></span>
         </li>`).join('') : '<li class="text-xs text-text-muted">No activity matches these filters.</li>';
 
         const count = document.getElementById('plHistoryCount');
@@ -5622,9 +5644,15 @@ class RequestsManager {
 
     closeModal(id) {
         document.getElementById(id)?.classList.add('hidden');
+        if (id === 'modalContainer' && this._createRelease) {
+            const release = this._createRelease;
+            this._createRelease = null;
+            release();
+        }
         if (id === 'detailModal') {
             document.getElementById('detailEmpty')?.classList.remove('hidden');
             this.markSelectedRow();
+            this.syncDetailDialog();
         }
     }
 
@@ -5658,10 +5686,86 @@ class RequestsManager {
         if (!dateString) return '';
         const d = new Date(dateString.replace(' ', 'T') + 'Z');
         if (isNaN(d.getTime())) return dateString;
-        return d.toLocaleDateString('en-US', {
+        // Activity Log's convention: day month year, 24-hour ("9 Oct 2026, 21:56").
+        // History is read months later; a date without its year is ambiguous.
+        return d.toLocaleString('en-GB', {
             timeZone: 'Asia/Kolkata',
-            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
         });
+    }
+
+    /**
+     * History is written by the engine in its own words (pipeline_created,
+     * "Stage 'Approval' activated"). The page says Requests and Steps, so both
+     * the event name and the engine's own sentence are reworded for display.
+     * Stored history is never rewritten, and a note's user-typed part (after
+     * "Completed stage 'X': ") is left exactly as typed.
+     */
+    eventLabel(action) {
+        const known = {
+            pipeline_created: 'Request created',
+            pipeline_completed: 'Request completed',
+            pipeline_cancelled: 'Request cancelled',
+            pipeline_rejected: 'Request rejected',
+            stage_activated: 'Step started',
+            stage_claimed: 'Step accepted',
+            stage_completed: 'Step completed',
+            stage_reassigned: 'Step reassigned',
+            stock_pending: 'Waiting on stock',
+            parent_linked: 'Raised as a prerequisite',
+            parent_unlinked: 'No longer a prerequisite',
+            child_requested: 'Prerequisite raised',
+            child_unlinked: 'Prerequisite detached',
+            execution_failed: 'Approval rolled back',
+            actions_executed: 'Actions performed'
+        };
+        if (known[action]) return known[action];
+        const t = String(action || '').replace(/_/g, ' ').replace(/\bpipeline\b/g, 'request').replace(/\bstage\b/g, 'step');
+        return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+
+    noteText(note) {
+        return String(note || '')
+            .replace(/^Pipeline started from type '/, "Request started from type '")
+            .replace(/^Stage '(.*)' activated$/, "Step '$1' started")
+            .replace(/^Claimed stage '/, "Accepted step '")
+            .replace(/^Completed stage '/, "Completed step '")
+            .replace(/^Reassigned stage '/, "Reassigned step '")
+            .replace(/^All stages completed — pipeline closed$/, 'All steps complete — request closed')
+            .replace(/^Final stage completed — pipeline closed/, 'Final step complete — request closed')
+            .replace(/^Pipeline cancelled$/, 'Request cancelled');
+    }
+
+    /** A create-form refusal: the toast, plus the message held under the field. */
+    fieldInvalid(id, message) {
+        utils.showAlert(message, 'error');
+        const input = document.getElementById(id);
+        if (input && typeof utils.fieldError === 'function') utils.fieldError(input, message);
+        else input?.focus();
+        return null;
+    }
+
+    /**
+     * The open request is a pane beside the list on wide screens, and a sheet
+     * over the page in board view or below 1024px. Only the sheet is a dialog.
+     * The CSS shows #detailBackdrop exactly when it is a sheet, so that is the
+     * test, rather than a second copy of the breakpoint and view rules.
+     */
+    syncDetailDialog() {
+        const panel = document.getElementById('detailModal');
+        const backdrop = document.getElementById('detailBackdrop');
+        if (!panel || typeof utils.dialog !== 'function') return;
+        const open = !panel.classList.contains('hidden');
+        const sheet = open && !!backdrop && getComputedStyle(backdrop).display !== 'none';
+        if (sheet && !this._detailRelease) {
+            this._detailRelease = utils.dialog(panel, { labelledBy: 'detailTitle', initialFocus: '#detailClose' });
+        } else if (!sheet && this._detailRelease) {
+            const release = this._detailRelease;
+            this._detailRelease = null;
+            // Closed: focus goes back to the row or card that opened it. Turned
+            // into a pane by a resize: it is still open, so focus stays put.
+            release(!open);
+        }
     }
 }
 
