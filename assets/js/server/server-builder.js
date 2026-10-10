@@ -176,6 +176,8 @@ class ServerBuilder {
                 // result.data = { configuration: {...}, components: {...}, ... }
                 const configData = result.data.configuration || result.data;
                 this.currentConfig = configData;
+                // The engine's verdict on the build as it is now; checkCompatibility() renders it.
+                this.validation = result.data.validation || null;
 
                 // Compatibility Bench build (Server Compatibility section). The backend
                 // guarantees such a config is also is_virtual, so it reserves nothing and
@@ -500,6 +502,45 @@ class ServerBuilder {
                     group: 'required_components'
                 });
             }
+        });
+
+        this.addEngineFindings();
+    }
+
+    /**
+     * The backend's verdict on this build, from get-config's `validation` block.
+     *
+     * QA-11 (2026-10-10): this method used to raise only missing required types, so
+     * a build the engine called invalid (four M.2 drives, no M.2 slot) showed "all
+     * components are compatible". Blocking findings ('critical' = ERROR, 'high' =
+     * fails validate/finalize) are compatibility issues and turn the banner; advisory
+     * ones ('info') are listed as warnings. system.required_set is left out when the
+     * check above already named the missing parts, so they are not listed twice.
+     */
+    addEngineFindings() {
+        const findings = this.validation?.warnings;
+        if (!Array.isArray(findings)) return;
+
+        const missingRaised = this.compatibilityIssues.some(issue => issue.type === 'missing_component');
+        const groupFor = { memory: 'memory', storage: 'storage', system: 'compatibility' };
+        const componentFor = { cpu: 'cpu', memory: 'ram', storage: 'storage', net: 'nic' };
+
+        findings.forEach(finding => {
+            if (finding.type === 'system.required_set' && missingRaised) return;
+
+            const family = String(finding.type || '').split('.')[0];
+            const blocking = finding.severity === 'critical' || finding.severity === 'high';
+            const issue = {
+                severity: blocking ? 'critical' : 'warning',
+                type: finding.type,
+                icon: blocking ? 'fas fa-exclamation-triangle' : 'fas fa-exclamation-circle',
+                title: finding.message,
+                message: finding.message,
+                recommendation: finding.recommendation || null,
+                componentType: componentFor[family],
+                group: finding.type === 'system.psu_capacity' ? 'power' : (groupFor[family] || 'compatibility')
+            };
+            (blocking ? this.compatibilityIssues : this.performanceWarnings).push(issue);
         });
     }
 
@@ -2402,7 +2443,7 @@ class ServerBuilder {
                                     ${allIssues.map(issue => `
                                         <div class="warning-item ${issue.severity}">
                                             <i class="${issue.icon}"></i>
-                                            <span class="warning-text">${issue.message}</span>
+                                            <span class="warning-text">${utils.escapeHtml(issue.message)}</span>
                                             ${issue.action ? `
                                                 <button class="btn-fix" onclick="window.serverBuilder.fixIssueAndProceed('${issue.action.actionType}')">
                                                     <i class="fas fa-wrench"></i>
@@ -3645,8 +3686,9 @@ class ServerBuilder {
                     <i class="${iconClass}"></i>
                 </div>
                 <div class="issue-content">
-                    <div class="issue-title">${issue.title || issue.message}</div>
-                    <div class="issue-message">${issue.message}</div>
+                    <div class="issue-title">${utils.escapeHtml(issue.title || issue.message)}</div>
+                    ${issue.message !== issue.title ? `<div class="issue-message">${utils.escapeHtml(issue.message)}</div>` : ''}
+                    ${issue.recommendation ? `<div class="issue-message">${utils.escapeHtml(issue.recommendation)}</div>` : ''}
                 </div>
                 <div class="issue-actions">
                     ${issue.action ? `<button class="issue-action-btn" onclick="event.stopPropagation(); window.serverBuilder.addComponent('${issue.action.actionType}')"><i class="fas fa-plus mr-1"></i>${issue.action.text}</button>` : ''}
