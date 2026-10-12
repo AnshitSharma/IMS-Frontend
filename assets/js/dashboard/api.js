@@ -1221,10 +1221,6 @@ window.api = {
 
         async setPreferences(prefs) {
             return await api.request('notification-set-preferences', prefs);
-        },
-
-        async sendTest() {
-            return await api.request('notification-test');
         }
     },
 

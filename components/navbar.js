@@ -51,7 +51,6 @@ const NAVBAR_HTML = `
                             <span>Also send to</span>
                             <label id="notifEmailLabel"><input type="checkbox" id="notifEmailToggle"> Email</label>
                             <label id="notifTeamsLabel"><input type="checkbox" id="notifTeamsToggle"> Teams</label>
-                            <button type="button" id="notifSendTest" class="notif-link-btn hidden">Send test</button>
                         </div>
                     </div>
                 </div>
@@ -449,12 +448,6 @@ class NotificationBell {
         this.el('notifMarkAll').addEventListener('click', () => this.markAllRead());
         this.el('notifEmailToggle').addEventListener('change', (e) => this.savePref('email_enabled', e.target));
         this.el('notifTeamsToggle').addEventListener('change', (e) => this.savePref('teams_enabled', e.target));
-
-        const testBtn = this.el('notifSendTest');
-        if (api.utils?.hasPermission('notification.manage')) {
-            testBtn.classList.remove('hidden');
-            testBtn.addEventListener('click', () => this.sendTest(testBtn));
-        }
     }
 
     isOpen() {
@@ -830,31 +823,6 @@ class NotificationBell {
             input.checked = !wanted;
             input.disabled = false;
             toast.error(error.message || "Couldn't save your notification preference");
-        }
-    }
-
-    async sendTest(btn) {
-        btn.disabled = true;
-        try {
-            const result = await api.notifications.sendTest();
-            const d = result.data || {};
-            const email = d.email?.sent
-                ? `Email: sent (${d.email.transport === 'graph' ? 'Microsoft 365' : 'server mail'})`
-                : `Email: failed — ${d.email?.error || 'unknown error'}`;
-            const teams = !d.teams?.configured
-                ? "Teams: isn't set up yet"
-                : (d.teams.sent ? 'Teams: sent' : `Teams: failed — ${d.teams.error || 'unknown error'}`);
-            const message = `Test notification sent. ${email}. ${teams}.`;
-            if (d.email?.sent && d.teams?.sent) {
-                toast.success(message);
-            } else {
-                toast.warning(message);
-            }
-            this.loadList();
-        } catch (error) {
-            toast.error(error.message || "Couldn't send the test notification");
-        } finally {
-            btn.disabled = false;
         }
     }
 
