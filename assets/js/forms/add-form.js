@@ -2250,13 +2250,19 @@ class AddComponentForm {
         const label = type.toUpperCase();
         const serial = formData.SerialNumber ? ` (${formData.SerialNumber})` : '';
 
-        return await api.requests.submitAction('inventory.component.add', {
+        // Kept across a failed submit, so a resend after a lost response replays
+        // the request already made; dropped once one is made.
+        this.requestKey = this.requestKey || api.requests.newKey();
+        const result = await api.requests.submitAction('inventory.component.add', {
             component_type: type,
             data: data
         }, {
             title: `Add ${label}${serial} to inventory`,
-            description: 'Raised from the Add Component form because I cannot add inventory records directly.'
+            description: 'Raised from the Add Component form because I cannot add inventory records directly.',
+            idempotencyKey: this.requestKey
         });
+        this.requestKey = null;
+        return result;
     }
 
     async submitComponent(formData) {

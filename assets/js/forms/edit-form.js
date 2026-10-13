@@ -449,6 +449,9 @@ class EditFormComponent {
             // Without the permission, the same form becomes a request for the
             // work. The requester is not given edit access; an admin approves
             // and the system applies exactly these fields on their behalf.
+            // Its key survives a failed submit, so a resend after a lost
+            // response replays the request already made.
+            if (!this.canEditDirectly) this.requestKey = this.requestKey || api.requests.newKey();
             const result = this.canEditDirectly
                 ? await window.api.components.update(this.componentType, this.componentId, data)
                 : await api.requests.submitAction('inventory.component.edit', {
@@ -457,10 +460,12 @@ class EditFormComponent {
                     data: data
                 }, {
                     title: `Update ${this.componentType.toUpperCase()} inventory record #${this.componentId}`,
-                    description: 'Raised from the Edit Component form because I cannot edit inventory records directly.'
+                    description: 'Raised from the Edit Component form because I cannot edit inventory records directly.',
+                    idempotencyKey: this.requestKey
                 });
 
             if (result.success) {
+                this.requestKey = null;
                 // Say which of the two things actually happened. "Saved" on a
                 // request would claim a change that has not been made and may
                 // yet be rejected.

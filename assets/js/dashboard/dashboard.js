@@ -1947,6 +1947,8 @@ class Dashboard {
         // Without server.create the same form raises a New Server request; an
         // admin approves it and the server is created and placed for them.
         const asRequest = !api.utils.hasPermission('server.create');
+        // One key per opening of the form: a resend after a lost response makes one request.
+        this.serverRequestKey = asRequest ? api.requests.newKey() : null;
         const formContent = `
         <form id="createServerForm" class="max-w-lg mx-auto">
             <!-- Header Section with Icon -->
@@ -2330,7 +2332,8 @@ class Dashboard {
             utils.showLoading(true, 'Submitting request...');
             const result = await api.requests.submitAction('server.config.create', payload, {
                 title: `New server "${f.serverName}"`,
-                description: lines.join('\n')
+                description: lines.join('\n'),
+                idempotencyKey: this.serverRequestKey
             });
             const ref = result?.data?.ticket_number ? `Request ${result.data.ticket_number}` : 'Request';
             toast.success(`${ref} submitted. The server will be created once an admin approves it.`, 8000);

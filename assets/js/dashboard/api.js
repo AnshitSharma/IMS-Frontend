@@ -625,11 +625,20 @@ window.api = {
         },
 
         /**
+         * A new idempotency key. Take one per opened form and send it with every
+         * submit of that form, so a resend after a lost response replays the
+         * request pipeline-create already made instead of making a second one.
+         */
+        newKey() {
+            return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        },
+
+        /**
          * Submit one action as a request.
          *
          * @param {string} actionType  a RequestActionExecutor registry key
          * @param {object} payload     that action's parameters
-         * @param {object} meta        { title, description, priority, target_server_uuid }
+         * @param {object} meta        { title, description, priority, target_server_uuid, idempotencyKey }
          */
         async submitAction(actionType, payload, meta = {}) {
             const type = await this.typeForAction(actionType);
@@ -648,6 +657,9 @@ window.api = {
             };
             if (meta.target_server_uuid) {
                 fields.target_server_uuid = meta.target_server_uuid;
+            }
+            if (meta.idempotencyKey) {
+                fields.idempotency_key = meta.idempotencyKey;
             }
 
             return await api.request('pipeline-create', fields);
