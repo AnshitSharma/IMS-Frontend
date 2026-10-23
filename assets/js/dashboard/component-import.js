@@ -26,7 +26,7 @@ const IMPORT_TEMPLATE_ROWS = 1000;
 const IMPORT_MAX_FILE_BYTES = 10 * 1024 * 1024;
 const IMPORT_EXAMPLE_NOTE = 'Example row from the sample file. Delete this row before importing.';
 // Same list as the Add form's ADD_FORM_SERIAL_REQUIRED_TYPES.
-const IMPORT_SERIAL_REQUIRED = ['storage', 'sfp'];
+const IMPORT_SERIAL_REQUIRED = ['sfp'];
 const IMPORT_FLAGS = ['Backup', 'Critical', 'Maintenance', 'Testing', 'Production'];
 const IMPORT_STATUSES = ['Available', 'Failed'];
 const IMPORT_SHOWN_PROBLEMS = 200;

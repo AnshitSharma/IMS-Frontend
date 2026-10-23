@@ -23,7 +23,7 @@ const ADD_FORM_COMPONENT_TYPES = [
 // Types whose units are always identified by their manufacturer serial, so the
 // Serial Number field is mandatory for them. Every other type keeps it optional
 // (a blank serial is stored as null — see collectFormData).
-const ADD_FORM_SERIAL_REQUIRED_TYPES = ['storage', 'sfp'];
+const ADD_FORM_SERIAL_REQUIRED_TYPES = ['sfp'];
 
 // Bulk add. {type}-bulk-add takes at most 100 units per call, so a bigger batch
 // goes out in chunks of this size. The per-line ceiling only guards against a
